@@ -1,10 +1,11 @@
+
+#ifndef _COMM_CUH
+#define _COMM_CUH
+
 #include <cstdio>
 #include <cstdlib>
 #include <cassert>
 #include <type_traits>
-
-#ifndef _COMM_CUH
-#define _COMM_CUH
 
 #include "memory.cuh"
 #include "for_all.cuh"
@@ -12,20 +13,18 @@
 
 struct CommBuffers
 {
-  Allocator& m_corner;
-  Allocator& m_edge;
   Allocator& m_face;
+  Allocator& m_edge;
+  Allocator& m_corner;
 
   bool m_allocated;
 
-  DataT* corner_imin_jmin_kmin;
-  DataT* corner_imax_jmin_kmin;
-  DataT* corner_imin_jmax_kmin;
-  DataT* corner_imax_jmax_kmin;
-  DataT* corner_imin_jmin_kmax;
-  DataT* corner_imax_jmin_kmax;
-  DataT* corner_imin_jmax_kmax;
-  DataT* corner_imax_jmax_kmax;
+  DataT* face_i_j_kmin;
+  DataT* face_i_j_kmax;
+  DataT* face_i_jmin_k;
+  DataT* face_i_jmax_k;
+  DataT* face_imin_j_k;
+  DataT* face_imax_j_k;
 
   DataT* edge_i_jmin_kmin;
   DataT* edge_i_jmax_kmin;
@@ -40,17 +39,19 @@ struct CommBuffers
   DataT* edge_imin_jmax_k;
   DataT* edge_imax_jmax_k;
 
-  DataT* face_i_j_kmin;
-  DataT* face_i_j_kmax;
-  DataT* face_i_jmin_k;
-  DataT* face_i_jmax_k;
-  DataT* face_imin_j_k;
-  DataT* face_imax_j_k;
+  DataT* corner_imin_jmin_kmin;
+  DataT* corner_imax_jmin_kmin;
+  DataT* corner_imin_jmax_kmin;
+  DataT* corner_imax_jmax_kmin;
+  DataT* corner_imin_jmin_kmax;
+  DataT* corner_imax_jmin_kmax;
+  DataT* corner_imin_jmax_kmax;
+  DataT* corner_imax_jmax_kmax;
 
-  CommBuffers(Allocator& corner, Allocator& edge, Allocator& face)
-    : m_corner(corner)
+  CommBuffers(Allocator& face, Allocator& edge, Allocator& corner)
+    : m_face(face)
     , m_edge(edge)
-    , m_face(face)
+    , m_corner(corner)
     , m_allocated(false)
   {
 
@@ -58,16 +59,14 @@ struct CommBuffers
 
   void allocate(MeshInfo const& mesh)
   {
-    if (m_allocated) deallocate();
+    if (m_allocated) { deallocate(); }
     //printf("allocateing buffers\n"); fflush(stdout);
-    corner_imin_jmin_kmin = (DataT*)m_corner.allocate(1*sizeof(DataT));
-    corner_imax_jmin_kmin = (DataT*)m_corner.allocate(1*sizeof(DataT));
-    corner_imin_jmax_kmin = (DataT*)m_corner.allocate(1*sizeof(DataT));
-    corner_imax_jmax_kmin = (DataT*)m_corner.allocate(1*sizeof(DataT));
-    corner_imin_jmin_kmax = (DataT*)m_corner.allocate(1*sizeof(DataT));
-    corner_imax_jmin_kmax = (DataT*)m_corner.allocate(1*sizeof(DataT));
-    corner_imin_jmax_kmax = (DataT*)m_corner.allocate(1*sizeof(DataT));
-    corner_imax_jmax_kmax = (DataT*)m_corner.allocate(1*sizeof(DataT));
+    face_i_j_kmin = (DataT*)m_face.allocate(mesh.ijsize*sizeof(DataT)); 
+    face_i_j_kmax = (DataT*)m_face.allocate(mesh.ijsize*sizeof(DataT)); 
+    face_i_jmin_k = (DataT*)m_face.allocate(mesh.iksize*sizeof(DataT)); 
+    face_i_jmax_k = (DataT*)m_face.allocate(mesh.iksize*sizeof(DataT)); 
+    face_imin_j_k = (DataT*)m_face.allocate(mesh.jksize*sizeof(DataT)); 
+    face_imax_j_k = (DataT*)m_face.allocate(mesh.jksize*sizeof(DataT));
     edge_i_jmin_kmin = (DataT*)m_edge.allocate(mesh.isize*sizeof(DataT)); 
     edge_i_jmax_kmin = (DataT*)m_edge.allocate(mesh.isize*sizeof(DataT)); 
     edge_i_jmin_kmax = (DataT*)m_edge.allocate(mesh.isize*sizeof(DataT)); 
@@ -80,12 +79,14 @@ struct CommBuffers
     edge_imax_jmin_k = (DataT*)m_edge.allocate(mesh.ksize*sizeof(DataT)); 
     edge_imin_jmax_k = (DataT*)m_edge.allocate(mesh.ksize*sizeof(DataT));
     edge_imax_jmax_k = (DataT*)m_edge.allocate(mesh.ksize*sizeof(DataT));
-    face_i_j_kmin = (DataT*)m_edge.allocate(mesh.ijsize*sizeof(DataT)); 
-    face_i_j_kmax = (DataT*)m_edge.allocate(mesh.ijsize*sizeof(DataT)); 
-    face_i_jmin_k = (DataT*)m_edge.allocate(mesh.iksize*sizeof(DataT)); 
-    face_i_jmax_k = (DataT*)m_edge.allocate(mesh.iksize*sizeof(DataT)); 
-    face_imin_j_k = (DataT*)m_edge.allocate(mesh.jksize*sizeof(DataT)); 
-    face_imax_j_k = (DataT*)m_edge.allocate(mesh.jksize*sizeof(DataT));
+    corner_imin_jmin_kmin = (DataT*)m_corner.allocate(1*sizeof(DataT));
+    corner_imax_jmin_kmin = (DataT*)m_corner.allocate(1*sizeof(DataT));
+    corner_imin_jmax_kmin = (DataT*)m_corner.allocate(1*sizeof(DataT));
+    corner_imax_jmax_kmin = (DataT*)m_corner.allocate(1*sizeof(DataT));
+    corner_imin_jmin_kmax = (DataT*)m_corner.allocate(1*sizeof(DataT));
+    corner_imax_jmin_kmax = (DataT*)m_corner.allocate(1*sizeof(DataT));
+    corner_imin_jmax_kmax = (DataT*)m_corner.allocate(1*sizeof(DataT));
+    corner_imax_jmax_kmax = (DataT*)m_corner.allocate(1*sizeof(DataT));
     m_allocated = true;
   }
 
@@ -93,14 +94,12 @@ struct CommBuffers
   {
     if (m_allocated) {
       //printf("deallocating buffers\n"); fflush(stdout);
-      m_corner.deallocate(corner_imin_jmin_kmin);
-      m_corner.deallocate(corner_imax_jmin_kmin);
-      m_corner.deallocate(corner_imin_jmax_kmin);
-      m_corner.deallocate(corner_imax_jmax_kmin);
-      m_corner.deallocate(corner_imin_jmin_kmax);
-      m_corner.deallocate(corner_imax_jmin_kmax);
-      m_corner.deallocate(corner_imin_jmax_kmax);
-      m_corner.deallocate(corner_imax_jmax_kmax);
+      m_face.deallocate(face_i_j_kmin); 
+      m_face.deallocate(face_i_j_kmax); 
+      m_face.deallocate(face_i_jmin_k); 
+      m_face.deallocate(face_i_jmax_k); 
+      m_face.deallocate(face_imin_j_k); 
+      m_face.deallocate(face_imax_j_k);
       m_edge.deallocate(edge_i_jmin_kmin); 
       m_edge.deallocate(edge_i_jmax_kmin); 
       m_edge.deallocate(edge_i_jmin_kmax); 
@@ -113,12 +112,14 @@ struct CommBuffers
       m_edge.deallocate(edge_imax_jmin_k); 
       m_edge.deallocate(edge_imin_jmax_k); 
       m_edge.deallocate(edge_imax_jmax_k); 
-      m_face.deallocate(face_i_j_kmin); 
-      m_face.deallocate(face_i_j_kmax); 
-      m_face.deallocate(face_i_jmin_k); 
-      m_face.deallocate(face_i_jmax_k); 
-      m_face.deallocate(face_imin_j_k); 
-      m_face.deallocate(face_imax_j_k);
+      m_corner.deallocate(corner_imin_jmin_kmin);
+      m_corner.deallocate(corner_imax_jmin_kmin);
+      m_corner.deallocate(corner_imin_jmax_kmin);
+      m_corner.deallocate(corner_imax_jmax_kmin);
+      m_corner.deallocate(corner_imin_jmin_kmax);
+      m_corner.deallocate(corner_imax_jmin_kmax);
+      m_corner.deallocate(corner_imin_jmax_kmax);
+      m_corner.deallocate(corner_imax_jmax_kmax);
       m_allocated = false;
     }
   }
@@ -236,22 +237,15 @@ void unpack_corner( policy const& pol, DataT* data, DataT* buffer, indexer&& idx
 template < typename policy_corner, typename policy_edge, typename policy_face >
 struct Comm
 {
-  Allocator& m_corner_alloc;
-  Allocator& m_edge_alloc;
-  Allocator& m_face_alloc;
-
   MeshData& m_meshdata;
 
   CommBuffers m_send;
   CommBuffers m_recv;
 
-  Comm(MeshData& meshdata, Allocator& corner_alloc, Allocator& edge_alloc, Allocator& face_alloc)
-    : m_corner_alloc(corner_alloc)
-    , m_edge_alloc(edge_alloc)
-    , m_face_alloc(face_alloc)
-    , m_meshdata(meshdata)
-    , m_send(m_corner_alloc, m_edge_alloc, m_face_alloc)
-    , m_recv(m_corner_alloc, m_edge_alloc, m_face_alloc)
+  Comm(MeshData& meshdata, Allocator& face_aloc, Allocator& edge_aloc, Allocator& corner_aloc)
+    : m_meshdata(meshdata)
+    , m_send(face_aloc, edge_aloc, corner_aloc)
+    , m_recv(face_aloc, edge_aloc, corner_aloc)
   {
 
   }

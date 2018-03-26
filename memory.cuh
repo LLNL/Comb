@@ -1,3 +1,7 @@
+
+#ifndef _MEMORY_CUH
+#define _MEMORY_CUH
+
 #include <cstdio>
 #include <cstdlib>
 
@@ -5,16 +9,13 @@
 
 #include <basic_mempool.hpp>
 
-#ifndef _MEMORY_CUH
-#define _MEMORY_CUH
-
 #define HOST __host__
 #define DEVICE __device__
 
 #define cudaCheck(...) \
   if (__VA_ARGS__ != cudaSuccess) { \
-    fprintf(stderr, "Error performaing " #__VA_ARGS__ " %s:%i\n", __FILE__, __LINE__); fflush(stderr); \
-    assert(0); \
+    fprintf(stderr, "Error performing " #__VA_ARGS__ " %s:%i\n", __FILE__, __LINE__); fflush(stderr); \
+    /* assert(0); */ \
     MPI_Abort(MPI_COMM_WORLD, 1); \
   }
 

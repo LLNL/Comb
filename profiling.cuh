@@ -1,3 +1,7 @@
+
+#ifndef _PROFILING_CUH
+#define _PROFILING_CUH
+
 #include <cstdio>
 #include <cstdlib>
 #include <chrono>
@@ -6,9 +10,6 @@
 #include <nvToolsExt.h>
 #include <nvToolsExtCuda.h>
 #include <mpi.h>
-
-#ifndef _PROFILING_CUH
-#define _PROFILING_CUH
 
 struct Timer {
 

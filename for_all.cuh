@@ -1,3 +1,7 @@
+
+#ifndef _FOR_ALL_CUH
+#define _FOR_ALL_CUH
+
 #include <cstdio>
 #include <cstdlib>
 
@@ -7,12 +11,20 @@
 
 #include <cuda.h>
 
-#ifndef _FOR_ALL_CUH
-#define _FOR_ALL_CUH
+#include "memory.cuh"
 
-struct seq_pol { static const bool async = false; };
-struct omp_pol { static const bool async = false; };
-struct cuda_pol { static const bool async = true; };
+struct seq_pol {
+  static const bool async = false;
+  static constexpr const char* name = "seq";
+};
+struct omp_pol {
+  static const bool async = false;
+  static constexpr const char* name = "omp";
+};
+struct cuda_pol {
+  static const bool async = true;
+  static constexpr const char* name = "cuda";
+};
 
 template < typename body_type >
 void for_all(seq_pol const&, IdxT begin, IdxT end, body_type&& body)

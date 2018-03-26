@@ -2,7 +2,7 @@
 .PHONY: opt all clean debug
 
 CXX=nvcc -ccbin mpixlC -Xcompiler -qmaxmem=-1 -I. -lnvToolsExt
-# CXX=nvcc -ccbin mpiclang++ -I. -lnvToolsExt
+#CXX=nvcc -ccbin mpiclang++ -I. -lnvToolsExt
 CXX_OPT_FLAGS=-std=c++14 -O2 -g -lineinfo -arch=sm_70 --expt-extended-lambda -Xcompiler '-O2 -g'
 CXX_DEBUG_FLAGS=-std=c++14 -O0 -g -G -arch=sm_70 --expt-extended-lambda -Xcompiler '-O0 -g'
 
