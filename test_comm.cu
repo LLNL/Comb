@@ -134,6 +134,9 @@ void do_cycles(MeshInfo& mesh, IdxT ncycles, Allocator& aloc_mesh, Allocator& al
 
       if (pol_corner::async || pol_edge::async || pol_face::async) {cudaCheck(cudaDeviceSynchronize());}
       
+      tm.stop();
+      r2.stop();
+
 /*      for_all_3d(pol_loop{}, 0, klen,
                             0, jlen,
                             0, ilen,
@@ -153,19 +156,18 @@ void do_cycles(MeshInfo& mesh, IdxT ncycles, Allocator& aloc_mesh, Allocator& al
       });
 */
 
+      r2.start("wait-recv", Range::pink);
+      tm.start("wait-recv");
+
+      comm.waitRecv();
+
+      if (pol_corner::async || pol_edge::async || pol_face::async) {cudaCheck(cudaDeviceSynchronize());}
+
       tm.stop();
       r2.restart("wait-send", Range::pink);
       tm.start("wait-send");
 
       comm.waitSend();
-
-      if (pol_corner::async || pol_edge::async || pol_face::async) {cudaCheck(cudaDeviceSynchronize());}
-
-      tm.stop();
-      r2.restart("wait-recv", Range::pink);
-      tm.start("wait-recv");
-
-      comm.waitRecv();
 
       tm.stop();
       r2.restart("post-comm", Range::red);
