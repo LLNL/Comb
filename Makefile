@@ -6,7 +6,7 @@ CXX=nvcc -ccbin mpixlC -Xcompiler -qmaxmem=-1 -I. -lnvToolsExt
 CXX_OPT_FLAGS=-std=c++14 -O2 -g -lineinfo -arch=sm_70 --expt-extended-lambda -Xcompiler '-O2 -g'
 CXX_DEBUG_FLAGS=-std=c++14 -O0 -g -G -arch=sm_70 --expt-extended-lambda -Xcompiler '-O0 -g'
 
-DEPS=basic_mempool.hpp align.hpp mutex.hpp
+DEPS=basic_mempool.hpp align.hpp mutex.hpp memory.cuh for_all.cuh profiling.cuh mesh.cuh comm.cuh
 OBJ_OPT=test_comm_o.o
 OBJ_DEBUG=test_comm_g.o
 
