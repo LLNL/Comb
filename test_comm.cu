@@ -8,6 +8,7 @@
 #include "profiling.cuh"
 #include "mesh.cuh"
 #include "comm.cuh"
+#include <vector>
 
 namespace detail {
 
@@ -64,7 +65,7 @@ namespace detail {
 } // namespace detail
 
 template < typename pol_loop, typename pol_face, typename pol_edge, typename pol_corner >
-void do_cycles(MeshInfo& mesh, IdxT ncycles, Allocator& aloc_mesh, Allocator& aloc_face, Allocator& aloc_edge, Allocator& aloc_corner, Timer& tm)
+void do_cycles(MeshInfo& info, IdxT num_vars, IdxT ncycles, Allocator& aloc_mesh, Allocator& aloc_face, Allocator& aloc_edge, Allocator& aloc_corner, Timer& tm)
 {
     tm.clear();
 
@@ -76,23 +77,26 @@ void do_cycles(MeshInfo& mesh, IdxT ncycles, Allocator& aloc_mesh, Allocator& al
 
     tm.start("start-up");
 
-    MeshData var(mesh, aloc_mesh);
+    std::vector<MeshData> vars;
+    vars.reserve(num_vars);
+    
     Comm<pol_face, pol_edge, pol_corner> comm(aloc_face, aloc_edge, aloc_corner);
 
-    {
-      var.allocate();
+    for (IdxT i = 0; i < num_vars; ++i) {
+    
+      vars.push_back(MeshData(info, aloc_mesh));
       
-      DataT* data = var.data();
-      IdxT ijklen = mesh.ijklen;
+      vars[i].allocate();
+      
+      DataT* data = vars[i].data();
+      IdxT ijklen = info.ijklen;
 
       for_all(pol_loop{}, 0, ijklen,
                           detail::set_n1(data));
 
+      comm.add_var(vars[i]);
+      
       synchronize(pol_loop{});
-    }
-    
-    {
-      comm.add_var(var);
     }
 
     tm.stop();
@@ -101,27 +105,31 @@ void do_cycles(MeshInfo& mesh, IdxT ncycles, Allocator& aloc_mesh, Allocator& al
 
       Range r1("cycle", Range::yellow);
 
-      IdxT imin = mesh.imin;
-      IdxT jmin = mesh.jmin;
-      IdxT kmin = mesh.kmin;
-      IdxT imax = mesh.imax;
-      IdxT jmax = mesh.jmax;
-      IdxT kmax = mesh.kmax;
-      IdxT ilen = mesh.ilen;
-      IdxT jlen = mesh.jlen;
-      IdxT klen = mesh.klen;
-      IdxT ijlen = mesh.ijlen;
+      IdxT imin = info.imin;
+      IdxT jmin = info.jmin;
+      IdxT kmin = info.kmin;
+      IdxT imax = info.imax;
+      IdxT jmax = info.jmax;
+      IdxT kmax = info.kmax;
+      IdxT ilen = info.ilen;
+      IdxT jlen = info.jlen;
+      IdxT klen = info.klen;
+      IdxT ijlen = info.ijlen;
       
-      DataT* data = var.data();
       
       Range r2("pre-comm", Range::red);
       tm.start("pre-comm");
 
-      for_all_3d(pol_loop{}, kmin, kmax,
-                             jmin, jmax,
-                             imin, imax,
-                             detail::set_1(ilen, ijlen, data));
-
+      for (IdxT i = 0; i < num_vars; ++i) {
+      
+        DataT* data = vars[i].data();
+      
+        for_all_3d(pol_loop{}, kmin, kmax,
+                               jmin, jmax,
+                               imin, imax,
+                               detail::set_1(ilen, ijlen, data));
+      }
+      
       synchronize(pol_loop{});
 
       tm.stop();
@@ -142,23 +150,28 @@ void do_cycles(MeshInfo& mesh, IdxT ncycles, Allocator& aloc_mesh, Allocator& al
       r2.stop();
       
       /*
-      for_all_3d(pol_loop{}, 0, klen,
-                             0, jlen,
-                             0, ilen,
-                             [=] HOST DEVICE (IdxT k, IdxT j, IdxT i, IdxT idx) {
-        IdxT zone = i + j * ilen + k * ijlen;
-        DataT expected, found, next;
-        if (k >= kmin && k < kmax &&
-            j >= jmin && j < jmax &&
-            i >= imin && i < imax) {
-          expected = 1.0; found = data[zone]; next = 1.0;
-        } else {
-          expected = -1.0; found = data[zone]; next = -1.0;
-        }
-        if (found != expected) printf("zone %i(%i %i %i) = %f expected %f\n", zone, i, j, k, found, expected);
-        //printf("%p[%i] = %f\n", data, zone, 1.0);
-        data[zone] = next;
-      });
+      for (IdxT i = 0; i < num_vars; ++i) {
+      
+        DataT* data = vars[i].data();
+        
+        for_all_3d(pol_loop{}, 0, klen,
+                               0, jlen,
+                               0, ilen,
+                               [=] HOST DEVICE (IdxT k, IdxT j, IdxT i, IdxT idx) {
+          IdxT zone = i + j * ilen + k * ijlen;
+          DataT expected, found, next;
+          if (k >= kmin && k < kmax &&
+              j >= jmin && j < jmax &&
+              i >= imin && i < imax) {
+            expected = 1.0; found = data[zone]; next = 1.0;
+          } else {
+            expected = -1.0; found = data[zone]; next = -1.0;
+          }
+          if (found != expected) printf("zone %i(%i %i %i) = %f expected %f\n", zone, i, j, k, found, expected);
+          //printf("%p[%i] = %f\n", data, zone, 1.0);
+          data[zone] = next;
+        });
+      }
       */
 
       r2.start("wait-recv", Range::pink);
@@ -178,11 +191,16 @@ void do_cycles(MeshInfo& mesh, IdxT ncycles, Allocator& aloc_mesh, Allocator& al
       r2.restart("post-comm", Range::red);
       tm.start("post-comm");
 
-      for_all_3d(pol_loop{}, 0, klen,
-                             0, jlen,
-                             0, ilen,
-                             detail::reset_1(ilen, ijlen, data, imin, jmin, kmin, imax, jmax, kmax));
-
+      for (IdxT i = 0; i < num_vars; ++i) {
+      
+        DataT* data = vars[i].data();
+        
+        for_all_3d(pol_loop{}, 0, klen,
+                               0, jlen,
+                               0, ilen,
+                               detail::reset_1(ilen, ijlen, data, imin, jmin, kmin, imax, jmax, kmax));
+      }
+      
       synchronize(pol_loop{});
 
       tm.stop();
@@ -221,6 +239,7 @@ int main(int argc, char** argv)
 
   IdxT sizes[] = {0, 0, 0};
   IdxT ghost_width = 1;
+  IdxT num_vars = 1;
   
   IdxT i = 1;
   IdxT s = 0;
@@ -228,19 +247,33 @@ int main(int argc, char** argv)
     if (argv[i][0] == '-') {
       // option
       if (strcmp(&argv[i][1], "ghost") == 0) {
-        if (++i < argc) {
-          ghost_width = static_cast<IdxT>(atoll(argv[i]));
+        if (i+1 < argc && argv[i+1][0] != '-') {
+          ghost_width = static_cast<IdxT>(atoll(argv[++i]));
         } else {
-          fprintf(stderr, "No argument to option, ignoring %s.\n", argv[i-1]); fflush(stderr);
+          if (comm_rank == 0) {
+            fprintf(stderr, "No argument to option, ignoring %s.\n", argv[i]); fflush(stderr);
+          }
+        }
+      } else if (strcmp(&argv[i][1], "vars") == 0) {
+        if (i+1 < argc && argv[i+1][0] != '-') {
+          num_vars = static_cast<IdxT>(atoll(argv[++i]));
+        } else {
+          if (comm_rank == 0) {
+            fprintf(stderr, "No argument to option, ignoring %s.\n", argv[i]); fflush(stderr);
+          }
         }
       } else {
-        fprintf(stderr, "Unknown option, ignoring %s.\n", argv[i]); fflush(stderr);
+        if (comm_rank == 0) {
+          fprintf(stderr, "Unknown option, ignoring %s.\n", argv[i]); fflush(stderr);
+        }
       }
     } else if ( s < 3 ) {
       // assume got integer
       sizes[s++] = static_cast<IdxT>(atoll(argv[i]));
     } else {
-      fprintf(stderr, "Too many arguments, ignoring %s.\n", argv[i]); fflush(stderr);
+      if (comm_rank == 0) {
+        fprintf(stderr, "Too many arguments, ignoring %s.\n", argv[i]); fflush(stderr);
+      }
     }
   }
   
@@ -249,7 +282,12 @@ int main(int argc, char** argv)
     sizes[2] = sizes[0];
   }
   
-  if (ghost_width <= 0) {
+  if (num_vars <= 0) {
+    if (comm_rank == 0) {
+      fprintf(stderr, "Invalid vars argument.\n"); fflush(stderr);
+    }
+    MPI_Abort(MPI_COMM_WORLD, 1);
+  } if (ghost_width <= 0) {
     if (comm_rank == 0) {
       fprintf(stderr, "Invalid ghost argument.\n"); fflush(stderr);
     }
@@ -261,19 +299,20 @@ int main(int argc, char** argv)
     MPI_Abort(MPI_COMM_WORLD, 1);
   }
 
-  MeshInfo mesh(sizes[0], sizes[1], sizes[2], ghost_width);
+  MeshInfo info(sizes[0], sizes[1], sizes[2], ghost_width);
     
   if (comm_rank == 0) {
+    printf("Num vars %i\n", num_vars);
     printf("Mesh info\n");
-    printf("%i %i %i\n", mesh.isize, mesh.jsize, mesh.ksize);
-    printf("ij %i ik %i jk %i\n", mesh.ijsize, mesh.iksize, mesh.jksize);
-    printf("ijk %i\n", mesh.ijksize);
-    printf("ghost_width %i\n", mesh.ghost_width);
-    printf("i %8i %8i %8i %8i\n", 0, mesh.imin, mesh.imax, mesh.ilen);
-    printf("j %8i %8i %8i %8i\n", 0, mesh.jmin, mesh.jmax, mesh.jlen);
-    printf("k %8i %8i %8i %8i\n", 0, mesh.kmin, mesh.kmax, mesh.klen);
-    printf("ij %i ik %i jk %i\n", mesh.ijlen, mesh.iklen, mesh.jklen);
-    printf("ijk %i\n", mesh.ijklen);
+    printf("%i %i %i\n", info.isize, info.jsize, info.ksize);
+    printf("ij %i ik %i jk %i\n", info.ijsize, info.iksize, info.jksize);
+    printf("ijk %i\n", info.ijksize);
+    printf("ghost_width %i\n", info.ghost_width);
+    printf("i %8i %8i %8i %8i\n", 0, info.imin, info.imax, info.ilen);
+    printf("j %8i %8i %8i %8i\n", 0, info.jmin, info.jmax, info.jlen);
+    printf("k %8i %8i %8i %8i\n", 0, info.kmin, info.kmax, info.klen);
+    printf("ij %i ik %i jk %i\n", info.ijlen, info.iklen, info.jklen);
+    printf("ijk %i\n", info.ijklen);
     fflush(stdout);
   }
   
@@ -290,70 +329,87 @@ int main(int argc, char** argv)
 
   // warm-up memory pools
   {
+    Range r("Memmory pool init", Range::green);
+    
     printf("Starting up memory pools\n"); fflush(stdout);
 
-    Range r("Memmory pool init", Range::green);
-
-    void* var0;
-    void* var1;
+    void** vars = new void*[num_vars+1];
  
     tm.start(host_alloc.name());
 
-    var0 = host_alloc.allocate(mesh.ijksize*sizeof(DataT));
-    var1 = host_alloc.allocate(mesh.ijksize*sizeof(DataT));
-    host_alloc.deallocate(var0);
-    host_alloc.deallocate(var1);
+    for (IdxT i = 0; i < num_vars+1; ++i) {
+      vars[i] = host_alloc.allocate(info.ijklen*sizeof(DataT));
+    }
+    for (IdxT i = 0; i < num_vars+1; ++i) {
+      host_alloc.deallocate(vars[i]);
+    }
 
     tm.restart(hostpinned_alloc.name());
 
-    var0 = hostpinned_alloc.allocate(mesh.ijksize*sizeof(DataT));
-    var1 = hostpinned_alloc.allocate(mesh.ijksize*sizeof(DataT));
-    hostpinned_alloc.deallocate(var0);
-    hostpinned_alloc.deallocate(var1);
+    for (IdxT i = 0; i < num_vars+1; ++i) {
+      vars[i] = hostpinned_alloc.allocate(info.ijklen*sizeof(DataT));
+    }
+    for (IdxT i = 0; i < num_vars+1; ++i) {
+      hostpinned_alloc.deallocate(vars[i]);
+    }
 
     tm.restart(device_alloc.name());
 
-    var0 = device_alloc.allocate(mesh.ijksize*sizeof(DataT));
-    var1 = device_alloc.allocate(mesh.ijksize*sizeof(DataT));
-    device_alloc.deallocate(var0);
-    device_alloc.deallocate(var1);
+    for (IdxT i = 0; i < num_vars+1; ++i) {
+      vars[i] = device_alloc.allocate(info.ijklen*sizeof(DataT));
+    }
+    for (IdxT i = 0; i < num_vars+1; ++i) {
+      device_alloc.deallocate(vars[i]);
+    }
 
     tm.restart(managed_alloc.name());
 
-    var0 = managed_alloc.allocate(mesh.ijksize*sizeof(DataT));
-    var1 = managed_alloc.allocate(mesh.ijksize*sizeof(DataT));
-    managed_alloc.deallocate(var0);
-    managed_alloc.deallocate(var1);
+    for (IdxT i = 0; i < num_vars+1; ++i) {
+      vars[i] = managed_alloc.allocate(info.ijklen*sizeof(DataT));
+    }
+    for (IdxT i = 0; i < num_vars+1; ++i) {
+      managed_alloc.deallocate(vars[i]);
+    }
 
     tm.restart(managed_host_preferred_alloc.name());
 
-    var0 = managed_host_preferred_alloc.allocate(mesh.ijksize*sizeof(DataT));
-    var1 = managed_host_preferred_alloc.allocate(mesh.ijksize*sizeof(DataT));
-    managed_host_preferred_alloc.deallocate(var0);
-    managed_host_preferred_alloc.deallocate(var1);
+    for (IdxT i = 0; i < num_vars+1; ++i) {
+      vars[i] = managed_host_preferred_alloc.allocate(info.ijklen*sizeof(DataT));
+    }
+    for (IdxT i = 0; i < num_vars+1; ++i) {
+      managed_host_preferred_alloc.deallocate(vars[i]);
+    }
 
     tm.restart(managed_host_preferred_device_accessed_alloc.name());
 
-    var0 = managed_host_preferred_device_accessed_alloc.allocate(mesh.ijksize*sizeof(DataT));
-    var1 = managed_host_preferred_device_accessed_alloc.allocate(mesh.ijksize*sizeof(DataT));
-    managed_host_preferred_device_accessed_alloc.deallocate(var0);
-    managed_host_preferred_device_accessed_alloc.deallocate(var1);
+    for (IdxT i = 0; i < num_vars+1; ++i) {
+      vars[i] = managed_host_preferred_device_accessed_alloc.allocate(info.ijklen*sizeof(DataT));
+    }
+    for (IdxT i = 0; i < num_vars+1; ++i) {
+      managed_host_preferred_device_accessed_alloc.deallocate(vars[i]);
+    }
 
     tm.restart(managed_device_preferred_alloc.name());
 
-    var0 = managed_device_preferred_alloc.allocate(mesh.ijksize*sizeof(DataT));
-    var1 = managed_device_preferred_alloc.allocate(mesh.ijksize*sizeof(DataT));
-    managed_device_preferred_alloc.deallocate(var0);
-    managed_device_preferred_alloc.deallocate(var1);
+    for (IdxT i = 0; i < num_vars+1; ++i) {
+      vars[i] = managed_device_preferred_alloc.allocate(info.ijklen*sizeof(DataT));
+    }
+    for (IdxT i = 0; i < num_vars+1; ++i) {
+      managed_device_preferred_alloc.deallocate(vars[i]);
+    }
 
     tm.restart(managed_device_preferred_host_accessed_alloc.name());
 
-    var0 = managed_device_preferred_host_accessed_alloc.allocate(mesh.ijksize*sizeof(DataT));
-    var1 = managed_device_preferred_host_accessed_alloc.allocate(mesh.ijksize*sizeof(DataT));
-    managed_device_preferred_host_accessed_alloc.deallocate(var0);
-    managed_device_preferred_host_accessed_alloc.deallocate(var1);
+    for (IdxT i = 0; i < num_vars+1; ++i) {
+      vars[i] = managed_device_preferred_host_accessed_alloc.allocate(info.ijklen*sizeof(DataT));
+    }
+    for (IdxT i = 0; i < num_vars+1; ++i) {
+      managed_device_preferred_host_accessed_alloc.deallocate(vars[i]);
+    }
 
     tm.stop();
+    
+    delete[] vars;
 
     tm.print();
     tm.clear();
@@ -369,11 +425,11 @@ int main(int argc, char** argv)
     char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.name());
     Range r0(name, Range::blue);
 
-    do_cycles<seq_pol, seq_pol, seq_pol, seq_pol>(mesh, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
+    do_cycles<seq_pol, seq_pol, seq_pol, seq_pol>(info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
 
-    // do_cycles<cuda_pol, seq_pol, seq_pol, seq_pol>(mesh, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
+    // do_cycles<cuda_pol, seq_pol, seq_pol, seq_pol>(info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
 
-    // do_cycles<cuda_pol, cuda_pol, cuda_pol, cuda_pol>(mesh, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
+    // do_cycles<cuda_pol, cuda_pol, cuda_pol, cuda_pol>(info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
   }
 
   // host pinned allocated
@@ -383,13 +439,13 @@ int main(int argc, char** argv)
     char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.name());
     Range r0(name, Range::blue);
 
-    do_cycles<seq_pol, seq_pol, seq_pol, seq_pol>(mesh, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
+    do_cycles<seq_pol, seq_pol, seq_pol, seq_pol>(info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
 
-    do_cycles<cuda_pol, seq_pol, seq_pol, seq_pol>(mesh, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
+    do_cycles<cuda_pol, seq_pol, seq_pol, seq_pol>(info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
 
-    // do_cycles<cuda_pol, cuda_pol, cuda_pol, cuda_pol>(mesh, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
+    // do_cycles<cuda_pol, cuda_pol, cuda_pol, cuda_pol>(info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
 
-    do_cycles<cuda_pol, cuda_pol, cuda_pol, cuda_pol>(mesh, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, hostpinned_alloc, tm);
+    do_cycles<cuda_pol, cuda_pol, cuda_pol, cuda_pol>(info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, hostpinned_alloc, tm);
   }
 
   // device allocated
@@ -399,13 +455,13 @@ int main(int argc, char** argv)
     char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.name());
     Range r0(name, Range::blue);
 
-    // do_cycles<seq_pol, seq_pol, seq_pol, seq_pol>(mesh, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
+    // do_cycles<seq_pol, seq_pol, seq_pol, seq_pol>(info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
 
-    // do_cycles<cuda_pol, seq_pol, seq_pol, seq_pol>(mesh, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
+    // do_cycles<cuda_pol, seq_pol, seq_pol, seq_pol>(info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
 
-    do_cycles<cuda_pol, cuda_pol, cuda_pol, cuda_pol>(mesh, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, hostpinned_alloc, tm);
+    do_cycles<cuda_pol, cuda_pol, cuda_pol, cuda_pol>(info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, hostpinned_alloc, tm);
  
-    do_cycles<cuda_pol, cuda_pol, cuda_pol, cuda_pol>(mesh, ncycles, mesh_aloc, device_alloc, device_alloc, device_alloc, tm);
+    do_cycles<cuda_pol, cuda_pol, cuda_pol, cuda_pol>(info, num_vars, ncycles, mesh_aloc, device_alloc, device_alloc, device_alloc, tm);
   }
 
   // managed allocated
@@ -415,15 +471,15 @@ int main(int argc, char** argv)
     char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.name());
     Range r0(name, Range::blue);
 
-    do_cycles<seq_pol, seq_pol, seq_pol, seq_pol>(mesh, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
+    do_cycles<seq_pol, seq_pol, seq_pol, seq_pol>(info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
 
-    do_cycles<cuda_pol, seq_pol, seq_pol, seq_pol>(mesh, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
+    do_cycles<cuda_pol, seq_pol, seq_pol, seq_pol>(info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
 
-    do_cycles<cuda_pol, cuda_pol, seq_pol, seq_pol>(mesh, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, host_alloc, tm);
+    do_cycles<cuda_pol, cuda_pol, seq_pol, seq_pol>(info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, host_alloc, tm);
 
-    do_cycles<cuda_pol, cuda_pol, cuda_pol, seq_pol>(mesh, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, host_alloc, tm);
+    do_cycles<cuda_pol, cuda_pol, cuda_pol, seq_pol>(info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, host_alloc, tm);
 
-    do_cycles<cuda_pol, cuda_pol, cuda_pol, cuda_pol>(mesh, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, hostpinned_alloc, tm);
+    do_cycles<cuda_pol, cuda_pol, cuda_pol, cuda_pol>(info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, hostpinned_alloc, tm);
   }
 
   // managed host preferred allocated
@@ -433,15 +489,15 @@ int main(int argc, char** argv)
     char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.name());
     Range r0(name, Range::blue);
 
-    do_cycles<seq_pol, seq_pol, seq_pol, seq_pol>(mesh, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
+    do_cycles<seq_pol, seq_pol, seq_pol, seq_pol>(info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
 
-    do_cycles<cuda_pol, seq_pol, seq_pol, seq_pol>(mesh, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
+    do_cycles<cuda_pol, seq_pol, seq_pol, seq_pol>(info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
 
-    do_cycles<cuda_pol, cuda_pol, seq_pol, seq_pol>(mesh, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, host_alloc, tm);
+    do_cycles<cuda_pol, cuda_pol, seq_pol, seq_pol>(info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, host_alloc, tm);
 
-    do_cycles<cuda_pol, cuda_pol, cuda_pol, seq_pol>(mesh, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, host_alloc, tm);
+    do_cycles<cuda_pol, cuda_pol, cuda_pol, seq_pol>(info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, host_alloc, tm);
 
-    do_cycles<cuda_pol, cuda_pol, cuda_pol, cuda_pol>(mesh, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, hostpinned_alloc, tm);
+    do_cycles<cuda_pol, cuda_pol, cuda_pol, cuda_pol>(info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, hostpinned_alloc, tm);
   }
 
   // managed host preferred device accessed allocated
@@ -451,15 +507,15 @@ int main(int argc, char** argv)
     char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.name());
     Range r0(name, Range::blue);
 
-    do_cycles<seq_pol, seq_pol, seq_pol, seq_pol>(mesh, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
+    do_cycles<seq_pol, seq_pol, seq_pol, seq_pol>(info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
 
-    do_cycles<cuda_pol, seq_pol, seq_pol, seq_pol>(mesh, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
+    do_cycles<cuda_pol, seq_pol, seq_pol, seq_pol>(info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
 
-    do_cycles<cuda_pol, cuda_pol, seq_pol, seq_pol>(mesh, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, host_alloc, tm);
+    do_cycles<cuda_pol, cuda_pol, seq_pol, seq_pol>(info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, host_alloc, tm);
 
-    do_cycles<cuda_pol, cuda_pol, cuda_pol, seq_pol>(mesh, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, host_alloc, tm);
+    do_cycles<cuda_pol, cuda_pol, cuda_pol, seq_pol>(info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, host_alloc, tm);
 
-    do_cycles<cuda_pol, cuda_pol, cuda_pol, cuda_pol>(mesh, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, hostpinned_alloc, tm);
+    do_cycles<cuda_pol, cuda_pol, cuda_pol, cuda_pol>(info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, hostpinned_alloc, tm);
   }
 
   // managed device preferred allocated
@@ -469,15 +525,15 @@ int main(int argc, char** argv)
     char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.name());
     Range r0(name, Range::blue);
 
-    do_cycles<seq_pol, seq_pol, seq_pol, seq_pol>(mesh, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
+    do_cycles<seq_pol, seq_pol, seq_pol, seq_pol>(info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
 
-    do_cycles<cuda_pol, seq_pol, seq_pol, seq_pol>(mesh, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
+    do_cycles<cuda_pol, seq_pol, seq_pol, seq_pol>(info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
 
-    do_cycles<cuda_pol, cuda_pol, seq_pol, seq_pol>(mesh, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, host_alloc, tm);
+    do_cycles<cuda_pol, cuda_pol, seq_pol, seq_pol>(info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, host_alloc, tm);
 
-    do_cycles<cuda_pol, cuda_pol, cuda_pol, seq_pol>(mesh, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, host_alloc, tm);
+    do_cycles<cuda_pol, cuda_pol, cuda_pol, seq_pol>(info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, host_alloc, tm);
 
-    do_cycles<cuda_pol, cuda_pol, cuda_pol, cuda_pol>(mesh, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, hostpinned_alloc, tm);
+    do_cycles<cuda_pol, cuda_pol, cuda_pol, cuda_pol>(info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, hostpinned_alloc, tm);
   }
 
   // managed device preferred host accessed allocated
@@ -487,15 +543,15 @@ int main(int argc, char** argv)
     char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.name());
     Range r0(name, Range::blue);
 
-    do_cycles<seq_pol, seq_pol, seq_pol, seq_pol>(mesh, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
+    do_cycles<seq_pol, seq_pol, seq_pol, seq_pol>(info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
 
-    do_cycles<cuda_pol, seq_pol, seq_pol, seq_pol>(mesh, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
+    do_cycles<cuda_pol, seq_pol, seq_pol, seq_pol>(info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
 
-    do_cycles<cuda_pol, cuda_pol, seq_pol, seq_pol>(mesh, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, host_alloc, tm);
+    do_cycles<cuda_pol, cuda_pol, seq_pol, seq_pol>(info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, host_alloc, tm);
 
-    do_cycles<cuda_pol, cuda_pol, cuda_pol, seq_pol>(mesh, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, host_alloc, tm);
+    do_cycles<cuda_pol, cuda_pol, cuda_pol, seq_pol>(info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, host_alloc, tm);
 
-    do_cycles<cuda_pol, cuda_pol, cuda_pol, cuda_pol>(mesh, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, hostpinned_alloc, tm);
+    do_cycles<cuda_pol, cuda_pol, cuda_pol, cuda_pol>(info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, hostpinned_alloc, tm);
   }
 
   MPI_Finalize();
