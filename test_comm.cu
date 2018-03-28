@@ -88,8 +88,7 @@ void do_cycles(MeshInfo& mesh, IdxT ncycles, Allocator& aloc_mesh, Allocator& al
       for_all(pol_loop{}, 0, ijklen,
                           detail::set_n1(data));
 
-      if (pol_loop::async) {cudaCheck(cudaDeviceSynchronize());}
-
+      synchronize(pol_loop{});
     }
     
     {
@@ -123,7 +122,7 @@ void do_cycles(MeshInfo& mesh, IdxT ncycles, Allocator& aloc_mesh, Allocator& al
                              imin, imax,
                              detail::set_1(ilen, ijlen, data));
 
-      if (pol_loop::async) {cudaCheck(cudaDeviceSynchronize());}
+      synchronize(pol_loop{});
 
       tm.stop();
       r2.restart("post-recv", Range::pink);
@@ -137,7 +136,7 @@ void do_cycles(MeshInfo& mesh, IdxT ncycles, Allocator& aloc_mesh, Allocator& al
 
       comm.postSend();
 
-      if (pol_corner::async || pol_edge::async || pol_face::async) {cudaCheck(cudaDeviceSynchronize());}
+      synchronize(pol_corner{}, pol_edge{}, pol_face{});
       
       tm.stop();
       r2.stop();
@@ -167,7 +166,7 @@ void do_cycles(MeshInfo& mesh, IdxT ncycles, Allocator& aloc_mesh, Allocator& al
 
       comm.waitRecv();
 
-      if (pol_corner::async || pol_edge::async || pol_face::async) {cudaCheck(cudaDeviceSynchronize());}
+      synchronize(pol_corner{}, pol_edge{}, pol_face{});
 
       tm.stop();
       r2.restart("wait-send", Range::pink);
@@ -184,7 +183,7 @@ void do_cycles(MeshInfo& mesh, IdxT ncycles, Allocator& aloc_mesh, Allocator& al
                              0, ilen,
                              detail::reset_1(ilen, ijlen, data, imin, jmin, kmin, imax, jmax, kmax));
 
-      if (pol_loop::async) {cudaCheck(cudaDeviceSynchronize());}
+      synchronize(pol_loop{});
 
       tm.stop();
       r2.stop();

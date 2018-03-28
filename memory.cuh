@@ -5,30 +5,12 @@
 #include <cstdio>
 #include <cstdlib>
 
-#include <cuda.h>
-
-#include <basic_mempool.hpp>
-
-#define HOST __host__
-#define DEVICE __device__
-
-#define cudaCheck(...) \
-  if (__VA_ARGS__ != cudaSuccess) { \
-    fprintf(stderr, "Error performing " #__VA_ARGS__ " %s:%i\n", __FILE__, __LINE__); fflush(stderr); \
-    /* assert(0); */ \
-    MPI_Abort(MPI_COMM_WORLD, 1); \
-  }
+#include "utils.cuh"
+#include "basic_mempool.hpp"
 
 using IdxT = int;
+using LidxT = int;
 using DataT = double;
-
-inline int cuda_get_device() {
-  static int d = -1;
-  if (d == -1) {
-    cudaCheck(cudaGetDevice(&d));
-  }
-  return d;
-}
 
 template < typename alloc >
 using mempool = RAJA::basic_mempool::MemPool<alloc>;
@@ -95,7 +77,7 @@ using mempool = RAJA::basic_mempool::MemPool<alloc>;
       void* ptr = nullptr;
       cudaCheck(cudaMallocManaged(&ptr, nbytes));
       cudaCheck(cudaMemAdvise(ptr, nbytes, cudaMemAdviseSetPreferredLocation, cudaCpuDeviceId));
-      cudaCheck(cudaMemAdvise(ptr, nbytes, cudaMemAdviseSetAccessedBy, cuda_get_device()));
+      cudaCheck(cudaMemAdvise(ptr, nbytes, cudaMemAdviseSetAccessedBy, detail::cuda::get_device()));
       return ptr;
     }
     void free(void* ptr) {
@@ -107,7 +89,7 @@ using mempool = RAJA::basic_mempool::MemPool<alloc>;
     void* malloc(size_t nbytes) {
       void* ptr = nullptr;
       cudaCheck(cudaMallocManaged(&ptr, nbytes));
-      cudaCheck(cudaMemAdvise(ptr, nbytes, cudaMemAdviseSetPreferredLocation, cuda_get_device()));
+      cudaCheck(cudaMemAdvise(ptr, nbytes, cudaMemAdviseSetPreferredLocation, detail::cuda::get_device()));
       return ptr;
     }
     void free(void* ptr) {
@@ -119,7 +101,7 @@ using mempool = RAJA::basic_mempool::MemPool<alloc>;
     void* malloc(size_t nbytes) {
       void* ptr = nullptr;
       cudaCheck(cudaMallocManaged(&ptr, nbytes));
-      cudaCheck(cudaMemAdvise(ptr, nbytes, cudaMemAdviseSetPreferredLocation, cuda_get_device()));
+      cudaCheck(cudaMemAdvise(ptr, nbytes, cudaMemAdviseSetPreferredLocation, detail::cuda::get_device()));
       cudaCheck(cudaMemAdvise(ptr, nbytes, cudaMemAdviseSetAccessedBy, cudaCpuDeviceId));
       return ptr;
     }
