@@ -77,10 +77,11 @@ void do_cycles(MeshInfo& mesh, IdxT ncycles, Allocator& aloc_mesh, Allocator& al
     tm.start("start-up");
 
     MeshData var(mesh, aloc_mesh);
-    Comm<pol_corner, pol_edge, pol_face> comm(var, aloc_face, aloc_edge, aloc_corner);
+    Comm<pol_face, pol_edge, pol_corner> comm(aloc_face, aloc_edge, aloc_corner);
 
     {
       var.allocate();
+      
       DataT* data = var.data();
       IdxT ijklen = mesh.ijklen;
 
@@ -89,6 +90,10 @@ void do_cycles(MeshInfo& mesh, IdxT ncycles, Allocator& aloc_mesh, Allocator& al
 
       if (pol_loop::async) {cudaCheck(cudaDeviceSynchronize());}
 
+    }
+    
+    {
+      comm.add_var(var);
     }
 
     tm.stop();
@@ -136,11 +141,12 @@ void do_cycles(MeshInfo& mesh, IdxT ncycles, Allocator& aloc_mesh, Allocator& al
       
       tm.stop();
       r2.stop();
-
-/*      for_all_3d(pol_loop{}, 0, klen,
-                            0, jlen,
-                            0, ilen,
-                            [=] (IdxT k, IdxT j, IdxT i, IdxT idx) {
+      
+      /*
+      for_all_3d(pol_loop{}, 0, klen,
+                             0, jlen,
+                             0, ilen,
+                             [=] HOST DEVICE (IdxT k, IdxT j, IdxT i, IdxT idx) {
         IdxT zone = i + j * ilen + k * ijlen;
         DataT expected, found, next;
         if (k >= kmin && k < kmax &&
@@ -151,10 +157,10 @@ void do_cycles(MeshInfo& mesh, IdxT ncycles, Allocator& aloc_mesh, Allocator& al
           expected = -1.0; found = data[zone]; next = -1.0;
         }
         if (found != expected) printf("zone %i(%i %i %i) = %f expected %f\n", zone, i, j, k, found, expected);
-        //printf("%p[%i] = %f\n", data, zone, 1.0); fflush(stdout);
+        //printf("%p[%i] = %f\n", data, zone, 1.0);
         data[zone] = next;
       });
-*/
+      */
 
       r2.start("wait-recv", Range::pink);
       tm.start("wait-recv");
@@ -214,43 +220,56 @@ int main(int argc, char** argv)
 
   cudaCheck(cudaDeviceSynchronize());  
 
-  IdxT isize = 0;
-  IdxT jsize = 0;
-  IdxT ksize = 0;
-
-  if (argc == 1) {
-    isize = 100;
-    jsize = 100;
-    ksize = 100;
-  } else if (argc == 2) {
-    isize = static_cast<IdxT>(atoll(argv[1]));
-    jsize = isize;
-    ksize = isize;
-  } else if (argc == 4) {
-    isize = static_cast<IdxT>(atoll(argv[1]));
-    jsize = static_cast<IdxT>(atoll(argv[2]));
-    ksize = static_cast<IdxT>(atoll(argv[3]));
-  } else {
+  IdxT sizes[] = {0, 0, 0};
+  IdxT ghost_width = 1;
+  
+  IdxT i = 1;
+  IdxT s = 0;
+  for(; i < argc; ++i) {
+    if (argv[i][0] == '-') {
+      // option
+      if (strcmp(&argv[i][1], "ghost") == 0) {
+        if (++i < argc) {
+          ghost_width = static_cast<IdxT>(atoll(argv[i]));
+        } else {
+          fprintf(stderr, "No argument to option, ignoring %s.\n", argv[i-1]); fflush(stderr);
+        }
+      } else {
+        fprintf(stderr, "Unknown option, ignoring %s.\n", argv[i]); fflush(stderr);
+      }
+    } else if ( s < 3 ) {
+      // assume got integer
+      sizes[s++] = static_cast<IdxT>(atoll(argv[i]));
+    } else {
+      fprintf(stderr, "Too many arguments, ignoring %s.\n", argv[i]); fflush(stderr);
+    }
+  }
+  
+  if (s == 1) {
+    sizes[1] = sizes[0];
+    sizes[2] = sizes[0];
+  }
+  
+  if (ghost_width <= 0) {
     if (comm_rank == 0) {
-      fprintf(stderr, "Invalid arguments.\n"); fflush(stderr);
+      fprintf(stderr, "Invalid ghost argument.\n"); fflush(stderr);
     }
     MPI_Abort(MPI_COMM_WORLD, 1);
-  }
-
-  if (isize <= 0 || jsize <= 0 || ksize <= 0) {
+  } else if (sizes[0] < ghost_width || sizes[1] < ghost_width || sizes[2] < ghost_width) {
     if (comm_rank == 0) {
       fprintf(stderr, "Invalid size arguments.\n"); fflush(stderr);
     }
     MPI_Abort(MPI_COMM_WORLD, 1);
   }
 
-  MeshInfo mesh(isize, jsize, ksize);
+  MeshInfo mesh(sizes[0], sizes[1], sizes[2], ghost_width);
     
   if (comm_rank == 0) {
     printf("Mesh info\n");
     printf("%i %i %i\n", mesh.isize, mesh.jsize, mesh.ksize);
     printf("ij %i ik %i jk %i\n", mesh.ijsize, mesh.iksize, mesh.jksize);
     printf("ijk %i\n", mesh.ijksize);
+    printf("ghost_width %i\n", mesh.ghost_width);
     printf("i %8i %8i %8i %8i\n", 0, mesh.imin, mesh.imax, mesh.ilen);
     printf("j %8i %8i %8i %8i\n", 0, mesh.jmin, mesh.jmax, mesh.jlen);
     printf("k %8i %8i %8i %8i\n", 0, mesh.kmin, mesh.kmax, mesh.klen);
@@ -328,7 +347,7 @@ int main(int argc, char** argv)
     managed_device_preferred_alloc.deallocate(var0);
     managed_device_preferred_alloc.deallocate(var1);
 
-    tm.restart(managed_device_preferred_alloc.name());
+    tm.restart(managed_device_preferred_host_accessed_alloc.name());
 
     var0 = managed_device_preferred_host_accessed_alloc.allocate(mesh.ijksize*sizeof(DataT));
     var1 = managed_device_preferred_host_accessed_alloc.allocate(mesh.ijksize*sizeof(DataT));

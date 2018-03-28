@@ -6,132 +6,21 @@
 #include <cstdlib>
 #include <cassert>
 #include <type_traits>
+#include <list>
+#include <vector>
+#include <utility>
 
 #include "memory.cuh"
 #include "for_all.cuh"
 #include "mesh.cuh"
 
-struct CommBuffers
-{
-  Allocator& m_face;
-  Allocator& m_edge;
-  Allocator& m_corner;
-
-  bool m_allocated;
-
-  DataT* face_i_j_kmin;
-  DataT* face_i_j_kmax;
-  DataT* face_i_jmin_k;
-  DataT* face_i_jmax_k;
-  DataT* face_imin_j_k;
-  DataT* face_imax_j_k;
-
-  DataT* edge_i_jmin_kmin;
-  DataT* edge_i_jmax_kmin;
-  DataT* edge_i_jmin_kmax;
-  DataT* edge_i_jmax_kmax;
-  DataT* edge_imin_j_kmin;
-  DataT* edge_imax_j_kmin;
-  DataT* edge_imin_j_kmax;
-  DataT* edge_imax_j_kmax;
-  DataT* edge_imin_jmin_k;
-  DataT* edge_imax_jmin_k;
-  DataT* edge_imin_jmax_k;
-  DataT* edge_imax_jmax_k;
-
-  DataT* corner_imin_jmin_kmin;
-  DataT* corner_imax_jmin_kmin;
-  DataT* corner_imin_jmax_kmin;
-  DataT* corner_imax_jmax_kmin;
-  DataT* corner_imin_jmin_kmax;
-  DataT* corner_imax_jmin_kmax;
-  DataT* corner_imin_jmax_kmax;
-  DataT* corner_imax_jmax_kmax;
-
-  CommBuffers(Allocator& face, Allocator& edge, Allocator& corner)
-    : m_face(face)
-    , m_edge(edge)
-    , m_corner(corner)
-    , m_allocated(false)
-  {
-
-  }
-
-  void allocate(MeshInfo const& mesh)
-  {
-    if (m_allocated) { deallocate(); }
-    //printf("allocateing buffers\n"); fflush(stdout);
-    face_i_j_kmin = (DataT*)m_face.allocate(mesh.ijsize*sizeof(DataT)); 
-    face_i_j_kmax = (DataT*)m_face.allocate(mesh.ijsize*sizeof(DataT)); 
-    face_i_jmin_k = (DataT*)m_face.allocate(mesh.iksize*sizeof(DataT)); 
-    face_i_jmax_k = (DataT*)m_face.allocate(mesh.iksize*sizeof(DataT)); 
-    face_imin_j_k = (DataT*)m_face.allocate(mesh.jksize*sizeof(DataT)); 
-    face_imax_j_k = (DataT*)m_face.allocate(mesh.jksize*sizeof(DataT));
-    edge_i_jmin_kmin = (DataT*)m_edge.allocate(mesh.isize*sizeof(DataT)); 
-    edge_i_jmax_kmin = (DataT*)m_edge.allocate(mesh.isize*sizeof(DataT)); 
-    edge_i_jmin_kmax = (DataT*)m_edge.allocate(mesh.isize*sizeof(DataT)); 
-    edge_i_jmax_kmax = (DataT*)m_edge.allocate(mesh.isize*sizeof(DataT)); 
-    edge_imin_j_kmin = (DataT*)m_edge.allocate(mesh.jsize*sizeof(DataT)); 
-    edge_imax_j_kmin = (DataT*)m_edge.allocate(mesh.jsize*sizeof(DataT)); 
-    edge_imin_j_kmax = (DataT*)m_edge.allocate(mesh.jsize*sizeof(DataT)); 
-    edge_imax_j_kmax = (DataT*)m_edge.allocate(mesh.jsize*sizeof(DataT)); 
-    edge_imin_jmin_k = (DataT*)m_edge.allocate(mesh.ksize*sizeof(DataT)); 
-    edge_imax_jmin_k = (DataT*)m_edge.allocate(mesh.ksize*sizeof(DataT)); 
-    edge_imin_jmax_k = (DataT*)m_edge.allocate(mesh.ksize*sizeof(DataT));
-    edge_imax_jmax_k = (DataT*)m_edge.allocate(mesh.ksize*sizeof(DataT));
-    corner_imin_jmin_kmin = (DataT*)m_corner.allocate(1*sizeof(DataT));
-    corner_imax_jmin_kmin = (DataT*)m_corner.allocate(1*sizeof(DataT));
-    corner_imin_jmax_kmin = (DataT*)m_corner.allocate(1*sizeof(DataT));
-    corner_imax_jmax_kmin = (DataT*)m_corner.allocate(1*sizeof(DataT));
-    corner_imin_jmin_kmax = (DataT*)m_corner.allocate(1*sizeof(DataT));
-    corner_imax_jmin_kmax = (DataT*)m_corner.allocate(1*sizeof(DataT));
-    corner_imin_jmax_kmax = (DataT*)m_corner.allocate(1*sizeof(DataT));
-    corner_imax_jmax_kmax = (DataT*)m_corner.allocate(1*sizeof(DataT));
-    m_allocated = true;
-  }
-
-  void deallocate()
-  {
-    if (m_allocated) {
-      //printf("deallocating buffers\n"); fflush(stdout);
-      m_face.deallocate(face_i_j_kmin); 
-      m_face.deallocate(face_i_j_kmax); 
-      m_face.deallocate(face_i_jmin_k); 
-      m_face.deallocate(face_i_jmax_k); 
-      m_face.deallocate(face_imin_j_k); 
-      m_face.deallocate(face_imax_j_k);
-      m_edge.deallocate(edge_i_jmin_kmin); 
-      m_edge.deallocate(edge_i_jmax_kmin); 
-      m_edge.deallocate(edge_i_jmin_kmax); 
-      m_edge.deallocate(edge_i_jmax_kmax); 
-      m_edge.deallocate(edge_imin_j_kmin); 
-      m_edge.deallocate(edge_imax_j_kmin); 
-      m_edge.deallocate(edge_imin_j_kmax); 
-      m_edge.deallocate(edge_imax_j_kmax); 
-      m_edge.deallocate(edge_imin_jmin_k); 
-      m_edge.deallocate(edge_imax_jmin_k); 
-      m_edge.deallocate(edge_imin_jmax_k); 
-      m_edge.deallocate(edge_imax_jmax_k); 
-      m_corner.deallocate(corner_imin_jmin_kmin);
-      m_corner.deallocate(corner_imax_jmin_kmin);
-      m_corner.deallocate(corner_imin_jmax_kmin);
-      m_corner.deallocate(corner_imax_jmax_kmin);
-      m_corner.deallocate(corner_imin_jmin_kmax);
-      m_corner.deallocate(corner_imax_jmin_kmax);
-      m_corner.deallocate(corner_imin_jmax_kmax);
-      m_corner.deallocate(corner_imax_jmax_kmax);
-      m_allocated = false;
-    }
-  }
- 
-  ~CommBuffers()
-  {
-    deallocate();
-  }
-};
-
 namespace detail {
 
+struct indexer_kji {
+  IdxT ijlen, ilen;
+  indexer_kji(IdxT ijlen_, IdxT ilen_) : ijlen(ijlen_), ilen(ilen_) {}
+  HOST DEVICE IdxT operator()(IdxT k, IdxT j, IdxT i, IdxT) const { return i + j * ilen + k * ijlen; }
+};
 struct indexer_ji {
   IdxT ilen, koff;
   indexer_ji(IdxT ilen_, IdxT koff_) : ilen(ilen_), koff(koff_) {}
@@ -177,6 +66,14 @@ struct indexer_idx {
   HOST DEVICE IdxT operator()(IdxT, IdxT, IdxT, IdxT idx) const { return idx; }
 };
 
+struct indexer_list_idx {
+  LidxT* indices;
+  indexer_list_idx(LidxT* indices_) : indices(indices_) {}
+  HOST DEVICE IdxT operator()(IdxT, IdxT idx) const { return indices[idx]; }
+  HOST DEVICE IdxT operator()(IdxT, IdxT, IdxT idx) const { return indices[idx]; }
+  HOST DEVICE IdxT operator()(IdxT, IdxT, IdxT, IdxT idx) const { return indices[idx]; }
+};
+
 template < typename T_src, typename I_src, typename T_dst, typename I_dst >
 struct copy_idxr_idxr {
   T_src* ptr_src;
@@ -187,173 +84,729 @@ struct copy_idxr_idxr {
   template < typename ... Ts >
   HOST DEVICE void operator()(Ts... args) const { ptr_dst[idxr_dst(args...)] = ptr_src[idxr_src(args...)]; }
 };
+
 template < typename T_src, typename I_src, typename T_dst, typename I_dst >
 copy_idxr_idxr<T_src, I_src, T_dst, I_dst> make_copy_idxr_idxr(T_src* const& ptr_src, I_src const& idxr_src, T_dst* const& ptr_dst, I_dst const& idxr_dst) {
   return copy_idxr_idxr<T_src, I_src, T_dst, I_dst>(ptr_src, idxr_src, ptr_dst, idxr_dst);
 }
 
-template < typename policy, typename indexer >
-void pack_face( policy const& pol, DataT* data, DataT* buffer, IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, indexer&& idxr)
-{
-  for_all_2d(pol, begin0, end0,
-                  begin1, end1,
-                  make_copy_idxr_idxr(data, idxr, buffer, indexer_idx{}));
-}
-template < typename policy, typename indexer >
-void pack_edge( policy const& pol, DataT* data, DataT* buffer, IdxT begin, IdxT end, indexer&& idxr)
-{
-  for_all(pol, begin, end,
-               make_copy_idxr_idxr(data, idxr, buffer, indexer_idx{}));
-}
-template < typename policy, typename indexer >
-void pack_corner( policy const& pol, DataT* data, DataT* buffer, indexer&& idxr)
-{
-  for_all(pol, 0, 1,
-               make_copy_idxr_idxr(data, idxr, buffer, indexer_idx{}));
+template < typename I_src, typename T_dst, typename I_dst >
+struct set_idxr_idxr {
+  T_dst* ptr_dst;
+  I_src idxr_src;
+  I_dst idxr_dst;
+  set_idxr_idxr(I_src const& idxr_src_, T_dst* const& ptr_dst_, I_dst const& idxr_dst_) : idxr_src(idxr_src_), ptr_dst(ptr_dst_), idxr_dst(idxr_dst_) {}
+  template < typename ... Ts >
+  HOST DEVICE void operator()(Ts... args) const { ptr_dst[idxr_dst(args...)] = idxr_src(args...); }
+};
+
+template < typename I_src, typename T_dst, typename I_dst >
+set_idxr_idxr<I_src, T_dst, I_dst> make_set_idxr_idxr(I_src const& idxr_src, T_dst* const& ptr_dst, I_dst const& idxr_dst) {
+  return set_idxr_idxr<I_src, T_dst, I_dst>(idxr_src, ptr_dst, idxr_dst);
 }
 
-template < typename policy, typename indexer >
-void unpack_face( policy const& pol, DataT* data, DataT* buffer, IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, indexer&& idxr)
-{
-  for_all_2d(pol, begin0, end0,
-                  begin1, end1,
-                  make_copy_idxr_idxr(buffer, indexer_idx{}, data, idxr));
-}
-template < typename policy, typename indexer >
-void unpack_edge( policy const& pol, DataT* data, DataT* buffer, IdxT begin, IdxT end, indexer&& idxr)
-{
-  for_all(pol, begin, end,
-               make_copy_idxr_idxr(buffer, indexer_idx{}, data, idxr));
-}
-template < typename policy, typename indexer >
-void unpack_corner( policy const& pol, DataT* data, DataT* buffer, indexer&& idxr)
-{
-  for_all(pol, 0, 1,
-               make_copy_idxr_idxr(buffer, indexer_idx{}, data, idxr));
-}
+} // namespace detail
 
-}
 
-template < typename policy_corner, typename policy_edge, typename policy_face >
-struct Comm
+struct IdxTemplate
 {
-  MeshData& m_meshdata;
+  static const IdxT min = 0;
+  static const IdxT max = 1;
+  IdxT idx, offset;
+  constexpr IdxTemplate(IdxT idx_, IdxT offset_) : idx(idx_), offset(offset_) {}
+};
 
-  CommBuffers m_send;
-  CommBuffers m_recv;
+struct Box3d
+{
+  IdxT imin, jmin, kmin, imax, jmax, kmax;
+  MeshData const& mesh;
+  Box3d(MeshData const& mesh_,
+        IdxT imin_, IdxT imax_,
+        IdxT jmin_, IdxT jmax_,
+        IdxT kmin_, IdxT kmax_)
+    : imin(imin_)
+    , jmin(jmin_)
+    , kmin(kmin_)
+    , imax(imax_)
+    , jmax(jmax_)
+    , kmax(kmax_)
+    , mesh(mesh_)
+  {
+  }
+  size_t size() const
+  {
+    return (imax - imin) * (jmax - jmin) * (kmax - kmin);
+  }
+  template < typename policy >
+  LidxT* get_indices(policy const& p) const
+  {
+    LidxT* index_list = (LidxT*)mesh.aloc.allocate(size()*sizeof(LidxT));
+    for_all_3d(p, imin, imax, jmin, jmax, kmin, kmax, make_set_idxr_idxr(detail::indexer_kji{mesh.info.ijlen, mesh.info.ilen}, index_list, detail::indexer_idx{}));
+    return index_list;
+  }
+  void deallocate_indices(LidxT* ptr) const
+  {
+    mesh.aloc.deallocate(ptr);
+  }
+};
 
-  Comm(MeshData& meshdata, Allocator& face_aloc, Allocator& edge_aloc, Allocator& corner_aloc)
-    : m_meshdata(meshdata)
-    , m_send(face_aloc, edge_aloc, corner_aloc)
-    , m_recv(face_aloc, edge_aloc, corner_aloc)
+struct Box3dTemplate
+{
+  using IT = IdxTemplate;
+#define Box3dTemplate_all       IT{IT::min, 0},     IT{IT::max, 0}
+#define Box3dTemplate_min       IT{IT::min, 0},     IT{IT::min, width}
+#define Box3dTemplate_max       IT{IT::max,-width}, IT{IT::max, 0}
+  static constexpr Box3dTemplate get_i_j_kmin(IdxT width)
+  {
+    return Box3dTemplate{Box3dTemplate_all,
+                         Box3dTemplate_all,
+                         Box3dTemplate_min};
+  }
+  static constexpr Box3dTemplate get_i_j_kmax(IdxT width)
+  {
+    return Box3dTemplate{Box3dTemplate_all,
+                         Box3dTemplate_all,
+                         Box3dTemplate_max};
+  }
+  static constexpr Box3dTemplate get_i_jmin_k(IdxT width)
+  {
+    return Box3dTemplate{Box3dTemplate_all,
+                         Box3dTemplate_min,
+                         Box3dTemplate_all};
+  }
+  static constexpr Box3dTemplate get_i_jmax_k(IdxT width)
+  {
+    return Box3dTemplate{Box3dTemplate_all,
+                         Box3dTemplate_max,
+                         Box3dTemplate_all};
+  }
+  static constexpr Box3dTemplate get_imin_j_k(IdxT width)
+  {
+    return Box3dTemplate{Box3dTemplate_min,
+                         Box3dTemplate_all,
+                         Box3dTemplate_all};
+  }
+  static constexpr Box3dTemplate get_imax_j_k(IdxT width)
+  {
+    return Box3dTemplate{Box3dTemplate_max,
+                         Box3dTemplate_all,
+                         Box3dTemplate_all};
+  }
+  
+  static constexpr Box3dTemplate get_i_jmin_kmin(IdxT width)
+  {
+    return Box3dTemplate{Box3dTemplate_all,
+                         Box3dTemplate_min,
+                         Box3dTemplate_min};
+  }
+  static constexpr Box3dTemplate get_i_jmax_kmin(IdxT width)
+  {
+    return Box3dTemplate{Box3dTemplate_all,
+                         Box3dTemplate_max,
+                         Box3dTemplate_min};
+  }
+  static constexpr Box3dTemplate get_i_jmin_kmax(IdxT width)
+  {
+    return Box3dTemplate{Box3dTemplate_all,
+                         Box3dTemplate_min,
+                         Box3dTemplate_max};
+  }
+  static constexpr Box3dTemplate get_i_jmax_kmax(IdxT width)
+  {
+    return Box3dTemplate{Box3dTemplate_all,
+                         Box3dTemplate_max,
+                         Box3dTemplate_max};
+  }
+  static constexpr Box3dTemplate get_imin_j_kmin(IdxT width)
+  {
+    return Box3dTemplate{Box3dTemplate_min,
+                         Box3dTemplate_all,
+                         Box3dTemplate_min};
+  }
+  static constexpr Box3dTemplate get_imax_j_kmin(IdxT width)
+  {
+    return Box3dTemplate{Box3dTemplate_max,
+                         Box3dTemplate_all,
+                         Box3dTemplate_min};
+  }
+  static constexpr Box3dTemplate get_imin_j_kmax(IdxT width)
+  {
+    return Box3dTemplate{Box3dTemplate_min,
+                         Box3dTemplate_all,
+                         Box3dTemplate_max};
+  }
+  static constexpr Box3dTemplate get_imax_j_kmax(IdxT width)
+  {
+    return Box3dTemplate{Box3dTemplate_max,
+                         Box3dTemplate_all,
+                         Box3dTemplate_max};
+  }
+  static constexpr Box3dTemplate get_imin_jmin_k(IdxT width)
+  {
+    return Box3dTemplate{Box3dTemplate_min,
+                         Box3dTemplate_min,
+                         Box3dTemplate_all};
+  }
+  static constexpr Box3dTemplate get_imax_jmin_k(IdxT width)
+  {
+    return Box3dTemplate{Box3dTemplate_max,
+                         Box3dTemplate_min,
+                         Box3dTemplate_all};
+  }
+  static constexpr Box3dTemplate get_imin_jmax_k(IdxT width)
+  {
+    return Box3dTemplate{Box3dTemplate_min,
+                         Box3dTemplate_max,
+                         Box3dTemplate_all};
+  }
+  static constexpr Box3dTemplate get_imax_jmax_k(IdxT width)
+  {
+    return Box3dTemplate{Box3dTemplate_max,
+                         Box3dTemplate_max,
+                         Box3dTemplate_all};
+  }
+  
+  static constexpr Box3dTemplate get_imin_jmin_kmin(IdxT width)
+  {
+    return Box3dTemplate{Box3dTemplate_min,
+                         Box3dTemplate_min,
+                         Box3dTemplate_min};
+  }
+  static constexpr Box3dTemplate get_imax_jmin_kmin(IdxT width)
+  {
+    return Box3dTemplate{Box3dTemplate_max,
+                         Box3dTemplate_min,
+                         Box3dTemplate_min};
+  }
+  static constexpr Box3dTemplate get_imin_jmax_kmin(IdxT width)
+  {
+    return Box3dTemplate{Box3dTemplate_min,
+                         Box3dTemplate_max,
+                         Box3dTemplate_min};
+  }
+  static constexpr Box3dTemplate get_imax_jmax_kmin(IdxT width)
+  {
+    return Box3dTemplate{Box3dTemplate_max,
+                         Box3dTemplate_max,
+                         Box3dTemplate_min};
+  }
+  static constexpr Box3dTemplate get_imin_jmin_kmax(IdxT width)
+  {
+    return Box3dTemplate{Box3dTemplate_min,
+                         Box3dTemplate_min,
+                         Box3dTemplate_max};
+  }
+  static constexpr Box3dTemplate get_imax_jmin_kmax(IdxT width)
+  {
+    return Box3dTemplate{Box3dTemplate_max,
+                         Box3dTemplate_min,
+                         Box3dTemplate_max};
+  }
+  static constexpr Box3dTemplate get_imin_jmax_kmax(IdxT width)
+  {
+    return Box3dTemplate{Box3dTemplate_min,
+                         Box3dTemplate_max,
+                         Box3dTemplate_max};
+  }
+  static constexpr Box3dTemplate get_imax_jmax_kmax(IdxT width)
+  {
+    return Box3dTemplate{Box3dTemplate_max,
+                         Box3dTemplate_max,
+                         Box3dTemplate_max};
+  }
+  
+#undef Box3dTemplate_min
+#undef Box3dTemplate_max
+
+#define Box3dTemplate_ghost_min IT{IT::min,-width}, IT{IT::min, 0}
+#define Box3dTemplate_ghost_max IT{IT::max, 0}, IT{IT::max, width}
+
+  static constexpr Box3dTemplate get_ghost_i_j_kmin(IdxT width)
+  {
+    return Box3dTemplate{Box3dTemplate_all,
+                         Box3dTemplate_all,
+                         Box3dTemplate_ghost_min};
+  }
+  static constexpr Box3dTemplate get_ghost_i_j_kmax(IdxT width)
+  {
+    return Box3dTemplate{Box3dTemplate_all,
+                         Box3dTemplate_all,
+                         Box3dTemplate_ghost_max};
+  }
+  static constexpr Box3dTemplate get_ghost_i_jmin_k(IdxT width)
+  {
+    return Box3dTemplate{Box3dTemplate_all,
+                         Box3dTemplate_ghost_min,
+                         Box3dTemplate_all};
+  }
+  static constexpr Box3dTemplate get_ghost_i_jmax_k(IdxT width)
+  {
+    return Box3dTemplate{Box3dTemplate_all,
+                         Box3dTemplate_ghost_max,
+                         Box3dTemplate_all};
+  }
+  static constexpr Box3dTemplate get_ghost_imin_j_k(IdxT width)
+  {
+    return Box3dTemplate{Box3dTemplate_ghost_min,
+                         Box3dTemplate_all,
+                         Box3dTemplate_all};
+  }
+  static constexpr Box3dTemplate get_ghost_imax_j_k(IdxT width)
+  {
+    return Box3dTemplate{Box3dTemplate_ghost_max,
+                         Box3dTemplate_all,
+                         Box3dTemplate_all};
+  }
+  
+  static constexpr Box3dTemplate get_ghost_i_jmin_kmin(IdxT width)
+  {
+    return Box3dTemplate{Box3dTemplate_all,
+                         Box3dTemplate_ghost_min,
+                         Box3dTemplate_ghost_min};
+  }
+  static constexpr Box3dTemplate get_ghost_i_jmax_kmin(IdxT width)
+  {
+    return Box3dTemplate{Box3dTemplate_all,
+                         Box3dTemplate_ghost_max,
+                         Box3dTemplate_ghost_min};
+  }
+  static constexpr Box3dTemplate get_ghost_i_jmin_kmax(IdxT width)
+  {
+    return Box3dTemplate{Box3dTemplate_all,
+                         Box3dTemplate_ghost_min,
+                         Box3dTemplate_ghost_max};
+  }
+  static constexpr Box3dTemplate get_ghost_i_jmax_kmax(IdxT width)
+  {
+    return Box3dTemplate{Box3dTemplate_all,
+                         Box3dTemplate_ghost_max,
+                         Box3dTemplate_ghost_max};
+  }
+  static constexpr Box3dTemplate get_ghost_imin_j_kmin(IdxT width)
+  {
+    return Box3dTemplate{Box3dTemplate_ghost_min,
+                         Box3dTemplate_all,
+                         Box3dTemplate_ghost_min};
+  }
+  static constexpr Box3dTemplate get_ghost_imax_j_kmin(IdxT width)
+  {
+    return Box3dTemplate{Box3dTemplate_ghost_max,
+                         Box3dTemplate_all,
+                         Box3dTemplate_ghost_min};
+  }
+  static constexpr Box3dTemplate get_ghost_imin_j_kmax(IdxT width)
+  {
+    return Box3dTemplate{Box3dTemplate_ghost_min,
+                         Box3dTemplate_all,
+                         Box3dTemplate_ghost_max};
+  }
+  static constexpr Box3dTemplate get_ghost_imax_j_kmax(IdxT width)
+  {
+    return Box3dTemplate{Box3dTemplate_ghost_max,
+                         Box3dTemplate_all,
+                         Box3dTemplate_ghost_max};
+  }
+  static constexpr Box3dTemplate get_ghost_imin_jmin_k(IdxT width)
+  {
+    return Box3dTemplate{Box3dTemplate_ghost_min,
+                         Box3dTemplate_ghost_min,
+                         Box3dTemplate_all};
+  }
+  static constexpr Box3dTemplate get_ghost_imax_jmin_k(IdxT width)
+  {
+    return Box3dTemplate{Box3dTemplate_ghost_max,
+                         Box3dTemplate_ghost_min,
+                         Box3dTemplate_all};
+  }
+  static constexpr Box3dTemplate get_ghost_imin_jmax_k(IdxT width)
+  {
+    return Box3dTemplate{Box3dTemplate_ghost_min,
+                         Box3dTemplate_ghost_max,
+                         Box3dTemplate_all};
+  }
+  static constexpr Box3dTemplate get_ghost_imax_jmax_k(IdxT width)
+  {
+    return Box3dTemplate{Box3dTemplate_ghost_max,
+                         Box3dTemplate_ghost_max,
+                         Box3dTemplate_all};
+  }
+  
+  static constexpr Box3dTemplate get_ghost_imin_jmin_kmin(IdxT width)
+  {
+    return Box3dTemplate{Box3dTemplate_ghost_min,
+                         Box3dTemplate_ghost_min,
+                         Box3dTemplate_ghost_min};
+  }
+  static constexpr Box3dTemplate get_ghost_imax_jmin_kmin(IdxT width)
+  {
+    return Box3dTemplate{Box3dTemplate_ghost_max,
+                         Box3dTemplate_ghost_min,
+                         Box3dTemplate_ghost_min};
+  }
+  static constexpr Box3dTemplate get_ghost_imin_jmax_kmin(IdxT width)
+  {
+    return Box3dTemplate{Box3dTemplate_ghost_min,
+                         Box3dTemplate_ghost_max,
+                         Box3dTemplate_ghost_min};
+  }
+  static constexpr Box3dTemplate get_ghost_imax_jmax_kmin(IdxT width)
+  {
+    return Box3dTemplate{Box3dTemplate_ghost_max,
+                         Box3dTemplate_ghost_max,
+                         Box3dTemplate_ghost_min};
+  }
+  static constexpr Box3dTemplate get_ghost_imin_jmin_kmax(IdxT width)
+  {
+    return Box3dTemplate{Box3dTemplate_ghost_min,
+                         Box3dTemplate_ghost_min,
+                         Box3dTemplate_ghost_max};
+  }
+  static constexpr Box3dTemplate get_ghost_imax_jmin_kmax(IdxT width)
+  {
+    return Box3dTemplate{Box3dTemplate_ghost_max,
+                         Box3dTemplate_ghost_min,
+                         Box3dTemplate_ghost_max};
+  }
+  static constexpr Box3dTemplate get_ghost_imin_jmax_kmax(IdxT width)
+  {
+    return Box3dTemplate{Box3dTemplate_ghost_min,
+                         Box3dTemplate_ghost_max,
+                         Box3dTemplate_ghost_max};
+  }
+  static constexpr Box3dTemplate get_ghost_imax_jmax_kmax(IdxT width)
+  {
+    return Box3dTemplate{Box3dTemplate_ghost_max,
+                         Box3dTemplate_ghost_max,
+                         Box3dTemplate_ghost_max};
+  }
+  
+#undef Box3dTemplate_all
+#undef Box3dTemplate_ghost_min
+#undef Box3dTemplate_ghost_max
+
+  IdxTemplate imin, jmin, kmin, imax, jmax, kmax;
+  constexpr Box3dTemplate(IdxTemplate imin_, IdxTemplate imax_,
+                          IdxTemplate jmin_, IdxTemplate jmax_,
+                          IdxTemplate kmin_, IdxTemplate kmax_)
+    : imin(imin_)
+    , jmin(jmin_)
+    , kmin(kmin_)
+    , imax(imax_)
+    , jmax(jmax_)
+    , kmax(kmax_)
+  {
+  }
+  Box3d make_box(MeshData const& mesh)
+  {
+    return Box3d{mesh, I_idx(mesh.info, imin), I_idx(mesh.info, imax),
+                       J_idx(mesh.info, jmin), J_idx(mesh.info, jmax),
+                       K_idx(mesh.info, kmin), K_idx(mesh.info, kmax)};
+  }
+private:
+  IdxT I_idx(MeshInfo const& info, IdxTemplate it)
+  {
+    IdxT idx = 0;
+    switch (it.idx) {
+      case IdxTemplate::min:
+        idx = info.imin; break;
+      case IdxTemplate::max:
+        idx = info.imax; break;
+      default:
+        assert(0); break;
+    }
+    return idx + it.offset;
+  }
+  IdxT J_idx(MeshInfo const& info, IdxTemplate it)
+  {
+    IdxT idx = 0;
+    switch (it.idx) {
+      case IdxTemplate::min:
+        idx = info.jmin; break;
+      case IdxTemplate::max:
+        idx = info.jmax; break;
+      default:
+        assert(0); break;
+    }
+    return idx + it.offset;
+  }
+  IdxT K_idx(MeshInfo const& info, IdxTemplate it)
+  {
+    IdxT idx = 0;
+    switch (it.idx) {
+      case IdxTemplate::min:
+        idx = info.kmin; break;
+      case IdxTemplate::max:
+        idx = info.kmax; break;
+      default:
+        assert(0); break;
+    }
+    return idx + it.offset;
+  }
+};
+
+template < typename policy0, typename policy1, typename policy2 >
+struct Message
+{
+  Allocator& buf_aloc;
+  IdxT pol;
+  DataT* m_buf;
+  size_t m_size;
+  
+  using list_item_type = std::pair<Box3d, LidxT*>;
+  std::list<list_item_type> boxes;
+
+  Message(Allocator& buf_aloc_, IdxT pol_)
+    : buf_aloc(buf_aloc_)
+    , pol(pol_)
+    , m_buf(nullptr)
+    , m_size(0)
   {
 
+  }
+  
+  DataT* buffer()
+  {
+    return m_buf;
+  }
+  
+  size_t size() const
+  {
+    return m_size;
+  }
+  
+  void add(Box3d const& box)
+  {
+    LidxT* indices = nullptr;
+    switch (pol) {
+      case 0:
+        indices = box.get_indices(policy0{}); break;
+      case 1:
+        indices = box.get_indices(policy1{}); break;
+      case 2:
+        indices = box.get_indices(policy2{}); break;
+      default:
+        assert(0); break;
+    }
+    boxes.push_back(list_item_type{box, indices});
+    m_size += box.size();
+  }
+  
+  void pack()
+  {
+    DataT* buf = m_buf;
+    assert(buf != nullptr);
+    auto end = std::end(boxes);
+    for (auto i = std::begin(boxes); i != end; ++i) {
+      IdxT len = i->first.size();
+      LidxT* indices = i->second;
+      DataT* data = i->first.mesh.data();
+      switch (pol) {
+        case 0:
+          for_all(policy0{}, 0, len, make_copy_idxr_idxr(data, detail::indexer_list_idx{indices}, buf, detail::indexer_idx{})); break;
+        case 1:
+          for_all(policy1{}, 0, len, make_copy_idxr_idxr(data, detail::indexer_list_idx{indices}, buf, detail::indexer_idx{})); break;
+        case 2:
+          for_all(policy2{}, 0, len, make_copy_idxr_idxr(data, detail::indexer_list_idx{indices}, buf, detail::indexer_idx{})); break;
+        default:
+          assert(0); break;
+      }
+      buf += len;
+    }
+  }
+  
+  void unpack()
+  {
+    DataT* buf = m_buf;
+    assert(buf != nullptr);
+    auto end = std::end(boxes);
+    for (auto i = std::begin(boxes); i != end; ++i) {
+      IdxT len = i->first.size();
+      LidxT* indices = i->second;
+      DataT* data = i->first.mesh.data();
+      switch (pol) {
+        case 0:
+          for_all(policy0{}, 0, len, make_copy_idxr_idxr(buf, detail::indexer_idx{}, data, detail::indexer_list_idx{indices})); break;
+        case 1:
+          for_all(policy1{}, 0, len, make_copy_idxr_idxr(buf, detail::indexer_idx{}, data, detail::indexer_list_idx{indices})); break;
+        case 2:
+          for_all(policy2{}, 0, len, make_copy_idxr_idxr(buf, detail::indexer_idx{}, data, detail::indexer_list_idx{indices})); break;
+        default:
+          assert(0); break;
+      }
+      buf += len;
+    }
+  }
+
+  void allocate()
+  {
+    if (m_buf == nullptr) {
+      m_buf = (DataT*)buf_aloc.allocate(size()*sizeof(DataT));
+    }
+  }
+
+  void deallocate()
+  {
+    if (m_buf != nullptr) {
+      buf_aloc.deallocate(m_buf);
+      m_buf = nullptr;
+    }
+  }
+ 
+  ~Message()
+  {
+    deallocate();
+    auto end = std::end(boxes);
+    for (auto i = std::begin(boxes); i != end; ++i) {
+      i->first.deallocate_indices(i->second);
+    }
+  }
+};
+
+template < typename policy_face, typename policy_edge, typename policy_corner >
+struct Comm
+{
+  Allocator& face_aloc;
+  Allocator& edge_aloc;
+  Allocator& corner_aloc;
+  
+  using message_type = Message<policy_face, policy_edge, policy_corner>;
+  std::vector<message_type> m_sends;
+  std::vector<message_type> m_recvs;
+  
+  Comm(Allocator& face_aloc_, Allocator& edge_aloc_, Allocator& corner_aloc_)
+    : face_aloc(face_aloc_)
+    , edge_aloc(edge_aloc_)
+    , corner_aloc(corner_aloc_)
+  {
+    m_sends.reserve(26);
+    m_recvs.reserve(26);
+    for(IdxT face_neighbor = 0; face_neighbor < 6; ++face_neighbor) {
+      m_sends.emplace_back(face_aloc, 0);
+      m_recvs.emplace_back(face_aloc, 0);
+    }
+    for(IdxT edge_neighbor = 0; edge_neighbor < 12; ++edge_neighbor) {
+      m_sends.emplace_back(edge_aloc, 1);
+      m_recvs.emplace_back(edge_aloc, 1);
+    }
+    for(IdxT corner_neighbor = 0; corner_neighbor < 8; ++corner_neighbor) {
+      m_sends.emplace_back(corner_aloc, 2);
+      m_recvs.emplace_back(corner_aloc, 2);
+    }
+  }
+  
+  void add_var(MeshData& mesh)
+  {
+    {
+      IdxT idx = 0;
+    
+      // faces
+      m_sends[idx++].add(Box3dTemplate::get_i_j_kmin(mesh.info.ghost_width).make_box(mesh));
+      m_sends[idx++].add(Box3dTemplate::get_i_j_kmax(mesh.info.ghost_width).make_box(mesh));
+      m_sends[idx++].add(Box3dTemplate::get_i_jmin_k(mesh.info.ghost_width).make_box(mesh));
+      m_sends[idx++].add(Box3dTemplate::get_i_jmax_k(mesh.info.ghost_width).make_box(mesh));
+      m_sends[idx++].add(Box3dTemplate::get_imin_j_k(mesh.info.ghost_width).make_box(mesh));
+      m_sends[idx++].add(Box3dTemplate::get_imax_j_k(mesh.info.ghost_width).make_box(mesh));
+
+      // edges
+      m_sends[idx++].add(Box3dTemplate::get_i_jmin_kmin(mesh.info.ghost_width).make_box(mesh));
+      m_sends[idx++].add(Box3dTemplate::get_i_jmax_kmin(mesh.info.ghost_width).make_box(mesh));
+      m_sends[idx++].add(Box3dTemplate::get_i_jmin_kmax(mesh.info.ghost_width).make_box(mesh));
+      m_sends[idx++].add(Box3dTemplate::get_i_jmax_kmax(mesh.info.ghost_width).make_box(mesh));
+      m_sends[idx++].add(Box3dTemplate::get_imin_j_kmin(mesh.info.ghost_width).make_box(mesh));
+      m_sends[idx++].add(Box3dTemplate::get_imax_j_kmin(mesh.info.ghost_width).make_box(mesh));
+      m_sends[idx++].add(Box3dTemplate::get_imin_j_kmax(mesh.info.ghost_width).make_box(mesh));
+      m_sends[idx++].add(Box3dTemplate::get_imax_j_kmax(mesh.info.ghost_width).make_box(mesh));
+      m_sends[idx++].add(Box3dTemplate::get_imin_jmin_k(mesh.info.ghost_width).make_box(mesh));
+      m_sends[idx++].add(Box3dTemplate::get_imax_jmin_k(mesh.info.ghost_width).make_box(mesh));
+      m_sends[idx++].add(Box3dTemplate::get_imin_jmax_k(mesh.info.ghost_width).make_box(mesh));
+      m_sends[idx++].add(Box3dTemplate::get_imax_jmax_k(mesh.info.ghost_width).make_box(mesh));
+      
+      // corners
+      m_sends[idx++].add(Box3dTemplate::get_imin_jmin_kmin(mesh.info.ghost_width).make_box(mesh));
+      m_sends[idx++].add(Box3dTemplate::get_imax_jmin_kmin(mesh.info.ghost_width).make_box(mesh));
+      m_sends[idx++].add(Box3dTemplate::get_imin_jmax_kmin(mesh.info.ghost_width).make_box(mesh));
+      m_sends[idx++].add(Box3dTemplate::get_imax_jmax_kmin(mesh.info.ghost_width).make_box(mesh));
+      m_sends[idx++].add(Box3dTemplate::get_imin_jmin_kmax(mesh.info.ghost_width).make_box(mesh));
+      m_sends[idx++].add(Box3dTemplate::get_imax_jmin_kmax(mesh.info.ghost_width).make_box(mesh));
+      m_sends[idx++].add(Box3dTemplate::get_imin_jmax_kmax(mesh.info.ghost_width).make_box(mesh));
+      m_sends[idx++].add(Box3dTemplate::get_imax_jmax_kmax(mesh.info.ghost_width).make_box(mesh));
+    }
+    
+    {
+      IdxT idx = 0;
+    
+      // faces
+      m_recvs[idx++].add(Box3dTemplate::get_ghost_i_j_kmin(mesh.info.ghost_width).make_box(mesh));
+      m_recvs[idx++].add(Box3dTemplate::get_ghost_i_j_kmax(mesh.info.ghost_width).make_box(mesh));
+      m_recvs[idx++].add(Box3dTemplate::get_ghost_i_jmin_k(mesh.info.ghost_width).make_box(mesh));
+      m_recvs[idx++].add(Box3dTemplate::get_ghost_i_jmax_k(mesh.info.ghost_width).make_box(mesh));
+      m_recvs[idx++].add(Box3dTemplate::get_ghost_imin_j_k(mesh.info.ghost_width).make_box(mesh));
+      m_recvs[idx++].add(Box3dTemplate::get_ghost_imax_j_k(mesh.info.ghost_width).make_box(mesh));
+
+      // edges
+      m_recvs[idx++].add(Box3dTemplate::get_ghost_i_jmin_kmin(mesh.info.ghost_width).make_box(mesh));
+      m_recvs[idx++].add(Box3dTemplate::get_ghost_i_jmax_kmin(mesh.info.ghost_width).make_box(mesh));
+      m_recvs[idx++].add(Box3dTemplate::get_ghost_i_jmin_kmax(mesh.info.ghost_width).make_box(mesh));
+      m_recvs[idx++].add(Box3dTemplate::get_ghost_i_jmax_kmax(mesh.info.ghost_width).make_box(mesh));
+      m_recvs[idx++].add(Box3dTemplate::get_ghost_imin_j_kmin(mesh.info.ghost_width).make_box(mesh));
+      m_recvs[idx++].add(Box3dTemplate::get_ghost_imax_j_kmin(mesh.info.ghost_width).make_box(mesh));
+      m_recvs[idx++].add(Box3dTemplate::get_ghost_imin_j_kmax(mesh.info.ghost_width).make_box(mesh));
+      m_recvs[idx++].add(Box3dTemplate::get_ghost_imax_j_kmax(mesh.info.ghost_width).make_box(mesh));
+      m_recvs[idx++].add(Box3dTemplate::get_ghost_imin_jmin_k(mesh.info.ghost_width).make_box(mesh));
+      m_recvs[idx++].add(Box3dTemplate::get_ghost_imax_jmin_k(mesh.info.ghost_width).make_box(mesh));
+      m_recvs[idx++].add(Box3dTemplate::get_ghost_imin_jmax_k(mesh.info.ghost_width).make_box(mesh));
+      m_recvs[idx++].add(Box3dTemplate::get_ghost_imax_jmax_k(mesh.info.ghost_width).make_box(mesh));
+      
+      // corners
+      m_recvs[idx++].add(Box3dTemplate::get_ghost_imin_jmin_kmin(mesh.info.ghost_width).make_box(mesh));
+      m_recvs[idx++].add(Box3dTemplate::get_ghost_imax_jmin_kmin(mesh.info.ghost_width).make_box(mesh));
+      m_recvs[idx++].add(Box3dTemplate::get_ghost_imin_jmax_kmin(mesh.info.ghost_width).make_box(mesh));
+      m_recvs[idx++].add(Box3dTemplate::get_ghost_imax_jmax_kmin(mesh.info.ghost_width).make_box(mesh));
+      m_recvs[idx++].add(Box3dTemplate::get_ghost_imin_jmin_kmax(mesh.info.ghost_width).make_box(mesh));
+      m_recvs[idx++].add(Box3dTemplate::get_ghost_imax_jmin_kmax(mesh.info.ghost_width).make_box(mesh));
+      m_recvs[idx++].add(Box3dTemplate::get_ghost_imin_jmax_kmax(mesh.info.ghost_width).make_box(mesh));
+      m_recvs[idx++].add(Box3dTemplate::get_ghost_imax_jmax_kmax(mesh.info.ghost_width).make_box(mesh));
+    }
   }
 
   void postRecv()
   {
     //printf("posting receives\n"); fflush(stdout);
-    m_recv.allocate(m_meshdata.m_meshinfo);
+    auto end = std::end(m_recvs);
+    for (auto i = std::begin(m_recvs); i != end; ++i) {
+      i->allocate();
+    }
   }
 
   void postSend()
   {
     //printf("posting sends\n"); fflush(stdout);
-    m_send.allocate(m_meshdata.m_meshinfo);
-    
-    IdxT imin = m_meshdata.m_meshinfo.imin;
-    IdxT jmin = m_meshdata.m_meshinfo.jmin;
-    IdxT kmin = m_meshdata.m_meshinfo.kmin;
-    IdxT imax = m_meshdata.m_meshinfo.imax;
-    IdxT jmax = m_meshdata.m_meshinfo.jmax;
-    IdxT kmax = m_meshdata.m_meshinfo.kmax;
-    IdxT ilen = m_meshdata.m_meshinfo.ilen;
-    IdxT ijlen = m_meshdata.m_meshinfo.ijlen;
-
-    // faces
-    detail::pack_face(policy_face{}, m_meshdata.data(), m_send.face_i_j_kmin, jmin, jmax, imin, imax, detail::indexer_ji(ilen,  kmin * ijlen));
-    detail::pack_face(policy_face{}, m_meshdata.data(), m_send.face_i_j_kmax, jmin, jmax, imin, imax, detail::indexer_ji(ilen,  (kmax-1) * ijlen));
-    detail::pack_face(policy_face{}, m_meshdata.data(), m_send.face_i_jmin_k, kmin, kmax, imin, imax, detail::indexer_ki(ijlen, jmin * ilen));
-    detail::pack_face(policy_face{}, m_meshdata.data(), m_send.face_i_jmax_k, kmin, kmax, imin, imax, detail::indexer_ki(ijlen, (jmax-1) * ilen));
-    detail::pack_face(policy_face{}, m_meshdata.data(), m_send.face_imin_j_k, kmin, kmax, jmin, jmax, detail::indexer_kj(ijlen, ilen, imin));
-    detail::pack_face(policy_face{}, m_meshdata.data(), m_send.face_imax_j_k, kmin, kmax, jmin, jmax, detail::indexer_kj(ijlen, ilen, imax-1));
-
-    // edges
-    detail::pack_edge(policy_edge{}, m_meshdata.data(), m_send.edge_i_jmin_kmin, imin, imax, detail::indexer_i(jmin * ilen     + kmin * ijlen));
-    detail::pack_edge(policy_edge{}, m_meshdata.data(), m_send.edge_i_jmax_kmin, imin, imax, detail::indexer_i((jmax-1) * ilen + kmin * ijlen));
-    detail::pack_edge(policy_edge{}, m_meshdata.data(), m_send.edge_i_jmin_kmax, imin, imax, detail::indexer_i(jmin * ilen     + (kmax-1) * ijlen));
-    detail::pack_edge(policy_edge{}, m_meshdata.data(), m_send.edge_i_jmax_kmax, imin, imax, detail::indexer_i((jmax-1) * ilen + (kmax-1) * ijlen));
-    detail::pack_edge(policy_edge{}, m_meshdata.data(), m_send.edge_imin_j_kmin, jmin, jmax, detail::indexer_j(ilen, imin     + kmin * ijlen));
-    detail::pack_edge(policy_edge{}, m_meshdata.data(), m_send.edge_imax_j_kmin, jmin, jmax, detail::indexer_j(ilen, (imax-1) + kmin * ijlen));
-    detail::pack_edge(policy_edge{}, m_meshdata.data(), m_send.edge_imin_j_kmax, jmin, jmax, detail::indexer_j(ilen, imin     + (kmax-1) * ijlen));
-    detail::pack_edge(policy_edge{}, m_meshdata.data(), m_send.edge_imax_j_kmax, jmin, jmax, detail::indexer_j(ilen, (imax-1) + (kmax-1) * ijlen));
-    detail::pack_edge(policy_edge{}, m_meshdata.data(), m_send.edge_imin_jmin_k, kmin, kmax, detail::indexer_k(ijlen, imin     + jmin * ilen));
-    detail::pack_edge(policy_edge{}, m_meshdata.data(), m_send.edge_imax_jmin_k, kmin, kmax, detail::indexer_k(ijlen, (imax-1) + jmin * ilen));
-    detail::pack_edge(policy_edge{}, m_meshdata.data(), m_send.edge_imin_jmax_k, kmin, kmax, detail::indexer_k(ijlen, imin     + (jmax-1) * ilen));
-    detail::pack_edge(policy_edge{}, m_meshdata.data(), m_send.edge_imax_jmax_k, kmin, kmax, detail::indexer_k(ijlen, (imax-1) + (jmax-1) * ilen));
-
-    // corners
-    detail::pack_corner(policy_corner{}, m_meshdata.data(), m_send.corner_imin_jmin_kmin, detail::indexer_(imin     + jmin * ilen     + kmin * ijlen));
-    detail::pack_corner(policy_corner{}, m_meshdata.data(), m_send.corner_imax_jmin_kmin, detail::indexer_((imax-1) + jmin * ilen     + kmin * ijlen));
-    detail::pack_corner(policy_corner{}, m_meshdata.data(), m_send.corner_imin_jmax_kmin, detail::indexer_(imin     + (jmax-1) * ilen + kmin * ijlen));
-    detail::pack_corner(policy_corner{}, m_meshdata.data(), m_send.corner_imax_jmax_kmin, detail::indexer_((imax-1) + (jmax-1) * ilen + kmin * ijlen));
-    detail::pack_corner(policy_corner{}, m_meshdata.data(), m_send.corner_imin_jmin_kmax, detail::indexer_(imin     + jmin * ilen     + (kmax-1) * ijlen));
-    detail::pack_corner(policy_corner{}, m_meshdata.data(), m_send.corner_imax_jmin_kmax, detail::indexer_((imax-1) + jmin * ilen     + (kmax-1) * ijlen));
-    detail::pack_corner(policy_corner{}, m_meshdata.data(), m_send.corner_imin_jmax_kmax, detail::indexer_(imin     + (jmax-1) * ilen + (kmax-1) * ijlen));
-    detail::pack_corner(policy_corner{}, m_meshdata.data(), m_send.corner_imax_jmax_kmax, detail::indexer_((imax-1) + (jmax-1) * ilen + (kmax-1) * ijlen));
+    auto end = std::end(m_sends);
+    for (auto i = std::begin(m_sends); i != end; ++i) {
+      i->allocate();
+      i->pack();
+      // do send
+    }
   }
 
   void waitRecv()
   {
     //printf("waiting receives\n"); fflush(stdout);
-    IdxT imin = m_meshdata.m_meshinfo.imin;
-    IdxT jmin = m_meshdata.m_meshinfo.jmin;
-    IdxT kmin = m_meshdata.m_meshinfo.kmin;
-    IdxT imax = m_meshdata.m_meshinfo.imax;
-    IdxT jmax = m_meshdata.m_meshinfo.jmax;
-    IdxT kmax = m_meshdata.m_meshinfo.kmax;
-    IdxT ilen = m_meshdata.m_meshinfo.ilen;
-    IdxT ijlen = m_meshdata.m_meshinfo.ijlen;
-
-    // faces
-    detail::unpack_face(policy_face{}, m_meshdata.data(), m_recv.face_i_j_kmin, jmin, jmax, imin, imax, detail::indexer_ji(ilen,  (kmin-1) * ijlen));
-    detail::unpack_face(policy_face{}, m_meshdata.data(), m_recv.face_i_j_kmax, jmin, jmax, imin, imax, detail::indexer_ji(ilen,  kmax * ijlen));
-    detail::unpack_face(policy_face{}, m_meshdata.data(), m_recv.face_i_jmin_k, kmin, kmax, imin, imax, detail::indexer_ki(ijlen, (jmin-1) * ilen));
-    detail::unpack_face(policy_face{}, m_meshdata.data(), m_recv.face_i_jmax_k, kmin, kmax, imin, imax, detail::indexer_ki(ijlen, jmax * ilen));
-    detail::unpack_face(policy_face{}, m_meshdata.data(), m_recv.face_imin_j_k, kmin, kmax, jmin, jmax, detail::indexer_kj(ijlen, ilen, imin-1));
-    detail::unpack_face(policy_face{}, m_meshdata.data(), m_recv.face_imax_j_k, kmin, kmax, jmin, jmax, detail::indexer_kj(ijlen, ilen, imax));
-
-    // edges
-    detail::unpack_edge(policy_edge{}, m_meshdata.data(), m_recv.edge_i_jmin_kmin, imin, imax, detail::indexer_i((jmin-1) * ilen + (kmin-1) * ijlen));
-    detail::unpack_edge(policy_edge{}, m_meshdata.data(), m_recv.edge_i_jmax_kmin, imin, imax, detail::indexer_i(jmax * ilen     + (kmin-1) * ijlen));
-    detail::unpack_edge(policy_edge{}, m_meshdata.data(), m_recv.edge_i_jmin_kmax, imin, imax, detail::indexer_i((jmin-1) * ilen + kmax * ijlen));
-    detail::unpack_edge(policy_edge{}, m_meshdata.data(), m_recv.edge_i_jmax_kmax, imin, imax, detail::indexer_i(jmax * ilen     + kmax * ijlen));
-    detail::unpack_edge(policy_edge{}, m_meshdata.data(), m_recv.edge_imin_j_kmin, jmin, jmax, detail::indexer_j(ilen, (imin-1) + (kmin-1) * ijlen));
-    detail::unpack_edge(policy_edge{}, m_meshdata.data(), m_recv.edge_imax_j_kmin, jmin, jmax, detail::indexer_j(ilen, imax     + (kmin-1) * ijlen));
-    detail::unpack_edge(policy_edge{}, m_meshdata.data(), m_recv.edge_imin_j_kmax, jmin, jmax, detail::indexer_j(ilen, (imin-1) + kmax * ijlen));
-    detail::unpack_edge(policy_edge{}, m_meshdata.data(), m_recv.edge_imax_j_kmax, jmin, jmax, detail::indexer_j(ilen, imax     + kmax * ijlen));
-    detail::unpack_edge(policy_edge{}, m_meshdata.data(), m_recv.edge_imin_jmin_k, kmin, kmax, detail::indexer_k(ijlen, (imin-1) + (jmin-1) * ilen));
-    detail::unpack_edge(policy_edge{}, m_meshdata.data(), m_recv.edge_imax_jmin_k, kmin, kmax, detail::indexer_k(ijlen, imax     + (jmin-1) * ilen));
-    detail::unpack_edge(policy_edge{}, m_meshdata.data(), m_recv.edge_imin_jmax_k, kmin, kmax, detail::indexer_k(ijlen, (imin-1) + jmax * ilen));
-    detail::unpack_edge(policy_edge{}, m_meshdata.data(), m_recv.edge_imax_jmax_k, kmin, kmax, detail::indexer_k(ijlen, imax     + jmax * ilen));
-
-    // corners
-    detail::unpack_corner(policy_corner{}, m_meshdata.data(), m_recv.corner_imin_jmin_kmin, detail::indexer_((imin-1) + (jmin-1) * ilen + (kmin-1) * ijlen));
-    detail::unpack_corner(policy_corner{}, m_meshdata.data(), m_recv.corner_imax_jmin_kmin, detail::indexer_(imax     + (jmin-1) * ilen + (kmin-1) * ijlen));
-    detail::unpack_corner(policy_corner{}, m_meshdata.data(), m_recv.corner_imin_jmax_kmin, detail::indexer_((imin-1) + jmax * ilen     + (kmin-1) * ijlen));
-    detail::unpack_corner(policy_corner{}, m_meshdata.data(), m_recv.corner_imax_jmax_kmin, detail::indexer_(imax     + jmax * ilen     + (kmin-1) * ijlen));
-    detail::unpack_corner(policy_corner{}, m_meshdata.data(), m_recv.corner_imin_jmin_kmax, detail::indexer_((imin-1) + (jmin-1) * ilen + kmax * ijlen));
-    detail::unpack_corner(policy_corner{}, m_meshdata.data(), m_recv.corner_imax_jmin_kmax, detail::indexer_(imax     + (jmin-1) * ilen + kmax * ijlen));
-    detail::unpack_corner(policy_corner{}, m_meshdata.data(), m_recv.corner_imin_jmax_kmax, detail::indexer_((imin-1) + jmax * ilen     + kmax * ijlen));
-    detail::unpack_corner(policy_corner{}, m_meshdata.data(), m_recv.corner_imax_jmax_kmax, detail::indexer_(imax     + jmax * ilen     + kmax * ijlen));
-    
-    m_recv.deallocate();
+    auto end = std::end(m_recvs);
+    for (auto i = std::begin(m_recvs); i != end; ++i) {
+      // do recv
+      i->unpack();
+      i->deallocate();
+    }
   }
 
   void waitSend()
   {
     //printf("posting sends\n"); fflush(stdout);
-    m_send.deallocate();
+    auto end = std::end(m_sends);
+    for (auto i = std::begin(m_sends); i != end; ++i) {
+      i->deallocate();
+    }
   }
 
   ~Comm()

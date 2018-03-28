@@ -25,11 +25,12 @@ struct MeshInfo {
   IdxT iklen;
   IdxT jklen;
   IdxT ijklen;
+  IdxT ghost_width;
 
-  MeshInfo(IdxT isize_, IdxT jsize_, IdxT ksize_)
-    : imin(1)
-    , jmin(1)
-    , kmin(1)
+  MeshInfo(IdxT isize_, IdxT jsize_, IdxT ksize_, IdxT ghost_width_)
+    : imin(ghost_width_)
+    , jmin(ghost_width_)
+    , kmin(ghost_width_)
     , imax(imin + isize_)
     , jmax(jmin + jsize_)
     , kmax(kmin + ksize_)
@@ -40,13 +41,14 @@ struct MeshInfo {
     , iksize(isize*ksize)
     , jksize(jsize*ksize)
     , ijksize(isize*jsize*ksize)
-    , ilen(imax + 1)
-    , jlen(jmax + 1)
-    , klen(kmax + 1)
+    , ilen(imax + ghost_width_)
+    , jlen(jmax + ghost_width_)
+    , klen(kmax + ghost_width_)
     , ijlen(ilen*jlen)
     , iklen(ilen*klen)
     , jklen(jlen*klen)
     , ijklen(ilen*jlen*klen)
+    , ghost_width(ghost_width_)
   {
 
   }
@@ -59,35 +61,35 @@ struct MeshInfo {
 
 struct MeshData
 {
-  Allocator& m_alloc;
-  MeshInfo const& m_meshinfo;
-  DataT* m_data;
+  Allocator& aloc;
+  MeshInfo const& info;
+  DataT* ptr;
   
-  MeshData(MeshInfo const& meshinfo, Allocator& alloc)
-    : m_alloc(alloc)
-    , m_meshinfo(meshinfo)
-    , m_data(nullptr)
+  MeshData(MeshInfo const& meshinfo, Allocator& aloc_)
+    : aloc(aloc_)
+    , info(meshinfo)
+    , ptr(nullptr)
   {
 
   }
 
   void allocate()
   {
-    if (m_data == nullptr) {
-      m_data = (DataT*)m_alloc.allocate(m_meshinfo.ijklen*sizeof(DataT));
+    if (ptr == nullptr) {
+      ptr = (DataT*)aloc.allocate(info.ijklen*sizeof(DataT));
     }
   }
 
-  DataT* data()
+  DataT* data() const
   {
-    return m_data;
+    return ptr;
   }
 
   void deallocate()
   {
-    if (m_data != nullptr) {
-      m_alloc.deallocate(m_data);
-      m_data = nullptr;
+    if (ptr != nullptr) {
+      aloc.deallocate(ptr);
+      ptr = nullptr;
     }
   }
 
