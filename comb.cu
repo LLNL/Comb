@@ -348,12 +348,19 @@ int main(int argc, char** argv)
     
     printf("Starting up memory pools\n"); fflush(stdout);
 
-    void** vars = new void*[num_vars+1];
+    DataT** vars = new DataT*[num_vars+1];
  
     tm.start(host_alloc.name());
 
     for (IdxT i = 0; i < num_vars+1; ++i) {
-      vars[i] = host_alloc.allocate(info.ijklen*sizeof(DataT));
+      vars[i] = (DataT*)host_alloc.allocate(info.ijklen*sizeof(DataT));
+    }
+    for (IdxT i = 0; i < num_vars+1; ++i) {
+      IdxT len = info.ijklen;
+      DataT* data = vars[i];
+      for_all(seq_pol{}, 0, len, [=](IdxT, IdxT idx) {
+        data[idx] = 0.0;
+      });
     }
     for (IdxT i = 0; i < num_vars+1; ++i) {
       host_alloc.deallocate(vars[i]);
@@ -362,7 +369,14 @@ int main(int argc, char** argv)
     tm.restart(hostpinned_alloc.name());
 
     for (IdxT i = 0; i < num_vars+1; ++i) {
-      vars[i] = hostpinned_alloc.allocate(info.ijklen*sizeof(DataT));
+      vars[i] = (DataT*)hostpinned_alloc.allocate(info.ijklen*sizeof(DataT));
+    }
+    for (IdxT i = 0; i < num_vars+1; ++i) {
+      IdxT len = info.ijklen;
+      DataT* data = vars[i];
+      for_all(seq_pol{}, 0, len, [=](IdxT, IdxT idx) {
+        data[idx] = 0.0;
+      });
     }
     for (IdxT i = 0; i < num_vars+1; ++i) {
       hostpinned_alloc.deallocate(vars[i]);
@@ -371,7 +385,14 @@ int main(int argc, char** argv)
     tm.restart(device_alloc.name());
 
     for (IdxT i = 0; i < num_vars+1; ++i) {
-      vars[i] = device_alloc.allocate(info.ijklen*sizeof(DataT));
+      vars[i] = (DataT*)device_alloc.allocate(info.ijklen*sizeof(DataT));
+    }
+    for (IdxT i = 0; i < num_vars+1; ++i) {
+      IdxT len = info.ijklen;
+      DataT* data = vars[i];
+      for_all(cuda_pol{}, 0, len, [=] DEVICE (IdxT, IdxT idx) {
+        data[idx] = 0.0;
+      });
     }
     for (IdxT i = 0; i < num_vars+1; ++i) {
       device_alloc.deallocate(vars[i]);
@@ -380,7 +401,14 @@ int main(int argc, char** argv)
     tm.restart(managed_alloc.name());
 
     for (IdxT i = 0; i < num_vars+1; ++i) {
-      vars[i] = managed_alloc.allocate(info.ijklen*sizeof(DataT));
+      vars[i] = (DataT*)managed_alloc.allocate(info.ijklen*sizeof(DataT));
+    }
+    for (IdxT i = 0; i < num_vars+1; ++i) {
+      IdxT len = info.ijklen;
+      DataT* data = vars[i];
+      for_all(cuda_pol{}, 0, len, [=] DEVICE (IdxT, IdxT idx) {
+        data[idx] = 0.0;
+      });
     }
     for (IdxT i = 0; i < num_vars+1; ++i) {
       managed_alloc.deallocate(vars[i]);
@@ -389,7 +417,14 @@ int main(int argc, char** argv)
     tm.restart(managed_host_preferred_alloc.name());
 
     for (IdxT i = 0; i < num_vars+1; ++i) {
-      vars[i] = managed_host_preferred_alloc.allocate(info.ijklen*sizeof(DataT));
+      vars[i] = (DataT*)managed_host_preferred_alloc.allocate(info.ijklen*sizeof(DataT));
+    }
+    for (IdxT i = 0; i < num_vars+1; ++i) {
+      IdxT len = info.ijklen;
+      DataT* data = vars[i];
+      for_all(seq_pol{}, 0, len, [=](IdxT, IdxT idx) {
+        data[idx] = 0.0;
+      });
     }
     for (IdxT i = 0; i < num_vars+1; ++i) {
       managed_host_preferred_alloc.deallocate(vars[i]);
@@ -398,7 +433,14 @@ int main(int argc, char** argv)
     tm.restart(managed_host_preferred_device_accessed_alloc.name());
 
     for (IdxT i = 0; i < num_vars+1; ++i) {
-      vars[i] = managed_host_preferred_device_accessed_alloc.allocate(info.ijklen*sizeof(DataT));
+      vars[i] = (DataT*)managed_host_preferred_device_accessed_alloc.allocate(info.ijklen*sizeof(DataT));
+    }
+    for (IdxT i = 0; i < num_vars+1; ++i) {
+      IdxT len = info.ijklen;
+      DataT* data = vars[i];
+      for_all(seq_pol{}, 0, len, [=](IdxT, IdxT idx) {
+        data[idx] = 0.0;
+      });
     }
     for (IdxT i = 0; i < num_vars+1; ++i) {
       managed_host_preferred_device_accessed_alloc.deallocate(vars[i]);
@@ -407,7 +449,14 @@ int main(int argc, char** argv)
     tm.restart(managed_device_preferred_alloc.name());
 
     for (IdxT i = 0; i < num_vars+1; ++i) {
-      vars[i] = managed_device_preferred_alloc.allocate(info.ijklen*sizeof(DataT));
+      vars[i] = (DataT*)managed_device_preferred_alloc.allocate(info.ijklen*sizeof(DataT));
+    }
+    for (IdxT i = 0; i < num_vars+1; ++i) {
+      IdxT len = info.ijklen;
+      DataT* data = vars[i];
+      for_all(cuda_pol{}, 0, len, [=] DEVICE (IdxT, IdxT idx) {
+        data[idx] = 0.0;
+      });
     }
     for (IdxT i = 0; i < num_vars+1; ++i) {
       managed_device_preferred_alloc.deallocate(vars[i]);
@@ -416,7 +465,14 @@ int main(int argc, char** argv)
     tm.restart(managed_device_preferred_host_accessed_alloc.name());
 
     for (IdxT i = 0; i < num_vars+1; ++i) {
-      vars[i] = managed_device_preferred_host_accessed_alloc.allocate(info.ijklen*sizeof(DataT));
+      vars[i] = (DataT*)managed_device_preferred_host_accessed_alloc.allocate(info.ijklen*sizeof(DataT));
+    }
+    for (IdxT i = 0; i < num_vars+1; ++i) {
+      IdxT len = info.ijklen;
+      DataT* data = vars[i];
+      for_all(cuda_pol{}, 0, len, [=] DEVICE (IdxT, IdxT idx) {
+        data[idx] = 0.0;
+      });
     }
     for (IdxT i = 0; i < num_vars+1; ++i) {
       managed_device_preferred_host_accessed_alloc.deallocate(vars[i]);
