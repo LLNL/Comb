@@ -240,6 +240,7 @@ int main(int argc, char** argv)
   IdxT sizes[] = {0, 0, 0};
   IdxT ghost_width = 1;
   IdxT num_vars = 1;
+  IdxT ncycles = 5;
   
   IdxT i = 1;
   IdxT s = 0;
@@ -257,6 +258,14 @@ int main(int argc, char** argv)
       } else if (strcmp(&argv[i][1], "vars") == 0) {
         if (i+1 < argc && argv[i+1][0] != '-') {
           num_vars = static_cast<IdxT>(atoll(argv[++i]));
+        } else {
+          if (comm_rank == 0) {
+            fprintf(stderr, "No argument to option, ignoring %s.\n", argv[i]); fflush(stderr);
+          }
+        }
+      } else if (strcmp(&argv[i][1], "cycles") == 0) {
+        if (i+1 < argc && argv[i+1][0] != '-') {
+          ncycles = static_cast<IdxT>(atoll(argv[++i]));
         } else {
           if (comm_rank == 0) {
             fprintf(stderr, "No argument to option, ignoring %s.\n", argv[i]); fflush(stderr);
@@ -282,12 +291,17 @@ int main(int argc, char** argv)
     sizes[2] = sizes[0];
   }
   
-  if (num_vars <= 0) {
+  if (ncycles <= 0) {
+    if (comm_rank == 0) {
+      fprintf(stderr, "Invalid cycles argument.\n"); fflush(stderr);
+    }
+    MPI_Abort(MPI_COMM_WORLD, 1);
+  } else if (num_vars <= 0) {
     if (comm_rank == 0) {
       fprintf(stderr, "Invalid vars argument.\n"); fflush(stderr);
     }
     MPI_Abort(MPI_COMM_WORLD, 1);
-  } if (ghost_width <= 0) {
+  } else if (ghost_width <= 0) {
     if (comm_rank == 0) {
       fprintf(stderr, "Invalid ghost argument.\n"); fflush(stderr);
     }
@@ -302,6 +316,7 @@ int main(int argc, char** argv)
   MeshInfo info(sizes[0], sizes[1], sizes[2], ghost_width);
     
   if (comm_rank == 0) {
+    printf("Num cycles %i\n", ncycles);
     printf("Num vars %i\n", num_vars);
     printf("Mesh info\n");
     printf("%i %i %i\n", info.isize, info.jsize, info.ksize);
@@ -415,8 +430,6 @@ int main(int argc, char** argv)
     tm.clear();
 
   }
-
-  IdxT ncycles = 5;
 
   // host allocated
   {
