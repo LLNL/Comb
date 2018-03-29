@@ -1,5 +1,9 @@
 #include <cstdio>
 #include <cstdlib>
+#include <cmath>
+#include <algorithm>
+#include <vector>
+#include <set>
 
 #include <mpi.h>
 
@@ -8,7 +12,6 @@
 #include "profiling.cuh"
 #include "mesh.cuh"
 #include "comm.cuh"
-#include <vector>
 
 namespace detail {
 
@@ -237,10 +240,11 @@ int main(int argc, char** argv)
 
   cudaCheck(cudaDeviceSynchronize());  
 
-  IdxT sizes[] = {0, 0, 0};
+  IdxT sizes[3] = {0, 0, 0};
   IdxT ghost_width = 1;
   IdxT num_vars = 1;
   IdxT ncycles = 5;
+  int periodic[3] {0, 0, 0};
   
   IdxT i = 1;
   IdxT s = 0;
@@ -312,13 +316,114 @@ int main(int argc, char** argv)
     }
     MPI_Abort(MPI_COMM_WORLD, 1);
   }
-
-  MeshInfo info(sizes[0], sizes[1], sizes[2], ghost_width);
+  
+  int cuts[3] {1, 1, 1};
+  // decide how to cut up mesh
+  {
+    IdxT P = comm_size;
+    IdxT sqrtP = sqrt(P);
+    
+    // get prime factors of P
+    std::multiset<IdxT> prime_factors;
+    {
+      // get list of possible prime factors (excluding P)
+      std::vector<IdxT> primes({2});
+      for(IdxT p = 3; p < sqrtP; p += 2) {
+        IdxT primes_size = primes.size();
+        IdxT i = 0;
+        for (; i < primes_size; ++i) {
+          if (p % primes[i] == 0) break; // not prime
+        }
+        if (i == primes_size) {
+          primes.push_back(p);
+        }
+      }
+    
+      IdxT P_tmp = P;
+      IdxT pi = 0;
+      IdxT primes_size = primes.size();
+      while(pi != primes_size) {
+        if (P_tmp % primes[pi] == 0) {
+          // found prime factor
+          prime_factors.insert(primes[pi]);
+          P_tmp /= primes[pi];
+        } else {
+          ++pi;
+        }
+      }
+      if (P_tmp != 1) {
+        prime_factors.insert(P_tmp);
+      }
+    }
+    
+    double I = std::cbrt(sizes[0] * sizes[1] * sizes[2]) / P;
+    
+    while(std::begin(prime_factors) != std::end(prime_factors)) {
+      
+      double best_relative_remainder_dist = 1e100;
+      auto best_factor = std::end(prime_factors);
+      IdxT best_dim = 3;
+      
+      double ideal[3] {sizes[0] / (cuts[0] * I),
+                       sizes[1] / (cuts[1] * I),
+                       sizes[2] / (cuts[2] * I)};
+      
+      auto end = std::end(prime_factors);
+      for(auto k = std::begin(prime_factors); k != end; ++k) {
+        IdxT factor = *k;
+        for(IdxT dim = 2; dim >= 0; --dim) {
+          double remainder = std::fmod(ideal[dim], factor);
+          double remainder_dist = std::min(remainder, factor - remainder);
+          double relative_remainder_dist = remainder_dist / factor;
+          if (relative_remainder_dist < best_relative_remainder_dist) {
+            best_relative_remainder_dist = relative_remainder_dist;
+            best_factor = k;
+            best_dim = dim;
+          }
+        }
+      }
+      
+      assert(best_factor != end && best_dim < 3);
+      
+      cuts[best_dim] *= *best_factor;
+      
+      prime_factors.erase(best_factor);
+    }
+  }
+  
+  // create cartesian communicator
+  MPI_Comm cart_comm;
+  
+  MPI_Cart_create(mpi_comm, 3, cuts, periodic, 1, &cart_comm);
+  
+  int cart_rank = -1;
+  MPI_Comm_rank(cart_comm, &cart_rank);
+  
+  int cart_coords[3] {-1, -1, -1};
+  MPI_Cart_coords(cart_comm, cart_rank, 3, cart_coords);
+  
+  IdxT local_min[3] { (cart_coords[0] * sizes[0]) / cuts[0]
+                    , (cart_coords[1] * sizes[1]) / cuts[1]
+                    , (cart_coords[2] * sizes[2]) / cuts[2] };
+                    
+  IdxT local_max[3] { ((cart_coords[0]+1) * sizes[0]) / cuts[0]
+                    , ((cart_coords[1]+1) * sizes[1]) / cuts[1]
+                    , ((cart_coords[2]+1) * sizes[2]) / cuts[2] };
+    
+  IdxT local_sizes[3] { local_max[0] - local_min[0]
+                      , local_max[1] - local_min[1]
+                      , local_max[2] - local_min[2] };
+  
+  
+  MeshInfo global_info(sizes[0], sizes[1], sizes[2], ghost_width);
+  MeshInfo info(local_sizes[0], local_sizes[1], local_sizes[2], ghost_width);
     
   if (comm_rank == 0) {
     printf("Num cycles %i\n", ncycles);
     printf("Num vars %i\n", num_vars);
-    printf("Mesh info\n");
+    printf("Global Mesh info\n");
+    printf("%i %i %i\n", global_info.isize, global_info.jsize, global_info.ksize);
+    printf("Local Mesh info\n");
     printf("%i %i %i\n", info.isize, info.jsize, info.ksize);
     printf("ij %i ik %i jk %i\n", info.ijsize, info.iksize, info.jksize);
     printf("ijk %i\n", info.ijksize);
