@@ -90,7 +90,7 @@ public:
       const int n = m_n;
       const int stride = blockDim.x * gridDim.x;
       for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < n; i += stride) {
-         kernel(i + begin);
+         kernel(i + begin, i);
       }
    }
 
