@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <vector>
 #include <set>
+#include <cctype>
 
 #include <mpi.h>
 
@@ -68,7 +69,7 @@ namespace detail {
 } // namespace detail
 
 template < typename pol_loop, typename pol_face, typename pol_edge, typename pol_corner >
-void do_cycles(MeshInfo& info, IdxT num_vars, IdxT ncycles, Allocator& aloc_mesh, Allocator& aloc_face, Allocator& aloc_edge, Allocator& aloc_corner, Timer& tm)
+void do_cycles(CommInfo& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles, Allocator& aloc_mesh, Allocator& aloc_face, Allocator& aloc_edge, Allocator& aloc_corner, Timer& tm)
 {
     tm.clear();
 
@@ -77,13 +78,15 @@ void do_cycles(MeshInfo& info, IdxT num_vars, IdxT ncycles, Allocator& aloc_mesh
     printf("Starting test %s\n", test_name); fflush(stdout);
 
     Range r0(rname, Range::orange);
+    
+    comm_info.barrier();
 
     tm.start("start-up");
 
     std::vector<MeshData> vars;
     vars.reserve(num_vars);
     
-    Comm<pol_face, pol_edge, pol_corner> comm(aloc_face, aloc_edge, aloc_corner);
+    Comm<pol_face, pol_edge, pol_corner> comm(comm_info, aloc_face, aloc_edge, aloc_corner);
 
     for (IdxT i = 0; i < num_vars; ++i) {
     
@@ -221,22 +224,14 @@ int main(int argc, char** argv)
   int required = MPI_THREAD_SINGLE;
   int provided = MPI_THREAD_SINGLE;
   MPI_Init_thread(&argc, &argv, required, &provided);
-
-  MPI_Comm mpi_comm = MPI_COMM_WORLD;
-
+  
+  CommInfo comminfo;
+  
   if (required != provided) {
-    fprintf(stderr, "Didn't receive MPI thread support required %i provided %i.\n", required, provided); fflush(stderr);
-    MPI_Abort(mpi_comm, 1);
+    comminfo.abort_master("Didn't receive MPI thread support required %i provided %i.\n", required, provided);
   }
-
-  int comm_rank = -1;
-  MPI_Comm_rank(mpi_comm, &comm_rank);
-  int comm_size = 0;
-  MPI_Comm_size(mpi_comm, &comm_size);
-
-  if (comm_rank == 0) {
-    printf("Started rank %i of %i\n", comm_rank, comm_size); fflush(stdout);
-  }
+  
+  comminfo.print_master("Started rank %i of %i\n", comminfo.rank, comminfo.size);
 
   cudaCheck(cudaDeviceSynchronize());  
 
@@ -244,83 +239,128 @@ int main(int argc, char** argv)
   IdxT ghost_width = 1;
   IdxT num_vars = 1;
   IdxT ncycles = 5;
-  int periodic[3] {0, 0, 0};
+  bool cart_cuts_set = false;
   
   IdxT i = 1;
   IdxT s = 0;
   for(; i < argc; ++i) {
     if (argv[i][0] == '-') {
-      // option
-      if (strcmp(&argv[i][1], "ghost") == 0) {
+      // options
+      if (strcmp(&argv[i][1], "comm") == 0) {
+        if (i+1 < argc && argv[i+1][0] != '-') {
+          ++i;
+          if (strcmp(argv[i], "mock") == 0) {
+            comminfo.mock_communication = true;
+          } else if (strcmp(argv[i], "send_any") == 0) {
+            comminfo.send_method = CommInfo::method::any;
+          } else if (strcmp(argv[i], "send_some") == 0) {
+            comminfo.send_method = CommInfo::method::some;
+          } else if (strcmp(argv[i], "send_all") == 0) {
+            comminfo.send_method = CommInfo::method::all;
+          } else if (strcmp(argv[i], "recv_any") == 0) {
+            comminfo.recv_method = CommInfo::method::any;
+          } else if (strcmp(argv[i], "recv_some") == 0) {
+            comminfo.recv_method = CommInfo::method::some;
+          } else if (strcmp(argv[i], "recv_all") == 0) {
+            comminfo.recv_method = CommInfo::method::all;
+          } else {
+            comminfo.warn_master("Invalid argument to option, ignoring %s.\n", argv[i-1]);
+          }
+        } else {
+          comminfo.warn_master("No argument to option, ignoring %s.\n", argv[i]);
+        }
+      } else if (strcmp(&argv[i][1], "ghost") == 0) {
         if (i+1 < argc && argv[i+1][0] != '-') {
           ghost_width = static_cast<IdxT>(atoll(argv[++i]));
         } else {
-          if (comm_rank == 0) {
-            fprintf(stderr, "No argument to option, ignoring %s.\n", argv[i]); fflush(stderr);
-          }
+          comminfo.warn_master("No argument to option, ignoring %s.\n", argv[i]);
         }
       } else if (strcmp(&argv[i][1], "vars") == 0) {
         if (i+1 < argc && argv[i+1][0] != '-') {
           num_vars = static_cast<IdxT>(atoll(argv[++i]));
         } else {
-          if (comm_rank == 0) {
-            fprintf(stderr, "No argument to option, ignoring %s.\n", argv[i]); fflush(stderr);
-          }
+          comminfo.warn_master("No argument to option, ignoring %s.\n", argv[i]);
         }
       } else if (strcmp(&argv[i][1], "cycles") == 0) {
         if (i+1 < argc && argv[i+1][0] != '-') {
           ncycles = static_cast<IdxT>(atoll(argv[++i]));
         } else {
-          if (comm_rank == 0) {
-            fprintf(stderr, "No argument to option, ignoring %s.\n", argv[i]); fflush(stderr);
+          comminfo.warn_master("No argument to option, ignoring %s.\n", argv[i]);
+        }
+      } else if (strcmp(&argv[i][1], "periodic") == 0) {
+        if (i+1 < argc && argv[i+1][0] != '-') {
+          int ret = sscanf(argv[++i], "%d_%d_%d", &comminfo.cart.periodic[0], &comminfo.cart.periodic[1], &comminfo.cart.periodic[2]);
+          if (ret == 1) {
+            comminfo.cart.periodic[1] = comminfo.cart.periodic[0];
+            comminfo.cart.periodic[2] = comminfo.cart.periodic[0];
+          } else if (ret != 3) {
+            comminfo.cart.periodic[0] = 0;
+            comminfo.cart.periodic[1] = 0;
+            comminfo.cart.periodic[2] = 0;
+            comminfo.warn_master("Invalid arguments to option, ignoring %s.\n", argv[i-1]);
           }
+          comminfo.cart.periodic[0] = comminfo.cart.periodic[0] ? 1 : 0;
+          comminfo.cart.periodic[1] = comminfo.cart.periodic[1] ? 1 : 0;
+          comminfo.cart.periodic[2] = comminfo.cart.periodic[2] ? 1 : 0;
+        } else {
+          comminfo.warn_master("No argument to option, ignoring %s.\n", argv[i]);
+        }
+      } else if (strcmp(&argv[i][1], "divide") == 0) {
+        if (i+1 < argc && argv[i+1][0] != '-') {
+          int ret = sscanf(argv[++i], "%d_%d_%d", &comminfo.cart.cuts[0], &comminfo.cart.cuts[1], &comminfo.cart.cuts[2]);
+          if (ret != 3) {
+            comminfo.cart.cuts[0] = 1;
+            comminfo.cart.cuts[1] = 1;
+            comminfo.cart.cuts[2] = 1;
+            comminfo.warn_master("Invalid arguments to option, ignoring %s.\n", argv[i-1]);
+          } else {
+            cart_cuts_set = true;
+          }
+        } else {
+          comminfo.warn_master("No argument to option, ignoring %s.\n", argv[i]);
         }
       } else {
-        if (comm_rank == 0) {
-          fprintf(stderr, "Unknown option, ignoring %s.\n", argv[i]); fflush(stderr);
-        }
+        comminfo.warn_master("Unknown option, ignoring %s.\n", argv[i]); 
       }
-    } else if ( s < 3 ) {
-      // assume got integer
-      sizes[s++] = static_cast<IdxT>(atoll(argv[i]));
+    } else if (std::isdigit(argv[i][0]) && s < 1) {
+      long read_sizes[3] {0, 0, 0};
+      int ret = sscanf(argv[i], "%ld_%ld_%ld", &read_sizes[0], &read_sizes[1], &read_sizes[2]);
+      if (ret == 1) {
+        ++s;
+        sizes[0] = read_sizes[0];
+        sizes[1] = read_sizes[0];
+        sizes[2] = read_sizes[0];
+      } else if (ret == 3) {
+        ++s;
+        sizes[0] = read_sizes[0];
+        sizes[1] = read_sizes[1];
+        sizes[2] = read_sizes[2];
+      } else {
+        // set sizes invalid
+        sizes[0] = 0;
+        sizes[1] = 0;
+        sizes[2] = 0;
+        comminfo.warn_master("Invalid sizes argument, ignoring %s.\n", argv[i]);
+      }
     } else {
-      if (comm_rank == 0) {
-        fprintf(stderr, "Too many arguments, ignoring %s.\n", argv[i]); fflush(stderr);
-      }
+      comminfo.warn_master("Invalid argument, ignoring %s.\n", argv[i]);
     }
-  }
-  
-  if (s == 1) {
-    sizes[1] = sizes[0];
-    sizes[2] = sizes[0];
   }
   
   if (ncycles <= 0) {
-    if (comm_rank == 0) {
-      fprintf(stderr, "Invalid cycles argument.\n"); fflush(stderr);
-    }
-    MPI_Abort(MPI_COMM_WORLD, 1);
+    comminfo.abort_master("Invalid cycles argument.\n");
   } else if (num_vars <= 0) {
-    if (comm_rank == 0) {
-      fprintf(stderr, "Invalid vars argument.\n"); fflush(stderr);
-    }
-    MPI_Abort(MPI_COMM_WORLD, 1);
+    comminfo.abort_master("Invalid vars argument.\n");
   } else if (ghost_width <= 0) {
-    if (comm_rank == 0) {
-      fprintf(stderr, "Invalid ghost argument.\n"); fflush(stderr);
-    }
-    MPI_Abort(MPI_COMM_WORLD, 1);
+    comminfo.abort_master("Invalid ghost argument.\n");
   } else if (sizes[0] < ghost_width || sizes[1] < ghost_width || sizes[2] < ghost_width) {
-    if (comm_rank == 0) {
-      fprintf(stderr, "Invalid size arguments.\n"); fflush(stderr);
-    }
-    MPI_Abort(MPI_COMM_WORLD, 1);
+    comminfo.abort_master("Invalid size arguments.\n");
   }
   
-  int cuts[3] {1, 1, 1};
   // decide how to cut up mesh
-  {
-    IdxT P = comm_size;
+  if (!cart_cuts_set) {
+  
+    IdxT P = comminfo.size;
     IdxT sqrtP = sqrt(P);
     
     // get prime factors of P
@@ -357,6 +397,7 @@ int main(int argc, char** argv)
     }
     
     double I = std::cbrt(sizes[0] * sizes[1] * sizes[2]) / P;
+    IdxT cuts[3] {1, 1, 1};
     
     while(std::begin(prime_factors) != std::end(prime_factors)) {
       
@@ -389,51 +430,63 @@ int main(int argc, char** argv)
       
       prime_factors.erase(best_factor);
     }
+    
+    comminfo.cart.cuts[0] = cuts[0];
+    comminfo.cart.cuts[1] = cuts[1];
+    comminfo.cart.cuts[2] = cuts[2];
   }
   
-  // create cartesian communicator
-  MPI_Comm cart_comm;
+  if (comminfo.size != comminfo.cart.cuts[0] * comminfo.cart.cuts[1] * comminfo.cart.cuts[2]) {
+    comminfo.abort_master("Invalid mesh division\n");
+  }
   
-  MPI_Cart_create(mpi_comm, 3, cuts, periodic, 1, &cart_comm);
+  // create cartesian communicator and get rank
+  comminfo.cart.create();
   
-  int cart_rank = -1;
-  MPI_Comm_rank(cart_comm, &cart_rank);
+  CartComm const& cart = comminfo.cart;
   
-  int cart_coords[3] {-1, -1, -1};
-  MPI_Cart_coords(cart_comm, cart_rank, 3, cart_coords);
-  
-  IdxT local_min[3] { (cart_coords[0] * sizes[0]) / cuts[0]
-                    , (cart_coords[1] * sizes[1]) / cuts[1]
-                    , (cart_coords[2] * sizes[2]) / cuts[2] };
+  IdxT local_min[3] { cart.coords[0] * (sizes[0] / cart.cuts[0]) + std::min(cart.coords[0], sizes[0] % cart.cuts[0])
+                    , cart.coords[1] * (sizes[1] / cart.cuts[1]) + std::min(cart.coords[1], sizes[1] % cart.cuts[1])
+                    , cart.coords[2] * (sizes[2] / cart.cuts[2]) + std::min(cart.coords[2], sizes[2] % cart.cuts[2]) };
                     
-  IdxT local_max[3] { ((cart_coords[0]+1) * sizes[0]) / cuts[0]
-                    , ((cart_coords[1]+1) * sizes[1]) / cuts[1]
-                    , ((cart_coords[2]+1) * sizes[2]) / cuts[2] };
+  IdxT local_max[3] { (cart.coords[0] + 1) * (sizes[0] / cart.cuts[0]) + std::min(cart.coords[0] + 1, sizes[0] % cart.cuts[0])
+                    , (cart.coords[1] + 1) * (sizes[1] / cart.cuts[1]) + std::min(cart.coords[1] + 1, sizes[1] % cart.cuts[1])
+                    , (cart.coords[2] + 1) * (sizes[2] / cart.cuts[2]) + std::min(cart.coords[2] + 1, sizes[2] % cart.cuts[2]) };
     
   IdxT local_sizes[3] { local_max[0] - local_min[0]
                       , local_max[1] - local_min[1]
                       , local_max[2] - local_min[2] };
   
-  
   MeshInfo global_info(sizes[0], sizes[1], sizes[2], ghost_width);
+  
   MeshInfo info(local_sizes[0], local_sizes[1], local_sizes[2], ghost_width);
-    
-  if (comm_rank == 0) {
-    printf("Num cycles %i\n", ncycles);
-    printf("Num vars %i\n", num_vars);
-    printf("Global Mesh info\n");
-    printf("%i %i %i\n", global_info.isize, global_info.jsize, global_info.ksize);
-    printf("Local Mesh info\n");
-    printf("%i %i %i\n", info.isize, info.jsize, info.ksize);
-    printf("ij %i ik %i jk %i\n", info.ijsize, info.iksize, info.jksize);
-    printf("ijk %i\n", info.ijksize);
-    printf("ghost_width %i\n", info.ghost_width);
-    printf("i %8i %8i %8i %8i\n", 0, info.imin, info.imax, info.ilen);
-    printf("j %8i %8i %8i %8i\n", 0, info.jmin, info.jmax, info.jlen);
-    printf("k %8i %8i %8i %8i\n", 0, info.kmin, info.kmax, info.klen);
-    printf("ij %i ik %i jk %i\n", info.ijlen, info.iklen, info.jklen);
-    printf("ijk %i\n", info.ijklen);
-    fflush(stdout);
+  
+  // print info about problem setup
+  comminfo.print_master("Do %s communication\n", comminfo.mock_communication ? "mock" : "real");
+  comminfo.print_master("Pack and Send %s message%s at a time\n", CommInfo::method_str(comminfo.send_method), comminfo.send_method == CommInfo::method::any ? "" : "s");
+  comminfo.print_master("Recv and Unpack %s message%s at a time\n", CommInfo::method_str(comminfo.recv_method), comminfo.recv_method == CommInfo::method::any ? "" : "s");
+  comminfo.print_master("Num cycles  %i\n", ncycles);
+  comminfo.print_master("Num cycles  %i\n", ncycles);
+  comminfo.print_master("Num vars    %i\n", num_vars);
+  comminfo.print_master("ghost_width %i\n", info.ghost_width);
+  comminfo.print_master("size      %8i %8i %8i\n", global_info.isize,         global_info.jsize,         global_info.ksize);
+  comminfo.print_master("divisions %8i %8i %8i\n", comminfo.cart.cuts[0],     comminfo.cart.cuts[1],     comminfo.cart.cuts[2]);
+  comminfo.print_master("periodic  %8i %8i %8i\n", comminfo.cart.periodic[0], comminfo.cart.periodic[1], comminfo.cart.periodic[2]);
+  comminfo.print_master("division map\n", comminfo.cart.periodic[0], comminfo.cart.periodic[1], comminfo.cart.periodic[2]);
+  // print division map
+  IdxT max_cuts = std::max(std::max(comminfo.cart.cuts[0], comminfo.cart.cuts[1]), comminfo.cart.cuts[2]);
+  for (IdxT ci = 0; ci <= max_cuts; ++ci) {
+    int division_coords[3] {-1, -1, -1};
+    if (ci <= comminfo.cart.cuts[0]) {
+      division_coords[0] = ci * (sizes[0] / comminfo.cart.cuts[0]) + std::min(ci, sizes[0] % comminfo.cart.cuts[0]);
+    }
+    if (ci <= comminfo.cart.cuts[0]) {
+      division_coords[1] = ci * (sizes[1] / comminfo.cart.cuts[1]) + std::min(ci, sizes[1] % comminfo.cart.cuts[1]);
+    }
+    if (ci <= comminfo.cart.cuts[0]) {
+      division_coords[2] = ci * (sizes[2] / comminfo.cart.cuts[2]) + std::min(ci, sizes[2] % comminfo.cart.cuts[2]);
+    }
+    comminfo.print_master("map       %8i %8i %8i\n", division_coords[0], division_coords[1], division_coords[2] );
   }
   
   HostAllocator host_alloc;
@@ -599,11 +652,13 @@ int main(int argc, char** argv)
     char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.name());
     Range r0(name, Range::blue);
 
-    do_cycles<seq_pol, seq_pol, seq_pol, seq_pol>(info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
+    do_cycles<seq_pol, seq_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
 
-    // do_cycles<cuda_pol, seq_pol, seq_pol, seq_pol>(info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
+    // do_cycles<cuda_pol, seq_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
 
-    // do_cycles<cuda_pol, cuda_pol, cuda_pol, cuda_pol>(info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
+    // do_cycles<cuda_pol, cuda_pol, cuda_pol, cuda_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
+
+    // do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
   }
 
   // host pinned allocated
@@ -613,13 +668,15 @@ int main(int argc, char** argv)
     char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.name());
     Range r0(name, Range::blue);
 
-    do_cycles<seq_pol, seq_pol, seq_pol, seq_pol>(info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
+    do_cycles<seq_pol, seq_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
 
-    do_cycles<cuda_pol, seq_pol, seq_pol, seq_pol>(info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
+    do_cycles<cuda_pol, seq_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
 
-    // do_cycles<cuda_pol, cuda_pol, cuda_pol, cuda_pol>(info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
+    // do_cycles<cuda_pol, cuda_pol, cuda_pol, cuda_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
 
-    do_cycles<cuda_pol, cuda_pol, cuda_pol, cuda_pol>(info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, hostpinned_alloc, tm);
+    do_cycles<cuda_pol, cuda_pol, cuda_pol, cuda_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, hostpinned_alloc, tm);
+
+    do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, hostpinned_alloc, tm);
   }
 
   // device allocated
@@ -629,13 +686,15 @@ int main(int argc, char** argv)
     char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.name());
     Range r0(name, Range::blue);
 
-    // do_cycles<seq_pol, seq_pol, seq_pol, seq_pol>(info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
+    // do_cycles<seq_pol, seq_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
 
-    // do_cycles<cuda_pol, seq_pol, seq_pol, seq_pol>(info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
+    // do_cycles<cuda_pol, seq_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
 
-    do_cycles<cuda_pol, cuda_pol, cuda_pol, cuda_pol>(info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, hostpinned_alloc, tm);
+    do_cycles<cuda_pol, cuda_pol, cuda_pol, cuda_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, hostpinned_alloc, tm);
  
-    do_cycles<cuda_pol, cuda_pol, cuda_pol, cuda_pol>(info, num_vars, ncycles, mesh_aloc, device_alloc, device_alloc, device_alloc, tm);
+    do_cycles<cuda_pol, cuda_pol, cuda_pol, cuda_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, device_alloc, device_alloc, device_alloc, tm);
+ 
+    do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, device_alloc, device_alloc, device_alloc, tm);
   }
 
   // managed allocated
@@ -645,15 +704,21 @@ int main(int argc, char** argv)
     char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.name());
     Range r0(name, Range::blue);
 
-    do_cycles<seq_pol, seq_pol, seq_pol, seq_pol>(info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
+    do_cycles<seq_pol, seq_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
 
-    do_cycles<cuda_pol, seq_pol, seq_pol, seq_pol>(info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
+    do_cycles<cuda_pol, seq_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
 
-    do_cycles<cuda_pol, cuda_pol, seq_pol, seq_pol>(info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, host_alloc, tm);
+    do_cycles<cuda_pol, cuda_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, host_alloc, tm);
 
-    do_cycles<cuda_pol, cuda_pol, cuda_pol, seq_pol>(info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, host_alloc, tm);
+    do_cycles<cuda_pol, cuda_pol, cuda_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, host_alloc, tm);
 
-    do_cycles<cuda_pol, cuda_pol, cuda_pol, cuda_pol>(info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, hostpinned_alloc, tm);
+    do_cycles<cuda_pol, cuda_pol, cuda_pol, cuda_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, hostpinned_alloc, tm);
+
+    do_cycles<cuda_pol, cuda_batch_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, host_alloc, tm);
+
+    do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, host_alloc, tm);
+
+    do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, hostpinned_alloc, tm);
   }
 
   // managed host preferred allocated
@@ -663,15 +728,21 @@ int main(int argc, char** argv)
     char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.name());
     Range r0(name, Range::blue);
 
-    do_cycles<seq_pol, seq_pol, seq_pol, seq_pol>(info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
+    do_cycles<seq_pol, seq_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
 
-    do_cycles<cuda_pol, seq_pol, seq_pol, seq_pol>(info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
+    do_cycles<cuda_pol, seq_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
 
-    do_cycles<cuda_pol, cuda_pol, seq_pol, seq_pol>(info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, host_alloc, tm);
+    do_cycles<cuda_pol, cuda_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, host_alloc, tm);
 
-    do_cycles<cuda_pol, cuda_pol, cuda_pol, seq_pol>(info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, host_alloc, tm);
+    do_cycles<cuda_pol, cuda_pol, cuda_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, host_alloc, tm);
 
-    do_cycles<cuda_pol, cuda_pol, cuda_pol, cuda_pol>(info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, hostpinned_alloc, tm);
+    do_cycles<cuda_pol, cuda_pol, cuda_pol, cuda_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, hostpinned_alloc, tm);
+
+    do_cycles<cuda_pol, cuda_batch_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, host_alloc, tm);
+
+    do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, host_alloc, tm);
+
+    do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, hostpinned_alloc, tm);
   }
 
   // managed host preferred device accessed allocated
@@ -681,15 +752,21 @@ int main(int argc, char** argv)
     char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.name());
     Range r0(name, Range::blue);
 
-    do_cycles<seq_pol, seq_pol, seq_pol, seq_pol>(info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
+    do_cycles<seq_pol, seq_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
 
-    do_cycles<cuda_pol, seq_pol, seq_pol, seq_pol>(info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
+    do_cycles<cuda_pol, seq_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
 
-    do_cycles<cuda_pol, cuda_pol, seq_pol, seq_pol>(info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, host_alloc, tm);
+    do_cycles<cuda_pol, cuda_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, host_alloc, tm);
 
-    do_cycles<cuda_pol, cuda_pol, cuda_pol, seq_pol>(info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, host_alloc, tm);
+    do_cycles<cuda_pol, cuda_pol, cuda_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, host_alloc, tm);
 
-    do_cycles<cuda_pol, cuda_pol, cuda_pol, cuda_pol>(info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, hostpinned_alloc, tm);
+    do_cycles<cuda_pol, cuda_pol, cuda_pol, cuda_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, hostpinned_alloc, tm);
+
+    do_cycles<cuda_pol, cuda_batch_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, host_alloc, tm);
+
+    do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, host_alloc, tm);
+
+    do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, hostpinned_alloc, tm);
   }
 
   // managed device preferred allocated
@@ -699,15 +776,21 @@ int main(int argc, char** argv)
     char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.name());
     Range r0(name, Range::blue);
 
-    do_cycles<seq_pol, seq_pol, seq_pol, seq_pol>(info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
+    do_cycles<seq_pol, seq_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
 
-    do_cycles<cuda_pol, seq_pol, seq_pol, seq_pol>(info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
+    do_cycles<cuda_pol, seq_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
 
-    do_cycles<cuda_pol, cuda_pol, seq_pol, seq_pol>(info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, host_alloc, tm);
+    do_cycles<cuda_pol, cuda_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, host_alloc, tm);
 
-    do_cycles<cuda_pol, cuda_pol, cuda_pol, seq_pol>(info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, host_alloc, tm);
+    do_cycles<cuda_pol, cuda_pol, cuda_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, host_alloc, tm);
 
-    do_cycles<cuda_pol, cuda_pol, cuda_pol, cuda_pol>(info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, hostpinned_alloc, tm);
+    do_cycles<cuda_pol, cuda_pol, cuda_pol, cuda_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, hostpinned_alloc, tm);
+
+    do_cycles<cuda_pol, cuda_batch_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, host_alloc, tm);
+
+    do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, host_alloc, tm);
+
+    do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, hostpinned_alloc, tm);
   }
 
   // managed device preferred host accessed allocated
@@ -717,17 +800,24 @@ int main(int argc, char** argv)
     char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.name());
     Range r0(name, Range::blue);
 
-    do_cycles<seq_pol, seq_pol, seq_pol, seq_pol>(info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
+    do_cycles<seq_pol, seq_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
 
-    do_cycles<cuda_pol, seq_pol, seq_pol, seq_pol>(info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
+    do_cycles<cuda_pol, seq_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, host_alloc, tm);
 
-    do_cycles<cuda_pol, cuda_pol, seq_pol, seq_pol>(info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, host_alloc, tm);
+    do_cycles<cuda_pol, cuda_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, host_alloc, tm);
 
-    do_cycles<cuda_pol, cuda_pol, cuda_pol, seq_pol>(info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, host_alloc, tm);
+    do_cycles<cuda_pol, cuda_pol, cuda_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, host_alloc, tm);
 
-    do_cycles<cuda_pol, cuda_pol, cuda_pol, cuda_pol>(info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, hostpinned_alloc, tm);
+    do_cycles<cuda_pol, cuda_pol, cuda_pol, cuda_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, hostpinned_alloc, tm);
+
+    do_cycles<cuda_pol, cuda_batch_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, host_alloc, tm);
+    
+    do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, host_alloc, tm);
+    
+    do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, hostpinned_alloc, tm);
   }
 
+  comminfo.cart.disconnect();
   MPI_Finalize();
   return 0;
 }

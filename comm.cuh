@@ -10,9 +10,157 @@
 #include <vector>
 #include <utility>
 
+#include <mpi.h>
+
 #include "memory.cuh"
 #include "for_all.cuh"
 #include "mesh.cuh"
+
+
+struct CartComm
+{
+  MPI_Comm comm;
+  int rank;
+  int size;
+  int coords[3];
+  int cuts[3];
+  int periodic[3];
+  explicit CartComm()
+    : comm(MPI_COMM_NULL)
+    , rank(-1)
+    , size(0)
+    , coords{-1, -1, -1}
+    , cuts{1, 1, 1}
+    , periodic{0, 0, 0}
+  {
+  }
+  
+  void create()
+  {
+    MPI_Cart_create(MPI_COMM_WORLD, 3, cuts, periodic, 1, &comm);
+    MPI_Comm_rank(comm, &rank);
+    MPI_Comm_size(comm, &size);
+    MPI_Cart_coords(comm, rank, 3, coords);
+  }
+  
+  int get_rank(const int arg_coords[])
+  {
+    int output_rank = -1;
+    int input_coords[3] {-1, -1, -1};
+    for(IdxT dim = 0; dim < 3; ++dim) {
+      if ((0 <= arg_coords[dim] && arg_coords[dim] < cuts[dim]) || periodic[dim]) {
+        input_coords[dim] = arg_coords[dim] % cuts[dim];
+        if (input_coords[dim] < 0) input_coords[dim] += cuts[dim];
+      }
+    }
+    if (input_coords[0] != -1 && input_coords[1] != -1 && input_coords[2] != -1) {
+      MPI_Cart_rank(comm, input_coords, &output_rank);
+    }
+    return output_rank;
+  }
+  
+  void disconnect()
+  {
+    MPI_Comm_disconnect(&comm);
+  }
+};
+
+struct CommInfo
+{
+  int rank;
+  int size;
+  
+  CartComm cart;
+  
+  bool mock_communication;
+  
+  enum struct method : IdxT
+  { any
+  , some
+  , all };
+  
+  static const char* method_str(method m)
+  {
+    const char* str = "unknown";
+    switch (m) {
+      case method::any:  str = "a";    break;
+      case method::some: str = "some"; break;
+      case method::all:  str = "all";  break;
+    }
+    return str;
+  }
+  
+  method send_method;
+  method recv_method;
+  
+  CommInfo()
+    : rank(-1)
+    , size(0)
+    , cart()
+    , mock_communication(false)
+    , send_method(method::all)
+    , recv_method(method::all)
+  {
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+  }
+    
+  void barrier()
+  {
+    if (cart.comm != MPI_COMM_NULL) {
+      MPI_Barrier(cart.comm);
+    } else {
+      MPI_Barrier(MPI_COMM_WORLD);
+    }
+  }
+  
+  template < typename ... Ts >
+  void print_any(const char* fmt, Ts&&... args)
+  {
+    fprintf(stdout, fmt, std::forward<Ts>(args)...); fflush(stdout);
+  }
+  
+  template < typename ... Ts >
+  void print_master(const char* fmt, Ts&&... args)
+  {
+    if (rank == 0) {
+      print_any(fmt, std::forward<Ts>(args)...);
+    }
+  }
+  
+  template < typename ... Ts >
+  void warn_any(const char* fmt, Ts&&... args)
+  {
+    fprintf(stderr, fmt, std::forward<Ts>(args)...); fflush(stderr);
+  }
+  
+  template < typename ... Ts >
+  void warn_master(const char* fmt, Ts&&... args)
+  {
+    if (rank == 0) {
+      warn_any(fmt, std::forward<Ts>(args)...);
+    }
+  }
+  
+  template < typename ... Ts >
+  void abort_any(const char* fmt, Ts&&... args)
+  {
+    warn_any(fmt, std::forward<Ts>(args)...);
+    abort();
+  }
+  
+  template < typename ... Ts >
+  void abort_master(const char* fmt, Ts&&... args)
+  {
+    warn_master(fmt, std::forward<Ts>(args)...);
+    abort();
+  }
+  
+  void abort()
+  {
+    MPI_Abort(MPI_COMM_WORLD, 1);
+  }
+};
 
 namespace detail {
 
@@ -110,10 +258,14 @@ set_idxr_idxr<I_src, T_dst, I_dst> make_set_idxr_idxr(I_src const& idxr_src, T_d
 
 struct IdxTemplate
 {
-  static const IdxT min = 0;
-  static const IdxT max = 1;
-  IdxT idx, offset;
-  constexpr IdxTemplate(IdxT idx_, IdxT offset_) : idx(idx_), offset(offset_) {}
+  enum struct location: IdxT
+  { min =-1
+  , mid = 0
+  , max = 1
+  };
+  location idx;
+  IdxT offset;
+  constexpr IdxTemplate(location idx_, IdxT offset_) : idx(idx_), offset(offset_) {}
 };
 
 struct Box3d
@@ -132,6 +284,7 @@ struct Box3d
     , kmax(kmax_)
     , mesh(mesh_)
   {
+    // printf("Box3d i %d %d j %d %d k %d %d\n", imin, imax, jmin, jmax, kmin, kmax);
   }
   size_t size() const
   {
@@ -153,336 +306,25 @@ struct Box3d
 struct Box3dTemplate
 {
   using IT = IdxTemplate;
-#define Box3dTemplate_all       IT{IT::min, 0},     IT{IT::max, 0}
-#define Box3dTemplate_min       IT{IT::min, 0},     IT{IT::min, width}
-#define Box3dTemplate_max       IT{IT::max,-width}, IT{IT::max, 0}
-  static constexpr Box3dTemplate get_i_j_kmin(IdxT width)
+  using ITL = IdxTemplate::location;
+  static constexpr Box3dTemplate make_Box3dTemplate_inner(IdxT width, ITL bounds[])
   {
-    return Box3dTemplate{Box3dTemplate_all,
-                         Box3dTemplate_all,
-                         Box3dTemplate_min};
+    return Box3dTemplate{ IT{(bounds[0] == ITL::mid) ? ITL::min : bounds[0], (bounds[0] == ITL::max) ? -width : 0 }
+                        , IT{(bounds[0] == ITL::mid) ? ITL::max : bounds[0], (bounds[0] == ITL::min) ?  width : 0 }
+                        , IT{(bounds[1] == ITL::mid) ? ITL::min : bounds[1], (bounds[1] == ITL::max) ? -width : 0 }
+                        , IT{(bounds[1] == ITL::mid) ? ITL::max : bounds[1], (bounds[1] == ITL::min) ?  width : 0 }
+                        , IT{(bounds[2] == ITL::mid) ? ITL::min : bounds[2], (bounds[2] == ITL::max) ? -width : 0 }
+                        , IT{(bounds[2] == ITL::mid) ? ITL::max : bounds[2], (bounds[2] == ITL::min) ?  width : 0 } };
   }
-  static constexpr Box3dTemplate get_i_j_kmax(IdxT width)
+  static constexpr Box3dTemplate make_Box3dTemplate_ghost(IdxT width, IT::location bounds[])
   {
-    return Box3dTemplate{Box3dTemplate_all,
-                         Box3dTemplate_all,
-                         Box3dTemplate_max};
+    return Box3dTemplate{ IT{(bounds[0] == ITL::mid) ? ITL::min : bounds[0], (bounds[0] == ITL::min) ? -width : 0 }
+                        , IT{(bounds[0] == ITL::mid) ? ITL::max : bounds[0], (bounds[0] == ITL::max) ?  width : 0 }
+                        , IT{(bounds[1] == ITL::mid) ? ITL::min : bounds[1], (bounds[1] == ITL::min) ? -width : 0 }
+                        , IT{(bounds[1] == ITL::mid) ? ITL::max : bounds[1], (bounds[1] == ITL::max) ?  width : 0 }
+                        , IT{(bounds[2] == ITL::mid) ? ITL::min : bounds[2], (bounds[2] == ITL::min) ? -width : 0 }
+                        , IT{(bounds[2] == ITL::mid) ? ITL::max : bounds[2], (bounds[2] == ITL::max) ?  width : 0 } };
   }
-  static constexpr Box3dTemplate get_i_jmin_k(IdxT width)
-  {
-    return Box3dTemplate{Box3dTemplate_all,
-                         Box3dTemplate_min,
-                         Box3dTemplate_all};
-  }
-  static constexpr Box3dTemplate get_i_jmax_k(IdxT width)
-  {
-    return Box3dTemplate{Box3dTemplate_all,
-                         Box3dTemplate_max,
-                         Box3dTemplate_all};
-  }
-  static constexpr Box3dTemplate get_imin_j_k(IdxT width)
-  {
-    return Box3dTemplate{Box3dTemplate_min,
-                         Box3dTemplate_all,
-                         Box3dTemplate_all};
-  }
-  static constexpr Box3dTemplate get_imax_j_k(IdxT width)
-  {
-    return Box3dTemplate{Box3dTemplate_max,
-                         Box3dTemplate_all,
-                         Box3dTemplate_all};
-  }
-  
-  static constexpr Box3dTemplate get_i_jmin_kmin(IdxT width)
-  {
-    return Box3dTemplate{Box3dTemplate_all,
-                         Box3dTemplate_min,
-                         Box3dTemplate_min};
-  }
-  static constexpr Box3dTemplate get_i_jmax_kmin(IdxT width)
-  {
-    return Box3dTemplate{Box3dTemplate_all,
-                         Box3dTemplate_max,
-                         Box3dTemplate_min};
-  }
-  static constexpr Box3dTemplate get_i_jmin_kmax(IdxT width)
-  {
-    return Box3dTemplate{Box3dTemplate_all,
-                         Box3dTemplate_min,
-                         Box3dTemplate_max};
-  }
-  static constexpr Box3dTemplate get_i_jmax_kmax(IdxT width)
-  {
-    return Box3dTemplate{Box3dTemplate_all,
-                         Box3dTemplate_max,
-                         Box3dTemplate_max};
-  }
-  static constexpr Box3dTemplate get_imin_j_kmin(IdxT width)
-  {
-    return Box3dTemplate{Box3dTemplate_min,
-                         Box3dTemplate_all,
-                         Box3dTemplate_min};
-  }
-  static constexpr Box3dTemplate get_imax_j_kmin(IdxT width)
-  {
-    return Box3dTemplate{Box3dTemplate_max,
-                         Box3dTemplate_all,
-                         Box3dTemplate_min};
-  }
-  static constexpr Box3dTemplate get_imin_j_kmax(IdxT width)
-  {
-    return Box3dTemplate{Box3dTemplate_min,
-                         Box3dTemplate_all,
-                         Box3dTemplate_max};
-  }
-  static constexpr Box3dTemplate get_imax_j_kmax(IdxT width)
-  {
-    return Box3dTemplate{Box3dTemplate_max,
-                         Box3dTemplate_all,
-                         Box3dTemplate_max};
-  }
-  static constexpr Box3dTemplate get_imin_jmin_k(IdxT width)
-  {
-    return Box3dTemplate{Box3dTemplate_min,
-                         Box3dTemplate_min,
-                         Box3dTemplate_all};
-  }
-  static constexpr Box3dTemplate get_imax_jmin_k(IdxT width)
-  {
-    return Box3dTemplate{Box3dTemplate_max,
-                         Box3dTemplate_min,
-                         Box3dTemplate_all};
-  }
-  static constexpr Box3dTemplate get_imin_jmax_k(IdxT width)
-  {
-    return Box3dTemplate{Box3dTemplate_min,
-                         Box3dTemplate_max,
-                         Box3dTemplate_all};
-  }
-  static constexpr Box3dTemplate get_imax_jmax_k(IdxT width)
-  {
-    return Box3dTemplate{Box3dTemplate_max,
-                         Box3dTemplate_max,
-                         Box3dTemplate_all};
-  }
-  
-  static constexpr Box3dTemplate get_imin_jmin_kmin(IdxT width)
-  {
-    return Box3dTemplate{Box3dTemplate_min,
-                         Box3dTemplate_min,
-                         Box3dTemplate_min};
-  }
-  static constexpr Box3dTemplate get_imax_jmin_kmin(IdxT width)
-  {
-    return Box3dTemplate{Box3dTemplate_max,
-                         Box3dTemplate_min,
-                         Box3dTemplate_min};
-  }
-  static constexpr Box3dTemplate get_imin_jmax_kmin(IdxT width)
-  {
-    return Box3dTemplate{Box3dTemplate_min,
-                         Box3dTemplate_max,
-                         Box3dTemplate_min};
-  }
-  static constexpr Box3dTemplate get_imax_jmax_kmin(IdxT width)
-  {
-    return Box3dTemplate{Box3dTemplate_max,
-                         Box3dTemplate_max,
-                         Box3dTemplate_min};
-  }
-  static constexpr Box3dTemplate get_imin_jmin_kmax(IdxT width)
-  {
-    return Box3dTemplate{Box3dTemplate_min,
-                         Box3dTemplate_min,
-                         Box3dTemplate_max};
-  }
-  static constexpr Box3dTemplate get_imax_jmin_kmax(IdxT width)
-  {
-    return Box3dTemplate{Box3dTemplate_max,
-                         Box3dTemplate_min,
-                         Box3dTemplate_max};
-  }
-  static constexpr Box3dTemplate get_imin_jmax_kmax(IdxT width)
-  {
-    return Box3dTemplate{Box3dTemplate_min,
-                         Box3dTemplate_max,
-                         Box3dTemplate_max};
-  }
-  static constexpr Box3dTemplate get_imax_jmax_kmax(IdxT width)
-  {
-    return Box3dTemplate{Box3dTemplate_max,
-                         Box3dTemplate_max,
-                         Box3dTemplate_max};
-  }
-  
-#undef Box3dTemplate_min
-#undef Box3dTemplate_max
-
-#define Box3dTemplate_ghost_min IT{IT::min,-width}, IT{IT::min, 0}
-#define Box3dTemplate_ghost_max IT{IT::max, 0}, IT{IT::max, width}
-
-  static constexpr Box3dTemplate get_ghost_i_j_kmin(IdxT width)
-  {
-    return Box3dTemplate{Box3dTemplate_all,
-                         Box3dTemplate_all,
-                         Box3dTemplate_ghost_min};
-  }
-  static constexpr Box3dTemplate get_ghost_i_j_kmax(IdxT width)
-  {
-    return Box3dTemplate{Box3dTemplate_all,
-                         Box3dTemplate_all,
-                         Box3dTemplate_ghost_max};
-  }
-  static constexpr Box3dTemplate get_ghost_i_jmin_k(IdxT width)
-  {
-    return Box3dTemplate{Box3dTemplate_all,
-                         Box3dTemplate_ghost_min,
-                         Box3dTemplate_all};
-  }
-  static constexpr Box3dTemplate get_ghost_i_jmax_k(IdxT width)
-  {
-    return Box3dTemplate{Box3dTemplate_all,
-                         Box3dTemplate_ghost_max,
-                         Box3dTemplate_all};
-  }
-  static constexpr Box3dTemplate get_ghost_imin_j_k(IdxT width)
-  {
-    return Box3dTemplate{Box3dTemplate_ghost_min,
-                         Box3dTemplate_all,
-                         Box3dTemplate_all};
-  }
-  static constexpr Box3dTemplate get_ghost_imax_j_k(IdxT width)
-  {
-    return Box3dTemplate{Box3dTemplate_ghost_max,
-                         Box3dTemplate_all,
-                         Box3dTemplate_all};
-  }
-  
-  static constexpr Box3dTemplate get_ghost_i_jmin_kmin(IdxT width)
-  {
-    return Box3dTemplate{Box3dTemplate_all,
-                         Box3dTemplate_ghost_min,
-                         Box3dTemplate_ghost_min};
-  }
-  static constexpr Box3dTemplate get_ghost_i_jmax_kmin(IdxT width)
-  {
-    return Box3dTemplate{Box3dTemplate_all,
-                         Box3dTemplate_ghost_max,
-                         Box3dTemplate_ghost_min};
-  }
-  static constexpr Box3dTemplate get_ghost_i_jmin_kmax(IdxT width)
-  {
-    return Box3dTemplate{Box3dTemplate_all,
-                         Box3dTemplate_ghost_min,
-                         Box3dTemplate_ghost_max};
-  }
-  static constexpr Box3dTemplate get_ghost_i_jmax_kmax(IdxT width)
-  {
-    return Box3dTemplate{Box3dTemplate_all,
-                         Box3dTemplate_ghost_max,
-                         Box3dTemplate_ghost_max};
-  }
-  static constexpr Box3dTemplate get_ghost_imin_j_kmin(IdxT width)
-  {
-    return Box3dTemplate{Box3dTemplate_ghost_min,
-                         Box3dTemplate_all,
-                         Box3dTemplate_ghost_min};
-  }
-  static constexpr Box3dTemplate get_ghost_imax_j_kmin(IdxT width)
-  {
-    return Box3dTemplate{Box3dTemplate_ghost_max,
-                         Box3dTemplate_all,
-                         Box3dTemplate_ghost_min};
-  }
-  static constexpr Box3dTemplate get_ghost_imin_j_kmax(IdxT width)
-  {
-    return Box3dTemplate{Box3dTemplate_ghost_min,
-                         Box3dTemplate_all,
-                         Box3dTemplate_ghost_max};
-  }
-  static constexpr Box3dTemplate get_ghost_imax_j_kmax(IdxT width)
-  {
-    return Box3dTemplate{Box3dTemplate_ghost_max,
-                         Box3dTemplate_all,
-                         Box3dTemplate_ghost_max};
-  }
-  static constexpr Box3dTemplate get_ghost_imin_jmin_k(IdxT width)
-  {
-    return Box3dTemplate{Box3dTemplate_ghost_min,
-                         Box3dTemplate_ghost_min,
-                         Box3dTemplate_all};
-  }
-  static constexpr Box3dTemplate get_ghost_imax_jmin_k(IdxT width)
-  {
-    return Box3dTemplate{Box3dTemplate_ghost_max,
-                         Box3dTemplate_ghost_min,
-                         Box3dTemplate_all};
-  }
-  static constexpr Box3dTemplate get_ghost_imin_jmax_k(IdxT width)
-  {
-    return Box3dTemplate{Box3dTemplate_ghost_min,
-                         Box3dTemplate_ghost_max,
-                         Box3dTemplate_all};
-  }
-  static constexpr Box3dTemplate get_ghost_imax_jmax_k(IdxT width)
-  {
-    return Box3dTemplate{Box3dTemplate_ghost_max,
-                         Box3dTemplate_ghost_max,
-                         Box3dTemplate_all};
-  }
-  
-  static constexpr Box3dTemplate get_ghost_imin_jmin_kmin(IdxT width)
-  {
-    return Box3dTemplate{Box3dTemplate_ghost_min,
-                         Box3dTemplate_ghost_min,
-                         Box3dTemplate_ghost_min};
-  }
-  static constexpr Box3dTemplate get_ghost_imax_jmin_kmin(IdxT width)
-  {
-    return Box3dTemplate{Box3dTemplate_ghost_max,
-                         Box3dTemplate_ghost_min,
-                         Box3dTemplate_ghost_min};
-  }
-  static constexpr Box3dTemplate get_ghost_imin_jmax_kmin(IdxT width)
-  {
-    return Box3dTemplate{Box3dTemplate_ghost_min,
-                         Box3dTemplate_ghost_max,
-                         Box3dTemplate_ghost_min};
-  }
-  static constexpr Box3dTemplate get_ghost_imax_jmax_kmin(IdxT width)
-  {
-    return Box3dTemplate{Box3dTemplate_ghost_max,
-                         Box3dTemplate_ghost_max,
-                         Box3dTemplate_ghost_min};
-  }
-  static constexpr Box3dTemplate get_ghost_imin_jmin_kmax(IdxT width)
-  {
-    return Box3dTemplate{Box3dTemplate_ghost_min,
-                         Box3dTemplate_ghost_min,
-                         Box3dTemplate_ghost_max};
-  }
-  static constexpr Box3dTemplate get_ghost_imax_jmin_kmax(IdxT width)
-  {
-    return Box3dTemplate{Box3dTemplate_ghost_max,
-                         Box3dTemplate_ghost_min,
-                         Box3dTemplate_ghost_max};
-  }
-  static constexpr Box3dTemplate get_ghost_imin_jmax_kmax(IdxT width)
-  {
-    return Box3dTemplate{Box3dTemplate_ghost_min,
-                         Box3dTemplate_ghost_max,
-                         Box3dTemplate_ghost_max};
-  }
-  static constexpr Box3dTemplate get_ghost_imax_jmax_kmax(IdxT width)
-  {
-    return Box3dTemplate{Box3dTemplate_ghost_max,
-                         Box3dTemplate_ghost_max,
-                         Box3dTemplate_ghost_max};
-  }
-  
-#undef Box3dTemplate_all
-#undef Box3dTemplate_ghost_min
-#undef Box3dTemplate_ghost_max
 
   IdxTemplate imin, jmin, kmin, imax, jmax, kmax;
   constexpr Box3dTemplate(IdxTemplate imin_, IdxTemplate imax_,
@@ -507,9 +349,9 @@ private:
   {
     IdxT idx = 0;
     switch (it.idx) {
-      case IdxTemplate::min:
+      case ITL::min:
         idx = info.imin; break;
-      case IdxTemplate::max:
+      case ITL::max:
         idx = info.imax; break;
       default:
         assert(0); break;
@@ -520,9 +362,9 @@ private:
   {
     IdxT idx = 0;
     switch (it.idx) {
-      case IdxTemplate::min:
+      case ITL::min:
         idx = info.jmin; break;
-      case IdxTemplate::max:
+      case ITL::max:
         idx = info.jmax; break;
       default:
         assert(0); break;
@@ -533,9 +375,9 @@ private:
   {
     IdxT idx = 0;
     switch (it.idx) {
-      case IdxTemplate::min:
+      case ITL::min:
         idx = info.kmin; break;
-      case IdxTemplate::max:
+      case ITL::max:
         idx = info.kmax; break;
       default:
         assert(0); break;
@@ -548,6 +390,7 @@ template < typename policy0, typename policy1, typename policy2 >
 struct Message
 {
   Allocator& buf_aloc;
+  int dest_rank;
   IdxT pol;
   DataT* m_buf;
   size_t m_size;
@@ -555,8 +398,9 @@ struct Message
   using list_item_type = std::pair<Box3d, LidxT*>;
   std::list<list_item_type> boxes;
 
-  Message(Allocator& buf_aloc_, IdxT pol_)
+  Message(int dest_rank_, Allocator& buf_aloc_, IdxT pol_)
     : buf_aloc(buf_aloc_)
+    , dest_rank(dest_rank_)
     , pol(pol_)
     , m_buf(nullptr)
     , m_size(0)
@@ -669,104 +513,163 @@ struct Comm
   Allocator& edge_aloc;
   Allocator& corner_aloc;
   
+  CommInfo comminfo;
+  
   using message_type = Message<policy_face, policy_edge, policy_corner>;
   std::vector<message_type> m_sends;
   std::vector<message_type> m_recvs;
   
-  Comm(Allocator& face_aloc_, Allocator& edge_aloc_, Allocator& corner_aloc_)
+  IdxT num_face_neighbors;
+  IdxT num_edge_neighbors;
+  IdxT num_corner_neighbors;
+  
+  Comm(CommInfo const& comminfo_, Allocator& face_aloc_, Allocator& edge_aloc_, Allocator& corner_aloc_)
     : face_aloc(face_aloc_)
     , edge_aloc(edge_aloc_)
     , corner_aloc(corner_aloc_)
+    , comminfo(comminfo_)
+    , num_face_neighbors(0)
+    , num_edge_neighbors(0)
+    , num_corner_neighbors(0)
   {
-    m_sends.reserve(26);
-    m_recvs.reserve(26);
-    for(IdxT face_neighbor = 0; face_neighbor < 6; ++face_neighbor) {
-      m_sends.emplace_back(face_aloc, 0);
-      m_recvs.emplace_back(face_aloc, 0);
+    // initialize messages and neighbor information
+    // The msg param in for_*_neighbors depends on 
+    // num_face_neighbors, num_edge_neighbors, num_corners_neighbors
+    // but should be correct in this initialization ordering
+    for_face_neighbors( [&](IdxT msg, const int neighbor_coords[]) {
+      num_face_neighbors++;
+      add_message(neighbor_coords, face_aloc, 0);
+    });
+    
+    for_edge_neighbors( [&](IdxT msg, const int neighbor_coords[]) {
+      num_edge_neighbors++;
+      add_message(neighbor_coords, edge_aloc, 1);
+    });
+    
+    for_corner_neighbors( [&](IdxT msg, const int neighbor_coords[]) {
+      num_corner_neighbors++;
+      add_message(neighbor_coords, corner_aloc, 2);
+    });
+  }
+  
+  void add_message(const int coords[], Allocator& aloc, IdxT policy)
+  {
+    int neighbor_rank = comminfo.cart.get_rank(coords);
+    assert(0 <= neighbor_rank);
+    m_sends.emplace_back(neighbor_rank, face_aloc, 0);
+    m_recvs.emplace_back(neighbor_rank, face_aloc, 0);
+  }
+  
+  template < typename loop_body >
+  void for_face_neighbors(loop_body&& body)
+  {
+    IdxT msg = 0;
+    bool active[3] {false, false, false};
+    for (IdxT dim = 2; dim >= 0; --dim) {
+      active[dim] = true;
+      IdxT off[1];
+      for (off[0] = -1; off[0] <= 1; off[0] += 2) {
+        IdxT off_idx = 0;
+        int neighbor_coords[3] { comminfo.cart.coords[0], comminfo.cart.coords[1], comminfo.cart.coords[2] } ;
+        if (active[0]) { neighbor_coords[0] += off[off_idx++]; }
+        if (active[1]) { neighbor_coords[1] += off[off_idx++]; }
+        if (active[2]) { neighbor_coords[2] += off[off_idx++]; }
+        if (((0 <= neighbor_coords[0] && neighbor_coords[0] < comminfo.cart.cuts[0]) || comminfo.cart.periodic[0]) && 
+            ((0 <= neighbor_coords[1] && neighbor_coords[1] < comminfo.cart.cuts[1]) || comminfo.cart.periodic[1]) && 
+            ((0 <= neighbor_coords[2] && neighbor_coords[2] < comminfo.cart.cuts[2]) || comminfo.cart.periodic[2]) ) {
+          body(msg++, neighbor_coords);
+        }
+      }
+      active[dim] = false;
     }
-    for(IdxT edge_neighbor = 0; edge_neighbor < 12; ++edge_neighbor) {
-      m_sends.emplace_back(edge_aloc, 1);
-      m_recvs.emplace_back(edge_aloc, 1);
+  }
+  
+  template < typename loop_body >
+  void for_edge_neighbors(loop_body&& body)
+  {
+    IdxT msg = num_face_neighbors;
+    bool active[3] {true, true, true};
+    for (IdxT dim = 0; dim < 3; ++dim) {
+      active[dim] = false;
+      IdxT off[2];
+      for (off[1] = -1; off[1] <= 1; off[1] += 2) {
+        for (off[0] = -1; off[0] <= 1; off[0] += 2) {
+          IdxT off_idx = 0;
+          int neighbor_coords[3] { comminfo.cart.coords[0], comminfo.cart.coords[1], comminfo.cart.coords[2] } ;
+          if (active[0]) { neighbor_coords[0] += off[off_idx++]; }
+          if (active[1]) { neighbor_coords[1] += off[off_idx++]; }
+          if (active[2]) { neighbor_coords[2] += off[off_idx++]; }
+          if (((0 <= neighbor_coords[0] && neighbor_coords[0] < comminfo.cart.cuts[0]) || comminfo.cart.periodic[0]) && 
+              ((0 <= neighbor_coords[1] && neighbor_coords[1] < comminfo.cart.cuts[1]) || comminfo.cart.periodic[1]) && 
+              ((0 <= neighbor_coords[2] && neighbor_coords[2] < comminfo.cart.cuts[2]) || comminfo.cart.periodic[2]) ) {
+            body(msg++, neighbor_coords);
+          }
+        }
+      }
+      active[dim] = true;
     }
-    for(IdxT corner_neighbor = 0; corner_neighbor < 8; ++corner_neighbor) {
-      m_sends.emplace_back(corner_aloc, 2);
-      m_recvs.emplace_back(corner_aloc, 2);
+  }
+  
+  template < typename loop_body >
+  void for_corner_neighbors(loop_body&& body)
+  {
+    IdxT msg = num_face_neighbors + num_edge_neighbors;
+    bool active[3] {true, true, true};
+    IdxT off[3];
+    for (off[2] = -1; off[2] <= 1; off[2] += 2) {
+      for (off[1] = -1; off[1] <= 1; off[1] += 2) {
+        for (off[0] = -1; off[0] <= 1; off[0] += 2) {
+          IdxT off_idx = 0;
+          int neighbor_coords[3] { comminfo.cart.coords[0], comminfo.cart.coords[1], comminfo.cart.coords[2] } ;
+          if (active[0]) { neighbor_coords[0] += off[off_idx++]; }
+          if (active[1]) { neighbor_coords[1] += off[off_idx++]; }
+          if (active[2]) { neighbor_coords[2] += off[off_idx++]; }
+          if (((0 <= neighbor_coords[0] && neighbor_coords[0] < comminfo.cart.cuts[0]) || comminfo.cart.periodic[0]) && 
+              ((0 <= neighbor_coords[1] && neighbor_coords[1] < comminfo.cart.cuts[1]) || comminfo.cart.periodic[1]) && 
+              ((0 <= neighbor_coords[2] && neighbor_coords[2] < comminfo.cart.cuts[2]) || comminfo.cart.periodic[2]) ) {
+            body(msg++, neighbor_coords);
+          }
+        }
+      }
     }
+  }
+  
+  void add_box(IdxT msg, MeshData& mesh, const IdxT bounds[])
+  {
+    using IT = IdxTemplate;
+    using ITL = IdxTemplate::location;
+    ITL locs[3] { (bounds[0] == -1) ? ITL::min : ( (bounds[0] == 1) ? ITL::max : ITL::mid )
+                , (bounds[1] == -1) ? ITL::min : ( (bounds[1] == 1) ? ITL::max : ITL::mid )
+                , (bounds[2] == -1) ? ITL::min : ( (bounds[2] == 1) ? ITL::max : ITL::mid ) };
+    assert(msg < m_sends.size());
+    m_sends[msg].add(Box3dTemplate::make_Box3dTemplate_inner(mesh.info.ghost_width, locs).make_box(mesh));
+    assert(msg < m_recvs.size());
+    m_recvs[msg].add(Box3dTemplate::make_Box3dTemplate_ghost(mesh.info.ghost_width, locs).make_box(mesh));
   }
   
   void add_var(MeshData& mesh)
   {
-    {
-      IdxT idx = 0;
+    // edges
+    for_face_neighbors( [&](IdxT msg, const int neighbor_coords[]) {
+      int bounds[3] { neighbor_coords[0] - comminfo.cart.coords[0]
+                    , neighbor_coords[1] - comminfo.cart.coords[1]
+                    , neighbor_coords[2] - comminfo.cart.coords[2] };
+      add_box(msg, mesh, bounds);
+    });
     
-      // faces
-      m_sends[idx++].add(Box3dTemplate::get_i_j_kmin(mesh.info.ghost_width).make_box(mesh));
-      m_sends[idx++].add(Box3dTemplate::get_i_j_kmax(mesh.info.ghost_width).make_box(mesh));
-      m_sends[idx++].add(Box3dTemplate::get_i_jmin_k(mesh.info.ghost_width).make_box(mesh));
-      m_sends[idx++].add(Box3dTemplate::get_i_jmax_k(mesh.info.ghost_width).make_box(mesh));
-      m_sends[idx++].add(Box3dTemplate::get_imin_j_k(mesh.info.ghost_width).make_box(mesh));
-      m_sends[idx++].add(Box3dTemplate::get_imax_j_k(mesh.info.ghost_width).make_box(mesh));
-
-      // edges
-      m_sends[idx++].add(Box3dTemplate::get_i_jmin_kmin(mesh.info.ghost_width).make_box(mesh));
-      m_sends[idx++].add(Box3dTemplate::get_i_jmax_kmin(mesh.info.ghost_width).make_box(mesh));
-      m_sends[idx++].add(Box3dTemplate::get_i_jmin_kmax(mesh.info.ghost_width).make_box(mesh));
-      m_sends[idx++].add(Box3dTemplate::get_i_jmax_kmax(mesh.info.ghost_width).make_box(mesh));
-      m_sends[idx++].add(Box3dTemplate::get_imin_j_kmin(mesh.info.ghost_width).make_box(mesh));
-      m_sends[idx++].add(Box3dTemplate::get_imax_j_kmin(mesh.info.ghost_width).make_box(mesh));
-      m_sends[idx++].add(Box3dTemplate::get_imin_j_kmax(mesh.info.ghost_width).make_box(mesh));
-      m_sends[idx++].add(Box3dTemplate::get_imax_j_kmax(mesh.info.ghost_width).make_box(mesh));
-      m_sends[idx++].add(Box3dTemplate::get_imin_jmin_k(mesh.info.ghost_width).make_box(mesh));
-      m_sends[idx++].add(Box3dTemplate::get_imax_jmin_k(mesh.info.ghost_width).make_box(mesh));
-      m_sends[idx++].add(Box3dTemplate::get_imin_jmax_k(mesh.info.ghost_width).make_box(mesh));
-      m_sends[idx++].add(Box3dTemplate::get_imax_jmax_k(mesh.info.ghost_width).make_box(mesh));
-      
-      // corners
-      m_sends[idx++].add(Box3dTemplate::get_imin_jmin_kmin(mesh.info.ghost_width).make_box(mesh));
-      m_sends[idx++].add(Box3dTemplate::get_imax_jmin_kmin(mesh.info.ghost_width).make_box(mesh));
-      m_sends[idx++].add(Box3dTemplate::get_imin_jmax_kmin(mesh.info.ghost_width).make_box(mesh));
-      m_sends[idx++].add(Box3dTemplate::get_imax_jmax_kmin(mesh.info.ghost_width).make_box(mesh));
-      m_sends[idx++].add(Box3dTemplate::get_imin_jmin_kmax(mesh.info.ghost_width).make_box(mesh));
-      m_sends[idx++].add(Box3dTemplate::get_imax_jmin_kmax(mesh.info.ghost_width).make_box(mesh));
-      m_sends[idx++].add(Box3dTemplate::get_imin_jmax_kmax(mesh.info.ghost_width).make_box(mesh));
-      m_sends[idx++].add(Box3dTemplate::get_imax_jmax_kmax(mesh.info.ghost_width).make_box(mesh));
-    }
+    for_edge_neighbors( [&](IdxT msg, const int neighbor_coords[]) {
+      int bounds[3] { neighbor_coords[0] - comminfo.cart.coords[0]
+                    , neighbor_coords[1] - comminfo.cart.coords[1]
+                    , neighbor_coords[2] - comminfo.cart.coords[2] };
+      add_box(msg, mesh, bounds);
+    });
     
-    {
-      IdxT idx = 0;
-    
-      // faces
-      m_recvs[idx++].add(Box3dTemplate::get_ghost_i_j_kmin(mesh.info.ghost_width).make_box(mesh));
-      m_recvs[idx++].add(Box3dTemplate::get_ghost_i_j_kmax(mesh.info.ghost_width).make_box(mesh));
-      m_recvs[idx++].add(Box3dTemplate::get_ghost_i_jmin_k(mesh.info.ghost_width).make_box(mesh));
-      m_recvs[idx++].add(Box3dTemplate::get_ghost_i_jmax_k(mesh.info.ghost_width).make_box(mesh));
-      m_recvs[idx++].add(Box3dTemplate::get_ghost_imin_j_k(mesh.info.ghost_width).make_box(mesh));
-      m_recvs[idx++].add(Box3dTemplate::get_ghost_imax_j_k(mesh.info.ghost_width).make_box(mesh));
-
-      // edges
-      m_recvs[idx++].add(Box3dTemplate::get_ghost_i_jmin_kmin(mesh.info.ghost_width).make_box(mesh));
-      m_recvs[idx++].add(Box3dTemplate::get_ghost_i_jmax_kmin(mesh.info.ghost_width).make_box(mesh));
-      m_recvs[idx++].add(Box3dTemplate::get_ghost_i_jmin_kmax(mesh.info.ghost_width).make_box(mesh));
-      m_recvs[idx++].add(Box3dTemplate::get_ghost_i_jmax_kmax(mesh.info.ghost_width).make_box(mesh));
-      m_recvs[idx++].add(Box3dTemplate::get_ghost_imin_j_kmin(mesh.info.ghost_width).make_box(mesh));
-      m_recvs[idx++].add(Box3dTemplate::get_ghost_imax_j_kmin(mesh.info.ghost_width).make_box(mesh));
-      m_recvs[idx++].add(Box3dTemplate::get_ghost_imin_j_kmax(mesh.info.ghost_width).make_box(mesh));
-      m_recvs[idx++].add(Box3dTemplate::get_ghost_imax_j_kmax(mesh.info.ghost_width).make_box(mesh));
-      m_recvs[idx++].add(Box3dTemplate::get_ghost_imin_jmin_k(mesh.info.ghost_width).make_box(mesh));
-      m_recvs[idx++].add(Box3dTemplate::get_ghost_imax_jmin_k(mesh.info.ghost_width).make_box(mesh));
-      m_recvs[idx++].add(Box3dTemplate::get_ghost_imin_jmax_k(mesh.info.ghost_width).make_box(mesh));
-      m_recvs[idx++].add(Box3dTemplate::get_ghost_imax_jmax_k(mesh.info.ghost_width).make_box(mesh));
-      
-      // corners
-      m_recvs[idx++].add(Box3dTemplate::get_ghost_imin_jmin_kmin(mesh.info.ghost_width).make_box(mesh));
-      m_recvs[idx++].add(Box3dTemplate::get_ghost_imax_jmin_kmin(mesh.info.ghost_width).make_box(mesh));
-      m_recvs[idx++].add(Box3dTemplate::get_ghost_imin_jmax_kmin(mesh.info.ghost_width).make_box(mesh));
-      m_recvs[idx++].add(Box3dTemplate::get_ghost_imax_jmax_kmin(mesh.info.ghost_width).make_box(mesh));
-      m_recvs[idx++].add(Box3dTemplate::get_ghost_imin_jmin_kmax(mesh.info.ghost_width).make_box(mesh));
-      m_recvs[idx++].add(Box3dTemplate::get_ghost_imax_jmin_kmax(mesh.info.ghost_width).make_box(mesh));
-      m_recvs[idx++].add(Box3dTemplate::get_ghost_imin_jmax_kmax(mesh.info.ghost_width).make_box(mesh));
-      m_recvs[idx++].add(Box3dTemplate::get_ghost_imax_jmax_kmax(mesh.info.ghost_width).make_box(mesh));
-    }
+    for_corner_neighbors( [&](IdxT msg, const int neighbor_coords[]) {
+      int bounds[3] { neighbor_coords[0] - comminfo.cart.coords[0]
+                    , neighbor_coords[1] - comminfo.cart.coords[1]
+                    , neighbor_coords[2] - comminfo.cart.coords[2] };
+      add_box(msg, mesh, bounds);
+    });
   }
 
   void postRecv()
