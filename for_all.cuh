@@ -32,11 +32,11 @@ struct cuda_pol {
 };
 struct cuda_batch_pol {
   static const bool async = true;
-  static constexpr const char* name = "cuda";
+  static constexpr const char* name = "cudaBatch";
 };
 struct cuda_persistent_pol {
   static const bool async = true;
-  static constexpr const char* name = "cuda";
+  static constexpr const char* name = "cudaPersistent";
 };
 
 // synchronization functions
