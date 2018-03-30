@@ -5,6 +5,10 @@
 #include <cstdio>
 #include <cstdlib>
 #include <chrono>
+#include <unordered_map>
+#include <vector>
+#include <string>
+#include <utility>
 
 #include <cuda.h>
 #include <nvToolsExt.h>
@@ -58,13 +62,44 @@ struct Timer {
       ++idx;
     }
   }
+  
 
   void print(const char* prefix = "") {
+    // gather bsic per name statistics in first seen order
+    struct stats {
+      std::string name;
+      double sum;
+      double min;
+      double max;
+      long   num;
+    };
+    std::vector<std::string> name_order;
+    using map_type = std::unordered_map<std::string, stats>;
+    map_type name_map;
+    
     for (IdxT i = 1; i < idx; ++i) {
       if (names[i-1] != nullptr) {
-        std::chrono::duration<double> time_s = times[i].tp - times[i-1].tp;
-        printf("%s%s: %.9f s\n", prefix, names[i-1], time_s.count());
+        std::string name{names[i-1]};
+        double time_s = std::chrono::duration<double>(times[i].tp - times[i-1].tp).count();
+        auto item = name_map.find(name);
+        if (item == name_map.end()) {
+          auto ins = name_map.insert(map_type::value_type{name, stats{name, time_s, time_s, time_s, 1}});
+          assert(ins.second);
+          item = ins.first;
+          name_order.emplace_back(name);
+        } else {
+          item->second.sum += time_s;
+          item->second.min = std::min(item->second.min, time_s);
+          item->second.max = std::max(item->second.max, time_s);
+          item->second.num += 1;
+        }
       }
+    }
+    
+    for (IdxT i = 0; i < name_order.size(); ++i) {
+      auto item = name_map.find(name_order[i]);
+      assert(item != name_map.end());
+      printf("%s%s: num %ld sum %.9f s min %.9f s max %.9f s\n", prefix, item->second.name.c_str(), item->second.num, item->second.sum, item->second.min, item->second.max);
     }
     fflush(stdout);
   }
