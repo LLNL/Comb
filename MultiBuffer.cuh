@@ -56,6 +56,7 @@ public:
       
       if (m_info_cur->buffer_pos + aligned_nbytes <= useable_capacity) {
       
+         //printf("pack writing fnc %p\n", fnc); fflush(stdout);
          m_info_cur->buffer_pos += aligned_nbytes;
          assert(m_info_cur->buffer_pos <= useable_capacity);
          bool success = m_info_cur->buffer_device->write( buffer_type::dynamic_buffer_type<device_wrapper_ptr>(1, &fnc)
@@ -67,6 +68,7 @@ public:
       
          continue_and_next_buffer();
          
+         //printf("pack writing fnc %p\n", fnc); fflush(stdout);
          m_info_cur->buffer_pos += aligned_nbytes;
          assert(m_info_cur->buffer_pos <= useable_capacity);
          bool success = m_info_cur->buffer_device->write( buffer_type::dynamic_buffer_type<device_wrapper_ptr>(1, &fnc)
@@ -94,6 +96,7 @@ public:
          return true;
       } else if (m_info_cur->buffer_pos == buffer_capacity) {
          if (m_info_cur->buffer_device->reinit()) {
+           //printf("cur_buffer_empty reinit-ed %p\n", m_info_cur->buffer_device); fflush(stdout);
            m_info_cur->buffer_pos = 0;
            return true;
          }
@@ -117,6 +120,7 @@ private:
          return true;
       } else if (m_info_cur->buffer_pos == buffer_capacity) {
          if (m_info_cur->buffer_device->reinit()) {
+           //printf("cur_buffer_writeable reinit-ed %p\n", m_info_cur->buffer_device); fflush(stdout);
            m_info_cur->buffer_pos = 0;
            return true;
          }
@@ -132,6 +136,7 @@ private:
          return true;
       } else if (m_info_cur->next->buffer_pos == buffer_capacity) {
          if (m_info_cur->next->buffer_device->reinit()) {
+           //printf("next_buffer_empty reinit-ed %p\n", m_info_cur->next->buffer_device); fflush(stdout);
            m_info_cur->next->buffer_pos = 0;
            return true;
          }
@@ -144,6 +149,7 @@ private:
    buffer_type* stop_and_next_buffer()
    {
       void* ptrs[2] {nullptr, nullptr};
+      //printf("stop_and_next_buffer cur %p writing %p %p\n", m_info_cur->buffer_device, ptrs[0], ptrs[1]); fflush(stdout);
       m_info_cur->buffer_pos = buffer_capacity;
       bool wrote = m_info_cur->buffer_device->write( buffer_type::dynamic_buffer_type<void*>(2, &ptrs[0]) );
       assert(wrote);
@@ -156,6 +162,7 @@ private:
    void continue_and_next_buffer()
    {
       void* ptrs[2] {nullptr, (void*)m_info_cur->next->buffer_device};
+      //printf("continue_and_next_buffer cur %p writing %p %p\n", m_info_cur->buffer_device, ptrs[0], ptrs[1]); fflush(stdout);
       m_info_cur->buffer_pos = buffer_capacity;
       bool wrote = m_info_cur->buffer_device->write( buffer_type::dynamic_buffer_type<void*>(2, &ptrs[0]) );
       assert(wrote);

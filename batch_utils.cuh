@@ -166,7 +166,7 @@ struct SharedStaticBuffer : StaticBuffer<len_type, total_bytes, read_type>
   
   // do first time initialization
   DEVICE
-  void init()
+  void init() volatile
   {
     if (cooperative_groups::this_thread_block().thread_rank() == 0) {
       this->len = 0;
@@ -176,21 +176,22 @@ struct SharedStaticBuffer : StaticBuffer<len_type, total_bytes, read_type>
   
   // reinitialize after finisheding reading from another buffer
   DEVICE
-  bool reinit()
+  bool reinit() volatile
   {
     if (cooperative_groups::this_thread_block().thread_rank() == 0) {
       this->len = 0;
     }
+    cooperative_groups::this_thread_block().sync();
     return true;
   }
   
   // read data from another buffer into this shared buffer
   // returns true if read new data, false otherwise
   DEVICE
-  bool read(buffer_type const volatile* src)
+  bool read(buffer_type const volatile* src) volatile
   {
                len_type old_len = this->len;
-    __shared__ len_type new_len;
+    __shared__ len_type volatile new_len;
     if (cooperative_groups::this_thread_block().thread_rank() == 0) {
       new_len = src->len;
     }
@@ -212,7 +213,7 @@ struct SharedStaticBuffer : StaticBuffer<len_type, total_bytes, read_type>
   }
   
   DEVICE
-  const void* buffer() const
+  const volatile void* buffer() const volatile
   {
     return &this->buf[this->len];
   }
@@ -221,7 +222,7 @@ struct SharedStaticBuffer : StaticBuffer<len_type, total_bytes, read_type>
   // resets src StaticBuffer to a writeable state
   // programmer must ensure all grids/blocks/threads are finished using src before calling this
   DEVICE
-  void done_reading(buffer_type volatile* src)
+  void done_reading(buffer_type volatile* src) volatile
   {
     if (cooperative_groups::this_thread_block().thread_rank() == 0) {
       src->len = 0;
@@ -232,17 +233,17 @@ struct SharedStaticBuffer : StaticBuffer<len_type, total_bytes, read_type>
 };
 
 
-using device_wrapper_ptr = const void*(*)(const void*);
+using device_wrapper_ptr = const volatile void*(*)(const volatile void*);
 
 // the wrapper function takes a pointer to the kernel body
 // and returns a pointer to the next device_wrapper_ptr
 template<typename kernel_type>
-__device__ const void* device_wrapper_fnc(const void* ptr)
+__device__ const volatile void* device_wrapper_fnc(const volatile void* ptr)
 {
    const kernel_type* kernel_ptr = (const kernel_type*)ptr;
    kernel_ptr->operator()();
 
-   return (const void*)(((const char*)ptr) + ::detail::aligned_sizeof<kernel_type, sizeof(device_wrapper_ptr)>::value);
+   return (const volatile void*)(((const volatile char*)ptr) + ::detail::aligned_sizeof<kernel_type, sizeof(device_wrapper_ptr)>::value);
 }
 
 // cuda global function that writes the device wrapper function pointer
@@ -325,8 +326,8 @@ template < typename shared_buffer_type >
 __global__
 void block_read_device(typename shared_buffer_type::buffer_type volatile* arg_buf)
 {
-   __shared__ shared_buffer_type shr_buf;
-   __shared__ typename shared_buffer_type::buffer_type volatile* dev_buf;
+   __shared__ shared_buffer_type volatile shr_buf;
+   __shared__ typename shared_buffer_type::buffer_type volatile* volatile dev_buf;
    
    shr_buf.init();
    
@@ -334,12 +335,18 @@ void block_read_device(typename shared_buffer_type::buffer_type volatile* arg_bu
      dev_buf = arg_buf;
    }
    cooperative_groups::this_thread_block().sync();
+   /*
+   if (cooperative_groups::this_thread_block().thread_rank()+1 == cooperative_groups::this_thread_block().size()) {
+     // inform host that device is done reading this block
+     printf("block %6i thread %6i Device Buffer get %p\n", cooperative_groups::this_thread_block().group_index().x, cooperative_groups::this_thread_block().thread_rank(), dev_buf);
+   }
+   */
    
    pre_loop:
    
    while (dev_buf != nullptr) {
      
-     const void* shr_ptr = shr_buf.buffer();
+     const volatile void* shr_ptr = shr_buf.buffer();
      
      // loop until get first 
      while (1) {
@@ -349,26 +356,50 @@ void block_read_device(typename shared_buffer_type::buffer_type volatile* arg_bu
        
        if (shr_ptr != shr_buf.buffer()) {
          
-         device_wrapper_ptr fnc = ((const device_wrapper_ptr*)shr_ptr)[0];
-       
+         device_wrapper_ptr fnc = ((const volatile device_wrapper_ptr*)shr_ptr)[0];
+         /*
+         if (cooperative_groups::this_thread_block().thread_rank()+1 == cooperative_groups::this_thread_block().size()) {
+           printf("block %6i thread %6i read fnc %p\n", cooperative_groups::this_thread_block().group_index().x, cooperative_groups::this_thread_block().thread_rank(), fnc);
+         }
+         */
          if (fnc != nullptr) {
          
            // run function in this buffer
-           shr_ptr = fnc(&((const device_wrapper_ptr*)shr_ptr)[1]);
+           shr_ptr = fnc(&((const volatile device_wrapper_ptr*)shr_ptr)[1]);
            break;
            
          } else {
            // end of this buffer, get next buffer
-         
+           typename shared_buffer_type::buffer_type volatile* old_buf;
+           if (cooperative_groups::this_thread_block().thread_rank() == 0) {
+             old_buf = dev_buf;
+             dev_buf = (typename shared_buffer_type::buffer_type volatile*)((const volatile device_wrapper_ptr*)shr_ptr)[1];
+           }
+           /*
+           if (cooperative_groups::this_thread_block().thread_rank()+1 == cooperative_groups::this_thread_block().size()) {
+             printf("block %6i thread %6i grid sync\n", cooperative_groups::this_thread_block().group_index().x, cooperative_groups::this_thread_block().thread_rank());
+           }
+           */
            // ensure all blocks have read the end of buffer, next buffer
            cooperative_groups::this_grid().sync();
        
            if (cooperative_groups::this_thread_block().group_index().x == 0) {
              // inform host that device is done reading this block
-             shr_buf.done_reading(dev_buf);
+             shr_buf.done_reading(old_buf);
            }
-           dev_buf = ((typename shared_buffer_type::buffer_type volatile**)&((const device_wrapper_ptr*)shr_ptr)[1])[0];
            shr_buf.reinit();
+           /*
+           if (cooperative_groups::this_thread_block().thread_rank()+1 == cooperative_groups::this_thread_block().size()) {
+             // inform host that device is done reading this block
+             printf("block %6i thread %6i Device Buffer read %p\n", cooperative_groups::this_thread_block().group_index().x, cooperative_groups::this_thread_block().thread_rank(), dev_buf);
+           }
+           
+           if (cooperative_groups::this_thread_block().thread_rank()+1 == cooperative_groups::this_thread_block().size()) {
+             printf("block %6i thread %6i grid sync\n", cooperative_groups::this_thread_block().group_index().x, cooperative_groups::this_thread_block().thread_rank());
+           }
+           
+           cooperative_groups::this_grid().sync();
+           */
            
            goto pre_loop;
            
@@ -385,27 +416,56 @@ void block_read_device(typename shared_buffer_type::buffer_type volatile* arg_bu
      
        if (shr_ptr != shr_buf.buffer()) {
        
-         device_wrapper_ptr fnc = ((const device_wrapper_ptr*)shr_ptr)[0];
-       
+         device_wrapper_ptr fnc = ((const volatile device_wrapper_ptr*)shr_ptr)[0];
+         /*
+         if (cooperative_groups::this_thread_block().thread_rank()+1 == cooperative_groups::this_thread_block().size()) {
+           printf("block %6i thread %6i read fnc %p\n", cooperative_groups::this_thread_block().group_index().x, cooperative_groups::this_thread_block().thread_rank(), fnc);
+         }
+         */
          if (fnc != nullptr) {
+           /*
+           if (cooperative_groups::this_thread_block().thread_rank()+1 == cooperative_groups::this_thread_block().size()) {
+             printf("block %6i thread %6i grid sync\n", cooperative_groups::this_thread_block().group_index().x, cooperative_groups::this_thread_block().thread_rank());
+           }
+           */
            // synchronize before run function
            cooperative_groups::this_grid().sync();
          
            // run function in this buffer
-           shr_ptr = fnc(&((const device_wrapper_ptr*)shr_ptr)[1]);
+           shr_ptr = fnc(&((const volatile device_wrapper_ptr*)shr_ptr)[1]);
            
          } else {
            // end of this buffer, get next buffer
-         
+           typename shared_buffer_type::buffer_type volatile* old_buf;
+           if (cooperative_groups::this_thread_block().thread_rank() == 0) {
+             old_buf = dev_buf;
+             dev_buf = (typename shared_buffer_type::buffer_type volatile*)((const volatile device_wrapper_ptr*)shr_ptr)[1];
+           }
+           /*
+           if (cooperative_groups::this_thread_block().thread_rank()+1 == cooperative_groups::this_thread_block().size()) {
+             printf("block %6i thread %6i grid sync\n", cooperative_groups::this_thread_block().group_index().x, cooperative_groups::this_thread_block().thread_rank());
+           }
+           */
            // ensure all blocks have read the end of buffer, next buffer
            cooperative_groups::this_grid().sync();
        
            if (cooperative_groups::this_thread_block().group_index().x == 0) {
              // inform host that device is done reading this block
-             shr_buf.done_reading(dev_buf);
+             shr_buf.done_reading(old_buf);
            }
-           dev_buf = ((typename shared_buffer_type::buffer_type volatile**)&((const device_wrapper_ptr*)shr_ptr)[1])[0];
            shr_buf.reinit();
+           /*
+           if ( cooperative_groups::this_thread_block().thread_rank()+1 == cooperative_groups::this_thread_block().size()) {
+             // inform host that device is done reading this block
+             printf("block %6i thread %6i Device Buffer read %p\n", cooperative_groups::this_thread_block().group_index().x, cooperative_groups::this_thread_block().thread_rank(), dev_buf);
+           }
+           
+           if (cooperative_groups::this_thread_block().thread_rank()+1 == cooperative_groups::this_thread_block().size()) {
+             printf("block %6i thread %6i grid sync\n", cooperative_groups::this_thread_block().group_index().x, cooperative_groups::this_thread_block().thread_rank());
+           }
+           
+           cooperative_groups::this_grid().sync();
+           */
            
            goto pre_loop;
          

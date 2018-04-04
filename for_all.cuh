@@ -163,22 +163,24 @@ struct adapter_3d {
 
 // for_all functions
 template < typename body_type >
-inline void for_all(seq_pol const&, IdxT begin, IdxT end, body_type&& body)
+inline void for_all(seq_pol const& pol, IdxT begin, IdxT end, body_type&& body)
 {
   IdxT i = 0;
   for(IdxT i0 = begin; i0 < end; ++i0) {
     body(i0, i++);
   }
+  //synchronize(pol);
 }
 
 template < typename body_type >
-inline void for_all(omp_pol const&, IdxT begin, IdxT end, body_type&& body)
+inline void for_all(omp_pol const& pol, IdxT begin, IdxT end, body_type&& body)
 {
   const IdxT len = end - begin;
 #pragma omp parallel for
   for(IdxT i = 0; i < len; ++i) {
     body(i + begin, i);
   }
+  //synchronize(pol);
 }
 
 template < typename body_type >
@@ -192,7 +194,7 @@ void cuda_for_all(IdxT begin, IdxT len, body_type body)
 }
 
 template < typename body_type >
-inline void for_all(cuda_pol const&, IdxT begin, IdxT end, body_type&& body)
+inline void for_all(cuda_pol const& pol, IdxT begin, IdxT end, body_type&& body)
 {
   using decayed_body_type = typename std::decay<body_type>::type;
 
@@ -209,23 +211,26 @@ inline void for_all(cuda_pol const&, IdxT begin, IdxT end, body_type&& body)
   cudaStream_t stream = 0;
   
   cudaCheck(cudaLaunchKernel(func, gridDim, blockDim, args, sharedMem, stream));
+  //synchronize(pol);
 }
 
 template < typename body_type >
-inline void for_all(cuda_batch_pol const&, IdxT begin, IdxT end, body_type&& body)
+inline void for_all(cuda_batch_pol const& pol, IdxT begin, IdxT end, body_type&& body)
 {
   cuda::batch_launch::for_all(begin, end, std::forward<body_type>(body));
+  //synchronize(pol);
 }
 
 template < typename body_type >
-inline void for_all(cuda_persistent_pol const&, IdxT begin, IdxT end, body_type&& body)
+inline void for_all(cuda_persistent_pol const& pol, IdxT begin, IdxT end, body_type&& body)
 {
   cuda::persistent_launch::for_all(begin, end, std::forward<body_type>(body));
+  //synchronize(pol);
 }
 
 
 template < typename body_type >
-void for_all_2d(seq_pol const&, IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, body_type&& body)
+void for_all_2d(seq_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, body_type&& body)
 {
   IdxT i = 0;
   for(IdxT i0 = begin0; i0 < end0; ++i0) {
@@ -233,10 +238,11 @@ void for_all_2d(seq_pol const&, IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, 
       body(i0, i1, i++);
     }
   }
+  //synchronize(pol);
 }
 
 template < typename body_type >
-inline void for_all_2d(omp_pol const&, IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, body_type&& body)
+inline void for_all_2d(omp_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, body_type&& body)
 {
   const IdxT len0 = end0 - begin0;
   const IdxT len1 = end1 - begin1;
@@ -247,6 +253,7 @@ inline void for_all_2d(omp_pol const&, IdxT begin0, IdxT end0, IdxT begin1, IdxT
       body(i0 + begin0, i1 + begin1, i);
     }
   }
+  //synchronize(pol);
 }
 
 template < typename body_type >
@@ -264,7 +271,7 @@ void cuda_for_all_2d(IdxT begin0, IdxT len0, IdxT begin1, IdxT len1, body_type b
 }
 
 template < typename body_type >
-inline void for_all_2d(cuda_pol const&, IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, body_type&& body)
+inline void for_all_2d(cuda_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, body_type&& body)
 {
   using decayed_body_type = typename std::decay<body_type>::type;
 
@@ -284,25 +291,28 @@ inline void for_all_2d(cuda_pol const&, IdxT begin0, IdxT end0, IdxT begin1, Idx
   cudaStream_t stream = 0;
   
   cudaCheck(cudaLaunchKernel(func, gridDim, blockDim, args, sharedMem, stream));
+  //synchronize(pol);
 }
 
 template < typename body_type >
-inline void for_all_2d(cuda_batch_pol const&, IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, body_type&& body)
+inline void for_all_2d(cuda_batch_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, body_type&& body)
 {
   IdxT len = (end0 - begin0) * (end1 - begin1);
   cuda::batch_launch::for_all(0, len, detail::adapter_2d<typename std::remove_reference<body_type>::type>{begin0, end0, begin1, end1, std::forward<body_type>(body)});
+  //synchronize(pol);
 }
 
 template < typename body_type >
-inline void for_all_2d(cuda_persistent_pol const&, IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, body_type&& body)
+inline void for_all_2d(cuda_persistent_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, body_type&& body)
 {
   IdxT len = (end0 - begin0) * (end1 - begin1);
   cuda::persistent_launch::for_all(0, len, detail::adapter_2d<typename std::remove_reference<body_type>::type>{begin0, end0, begin1, end1, std::forward<body_type>(body)});
+  //synchronize(pol);
 }
 
 
 template < typename body_type >
-inline void for_all_3d(seq_pol const&, IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, IdxT begin2, IdxT end2, body_type&& body)
+inline void for_all_3d(seq_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, IdxT begin2, IdxT end2, body_type&& body)
 {
   IdxT i = 0;
   for(IdxT i0 = begin0; i0 < end0; ++i0) {
@@ -312,10 +322,11 @@ inline void for_all_3d(seq_pol const&, IdxT begin0, IdxT end0, IdxT begin1, IdxT
       }
     }
   }
+  //synchronize(pol);
 }
 
 template < typename body_type >
-inline void for_all_3d(omp_pol const&, IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, IdxT begin2, IdxT end2, body_type&& body)
+inline void for_all_3d(omp_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, IdxT begin2, IdxT end2, body_type&& body)
 {
   const IdxT len0 = end0 - begin0;
   const IdxT len1 = end1 - begin1;
@@ -330,6 +341,7 @@ inline void for_all_3d(omp_pol const&, IdxT begin0, IdxT end0, IdxT begin1, IdxT
       }
     }
   }
+  //synchronize(pol);
 }
 
 template < typename body_type >
@@ -350,7 +362,7 @@ void cuda_for_all_3d(IdxT begin0, IdxT len0, IdxT begin1, IdxT len1, IdxT begin2
 }
 
 template < typename body_type >
-inline void for_all_3d(cuda_pol const&, IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, IdxT begin2, IdxT end2, body_type&& body)
+inline void for_all_3d(cuda_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, IdxT begin2, IdxT end2, body_type&& body)
 {
   using decayed_body_type = typename std::decay<body_type>::type;
 
@@ -374,20 +386,23 @@ inline void for_all_3d(cuda_pol const&, IdxT begin0, IdxT end0, IdxT begin1, Idx
   cudaStream_t stream = 0;
   
   cudaCheck(cudaLaunchKernel(func, gridDim, blockDim, args, sharedMem, stream));
+  //synchronize(pol);
 }
 
 template < typename body_type >
-inline void for_all_3d(cuda_batch_pol const&, IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, IdxT begin2, IdxT end2, body_type&& body)
+inline void for_all_3d(cuda_batch_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, IdxT begin2, IdxT end2, body_type&& body)
 {
   IdxT len = (end0 - begin0) * (end1 - begin1) * (end2 - begin2);
   cuda::batch_launch::for_all(0, len, detail::adapter_3d<typename std::remove_reference<body_type>::type>{begin0, end0, begin1, end1, begin2, end2, std::forward<body_type>(body)});
+  //synchronize(pol);
 }
 
 template < typename body_type >
-inline void for_all_3d(cuda_persistent_pol const&, IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, IdxT begin2, IdxT end2, body_type&& body)
+inline void for_all_3d(cuda_persistent_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, IdxT begin2, IdxT end2, body_type&& body)
 {
   IdxT len = (end0 - begin0) * (end1 - begin1) * (end2 - begin2);
   cuda::persistent_launch::for_all(0, len, detail::adapter_3d<typename std::remove_reference<body_type>::type>{begin0, end0, begin1, end1, begin2, end2, std::forward<body_type>(body)});
+  //synchronize(pol);
 }
 
 #endif // _FOR_ALL_CUH
