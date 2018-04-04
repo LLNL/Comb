@@ -284,7 +284,7 @@ struct Box3d
     , kmax(kmax_)
     , mesh(mesh_)
   {
-    // printf("Box3d i %d %d j %d %d k %d %d\n", imin, imax, jmin, jmax, kmin, kmax);
+    // printf("Box3d i %d %d j %d %d k %d %d\n", imin, imax, jmin, jmax, kmin, kmax);  fflush(stdout);
   }
   size_t size() const
   {
