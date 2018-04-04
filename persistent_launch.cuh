@@ -1,18 +1,19 @@
 
-#ifndef _BATCH_LAUNCH_CUH
-#define _BATCH_LAUNCH_CUH
+#ifndef _PERSISTENT_LAUNCH_CUH
+#define _PERSISTENT_LAUNCH_CUH
 
-#include "utils.cuh"
+#include "batch_utils.cuh"
+#include "MultiBuffer.cuh"
 
 namespace cuda {
 
-namespace batch_launch {
+namespace persistent_launch {
 
 namespace detail {
 
-inline MultiBuffer& getMultiBuffer()
+inline ::detail::MultiBuffer& getMultiBuffer()
 {
-  static MultiBuffer buf;
+  static ::detail::MultiBuffer buf;
   return buf;
 }
 
@@ -29,10 +30,10 @@ extern void stop(::detail::MultiBuffer& mb, cudaStream_t stream);
 template <typename kernel_type_in>
 inline void enqueue(::detail::MultiBuffer& mb, int begin, int n, kernel_type_in&& kernel_in, cudaStream_t stream = 0)
 {
-   using kernel_type = kernel_holder_B_N<typename std::remove_reference<kernel_type_in>::type>;
+   using kernel_type = ::detail::kernel_holder_B_N<typename std::remove_reference<kernel_type_in>::type>;
 
    // write device wrapper function pointer to pinned buffer
-   device_wrapper_ptr wrapper_ptr = get_device_wrapper_ptr<kernel_type>();
+   ::detail::device_wrapper_ptr wrapper_ptr = ::detail::get_device_wrapper_ptr<kernel_type>();
    
    // Copy kernel into kernel holder and write to pinned buffer
    kernel_type kernel{kernel_in, begin, n};
@@ -55,13 +56,13 @@ template <typename kernel_type_in>
 inline void for_all(int begin, int end, kernel_type_in&& kernel_in, cudaStream_t stream = 0 )
 {
    if (begin < end) {
-      enqueue(detail::getMultiBuffer(), begin, end - begin, std::forward<kernel_type_in>(kernel_in), stream);
+      detail::enqueue(detail::getMultiBuffer(), begin, end - begin, std::forward<kernel_type_in>(kernel_in), stream);
    }
 }
 
-} // namespace batch_launch
+} // namespace persistent_launch
 
 } // namespace cuda
 
-#endif // _BATCH_LAUNCH_CUH
+#endif // _PERSISTENT_LAUNCH_CUH
 

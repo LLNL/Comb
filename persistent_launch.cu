@@ -1,11 +1,11 @@
 
-#include "batch_launch.cuh"
+#include "persistent_launch.cuh"
 
 #include <cooperative_groups.h>
 
 namespace cuda {
 
-namespace batch_launch {
+namespace persistent_launch {
 
 namespace detail {
 
@@ -17,6 +17,7 @@ void launch(::detail::MultiBuffer& mb, cudaStream_t stream)
 
       // ensure other thread/device done reading buffer before launch
       while(!mb.cur_buffer_empty());
+      // get empty unused buffer
       ::detail::MultiBuffer::buffer_type* device_buffer = mb.get_buffer();
 
       int blocks_cutoff = 1;
@@ -41,7 +42,7 @@ void launch(::detail::MultiBuffer& mb, cudaStream_t stream)
          func = (void*)&::detail::block_read_device<::detail::MultiBuffer::shared_buffer_type>;
       } else {
          // use device cache
-         func = (void*)&::Detail::block_read_device<::detail::MultiBuffer::shared_buffer_type>;
+         func = (void*)&::detail::block_read_device<::detail::MultiBuffer::shared_buffer_type>;
       }
       cudaCheck(cudaLaunchCooperativeKernel(func, num_blocks, blocksize,
                                             args, 0, stream));
@@ -51,7 +52,7 @@ void launch(::detail::MultiBuffer& mb, cudaStream_t stream)
 
 void stop(::detail::MultiBuffer& mb, cudaStream_t stream)
 {
-   if (getLaunched())) {
+   if (getLaunched()) {
      mb.done_packing();
      getLaunched() = false;
    }
@@ -63,7 +64,7 @@ void stop(::detail::MultiBuffer& mb, cudaStream_t stream)
 void force_start(cudaStream_t stream)
 {
    // NVTX_RANGE_COLOR(NVTX_CYAN)
-   if (!getLaunched()) {
+   if (!detail::getLaunched()) {
       detail::launch(detail::getMultiBuffer(), stream);
    }
 }
@@ -71,7 +72,7 @@ void force_start(cudaStream_t stream)
 // Ensure current batch launched (does nothing)
 void force_complete(cudaStream_t stream)
 {
-   if (getLaunched()) {
+   if (detail::getLaunched()) {
       detail::stop(detail::getMultiBuffer(), stream);
    }
 }
@@ -86,7 +87,7 @@ void synchronize(cudaStream_t stream)
    cudaCheck(cudaDeviceSynchronize());
 }
 
-} // namespace batch_launch
+} // namespace persistent_launch
 
 } // namespace cuda
 

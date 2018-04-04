@@ -2,7 +2,8 @@
 #ifndef _BATCH_LAUNCH_CUH
 #define _BATCH_LAUNCH_CUH
 
-#include "utils.cuh"
+#include "batch_utils.cuh"
+#include "MultiBuffer.cuh"
 
 namespace cuda {
 
@@ -10,45 +11,51 @@ namespace batch_launch {
 
 namespace detail {
 
-inline MultiBuffer& getMultiBuffer()
+inline ::detail::MultiBuffer& getMultiBuffer()
 {
-  static MultiBuffer buf;
+  static ::detail::MultiBuffer buf;
   return buf;
 }
 
-inline ::detail::multibuffer::buffer_size_type& getMaxN()
+inline ::detail::MultiBuffer::buffer_size_type& getMaxN()
 {
-  static ::detail::multibuffer::buffer_size_type maxN = 0;
+  static ::detail::MultiBuffer::buffer_size_type maxN = 0;
   return maxN;
 }
 
-extern void launch(cudaStream_t stream);
+extern void launch(::detail::MultiBuffer& mb, cudaStream_t stream);
 
 // Enqueue a kernel in the current buffer.
 template <typename kernel_type_in>
 inline void enqueue(::detail::MultiBuffer& mb, int begin, int n, kernel_type_in&& kernel_in, cudaStream_t stream = 0)
 {
-   using kernel_type = kernel_holder_B_N<typename std::remove_reference<kernel_type_in>::type>;
+   using kernel_type = ::detail::kernel_holder_B_N<typename std::remove_reference<kernel_type_in>::type>;
 
    // write device wrapper function pointer to pinned buffer
-   device_wrapper_ptr wrapper_ptr = get_device_wrapper_ptr<kernel_type>();
+   ::detail::device_wrapper_ptr wrapper_ptr = ::detail::get_device_wrapper_ptr<kernel_type>();
    
    // Copy kernel into kernel holder and write to pinned buffer
    kernel_type kernel{kernel_in, begin, n};
 
+   // if first write
+   if (getMaxN() == 0) {
+      // ensure other thread/device done reading buffer before launch
+      while(!mb.cur_buffer_empty());
+   }
+   
    // pack function pointer and kernel body
    bool success = mb.pack(wrapper_ptr, &kernel);
    
    if ( !success ) {
    
       // Not enough room, launch current buffer (switches to next buffer)
-      launch(stream);
+      launch(mb, stream);
       
       // Wait for next buffer to be writeable, then pack
       while ( !mb.pack(wrapper_ptr, &kernel) );
    }
    
-   getMaxN() = std::max(getMaxN(), n);
+   getMaxN() = std::max(getMaxN(), static_cast<::detail::MultiBuffer::buffer_size_type>(n));
 }
 
 } // namespace detail
@@ -61,7 +68,7 @@ template <typename kernel_type_in>
 inline void for_all(int begin, int end, kernel_type_in&& kernel_in, cudaStream_t stream = 0 )
 {
    if (begin < end) {
-      enqueue(detail::getMultiBuffer(), begin, end - begin, std::forward<kernel_type_in>(kernel_in), stream);
+      detail::enqueue(detail::getMultiBuffer(), begin, end - begin, std::forward<kernel_type_in>(kernel_in), stream);
    }
 }
 

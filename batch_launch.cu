@@ -42,7 +42,7 @@ void launch(::detail::MultiBuffer& mb, cudaStream_t stream)
          func = (void*)&::detail::block_read_device<::detail::MultiBuffer::shared_buffer_type>;
       } else {
          // use device cache
-         func = (void*)&::Detail::block_read_device<::detail::MultiBuffer::shared_buffer_type>;
+         func = (void*)&::detail::block_read_device<::detail::MultiBuffer::shared_buffer_type>;
       }
       cudaCheck(cudaLaunchCooperativeKernel(func, num_blocks, blocksize,
                                             args, 0, stream));
@@ -63,7 +63,7 @@ void force_start(cudaStream_t stream)
 void force_complete(cudaStream_t stream)
 {
    // NVTX_RANGE_COLOR(NVTX_CYAN)
-   if (getMaxN() > 0) {
+   if (detail::getMaxN() > 0) {
       detail::launch(detail::getMultiBuffer(), stream);
    }
 }
