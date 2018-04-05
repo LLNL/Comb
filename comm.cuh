@@ -294,7 +294,7 @@ struct Box3d
   LidxT* get_indices(policy const& p) const
   {
     LidxT* index_list = (LidxT*)mesh.aloc.allocate(size()*sizeof(LidxT));
-    for_all_3d(p, imin, imax, jmin, jmax, kmin, kmax, make_set_idxr_idxr(detail::indexer_kji{mesh.info.ijlen, mesh.info.ilen}, index_list, detail::indexer_idx{}));
+    for_all_3d(p, kmin, kmax, jmin, jmax, imin, imax, make_set_idxr_idxr(detail::indexer_kji{mesh.info.ijlen, mesh.info.ilen}, index_list, detail::indexer_idx{}));
     return index_list;
   }
   void deallocate_indices(LidxT* ptr) const
