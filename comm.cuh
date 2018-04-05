@@ -296,8 +296,8 @@ struct Box3d
     , kmax(kmax_)
     , mesh(mesh_)
   {
-    // FPRINTF(stdout, "Box3d i %d %d j %d %d k %d %d\n", imin, imax, jmin, jmax, kmin, kmax);
-    // assert((imax-imin)*(jmax-jmin)*(kmax-kmin) <= 2);
+    //FPRINTF(stdout, "Box3d i %d %d j %d %d k %d %d\n", imin, imax, jmin, jmax, kmin, kmax);
+    //assert((imax-imin)*(jmax-jmin)*(kmax-kmin) <= 13*3*3);
   }
   size_t size() const
   {
@@ -308,6 +308,10 @@ struct Box3d
   {
     LidxT* index_list = (LidxT*)mesh.aloc.allocate(size()*sizeof(LidxT));
     for_all_3d(p, kmin, kmax, jmin, jmax, imin, imax, make_set_idxr_idxr(detail::indexer_kji{mesh.info.ijlen, mesh.info.ilen}, index_list, detail::indexer_idx{}));
+    //for(IdxT idx = 0; idx < (imax-imin)*(jmax-jmin)*(kmax-kmin); ++idx) {
+    //  FPRINTF(stdout, "indices[%i] = %i\n", idx, index_list[idx]);
+    //  assert(0 <= index_list[idx] && index_list[idx] < (imax-imin)*(jmax-jmin)*(kmax-kmin));
+    //}
     return index_list;
   }
   void deallocate_indices(LidxT* ptr) const
