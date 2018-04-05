@@ -135,14 +135,14 @@ struct adapter_2d {
 template < typename body_type >
 struct adapter_3d {
   IdxT begin0, begin1, begin2;
-  IdxT len1, len12;
+  IdxT len2, len12;
   body_type body;
   template < typename body_type_ >
   adapter_3d(IdxT begin0_, IdxT end0_, IdxT begin1_, IdxT end1_, IdxT begin2_, IdxT end2_, body_type_&& body_)
     : begin0(begin0_)
     , begin1(begin1_)
     , begin2(begin2_)
-    , len1(end1_ - begin1_)
+    , len2(end2_ - begin2_)
     , len12((end1_ - begin1_) * (end2_ - begin2_))
     , body(std::forward<body_type_>(body_))
   { }
@@ -152,8 +152,8 @@ struct adapter_3d {
     IdxT i0 = idx / len12;
     IdxT idx12 = idx - i0 * len12;
 
-    IdxT i1 = idx12 / len1;
-    IdxT i2 = idx12 - i1 * len1;
+    IdxT i1 = idx12 / len2;
+    IdxT i2 = idx12 - i1 * len2;
 
     body(i0 + begin0, i1 + begin1, i2 + begin2, idx);
   }
