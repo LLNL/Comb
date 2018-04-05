@@ -123,12 +123,12 @@ struct HostAllocator : Allocator
   virtual void* allocate(size_t nbytes)
   {
     void* ptr = malloc(nbytes);
-    //printf("allocated %p nbytes %zu\n", ptr, nbytes); fflush(stdout);
+    // FPRINTF(stdout, "allocated %p nbytes %zu\n", ptr, nbytes);
     return ptr;
   }
   virtual void deallocate(void* ptr)
   {
-    //printf("deallocating %p\n", ptr); fflush(stdout);
+    // FPRINTF(stdout, "deallocating %p\n", ptr);
     free(ptr);
   }
 };

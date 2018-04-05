@@ -10,12 +10,25 @@
 #define HOST __host__
 #define DEVICE __device__
 
+#ifdef __CUDA_ARCH__
+#define FFLUSH(f) static_cast<void>(0)
+#else
+#define FFLUSH(f) fflush(f)
+#endif
+
+#ifdef __CUDA_ARCH__
+#define FPRINTF(f, ...) printf(__VA_ARGS__), FFLUSH(f)
+#else
+#define FPRINTF(f, ...) fprintf(f, __VA_ARGS__), FFLUSH(f)
+#endif
+
 #define cudaCheck(...) \
   if (__VA_ARGS__ != cudaSuccess) { \
-    fprintf(stderr, "Error performing " #__VA_ARGS__ " %s:%i\n", __FILE__, __LINE__); fflush(stderr); \
+    FPRINTF(stderr, "Error performing " #__VA_ARGS__ " %s:%i\n", __FILE__, __LINE__); \
     /* assert(0); */ \
     MPI_Abort(MPI_COMM_WORLD, 1); \
   }
+  
 
 namespace detail {
 

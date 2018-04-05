@@ -338,7 +338,7 @@ void block_read_device(typename shared_buffer_type::buffer_type volatile* arg_bu
    /*
    if (cooperative_groups::this_thread_block().thread_rank()+1 == cooperative_groups::this_thread_block().size()) {
      // inform host that device is done reading this block
-     printf("block %6i thread %6i Device Buffer get %p\n", cooperative_groups::this_thread_block().group_index().x, cooperative_groups::this_thread_block().thread_rank(), dev_buf);
+     FPRINTF(stdout, "block %6i thread %6i Device Buffer get %p\n", cooperative_groups::this_thread_block().group_index().x, cooperative_groups::this_thread_block().thread_rank(), dev_buf);
    }
    */
    
@@ -359,7 +359,7 @@ void block_read_device(typename shared_buffer_type::buffer_type volatile* arg_bu
          device_wrapper_ptr fnc = ((const volatile device_wrapper_ptr*)shr_ptr)[0];
          /*
          if (cooperative_groups::this_thread_block().thread_rank()+1 == cooperative_groups::this_thread_block().size()) {
-           printf("block %6i thread %6i read fnc %p\n", cooperative_groups::this_thread_block().group_index().x, cooperative_groups::this_thread_block().thread_rank(), fnc);
+           FPRINTF(stdout, "block %6i thread %6i read fnc %p\n", cooperative_groups::this_thread_block().group_index().x, cooperative_groups::this_thread_block().thread_rank(), fnc);
          }
          */
          if (fnc != nullptr) {
@@ -377,7 +377,7 @@ void block_read_device(typename shared_buffer_type::buffer_type volatile* arg_bu
            }
            /*
            if (cooperative_groups::this_thread_block().thread_rank()+1 == cooperative_groups::this_thread_block().size()) {
-             printf("block %6i thread %6i grid sync\n", cooperative_groups::this_thread_block().group_index().x, cooperative_groups::this_thread_block().thread_rank());
+             FPRINTF(stdout, "block %6i thread %6i grid sync\n", cooperative_groups::this_thread_block().group_index().x, cooperative_groups::this_thread_block().thread_rank());
            }
            */
            // ensure all blocks have read the end of buffer, next buffer
@@ -391,11 +391,11 @@ void block_read_device(typename shared_buffer_type::buffer_type volatile* arg_bu
            /*
            if (cooperative_groups::this_thread_block().thread_rank()+1 == cooperative_groups::this_thread_block().size()) {
              // inform host that device is done reading this block
-             printf("block %6i thread %6i Device Buffer read %p\n", cooperative_groups::this_thread_block().group_index().x, cooperative_groups::this_thread_block().thread_rank(), dev_buf);
+             FPRINTF(stdout, "block %6i thread %6i Device Buffer read %p\n", cooperative_groups::this_thread_block().group_index().x, cooperative_groups::this_thread_block().thread_rank(), dev_buf);
            }
            
            if (cooperative_groups::this_thread_block().thread_rank()+1 == cooperative_groups::this_thread_block().size()) {
-             printf("block %6i thread %6i grid sync\n", cooperative_groups::this_thread_block().group_index().x, cooperative_groups::this_thread_block().thread_rank());
+             FPRINTF(stdout, "block %6i thread %6i grid sync\n", cooperative_groups::this_thread_block().group_index().x, cooperative_groups::this_thread_block().thread_rank());
            }
            
            cooperative_groups::this_grid().sync();
@@ -419,13 +419,13 @@ void block_read_device(typename shared_buffer_type::buffer_type volatile* arg_bu
          device_wrapper_ptr fnc = ((const volatile device_wrapper_ptr*)shr_ptr)[0];
          /*
          if (cooperative_groups::this_thread_block().thread_rank()+1 == cooperative_groups::this_thread_block().size()) {
-           printf("block %6i thread %6i read fnc %p\n", cooperative_groups::this_thread_block().group_index().x, cooperative_groups::this_thread_block().thread_rank(), fnc);
+           FPRINTF(stdout, "block %6i thread %6i read fnc %p\n", cooperative_groups::this_thread_block().group_index().x, cooperative_groups::this_thread_block().thread_rank(), fnc);
          }
          */
          if (fnc != nullptr) {
            /*
            if (cooperative_groups::this_thread_block().thread_rank()+1 == cooperative_groups::this_thread_block().size()) {
-             printf("block %6i thread %6i grid sync\n", cooperative_groups::this_thread_block().group_index().x, cooperative_groups::this_thread_block().thread_rank());
+             FPRINTF(stdout, "block %6i thread %6i grid sync\n", cooperative_groups::this_thread_block().group_index().x, cooperative_groups::this_thread_block().thread_rank());
            }
            */
            // synchronize before run function
@@ -443,7 +443,7 @@ void block_read_device(typename shared_buffer_type::buffer_type volatile* arg_bu
            }
            /*
            if (cooperative_groups::this_thread_block().thread_rank()+1 == cooperative_groups::this_thread_block().size()) {
-             printf("block %6i thread %6i grid sync\n", cooperative_groups::this_thread_block().group_index().x, cooperative_groups::this_thread_block().thread_rank());
+             FPRINTF(stdout, "block %6i thread %6i grid sync\n", cooperative_groups::this_thread_block().group_index().x, cooperative_groups::this_thread_block().thread_rank());
            }
            */
            // ensure all blocks have read the end of buffer, next buffer
@@ -457,11 +457,11 @@ void block_read_device(typename shared_buffer_type::buffer_type volatile* arg_bu
            /*
            if ( cooperative_groups::this_thread_block().thread_rank()+1 == cooperative_groups::this_thread_block().size()) {
              // inform host that device is done reading this block
-             printf("block %6i thread %6i Device Buffer read %p\n", cooperative_groups::this_thread_block().group_index().x, cooperative_groups::this_thread_block().thread_rank(), dev_buf);
+             FPRINTF(stdout, "block %6i thread %6i Device Buffer read %p\n", cooperative_groups::this_thread_block().group_index().x, cooperative_groups::this_thread_block().thread_rank(), dev_buf);
            }
            
            if (cooperative_groups::this_thread_block().thread_rank()+1 == cooperative_groups::this_thread_block().size()) {
-             printf("block %6i thread %6i grid sync\n", cooperative_groups::this_thread_block().group_index().x, cooperative_groups::this_thread_block().thread_rank());
+             FPRINTF(stdout, "block %6i thread %6i grid sync\n", cooperative_groups::this_thread_block().group_index().x, cooperative_groups::this_thread_block().thread_rank());
            }
            
            cooperative_groups::this_grid().sync();

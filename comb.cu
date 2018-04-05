@@ -22,7 +22,7 @@ namespace detail {
      HOST DEVICE
      void operator()(IdxT i, IdxT) const {
        IdxT zone = i;
-       //printf("%p[%i] = %f\n", data, zone, 1.0); fflush(stdout);
+       //FPRINTF(stdout, "%p[%i] = %f\n", data, zone, 1.0);
        data[zone] = -1.0;
      }
   };
@@ -34,7 +34,7 @@ namespace detail {
      HOST DEVICE
      void operator()(IdxT k, IdxT j, IdxT i, IdxT idx) const {
        IdxT zone = i + j * ilen + k * ijlen;
-       //printf("%p[%i] = %f\n", data, zone, 1.0); fflush(stdout);
+       //FPRINTF(stdout, "%p[%i] = %f\n", data, zone, 1.0);
        data[zone] = 1.0;
      }
   };
@@ -60,8 +60,8 @@ namespace detail {
        } else {
          expected = 0.0; found = data[zone]; next = -1.0;
        }
-       //if (found != expected) printf("zone %i(%i %i %i) = %f expected %f\n", zone, i, j, k, found, expected);
-       //printf("%p[%i] = %f\n", data, zone, 1.0); fflush(stdout);
+       //if (found != expected) FPRINTF(stdout, "zone %i(%i %i %i) = %f expected %f\n", zone, i, j, k, found, expected);
+       //FPRINTF(stdout, "%p[%i] = %f\n", data, zone, 1.0);
        data[zone] = next;
      }
   };
@@ -75,7 +75,7 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles,
 
     char rname[1024] = ""; snprintf(rname, 1024, "Buffers %s %s %s %s %s %s", pol_face::name, aloc_face.name(), pol_edge::name, aloc_edge.name(), pol_corner::name, aloc_corner.name());
     char test_name[1024] = ""; snprintf(test_name, 1024, "Mesh %s %s %s", pol_loop::name, aloc_mesh.name(), rname);
-    printf("Starting test %s\n", test_name); fflush(stdout);
+    FPRINTF(stdout, "Starting test %s\n", test_name);
 
     Range r0(rname, Range::orange);
     
@@ -173,8 +173,8 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles,
           } else {
             expected = -1.0; found = data[zone]; next = -1.0;
           }
-          if (found != expected) printf("zone %i(%i %i %i) = %f expected %f\n", zone, i, j, k, found, expected);
-          //printf("%p[%i] = %f\n", data, zone, 1.0);
+          if (found != expected) FPRINTF(stdout, "zone %i(%i %i %i) = %f expected %f\n", zone, i, j, k, found, expected);
+          //FPRINTF(stdout, "%p[%i] = %f\n", data, zone, 1.0);
           data[zone] = next;
         });
       }
@@ -504,7 +504,7 @@ int main(int argc, char** argv)
   {
     Range r("Memmory pool init", Range::green);
     
-    printf("Starting up memory pools\n"); fflush(stdout);
+    FPRINTF(stdout, "Starting up memory pools\n");
 
     DataT** vars = new DataT*[num_vars+1];
  

@@ -117,7 +117,7 @@ struct CommInfo
   template < typename ... Ts >
   void print_any(const char* fmt, Ts&&... args)
   {
-    fprintf(stdout, fmt, std::forward<Ts>(args)...); fflush(stdout);
+    FPRINTF(stdout, fmt, std::forward<Ts>(args)...);
   }
   
   template < typename ... Ts >
@@ -131,7 +131,7 @@ struct CommInfo
   template < typename ... Ts >
   void warn_any(const char* fmt, Ts&&... args)
   {
-    fprintf(stderr, fmt, std::forward<Ts>(args)...); fflush(stderr);
+    FPRINTF(stderr, fmt, std::forward<Ts>(args)...);
   }
   
   template < typename ... Ts >
@@ -230,7 +230,13 @@ struct copy_idxr_idxr {
   I_dst idxr_dst;
   copy_idxr_idxr(T_src* const& ptr_src_, I_src const& idxr_src_, T_dst* const& ptr_dst_, I_dst const& idxr_dst_) : ptr_src(ptr_src_), ptr_dst(ptr_dst_), idxr_src(idxr_src_), idxr_dst(idxr_dst_) {}
   template < typename ... Ts >
-  HOST DEVICE void operator()(Ts... args) const { ptr_dst[idxr_dst(args...)] = ptr_src[idxr_src(args...)]; }
+  HOST DEVICE void operator()(Ts... args) const
+  {
+    IdxT dst_i = idxr_dst(args...);
+    IdxT src_i = idxr_src(args...);
+    //FPRINTF(stdout, "copy_idxr_idxr %p[%i] = %p[%i] (%i)%i\n", ptr_dst, dst_i, ptr_src, src_i, args...);
+    ptr_dst[dst_i] = ptr_src[src_i];
+  }
 };
 
 template < typename T_src, typename I_src, typename T_dst, typename I_dst >
@@ -245,7 +251,13 @@ struct set_idxr_idxr {
   I_dst idxr_dst;
   set_idxr_idxr(I_src const& idxr_src_, T_dst* const& ptr_dst_, I_dst const& idxr_dst_) : idxr_src(idxr_src_), ptr_dst(ptr_dst_), idxr_dst(idxr_dst_) {}
   template < typename ... Ts >
-  HOST DEVICE void operator()(Ts... args) const { ptr_dst[idxr_dst(args...)] = idxr_src(args...); }
+  HOST DEVICE void operator()(Ts... args) const
+  {
+    IdxT dst_i = idxr_dst(args...);
+    IdxT src_i = idxr_src(args...);
+    //FPRINTF(stdout, "set_idxr_idxr %p[%i] = %i (%i %i %i)%i\n", ptr_dst, dst_i, src_i, args...);
+    ptr_dst[dst_i] = src_i;
+  }
 };
 
 template < typename I_src, typename T_dst, typename I_dst >
@@ -284,7 +296,8 @@ struct Box3d
     , kmax(kmax_)
     , mesh(mesh_)
   {
-    // printf("Box3d i %d %d j %d %d k %d %d\n", imin, imax, jmin, jmax, kmin, kmax);  fflush(stdout);
+    // FPRINTF(stdout, "Box3d i %d %d j %d %d k %d %d\n", imin, imax, jmin, jmax, kmin, kmax);
+    // assert((imax-imin)*(jmax-jmin)*(kmax-kmin) <= 2);
   }
   size_t size() const
   {
@@ -674,7 +687,7 @@ struct Comm
 
   void postRecv()
   {
-    //printf("posting receives\n"); fflush(stdout);
+    //FPRINTF(stdout, "posting receives\n");
     auto end = std::end(m_recvs);
     for (auto i = std::begin(m_recvs); i != end; ++i) {
       i->allocate();
@@ -683,7 +696,7 @@ struct Comm
 
   void postSend()
   {
-    //printf("posting sends\n"); fflush(stdout);
+    //FPRINTF(stdout, "posting sends\n");
     auto end = std::end(m_sends);
     for (auto i = std::begin(m_sends); i != end; ++i) {
       i->allocate();
@@ -694,7 +707,7 @@ struct Comm
 
   void waitRecv()
   {
-    //printf("waiting receives\n"); fflush(stdout);
+    //FPRINTF(stdout, "waiting receives\n");
     auto end = std::end(m_recvs);
     for (auto i = std::begin(m_recvs); i != end; ++i) {
       // do recv
@@ -705,7 +718,7 @@ struct Comm
 
   void waitSend()
   {
-    //printf("posting sends\n"); fflush(stdout);
+    //FPRINTF(stdout, "posting sends\n");
     auto end = std::end(m_sends);
     for (auto i = std::begin(m_sends); i != end; ++i) {
       i->deallocate();
