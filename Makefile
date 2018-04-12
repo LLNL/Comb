@@ -1,14 +1,14 @@
 
 .PHONY: opt all clean debug
 
-#CXX=nvcc -ccbin mpixlC -Xcompiler '-qmaxmem=-1'
-CXX=nvcc -ccbin mpiclang++
+CXX=nvcc -ccbin mpixlC -Xcompiler '-qmaxmem=-1'
+#CXX=nvcc -ccbin mpiclang++
 #CXX=nvcc -ccbin mpig++
 CXX_FLAGS=-std=c++14 -I. -lnvToolsExt -rdc=true -arch=sm_70 --expt-extended-lambda
 CXX_OPT_FLAGS=$(CXX_FLAGS) -O2 -g -lineinfo  -Xcompiler '-O2 -g'
 CXX_DEBUG_FLAGS=$(CXX_FLAGS) -O0 -g -G -Xcompiler '-O0 -g'
 
-DEPS=basic_mempool.hpp align.hpp mutex.hpp memory.cuh for_all.cuh profiling.cuh mesh.cuh comm.cuh utils.cuh batch_launch.cuh persistent_launch.cuh MultiBuffer.cuh batch_utils.cuh
+DEPS=basic_mempool.hpp align.hpp mutex.hpp memory.cuh for_all.cuh profiling.cuh MeshData.cuh MeshInfo.cuh Box3d.cuh comm.cuh utils.cuh cuda_utils.cuh batch_launch.cuh persistent_launch.cuh MultiBuffer.cuh batch_utils.cuh CommFactory.cuh
 OBJ_OPT=comb_o.o batch_launch_o.o persistent_launch_o.o MultiBuffer_o.o
 OBJ_DEBUG=comb_g.o batch_launch_g.o persistent_launch_g.o MultiBuffer_g.o
 

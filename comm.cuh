@@ -8,60 +8,81 @@
 #include <type_traits>
 #include <list>
 #include <vector>
+#include <map>
 #include <utility>
 
 #include <mpi.h>
 
 #include "memory.cuh"
 #include "for_all.cuh"
-#include "mesh.cuh"
+#include "utils.cuh"
 
+struct CartRank
+{
+  int rank;
+  int coords[3];
+  
+  CartRank() : rank(-1), coords{-1, -1, -1} {}
+  CartRank(int rank_, int coords_[]) : rank(rank_), coords{coords_[0], coords_[1], coords_[2]} {}
+  
+  CartRank& setup(int rank_, MPI_Comm cartcomm)
+  {
+    rank = rank_;
+    detail::MPI::Cart_coords(cartcomm, rank, 3, coords);
+    return *this;
+  }
+};
 
-struct CartComm
+struct CartComm : CartRank
 {
   MPI_Comm comm;
-  int rank;
   int size;
-  int coords[3];
-  int cuts[3];
+  int divisions[3];
   int periodic[3];
+  
   explicit CartComm()
-    : comm(MPI_COMM_NULL)
-    , rank(-1)
+    : CartRank()
+    , comm(MPI_COMM_NULL)
     , size(0)
-    , coords{-1, -1, -1}
-    , cuts{1, 1, 1}
+    , divisions{0, 0, 0}
     , periodic{0, 0, 0}
   {
   }
   
-  void create()
+  void create(const int divisions_[], const int periodic_[])
   {
-    MPI_Cart_create(MPI_COMM_WORLD, 3, cuts, periodic, 1, &comm);
-    MPI_Comm_rank(comm, &rank);
-    MPI_Comm_size(comm, &size);
-    MPI_Cart_coords(comm, rank, 3, coords);
+    divisions[0] = divisions_[0];
+    divisions[1] = divisions_[1];
+    divisions[2] = divisions_[2];
+    
+    periodic[0] = periodic_[0];
+    periodic[1] = periodic_[1];
+    periodic[2] = periodic_[2];
+    
+    comm = detail::MPI::Cart_create(MPI_COMM_WORLD, 3, divisions, periodic, 1);
+    size = detail::MPI::Comm_size(comm);
+    setup(detail::MPI::Comm_rank(comm), comm);
   }
   
-  int get_rank(const int arg_coords[])
+  int get_rank(const int arg_coords[]) const
   {
     int output_rank = -1;
     int input_coords[3] {-1, -1, -1};
     for(IdxT dim = 0; dim < 3; ++dim) {
-      if ((0 <= arg_coords[dim] && arg_coords[dim] < cuts[dim]) || periodic[dim]) {
-        input_coords[dim] = arg_coords[dim] % cuts[dim];
-        if (input_coords[dim] < 0) input_coords[dim] += cuts[dim];
+      if ((0 <= arg_coords[dim] && arg_coords[dim] < divisions[dim]) || periodic[dim]) {
+        input_coords[dim] = arg_coords[dim] % divisions[dim];
+        if (input_coords[dim] < 0) input_coords[dim] += divisions[dim];
       }
     }
     if (input_coords[0] != -1 && input_coords[1] != -1 && input_coords[2] != -1) {
-      MPI_Cart_rank(comm, input_coords, &output_rank);
+      output_rank = detail::MPI::Cart_rank(comm, input_coords);
     }
     return output_rank;
   }
   
   void disconnect()
   {
-    MPI_Comm_disconnect(&comm);
+    detail::MPI::Comm_disconnect(&comm);
   }
 };
 
@@ -74,43 +95,56 @@ struct CommInfo
   
   bool mock_communication;
   
+  IdxT cutoff;
+  
   enum struct method : IdxT
-  { any
-  , some
-  , all };
+  { waitany
+  , testany
+  , waitsome
+  , testsome
+  , waitall
+  , testall };
   
   static const char* method_str(method m)
   {
     const char* str = "unknown";
     switch (m) {
-      case method::any:  str = "a";    break;
-      case method::some: str = "some"; break;
-      case method::all:  str = "all";  break;
+      case method::waitany:  str = "wait_any";  break;
+      case method::testany:  str = "test_any";  break;
+      case method::waitsome: str = "wait_some"; break;
+      case method::testsome: str = "test_some"; break;
+      case method::waitall:  str = "wait_all";  break;
+      case method::testall:  str = "test_all";  break;
     }
     return str;
   }
   
-  method send_method;
-  method recv_method;
+  method post_send_method;
+  method post_recv_method;
+  method wait_send_method;
+  method wait_recv_method;
   
   CommInfo()
     : rank(-1)
     , size(0)
     , cart()
     , mock_communication(false)
-    , send_method(method::all)
-    , recv_method(method::all)
+    , post_send_method(method::waitall)
+    , post_recv_method(method::waitall)
+    , wait_send_method(method::waitall)
+    , wait_recv_method(method::waitall)
+    , cutoff(200)
   {
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    rank = detail::MPI::Comm_rank(MPI_COMM_WORLD);
+    size = detail::MPI::Comm_size(MPI_COMM_WORLD);
   }
     
   void barrier()
   {
     if (cart.comm != MPI_COMM_NULL) {
-      MPI_Barrier(cart.comm);
+      detail::MPI::Barrier(cart.comm);
     } else {
-      MPI_Barrier(MPI_COMM_WORLD);
+      detail::MPI::Barrier(MPI_COMM_WORLD);
     }
   }
   
@@ -158,271 +192,54 @@ struct CommInfo
   
   void abort()
   {
-    MPI_Abort(MPI_COMM_WORLD, 1);
+    detail::MPI::Abort(MPI_COMM_WORLD, 1);
   }
 };
 
-namespace detail {
-
-struct indexer_kji {
-  IdxT ijlen, ilen;
-  indexer_kji(IdxT ijlen_, IdxT ilen_) : ijlen(ijlen_), ilen(ilen_) {}
-  HOST DEVICE IdxT operator()(IdxT k, IdxT j, IdxT i, IdxT) const { return i + j * ilen + k * ijlen; }
-};
-struct indexer_ji {
-  IdxT ilen, koff;
-  indexer_ji(IdxT ilen_, IdxT koff_) : ilen(ilen_), koff(koff_) {}
-  HOST DEVICE IdxT operator()(IdxT j, IdxT i, IdxT) const { return i + j * ilen + koff; }
-};
-struct indexer_ki {
-  IdxT ijlen, joff;
-  indexer_ki(IdxT ijlen_, IdxT joff_) : ijlen(ijlen_), joff(joff_) {}
-  HOST DEVICE IdxT operator()(IdxT k, IdxT i, IdxT) const { return i + joff + k * ijlen; }
-};
-struct indexer_kj {
-  IdxT ijlen, ilen, ioff;
-  indexer_kj(IdxT ijlen_, IdxT ilen_, IdxT ioff_) : ijlen(ijlen_), ilen(ilen_), ioff(ioff_) {}
-  HOST DEVICE IdxT operator()(IdxT k, IdxT j, IdxT) const { return ioff + j * ilen + k * ijlen; }
-};
-
-struct indexer_i {
-  IdxT off;
-  indexer_i(IdxT off_) : off(off_) {}
-  HOST DEVICE IdxT operator()(IdxT i, IdxT) const { return i + off; }
-};
-struct indexer_j {
-  IdxT ilen, off;
-  indexer_j(IdxT ilen_, IdxT off_) : ilen(ilen_), off(off_) {}
-  HOST DEVICE IdxT operator()(IdxT j, IdxT) const { return j * ilen + off; }
-};
-struct indexer_k {
-  IdxT ijlen, off;
-  indexer_k(IdxT ijlen_, IdxT off_) : ijlen(ijlen_), off(off_) {}
-  HOST DEVICE IdxT operator()(IdxT k, IdxT) const { return k * ijlen + off; }
-};
-
-struct indexer_ {
-  IdxT off;
-  indexer_(IdxT off_) : off(off_) {}
-  HOST DEVICE IdxT operator()(IdxT, IdxT) const { return off; }
-};
-
-struct indexer_idx {
-  indexer_idx() {}
-  HOST DEVICE IdxT operator()(IdxT, IdxT idx) const { return idx; }
-  HOST DEVICE IdxT operator()(IdxT, IdxT, IdxT idx) const { return idx; }
-  HOST DEVICE IdxT operator()(IdxT, IdxT, IdxT, IdxT idx) const { return idx; }
-};
-
-struct indexer_list_idx {
-  LidxT* indices;
-  indexer_list_idx(LidxT* indices_) : indices(indices_) {}
-  HOST DEVICE IdxT operator()(IdxT, IdxT idx) const { return indices[idx]; }
-  HOST DEVICE IdxT operator()(IdxT, IdxT, IdxT idx) const { return indices[idx]; }
-  HOST DEVICE IdxT operator()(IdxT, IdxT, IdxT, IdxT idx) const { return indices[idx]; }
-};
-
-template < typename T_src, typename I_src, typename T_dst, typename I_dst >
-struct copy_idxr_idxr {
-  T_src* ptr_src;
-  T_dst* ptr_dst;
-  I_src idxr_src;
-  I_dst idxr_dst;
-  copy_idxr_idxr(T_src* const& ptr_src_, I_src const& idxr_src_, T_dst* const& ptr_dst_, I_dst const& idxr_dst_) : ptr_src(ptr_src_), ptr_dst(ptr_dst_), idxr_src(idxr_src_), idxr_dst(idxr_dst_) {}
-  template < typename ... Ts >
-  HOST DEVICE void operator()(Ts... args) const
-  {
-    IdxT dst_i = idxr_dst(args...);
-    IdxT src_i = idxr_src(args...);
-    //FPRINTF(stdout, "copy_idxr_idxr %p[%i] = %p[%i] (%i)%i\n", ptr_dst, dst_i, ptr_src, src_i, args...);
-    ptr_dst[dst_i] = ptr_src[src_i];
-  }
-};
-
-template < typename T_src, typename I_src, typename T_dst, typename I_dst >
-copy_idxr_idxr<T_src, I_src, T_dst, I_dst> make_copy_idxr_idxr(T_src* const& ptr_src, I_src const& idxr_src, T_dst* const& ptr_dst, I_dst const& idxr_dst) {
-  return copy_idxr_idxr<T_src, I_src, T_dst, I_dst>(ptr_src, idxr_src, ptr_dst, idxr_dst);
-}
-
-template < typename I_src, typename T_dst, typename I_dst >
-struct set_idxr_idxr {
-  T_dst* ptr_dst;
-  I_src idxr_src;
-  I_dst idxr_dst;
-  set_idxr_idxr(I_src const& idxr_src_, T_dst* const& ptr_dst_, I_dst const& idxr_dst_) : idxr_src(idxr_src_), ptr_dst(ptr_dst_), idxr_dst(idxr_dst_) {}
-  template < typename ... Ts >
-  HOST DEVICE void operator()(Ts... args) const
-  {
-    IdxT dst_i = idxr_dst(args...);
-    IdxT src_i = idxr_src(args...);
-    //FPRINTF(stdout, "set_idxr_idxr %p[%i] = %i (%i %i %i)%i\n", ptr_dst, dst_i, src_i, args...);
-    ptr_dst[dst_i] = src_i;
-  }
-};
-
-template < typename I_src, typename T_dst, typename I_dst >
-set_idxr_idxr<I_src, T_dst, I_dst> make_set_idxr_idxr(I_src const& idxr_src, T_dst* const& ptr_dst, I_dst const& idxr_dst) {
-  return set_idxr_idxr<I_src, T_dst, I_dst>(idxr_src, ptr_dst, idxr_dst);
-}
-
-} // namespace detail
-
-
-struct IdxTemplate
-{
-  enum struct location: IdxT
-  { min =-1
-  , mid = 0
-  , max = 1
-  };
-  location idx;
-  IdxT offset;
-  constexpr IdxTemplate(location idx_, IdxT offset_) : idx(idx_), offset(offset_) {}
-};
-
-struct Box3d
-{
-  IdxT imin, jmin, kmin, imax, jmax, kmax;
-  MeshData const& mesh;
-  Box3d(MeshData const& mesh_,
-        IdxT imin_, IdxT imax_,
-        IdxT jmin_, IdxT jmax_,
-        IdxT kmin_, IdxT kmax_)
-    : imin(imin_)
-    , jmin(jmin_)
-    , kmin(kmin_)
-    , imax(imax_)
-    , jmax(jmax_)
-    , kmax(kmax_)
-    , mesh(mesh_)
-  {
-    //FPRINTF(stdout, "Box3d i %d %d j %d %d k %d %d\n", imin, imax, jmin, jmax, kmin, kmax);
-    //assert((imax-imin)*(jmax-jmin)*(kmax-kmin) <= 13*3*3);
-  }
-  size_t size() const
-  {
-    return (imax - imin) * (jmax - jmin) * (kmax - kmin);
-  }
-  template < typename policy >
-  LidxT* get_indices(policy const& p) const
-  {
-    LidxT* index_list = (LidxT*)mesh.aloc.allocate(size()*sizeof(LidxT));
-    for_all_3d(p, kmin, kmax, jmin, jmax, imin, imax, make_set_idxr_idxr(detail::indexer_kji{mesh.info.ijlen, mesh.info.ilen}, index_list, detail::indexer_idx{}));
-    //for(IdxT idx = 0; idx < (imax-imin)*(jmax-jmin)*(kmax-kmin); ++idx) {
-    //  FPRINTF(stdout, "indices[%i] = %i\n", idx, index_list[idx]);
-    //  assert(0 <= index_list[idx] && index_list[idx] < (imax-imin)*(jmax-jmin)*(kmax-kmin));
-    //}
-    return index_list;
-  }
-  void deallocate_indices(LidxT* ptr) const
-  {
-    mesh.aloc.deallocate(ptr);
-  }
-};
-
-struct Box3dTemplate
-{
-  using IT = IdxTemplate;
-  using ITL = IdxTemplate::location;
-  static constexpr Box3dTemplate make_Box3dTemplate_inner(IdxT width, ITL bounds[])
-  {
-    return Box3dTemplate{ IT{(bounds[0] == ITL::mid) ? ITL::min : bounds[0], (bounds[0] == ITL::max) ? -width : 0 }
-                        , IT{(bounds[0] == ITL::mid) ? ITL::max : bounds[0], (bounds[0] == ITL::min) ?  width : 0 }
-                        , IT{(bounds[1] == ITL::mid) ? ITL::min : bounds[1], (bounds[1] == ITL::max) ? -width : 0 }
-                        , IT{(bounds[1] == ITL::mid) ? ITL::max : bounds[1], (bounds[1] == ITL::min) ?  width : 0 }
-                        , IT{(bounds[2] == ITL::mid) ? ITL::min : bounds[2], (bounds[2] == ITL::max) ? -width : 0 }
-                        , IT{(bounds[2] == ITL::mid) ? ITL::max : bounds[2], (bounds[2] == ITL::min) ?  width : 0 } };
-  }
-  static constexpr Box3dTemplate make_Box3dTemplate_ghost(IdxT width, IT::location bounds[])
-  {
-    return Box3dTemplate{ IT{(bounds[0] == ITL::mid) ? ITL::min : bounds[0], (bounds[0] == ITL::min) ? -width : 0 }
-                        , IT{(bounds[0] == ITL::mid) ? ITL::max : bounds[0], (bounds[0] == ITL::max) ?  width : 0 }
-                        , IT{(bounds[1] == ITL::mid) ? ITL::min : bounds[1], (bounds[1] == ITL::min) ? -width : 0 }
-                        , IT{(bounds[1] == ITL::mid) ? ITL::max : bounds[1], (bounds[1] == ITL::max) ?  width : 0 }
-                        , IT{(bounds[2] == ITL::mid) ? ITL::min : bounds[2], (bounds[2] == ITL::min) ? -width : 0 }
-                        , IT{(bounds[2] == ITL::mid) ? ITL::max : bounds[2], (bounds[2] == ITL::max) ?  width : 0 } };
-  }
-
-  IdxTemplate imin, jmin, kmin, imax, jmax, kmax;
-  constexpr Box3dTemplate(IdxTemplate imin_, IdxTemplate imax_,
-                          IdxTemplate jmin_, IdxTemplate jmax_,
-                          IdxTemplate kmin_, IdxTemplate kmax_)
-    : imin(imin_)
-    , jmin(jmin_)
-    , kmin(kmin_)
-    , imax(imax_)
-    , jmax(jmax_)
-    , kmax(kmax_)
-  {
-  }
-  Box3d make_box(MeshData const& mesh)
-  {
-    return Box3d{mesh, I_idx(mesh.info, imin), I_idx(mesh.info, imax),
-                       J_idx(mesh.info, jmin), J_idx(mesh.info, jmax),
-                       K_idx(mesh.info, kmin), K_idx(mesh.info, kmax)};
-  }
-private:
-  IdxT I_idx(MeshInfo const& info, IdxTemplate it)
-  {
-    IdxT idx = 0;
-    switch (it.idx) {
-      case ITL::min:
-        idx = info.imin; break;
-      case ITL::max:
-        idx = info.imax; break;
-      default:
-        assert(0); break;
-    }
-    return idx + it.offset;
-  }
-  IdxT J_idx(MeshInfo const& info, IdxTemplate it)
-  {
-    IdxT idx = 0;
-    switch (it.idx) {
-      case ITL::min:
-        idx = info.jmin; break;
-      case ITL::max:
-        idx = info.jmax; break;
-      default:
-        assert(0); break;
-    }
-    return idx + it.offset;
-  }
-  IdxT K_idx(MeshInfo const& info, IdxTemplate it)
-  {
-    IdxT idx = 0;
-    switch (it.idx) {
-      case ITL::min:
-        idx = info.kmin; break;
-      case ITL::max:
-        idx = info.kmax; break;
-      default:
-        assert(0); break;
-    }
-    return idx + it.offset;
-  }
-};
-
-template < typename policy0, typename policy1, typename policy2 >
+template < typename policy_many, typename policy_few >
 struct Message
 {
-  Allocator& buf_aloc;
-  int dest_rank;
-  IdxT pol;
+  using pol_many = policy_many;
+  using pol_few = policy_few;
+  Allocator& buf_aloc_many;
+  Allocator& buf_aloc_few;
+  int m_dest_rank;
+  int msg_tag;
+  IdxT cutoff;
   DataT* m_buf;
-  size_t m_size;
+  IdxT m_size;
+  bool have_many;
   
-  using list_item_type = std::pair<Box3d, LidxT*>;
-  std::list<list_item_type> boxes;
+  
+  struct list_item_type 
+  {
+    DataT* data;
+    LidxT* indices;
+    Allocator& aloc;
+    IdxT size;
+    list_item_type(DataT* data_, LidxT* indices_, Allocator& aloc_, IdxT size_)
+     : data(data_), indices(indices_), aloc(aloc_), size(size_)
+    { }
+  };
+  
+  std::list<list_item_type> items;
 
-  Message(int dest_rank_, Allocator& buf_aloc_, IdxT pol_)
-    : buf_aloc(buf_aloc_)
-    , dest_rank(dest_rank_)
-    , pol(pol_)
+  Message(int dest_rank_, int tag, Allocator& buf_aloc_many_, Allocator& buf_aloc_few_, IdxT cutoff_)
+    : buf_aloc_many(buf_aloc_many_)
+    , buf_aloc_few(buf_aloc_few_)
+    , m_dest_rank(dest_rank_)
+    , msg_tag(tag)
+    , cutoff(cutoff_)
     , m_buf(nullptr)
     , m_size(0)
+    , have_many(false)
   {
 
+  }
+  
+  int dest_rank()
+  {
+    return m_dest_rank;
   }
   
   DataT* buffer()
@@ -430,46 +247,37 @@ struct Message
     return m_buf;
   }
   
-  size_t size() const
+  IdxT size() const
   {
     return m_size;
   }
   
-  void add(Box3d const& box)
+  IdxT nbytes() const
   {
-    LidxT* indices = nullptr;
-    switch (pol) {
-      case 0:
-        indices = box.get_indices(policy0{}); break;
-      case 1:
-        indices = box.get_indices(policy1{}); break;
-      case 2:
-        indices = box.get_indices(policy2{}); break;
-      default:
-        assert(0); break;
-    }
-    boxes.push_back(list_item_type{box, indices});
-    m_size += box.size();
+    return sizeof(DataT)*m_size;
+  }
+  
+  void add(DataT* data, LidxT* indices, Allocator& aloc, IdxT size)
+  {
+    items.emplace_front(data, indices, aloc, size);
+    m_size += size;
+    
+    have_many = ( (m_size + items.size() - 1) / items.size() ) > cutoff ;
   }
   
   void pack()
   {
     DataT* buf = m_buf;
     assert(buf != nullptr);
-    auto end = std::end(boxes);
-    for (auto i = std::begin(boxes); i != end; ++i) {
-      IdxT len = i->first.size();
-      LidxT* indices = i->second;
-      DataT* data = i->first.mesh.data();
-      switch (pol) {
-        case 0:
-          for_all(policy0{}, 0, len, make_copy_idxr_idxr(data, detail::indexer_list_idx{indices}, buf, detail::indexer_idx{})); break;
-        case 1:
-          for_all(policy1{}, 0, len, make_copy_idxr_idxr(data, detail::indexer_list_idx{indices}, buf, detail::indexer_idx{})); break;
-        case 2:
-          for_all(policy2{}, 0, len, make_copy_idxr_idxr(data, detail::indexer_list_idx{indices}, buf, detail::indexer_idx{})); break;
-        default:
-          assert(0); break;
+    auto end = std::end(items);
+    for (auto i = std::begin(items); i != end; ++i) {
+      DataT const* src = i->data;
+      LidxT const* indices = i->indices;
+      IdxT len = i->size;
+      if (have_many) {
+        for_all(policy_many{}, 0, len, make_copy_idxr_idxr(src, detail::indexer_list_idx{indices}, buf, detail::indexer_idx{}));
+      } else {
+        for_all(policy_few{},  0, len, make_copy_idxr_idxr(src, detail::indexer_list_idx{indices}, buf, detail::indexer_idx{}));
       }
       buf += len;
     }
@@ -477,22 +285,17 @@ struct Message
   
   void unpack()
   {
-    DataT* buf = m_buf;
+    DataT const* buf = m_buf;
     assert(buf != nullptr);
-    auto end = std::end(boxes);
-    for (auto i = std::begin(boxes); i != end; ++i) {
-      IdxT len = i->first.size();
-      LidxT* indices = i->second;
-      DataT* data = i->first.mesh.data();
-      switch (pol) {
-        case 0:
-          for_all(policy0{}, 0, len, make_copy_idxr_idxr(buf, detail::indexer_idx{}, data, detail::indexer_list_idx{indices})); break;
-        case 1:
-          for_all(policy1{}, 0, len, make_copy_idxr_idxr(buf, detail::indexer_idx{}, data, detail::indexer_list_idx{indices})); break;
-        case 2:
-          for_all(policy2{}, 0, len, make_copy_idxr_idxr(buf, detail::indexer_idx{}, data, detail::indexer_list_idx{indices})); break;
-        default:
-          assert(0); break;
+    auto end = std::end(items);
+    for (auto i = std::begin(items); i != end; ++i) {
+      DataT* dst = i->data;
+      LidxT const* indices = i->indices;
+      IdxT len = i->size;
+      if (have_many) {
+        for_all(policy_many{}, 0, len, make_copy_idxr_idxr(buf, detail::indexer_idx{}, dst, detail::indexer_list_idx{indices}));
+      } else {
+        for_all(policy_few{},  0, len, make_copy_idxr_idxr(buf, detail::indexer_idx{}, dst, detail::indexer_list_idx{indices}));
       }
       buf += len;
     }
@@ -501,14 +304,22 @@ struct Message
   void allocate()
   {
     if (m_buf == nullptr) {
-      m_buf = (DataT*)buf_aloc.allocate(size()*sizeof(DataT));
+      if (have_many) {
+        m_buf = (DataT*)buf_aloc_many.allocate(size()*sizeof(DataT));
+      } else {
+        m_buf = (DataT*)buf_aloc_few.allocate(size()*sizeof(DataT));
+      }
     }
   }
 
   void deallocate()
   {
     if (m_buf != nullptr) {
-      buf_aloc.deallocate(m_buf);
+      if (have_many) {
+        buf_aloc_many.deallocate(m_buf);
+      } else {
+        buf_aloc_few.deallocate(m_buf);
+      }
       m_buf = nullptr;
     }
   }
@@ -516,217 +327,438 @@ struct Message
   ~Message()
   {
     deallocate();
-    auto end = std::end(boxes);
-    for (auto i = std::begin(boxes); i != end; ++i) {
-      i->first.deallocate_indices(i->second);
+    auto end = std::end(items);
+    for (auto i = std::begin(items); i != end; ++i) {
+      i->aloc.deallocate(i->indices); i->indices = nullptr;
     }
   }
 };
 
-template < typename policy_face, typename policy_edge, typename policy_corner >
+template < typename policy_many_, typename policy_few_ >
 struct Comm
 {
-  Allocator& face_aloc;
-  Allocator& edge_aloc;
-  Allocator& corner_aloc;
+  using policy_many = policy_many_;
+  using policy_few  = policy_few_;
+  
+  Allocator& many_aloc;
+  Allocator& few_aloc;
   
   CommInfo comminfo;
   
-  using message_type = Message<policy_face, policy_edge, policy_corner>;
+  using message_type = Message<policy_many, policy_few>;
   std::vector<message_type> m_sends;
   std::vector<message_type> m_recvs;
   
-  IdxT num_face_neighbors;
-  IdxT num_edge_neighbors;
-  IdxT num_corner_neighbors;
+  std::vector<MPI_Request> m_send_requests;
+  std::vector<MPI_Request> m_recv_requests;
   
-  Comm(CommInfo const& comminfo_, Allocator& face_aloc_, Allocator& edge_aloc_, Allocator& corner_aloc_)
-    : face_aloc(face_aloc_)
-    , edge_aloc(edge_aloc_)
-    , corner_aloc(corner_aloc_)
+  Comm(CommInfo const& comminfo_, Allocator& many_aloc_, Allocator& few_aloc_)
+    : many_aloc(many_aloc_)
+    , few_aloc(few_aloc_)
     , comminfo(comminfo_)
-    , num_face_neighbors(0)
-    , num_edge_neighbors(0)
-    , num_corner_neighbors(0)
   {
-    // initialize messages and neighbor information
-    // The msg param in for_*_neighbors depends on 
-    // num_face_neighbors, num_edge_neighbors, num_corners_neighbors
-    // but should be correct in this initialization ordering
-    for_face_neighbors( [&](IdxT msg, const int neighbor_coords[]) {
-      num_face_neighbors++;
-      add_message(neighbor_coords, face_aloc, 0);
-    });
-    
-    for_edge_neighbors( [&](IdxT msg, const int neighbor_coords[]) {
-      num_edge_neighbors++;
-      add_message(neighbor_coords, edge_aloc, 1);
-    });
-    
-    for_corner_neighbors( [&](IdxT msg, const int neighbor_coords[]) {
-      num_corner_neighbors++;
-      add_message(neighbor_coords, corner_aloc, 2);
-    });
-  }
-  
-  void add_message(const int coords[], Allocator& aloc, IdxT policy)
-  {
-    int neighbor_rank = comminfo.cart.get_rank(coords);
-    assert(0 <= neighbor_rank);
-    m_sends.emplace_back(neighbor_rank, face_aloc, 0);
-    m_recvs.emplace_back(neighbor_rank, face_aloc, 0);
-  }
-  
-  template < typename loop_body >
-  void for_face_neighbors(loop_body&& body)
-  {
-    IdxT msg = 0;
-    bool active[3] {false, false, false};
-    for (IdxT dim = 2; dim >= 0; --dim) {
-      active[dim] = true;
-      IdxT off[1];
-      for (off[0] = -1; off[0] <= 1; off[0] += 2) {
-        IdxT off_idx = 0;
-        int neighbor_coords[3] { comminfo.cart.coords[0], comminfo.cart.coords[1], comminfo.cart.coords[2] } ;
-        if (active[0]) { neighbor_coords[0] += off[off_idx++]; }
-        if (active[1]) { neighbor_coords[1] += off[off_idx++]; }
-        if (active[2]) { neighbor_coords[2] += off[off_idx++]; }
-        if (((0 <= neighbor_coords[0] && neighbor_coords[0] < comminfo.cart.cuts[0]) || comminfo.cart.periodic[0]) && 
-            ((0 <= neighbor_coords[1] && neighbor_coords[1] < comminfo.cart.cuts[1]) || comminfo.cart.periodic[1]) && 
-            ((0 <= neighbor_coords[2] && neighbor_coords[2] < comminfo.cart.cuts[2]) || comminfo.cart.periodic[2]) ) {
-          body(msg++, neighbor_coords);
-        }
-      }
-      active[dim] = false;
-    }
-  }
-  
-  template < typename loop_body >
-  void for_edge_neighbors(loop_body&& body)
-  {
-    IdxT msg = num_face_neighbors;
-    bool active[3] {true, true, true};
-    for (IdxT dim = 0; dim < 3; ++dim) {
-      active[dim] = false;
-      IdxT off[2];
-      for (off[1] = -1; off[1] <= 1; off[1] += 2) {
-        for (off[0] = -1; off[0] <= 1; off[0] += 2) {
-          IdxT off_idx = 0;
-          int neighbor_coords[3] { comminfo.cart.coords[0], comminfo.cart.coords[1], comminfo.cart.coords[2] } ;
-          if (active[0]) { neighbor_coords[0] += off[off_idx++]; }
-          if (active[1]) { neighbor_coords[1] += off[off_idx++]; }
-          if (active[2]) { neighbor_coords[2] += off[off_idx++]; }
-          if (((0 <= neighbor_coords[0] && neighbor_coords[0] < comminfo.cart.cuts[0]) || comminfo.cart.periodic[0]) && 
-              ((0 <= neighbor_coords[1] && neighbor_coords[1] < comminfo.cart.cuts[1]) || comminfo.cart.periodic[1]) && 
-              ((0 <= neighbor_coords[2] && neighbor_coords[2] < comminfo.cart.cuts[2]) || comminfo.cart.periodic[2]) ) {
-            body(msg++, neighbor_coords);
-          }
-        }
-      }
-      active[dim] = true;
-    }
-  }
-  
-  template < typename loop_body >
-  void for_corner_neighbors(loop_body&& body)
-  {
-    IdxT msg = num_face_neighbors + num_edge_neighbors;
-    bool active[3] {true, true, true};
-    IdxT off[3];
-    for (off[2] = -1; off[2] <= 1; off[2] += 2) {
-      for (off[1] = -1; off[1] <= 1; off[1] += 2) {
-        for (off[0] = -1; off[0] <= 1; off[0] += 2) {
-          IdxT off_idx = 0;
-          int neighbor_coords[3] { comminfo.cart.coords[0], comminfo.cart.coords[1], comminfo.cart.coords[2] } ;
-          if (active[0]) { neighbor_coords[0] += off[off_idx++]; }
-          if (active[1]) { neighbor_coords[1] += off[off_idx++]; }
-          if (active[2]) { neighbor_coords[2] += off[off_idx++]; }
-          if (((0 <= neighbor_coords[0] && neighbor_coords[0] < comminfo.cart.cuts[0]) || comminfo.cart.periodic[0]) && 
-              ((0 <= neighbor_coords[1] && neighbor_coords[1] < comminfo.cart.cuts[1]) || comminfo.cart.periodic[1]) && 
-              ((0 <= neighbor_coords[2] && neighbor_coords[2] < comminfo.cart.cuts[2]) || comminfo.cart.periodic[2]) ) {
-            body(msg++, neighbor_coords);
-          }
-        }
-      }
-    }
-  }
-  
-  void add_box(IdxT msg, MeshData& mesh, const IdxT bounds[])
-  {
-    using IT = IdxTemplate;
-    using ITL = IdxTemplate::location;
-    ITL locs[3] { (bounds[0] == -1) ? ITL::min : ( (bounds[0] == 1) ? ITL::max : ITL::mid )
-                , (bounds[1] == -1) ? ITL::min : ( (bounds[1] == 1) ? ITL::max : ITL::mid )
-                , (bounds[2] == -1) ? ITL::min : ( (bounds[2] == 1) ? ITL::max : ITL::mid ) };
-    assert(msg < m_sends.size());
-    m_sends[msg].add(Box3dTemplate::make_Box3dTemplate_inner(mesh.info.ghost_width, locs).make_box(mesh));
-    assert(msg < m_recvs.size());
-    m_recvs[msg].add(Box3dTemplate::make_Box3dTemplate_ghost(mesh.info.ghost_width, locs).make_box(mesh));
-  }
-  
-  void add_var(MeshData& mesh)
-  {
-    // edges
-    for_face_neighbors( [&](IdxT msg, const int neighbor_coords[]) {
-      int bounds[3] { neighbor_coords[0] - comminfo.cart.coords[0]
-                    , neighbor_coords[1] - comminfo.cart.coords[1]
-                    , neighbor_coords[2] - comminfo.cart.coords[2] };
-      add_box(msg, mesh, bounds);
-    });
-    
-    for_edge_neighbors( [&](IdxT msg, const int neighbor_coords[]) {
-      int bounds[3] { neighbor_coords[0] - comminfo.cart.coords[0]
-                    , neighbor_coords[1] - comminfo.cart.coords[1]
-                    , neighbor_coords[2] - comminfo.cart.coords[2] };
-      add_box(msg, mesh, bounds);
-    });
-    
-    for_corner_neighbors( [&](IdxT msg, const int neighbor_coords[]) {
-      int bounds[3] { neighbor_coords[0] - comminfo.cart.coords[0]
-                    , neighbor_coords[1] - comminfo.cart.coords[1]
-                    , neighbor_coords[2] - comminfo.cart.coords[2] };
-      add_box(msg, mesh, bounds);
-    });
   }
 
   void postRecv()
   {
     //FPRINTF(stdout, "posting receives\n");
-    auto end = std::end(m_recvs);
-    for (auto i = std::begin(m_recvs); i != end; ++i) {
-      i->allocate();
+
+    m_recv_requests.resize(m_recvs.size(), MPI_REQUEST_NULL);
+
+    switch (comminfo.post_recv_method) {
+      case CommInfo::method::waitany:
+      case CommInfo::method::testany:
+      {
+        IdxT num_recvs = m_recvs.size();
+        for (IdxT i = 0; i < num_recvs; ++i) {
+        
+          m_recvs[i].allocate();
+          
+          if (!comminfo.mock_communication) {
+            detail::MPI::Irecv( m_recvs[i].buffer(), m_recvs[i].nbytes(),
+                                m_recvs[i].dest_rank(), m_recvs[i].dest_rank(),
+                                comminfo.cart.comm, &m_recv_requests[i] );
+          }
+        }
+      } break;
+      case CommInfo::method::waitsome:
+      case CommInfo::method::testsome:
+      {
+        IdxT num_recvs = m_recvs.size();
+        for (IdxT i = 0; i < num_recvs; ++i) {
+        
+          m_recvs[i].allocate();
+          
+          if (!comminfo.mock_communication) {
+            detail::MPI::Irecv( m_recvs[i].buffer(), m_recvs[i].nbytes(),
+                               m_recvs[i].dest_rank(), m_recvs[i].dest_rank(),
+                               comminfo.cart.comm, &m_recv_requests[i] );
+          }
+        }
+      } break;
+      case CommInfo::method::waitall:
+      case CommInfo::method::testall:
+      {
+        IdxT num_recvs = m_recvs.size();
+        for (IdxT i = 0; i < num_recvs; ++i) {
+        
+          m_recvs[i].allocate();
+        }
+        for (IdxT i = 0; i < num_recvs; ++i) {
+        
+          if (!comminfo.mock_communication) {
+            detail::MPI::Irecv( m_recvs[i].buffer(), m_recvs[i].nbytes(),
+                               m_recvs[i].dest_rank(), m_recvs[i].dest_rank(),
+                               comminfo.cart.comm, &m_recv_requests[i] );
+          }
+        }
+      } break;
+      default:
+      {
+        assert(0);
+      } break;
     }
   }
 
   void postSend()
   {
     //FPRINTF(stdout, "posting sends\n");
-    auto end = std::end(m_sends);
-    for (auto i = std::begin(m_sends); i != end; ++i) {
-      i->allocate();
-      i->pack();
-      // do send
+    
+    m_send_requests.resize(m_recvs.size(), MPI_REQUEST_NULL);
+    
+    switch (comminfo.post_send_method) {
+      case CommInfo::method::waitany:
+      case CommInfo::method::testany:
+      {
+        IdxT num_sends = m_sends.size();
+        for (IdxT i = 0; i < num_sends; ++i) {
+        
+          m_sends[i].allocate();
+          m_sends[i].pack();
+          
+          if (m_sends[i].have_many) {
+            synchronize(policy_many{});
+          } else {
+            synchronize(policy_few{});
+          }
+          
+          if (!comminfo.mock_communication) {
+            detail::MPI::Isend( m_sends[i].buffer(), m_sends[i].nbytes(),
+                               m_sends[i].dest_rank(), m_sends[i].dest_rank(),
+                               comminfo.cart.comm, &m_send_requests[i] );
+          }
+        }
+      } break;
+      case CommInfo::method::waitsome:
+      case CommInfo::method::testsome:
+      {
+        IdxT num_sends = m_sends.size();
+        
+        for (int val = 0; val < 2; ++val) {
+        
+          bool expected = val;
+          bool found_expected = false;
+        
+          for (IdxT i = 0; i < num_sends; ++i) {
+        
+            if (m_sends[i].have_many == expected) {
+              m_sends[i].allocate();
+              m_sends[i].pack();
+              found_expected = true;
+            }
+          }
+        
+          if (found_expected) {
+        
+            if (expected) {
+              synchronize(policy_many{});
+            } else {
+              synchronize(policy_few{});
+            }
+            
+            for (IdxT i = 0; i < num_sends; ++i) {
+        
+              if (m_sends[i].have_many == expected) {
+          
+                if (!comminfo.mock_communication) {
+                  detail::MPI::Isend( m_sends[i].buffer(), m_sends[i].nbytes(),
+                                     m_sends[i].dest_rank(), m_sends[i].dest_rank(),
+                                     comminfo.cart.comm, &m_send_requests[i] );
+                }
+              }
+            }
+          }
+        }
+      } break;
+      case CommInfo::method::waitall:
+      case CommInfo::method::testall:
+      {
+        IdxT num_sends = m_sends.size();
+        bool have_many = false;
+        bool have_few = false;
+        
+        for (IdxT i = 0; i < num_sends; ++i) {
+        
+          m_sends[i].allocate();
+          m_sends[i].pack();
+          
+          if (m_sends[i].have_many) {
+            have_many = true;
+          } else {
+            have_few = true;
+          }
+        }
+        
+        if (have_many && have_few) {
+          synchronize(policy_few{}, policy_many{});
+        } else if (have_many) {
+          synchronize(policy_many{});
+        } else if (have_few) {
+          synchronize(policy_few{});
+        }
+        
+        for (IdxT i = 0; i < num_sends; ++i) {
+        
+          if (!comminfo.mock_communication) {
+            detail::MPI::Isend( m_sends[i].buffer(), m_sends[i].nbytes(),
+                               m_sends[i].dest_rank(), m_sends[i].dest_rank(),
+                               comminfo.cart.comm, &m_send_requests[i] );
+          }
+        }
+      } break;
+      default:
+      {
+       assert(0);
+      } break;
     }
   }
 
   void waitRecv()
   {
     //FPRINTF(stdout, "waiting receives\n");
-    auto end = std::end(m_recvs);
-    for (auto i = std::begin(m_recvs); i != end; ++i) {
-      // do recv
-      i->unpack();
-      i->deallocate();
+    
+    bool have_many = false;
+    bool have_few = false;
+    
+    switch (comminfo.wait_recv_method) {
+      case CommInfo::method::waitany:
+      case CommInfo::method::testany:
+      {
+        IdxT num_recvs = m_recvs.size();
+        IdxT num_done = 0;
+          
+        MPI_Status status;
+          
+        while (num_done < num_recvs) {
+          
+          IdxT idx = num_done;
+          if (!comminfo.mock_communication) {
+            if (comminfo.wait_recv_method == CommInfo::method::waitany) {
+              idx = detail::MPI::Waitany( num_recvs, &m_recv_requests[0], &status);
+            } else {
+              idx = -1;
+              while(idx < 0 || idx >= num_recvs) {
+                idx = detail::MPI::Testany( num_recvs, &m_recv_requests[0], &status);
+              }
+            }
+          }
+            
+          m_recvs[idx].unpack();
+          m_recvs[idx].deallocate();
+          
+          if (m_recvs[idx].have_many) {
+            have_many = true;
+          } else {
+            have_few = true;
+          }
+            
+          num_done += 1;
+            
+        }
+      } break;
+      case CommInfo::method::waitsome:
+      case CommInfo::method::testsome:
+      {
+        IdxT num_recvs = m_recvs.size();
+        IdxT num_done = 0;
+          
+        std::vector<MPI_Status> recv_statuses(m_recv_requests.size());
+        std::vector<int> indices(m_recv_requests.size(), -1);
+          
+        while (num_done < num_recvs) {
+          
+          IdxT num = num_recvs;
+          if (!comminfo.mock_communication) {
+            if (comminfo.wait_recv_method == CommInfo::method::waitsome) {
+              num = detail::MPI::Waitsome( num_recvs, &m_recv_requests[0], &indices[0], &recv_statuses[0]);
+            } else {
+              num = detail::MPI::Testsome( num_recvs, &m_recv_requests[0], &indices[0], &recv_statuses[0]);
+            }
+          } else {
+            for (IdxT i = 0; i < num; ++i) {
+              indices[i] = num_done + i;
+            }
+          }
+          
+          for (IdxT i = 0; i < num; ++i) {
+              
+            m_recvs[indices[i]].unpack();
+            m_recvs[indices[i]].deallocate();
+          
+            if (m_recvs[indices[i]].have_many) {
+              have_many = true;
+            } else {
+              have_few = true;
+            }
+            
+            num_done += 1;
+            
+          }
+        }
+      } break;
+      case CommInfo::method::waitall:
+      case CommInfo::method::testall:
+      {
+        IdxT num_recvs = m_recvs.size();
+        IdxT num_done = 0;
+          
+        std::vector<MPI_Status> recv_statuses(m_recv_requests.size());
+        
+        if (!comminfo.mock_communication) {
+          if (comminfo.wait_recv_method == CommInfo::method::waitall) {
+            detail::MPI::Waitall( num_recvs, &m_recv_requests[0], &recv_statuses[0]);
+          } else {
+            while (!detail::MPI::Testall( num_recvs, &m_recv_requests[0], &recv_statuses[0]));
+          }
+        }
+        
+        while (num_done < num_recvs) {
+              
+          m_recvs[num_done].unpack();
+          m_recvs[num_done].deallocate();
+          
+          if (m_recvs[num_done].have_many) {
+            have_many = true;
+          } else {
+            have_few = true;
+          }
+           
+          num_done += 1;
+        }
+      } break;
+      default:
+      {
+        assert(0);
+      } break;
+    }
+    
+    m_recv_requests.clear();
+    
+    if (have_many && have_few) {
+      synchronize(policy_few{}, policy_many{});
+    } else if (have_many) {
+      synchronize(policy_many{});
+    } else if (have_few) {
+      synchronize(policy_few{});
     }
   }
 
   void waitSend()
   {
     //FPRINTF(stdout, "posting sends\n");
-    auto end = std::end(m_sends);
-    for (auto i = std::begin(m_sends); i != end; ++i) {
-      i->deallocate();
+    
+    switch (comminfo.wait_send_method) {
+      case CommInfo::method::waitany:
+      case CommInfo::method::testany:
+      {
+        IdxT num_sends = m_sends.size();
+        IdxT num_done = 0;
+        
+        MPI_Status status;
+        
+        while (num_done < num_sends) {
+          
+          IdxT idx = num_done;
+          if (!comminfo.mock_communication) {
+            if (comminfo.wait_send_method == CommInfo::method::waitany) {
+              idx = detail::MPI::Waitany( num_sends, &m_send_requests[0], &status);
+            } else {
+              idx = -1;
+              while(idx < 0 || idx >= num_sends) {
+                idx = detail::MPI::Testany( num_sends, &m_send_requests[0], &status);
+              }
+            }
+          }
+          
+          m_sends[idx].deallocate();
+           
+          num_done += 1;
+            
+        }
+      } break;
+      case CommInfo::method::waitsome:
+      case CommInfo::method::testsome:
+      {
+        IdxT num_sends = m_sends.size();
+        IdxT num_done = 0;
+          
+        std::vector<MPI_Status> send_statuses(m_send_requests.size());
+        std::vector<int> indices(m_send_requests.size(), -1);
+          
+        while (num_done < num_sends) {
+          
+          IdxT num = num_sends;
+          if (!comminfo.mock_communication) {
+            if (comminfo.wait_send_method == CommInfo::method::waitsome) {
+              num = detail::MPI::Waitsome( num_sends, &m_send_requests[0], &indices[0], &send_statuses[0]);
+            } else {
+              num = detail::MPI::Testsome( num_sends, &m_send_requests[0], &indices[0], &send_statuses[0]);
+            }
+          } else {
+            for (IdxT i = 0; i < num; ++i) {
+              indices[i] = num_done + i;
+            }
+          }
+          
+          for (IdxT i = 0; i < num; ++i) {
+              
+            m_sends[indices[i]].deallocate();
+            
+            num_done += 1;
+            
+          }
+        }
+      } break;
+      case CommInfo::method::waitall:
+      case CommInfo::method::testall:
+      {
+        IdxT num_sends = m_sends.size();
+        IdxT num_done = 0;
+          
+        std::vector<MPI_Status> send_statuses(m_send_requests.size());
+          
+        if (!comminfo.mock_communication) {
+          if (comminfo.wait_send_method == CommInfo::method::waitall) {
+            detail::MPI::Waitall( num_sends, &m_send_requests[0], &send_statuses[0]);
+          } else {
+            while(!detail::MPI::Testall( num_sends, &m_send_requests[0], &send_statuses[0]));
+          }
+        }
+        
+        while (num_done < num_sends) {
+          
+          m_sends[num_done].deallocate();
+          
+          num_done += 1;
+        }
+      } break;
+      default:
+      {
+        assert(0);
+      } break;
     }
+    
+    m_send_requests.clear();
   }
 
   ~Comm()

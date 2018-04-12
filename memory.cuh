@@ -5,12 +5,9 @@
 #include <cstdio>
 #include <cstdlib>
 
-#include "utils.cuh"
 #include "basic_mempool.hpp"
 
-using IdxT = int;
-using LidxT = int;
-using DataT = double;
+#include "cuda_utils.cuh"
 
 template < typename alloc >
 using mempool = RAJA::basic_mempool::MemPool<alloc>;
