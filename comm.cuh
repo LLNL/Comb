@@ -69,14 +69,14 @@ struct CartComm : CartRank
     int output_rank = -1;
     int input_coords[3] {-1, -1, -1};
     for(IdxT dim = 0; dim < 3; ++dim) {
-      if ((0 <= arg_coords[dim] && arg_coords[dim] < divisions[dim]) || periodic[dim]) {
-        input_coords[dim] = arg_coords[dim] % divisions[dim];
+      input_coords[dim] = arg_coords[dim];
+      if (periodic[dim]) {
+        input_coords[dim] = input_coords[dim] % divisions[dim];
         if (input_coords[dim] < 0) input_coords[dim] += divisions[dim];
       }
+      assert(0 <= input_coords[dim] && input_coords[dim] < divisions[dim]);
     }
-    if (input_coords[0] != -1 && input_coords[1] != -1 && input_coords[2] != -1) {
-      output_rank = detail::MPI::Cart_rank(comm, input_coords);
-    }
+    output_rank = detail::MPI::Cart_rank(comm, input_coords);
     return output_rank;
   }
   
