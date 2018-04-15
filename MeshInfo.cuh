@@ -313,11 +313,11 @@ struct MeshInfo {
       }
       assert(0 <= global_coords[dim] && global_coords[dim] < global.divisions[dim]);
       
-      global_min[dim] += idx_offset;
-      global_max[dim] += idx_offset;
-      global_offset[dim] += idx_offset;
-      global_own_min[dim] += idx_offset;
-      global_own_max[dim] += idx_offset;
+      global_min[dim] -= idx_offset;
+      global_max[dim] -= idx_offset;
+      global_offset[dim] -= idx_offset;
+      global_own_min[dim] -= idx_offset;
+      global_own_max[dim] -= idx_offset;
     }
   }
   
