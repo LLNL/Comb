@@ -58,24 +58,19 @@ struct Box3d
     //assert((imax-imin)*(jmax-jmin)*(kmax-kmin) <= 13*3*3);
   }
   
+  void print(const char* name) const
+  {
+    FPRINTF(stdout, "Box3d %32s local (%i %i %i)-(%i %i %i) info (%i %i %i)-(%i %i %i) global (%i %i %i)-(%i %i %i)\n",
+                     name, 
+                     min[0], min[1], min[2], min[0]+sizes[0], min[1]+sizes[1], min[2]+sizes[2],
+                     info.min[0], info.min[1], info.min[2], info.max[0], info.max[1], info.max[2],
+                     info.global_min[0], info.global_min[1], info.global_min[2], info.global_max[0], info.global_max[1], info.global_max[2] );
+  }
+  
   void correct_periodicity()
   {
-    // correct box periodicity first so can see info.global_coords
-    for (IdxT dim = 0; dim < 3; ++dim) {
-      
-      IdxT idx_offset = 0;
-      if (info.global.periodic[dim]) {
-        IdxT mult = info.global_coords[dim] / info.global.divisions[dim];
-        int coord = info.global_coords[dim] % info.global.divisions[dim];
-        if (coord < 0) {
-          mult -= 1;
-        }
-        idx_offset = mult * info.global.sizes[dim];
-      }
-      
-      min[dim] += idx_offset;
-    }
-    // then correct info periodicity
+    // nothing to do here, only have local information
+    // correct info periodicity
     info.correct_periodicity();
   }
   
@@ -91,9 +86,10 @@ struct Box3d
     IdxT omax[3] { std::min(min[0] + sizes[0] + info.global_offset[0], other.min[0] + other.sizes[0] + other.info.global_offset[0])
                  , std::min(min[1] + sizes[1] + info.global_offset[1], other.min[1] + other.sizes[1] + other.info.global_offset[1])
                  , std::min(min[2] + sizes[2] + info.global_offset[2], other.min[2] + other.sizes[2] + other.info.global_offset[2]) };
-    /*
-    // make work with periodicity, may not be necessary if choose 
+    
     for (IdxT dim = 0; dim < 3; ++dim) {
+      /*
+      // make work with periodicity, may not be necessary
       if (info.global.periodic[dim]) {
         // correct for periodicity
         // move other.min[dim] so in the range [ min[dim], min[dim]+info.global.sizes[dim] )
@@ -110,8 +106,10 @@ struct Box3d
         omax[dim] = other_min + std::min(this_remaining_size, other.sizes[dim]);
       }
       
+      
       assert(0 <= omin[dim] - min[dim] && omin[dim] - min[dim] < info.global.sizes[dim]);
       assert(omax[dim] <= min[0] + sizes[0] + info.global_offset[0]); // this happens when omax would wrap around to the beginning of this
+      */
       
       // switch back to local coords
       omin[dim] -= info.global_offset[dim];
@@ -120,7 +118,7 @@ struct Box3d
       // correct max that are less than min to min (size 0 no overlap)
       if (omax[dim] < omin[dim]) omax[dim] = omin[dim];
     }
-    */
+    
     return Box3d{ info, omin, omax };
   }
   
