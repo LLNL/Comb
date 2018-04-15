@@ -112,6 +112,208 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles,
     }
 
     tm.stop();
+    
+    { // test comm
+
+      Range r1("test comm", Range::magenta);
+
+      IdxT imin = info.min[0];
+      IdxT jmin = info.min[1];
+      IdxT kmin = info.min[2];
+      IdxT imax = info.max[0];
+      IdxT jmax = info.max[1];
+      IdxT kmax = info.max[2];
+      IdxT ilen = info.len[0];
+      IdxT jlen = info.len[1];
+      IdxT klen = info.len[2];
+      IdxT iglobal_offset = info.global_offset[0];
+      IdxT jglobal_offset = info.global_offset[1];
+      IdxT kglobal_offset = info.global_offset[2];
+      IdxT ilen_global = info.global.sizes[0];
+      IdxT jlen_global = info.global.sizes[1];
+      IdxT klen_global = info.global.sizes[2];
+      IdxT iperiodic = info.global.periodic[0];
+      IdxT jperiodic = info.global.periodic[1];
+      IdxT kperiodic = info.global.periodic[2];
+      IdxT ijlen = info.stride[2];
+      IdxT ijlen_global = ilen_global * jlen_global;
+      
+      
+      Range r2("pre-comm", Range::red);
+      // tm.start("pre-comm");
+
+      for (IdxT i = 0; i < num_vars; ++i) {
+      
+        DataT* data = vars[i].data();
+        IdxT var_i = i;
+      
+        for_all_3d(pol_loop{}, 0, klen,
+                               0, jlen,
+                               0, ilen,
+                               [=] HOST DEVICE (IdxT k, IdxT j, IdxT i, IdxT idx) {
+          IdxT zone = i + j * ilen + k * ijlen;
+          IdxT iglobal = i + iglobal_offset;
+          if (iperiodic) {
+            iglobal = iglobal % ilen_global;
+            if (iglobal < 0) iglobal += ilen_global;
+          }
+          IdxT jglobal = j + jglobal_offset;
+          if (jperiodic) {
+            jglobal = jglobal % jlen_global;
+            if (jglobal < 0) jglobal += jlen_global;
+          }
+          IdxT kglobal = k + kglobal_offset;
+          if (kperiodic) {
+            kglobal = kglobal % klen_global;
+            if (kglobal < 0) kglobal += klen_global;
+          }
+          IdxT zone_global = iglobal + jglobal * ilen_global + kglobal * ijlen_global;
+          DataT expected, found, next;
+          if (k >= kmin && k < kmax &&
+              j >= jmin && j < jmax &&
+              i >= imin && i < imax) {
+            next = zone_global + var_i;
+          } else if (iglobal < 0 || iglobal >= ilen_global ||
+                     jglobal < 0 || jglobal >= jlen_global ||
+                     kglobal < 0 || kglobal >= klen_global) {
+            next = -zone_global - var_i;
+          } else {
+            next = -zone_global - var_i;
+          }
+          data[zone] = next;
+        });
+      }
+      
+      synchronize(pol_loop{});
+
+      // tm.stop();
+      r2.restart("post-recv", Range::pink);
+      // tm.start("post-recv");
+      
+      comm.postRecv();
+
+      // tm.stop();
+      r2.restart("post-send", Range::pink);
+      // tm.start("post-send");
+
+      comm.postSend();
+      
+      // tm.stop();
+      r2.stop();
+      
+      
+      for (IdxT i = 0; i < num_vars; ++i) {
+      
+        DataT* data = vars[i].data();
+        IdxT var_i = i;
+        
+        for_all_3d(pol_loop{}, 0, klen,
+                               0, jlen,
+                               0, ilen,
+                               [=] HOST DEVICE (IdxT k, IdxT j, IdxT i, IdxT idx) {
+          IdxT zone = i + j * ilen + k * ijlen;
+          IdxT iglobal = i + iglobal_offset;
+          if (iperiodic) {
+            iglobal = iglobal % ilen_global;
+            if (iglobal < 0) iglobal += ilen_global;
+          }
+          IdxT jglobal = j + jglobal_offset;
+          if (jperiodic) {
+            jglobal = jglobal % jlen_global;
+            if (jglobal < 0) jglobal += jlen_global;
+          }
+          IdxT kglobal = k + kglobal_offset;
+          if (kperiodic) {
+            kglobal = kglobal % klen_global;
+            if (kglobal < 0) kglobal += klen_global;
+          }
+          IdxT zone_global = iglobal + jglobal * ilen_global + kglobal * ijlen_global;
+          DataT expected, found, next;
+          if (k >= kmin && k < kmax &&
+              j >= jmin && j < jmax &&
+              i >= imin && i < imax) {
+            expected = zone_global + var_i;  found = data[zone]; next = -1.0;
+          } else if (iglobal < 0 || iglobal >= ilen_global ||
+                     jglobal < 0 || jglobal >= jlen_global ||
+                     kglobal < 0 || kglobal >= klen_global) {
+            expected = -zone_global - var_i; found = data[zone]; next = -zone_global - var_i;
+          } else {
+            expected = -zone_global - var_i; found = data[zone]; next = 1.0;
+          }
+          //if (found != expected) FPRINTF(stdout, "zone %i(%i %i %i) = %f expected %f\n", zone, i, j, k, found, expected);
+          //FPRINTF(stdout, "%p[%i] = %f\n", data, zone, 1.0);
+          assert(found == expected);
+          data[zone] = next;
+        });
+      }
+      
+
+      r2.start("wait-recv", Range::pink);
+      // tm.start("wait-recv");
+
+      comm.waitRecv();
+
+      // tm.stop();
+      r2.restart("wait-send", Range::pink);
+      // tm.start("wait-send");
+
+      comm.waitSend();
+
+      // tm.stop();
+      r2.restart("post-comm", Range::red);
+      // tm.start("post-comm");
+
+      for (IdxT i = 0; i < num_vars; ++i) {
+      
+        DataT* data = vars[i].data();
+        IdxT var_i = i;
+        
+        for_all_3d(pol_loop{}, 0, klen,
+                               0, jlen,
+                               0, ilen,
+                               [=] HOST DEVICE (IdxT k, IdxT j, IdxT i, IdxT idx) {
+          IdxT zone = i + j * ilen + k * ijlen;
+          IdxT iglobal = i + iglobal_offset;
+          if (iperiodic) {
+            iglobal = iglobal % ilen_global;
+            if (iglobal < 0) iglobal += ilen_global;
+          }
+          IdxT jglobal = j + jglobal_offset;
+          if (jperiodic) {
+            jglobal = jglobal % jlen_global;
+            if (jglobal < 0) jglobal += jlen_global;
+          }
+          IdxT kglobal = k + kglobal_offset;
+          if (kperiodic) {
+            kglobal = kglobal % klen_global;
+            if (kglobal < 0) kglobal += klen_global;
+          }
+          IdxT zone_global = iglobal + jglobal * ilen_global + kglobal * ijlen_global;
+          DataT expected, found, next;
+          if (k >= kmin && k < kmax &&
+              j >= jmin && j < jmax &&
+              i >= imin && i < imax) {
+            expected = -1.0;                 found = data[zone]; next = 1.0;
+          } else if (iglobal < 0 || iglobal >= ilen_global ||
+                     jglobal < 0 || jglobal >= jlen_global ||
+                     kglobal < 0 || kglobal >= klen_global) {
+            expected = -zone_global - var_i; found = data[zone]; next = -1.0;
+          } else {
+            expected = zone_global + var_i;  found = data[zone]; next = -1.0;
+          }
+          //if (found != expected) FPRINTF(stdout, "zone %i(%i %i %i) = %f expected %f\n", zone, i, j, k, found, expected);
+          //FPRINTF(stdout, "%p[%i] = %f\n", data, zone, 1.0);
+          assert(found == expected);
+          data[zone] = next;
+        });
+      }
+      
+      synchronize(pol_loop{});
+
+      // tm.stop();
+      r2.stop();
+
+    }
 
     for(IdxT cycle = 0; cycle < ncycles; cycle++) {
 
