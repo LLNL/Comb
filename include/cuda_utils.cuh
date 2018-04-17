@@ -6,18 +6,26 @@
 #include <cstdio>
 
 #include <cuda.h>
-#include <mpi.h>
+// #include <mpi.h>
 
 #define HOST __host__
 #define DEVICE __device__
 
-#define cudaCheck(...) \
-  if (__VA_ARGS__ != cudaSuccess) { \
-    fprintf(stderr, "Error performing " #__VA_ARGS__ " %s:%i\n", __FILE__, __LINE__); fflush(stderr); \
-    /* assert(0); */ \
-    MPI_Abort(MPI_COMM_WORLD, 1); \
+#define IS_DEVICE_LAMBDA(kernel_typetype) \
+        __nv_is_extended_device_lambda_closure_type(kernel_type) || \
+        __nv_is_extended_host_device_lambda_closure_type(kernel_type)
+
+#define cudaCheck(...) cudaCheckError(#__VA_ARGS__, __VA_ARGS__, __FILE__, __LINE__)
+
+inline void cudaCheckError(const char* str, cudaError_t code, const char* file, int line)
+{
+  if (code != cudaSuccess) {
+    fprintf(stderr, "Error performing %s; %s %s %s:%i\n", str, cudaGetErrorName(code), cudaGetErrorString(code), file, line); fflush(stderr);
+    assert(0);
+    // MPI_Abort(MPI_COMM_WORLD, 1);
   }
-  
+}
+
 
 namespace detail {
 

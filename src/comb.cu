@@ -22,8 +22,9 @@ namespace detail {
      HOST DEVICE
      void operator()(IdxT i, IdxT) const {
        IdxT zone = i;
-       //FPRINTF(stdout, "%p[%i] = %f\n", data, zone, 1.0);
-       data[zone] = -1.0;
+       DataT next = -1.0;
+       FPRINTF(stdout, "%p[%i] = %f\n", data, zone, next);
+       data[zone] = next;
      }
   };
 
@@ -34,8 +35,9 @@ namespace detail {
      HOST DEVICE
      void operator()(IdxT k, IdxT j, IdxT i, IdxT idx) const {
        IdxT zone = i + j * ilen + k * ijlen;
-       //FPRINTF(stdout, "%p[%i] = %f\n", data, zone, 1.0);
-       data[zone] = 1.0;
+       DataT next = 1.0;
+       // FPRINTF(stdout, "%p[%i] = %f\n", data, zone, next);
+       data[zone] = next;
      }
   };
 
@@ -78,25 +80,25 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles,
     FPRINTF(stdout, "Starting test %s\n", test_name);
 
     Range r0(rname, Range::orange);
-    
+
     comm_info.barrier();
 
     tm.start("start-up");
 
     std::vector<MeshData> vars;
     vars.reserve(num_vars);
-    
+
     Comm<pol_many, pol_few> comm(comm_info, aloc_many, aloc_few);
-    
+
     {
       CommFactory factory(comm_info);
-      
+
       for (IdxT i = 0; i < num_vars; ++i) {
-    
+
         vars.push_back(MeshData(info, aloc_mesh));
-      
+
         vars[i].allocate();
-      
+
         DataT* data = vars[i].data();
         IdxT totallen = info.totallen;
 
@@ -104,15 +106,15 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles,
                             detail::set_n1(data));
 
         factory.add_var(vars[i]);
-      
+
         synchronize(pol_loop{});
       }
-      
+
       factory.populate(comm);
     }
 
     tm.stop();
-    
+
     { // test comm
 
       Range r1("test comm", Range::magenta);
@@ -137,16 +139,16 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles,
       IdxT kperiodic = info.global.periodic[2];
       IdxT ijlen = info.stride[2];
       IdxT ijlen_global = ilen_global * jlen_global;
-      
-      
+
+
       Range r2("pre-comm", Range::red);
       // tm.start("pre-comm");
 
       for (IdxT i = 0; i < num_vars; ++i) {
-      
+
         DataT* data = vars[i].data();
         IdxT var_i = i;
-      
+
         for_all_3d(pol_loop{}, 0, klen,
                                0, jlen,
                                0, ilen,
@@ -172,24 +174,28 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles,
           if (k >= kmin && k < kmax &&
               j >= jmin && j < jmax &&
               i >= imin && i < imax) {
-            next = zone_global + var_i;
+            expected = -1.0; found = data[zone]; next = zone_global + var_i;
           } else if (iglobal < 0 || iglobal >= ilen_global ||
                      jglobal < 0 || jglobal >= jlen_global ||
                      kglobal < 0 || kglobal >= klen_global) {
-            next = -zone_global - var_i;
+            expected = -1.0; found = data[zone]; next =-(zone_global+var_i);
           } else {
-            next = -zone_global - var_i;
+            expected = -1.0; found = data[zone]; next =-(zone_global+var_i);
           }
+          // if (found != expected)
+            FPRINTF(stdout, "%p zone %i(%i %i %i) = %f expected %f next %f\n", data, zone, i, j, k, found, expected, next);
+          // FPRINTF(stdout, "%p[%i] = %f\n", data, zone, 1.0);
+          assert(found == expected);
           data[zone] = next;
         });
       }
-      
+
       synchronize(pol_loop{});
 
       // tm.stop();
       r2.restart("post-recv", Range::pink);
       // tm.start("post-recv");
-      
+
       comm.postRecv();
 
       // tm.stop();
@@ -197,16 +203,16 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles,
       // tm.start("post-send");
 
       comm.postSend();
-      
+
       // tm.stop();
       r2.stop();
-      
-      
+
+
       for (IdxT i = 0; i < num_vars; ++i) {
-      
+
         DataT* data = vars[i].data();
         IdxT var_i = i;
-        
+
         for_all_3d(pol_loop{}, 0, klen,
                                0, jlen,
                                0, ilen,
@@ -232,21 +238,24 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles,
           if (k >= kmin && k < kmax &&
               j >= jmin && j < jmax &&
               i >= imin && i < imax) {
-            expected = zone_global + var_i;  found = data[zone]; next = -1.0;
+            expected = zone_global + var_i; found = data[zone]; next = -1.0;
           } else if (iglobal < 0 || iglobal >= ilen_global ||
                      jglobal < 0 || jglobal >= jlen_global ||
                      kglobal < 0 || kglobal >= klen_global) {
-            expected = -zone_global - var_i; found = data[zone]; next = -zone_global - var_i;
+            expected =-(zone_global+var_i); found = data[zone]; next = -zone_global - var_i;
           } else {
-            expected = -zone_global - var_i; found = data[zone]; next = 1.0;
+            expected =-(zone_global+var_i); found = data[zone]; next = 1.0;
           }
-          //if (found != expected) FPRINTF(stdout, "zone %i(%i %i %i) = %f expected %f\n", zone, i, j, k, found, expected);
-          //FPRINTF(stdout, "%p[%i] = %f\n", data, zone, 1.0);
+          // if (found != expected)
+            FPRINTF(stdout, "%p zone %i(%i %i %i) = %f expected %f next %f\n", data, zone, i, j, k, found, expected, next);
+          // FPRINTF(stdout, "%p[%i] = %f\n", data, zone, 1.0);
           assert(found == expected);
           data[zone] = next;
         });
       }
-      
+
+      synchronize(pol_loop{});
+
 
       r2.start("wait-recv", Range::pink);
       // tm.start("wait-recv");
@@ -264,10 +273,10 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles,
       // tm.start("post-comm");
 
       for (IdxT i = 0; i < num_vars; ++i) {
-      
+
         DataT* data = vars[i].data();
         IdxT var_i = i;
-        
+
         for_all_3d(pol_loop{}, 0, klen,
                                0, jlen,
                                0, ilen,
@@ -293,21 +302,22 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles,
           if (k >= kmin && k < kmax &&
               j >= jmin && j < jmax &&
               i >= imin && i < imax) {
-            expected = -1.0;                 found = data[zone]; next = 1.0;
+            expected = -1.0;                found = data[zone]; next = 1.0;
           } else if (iglobal < 0 || iglobal >= ilen_global ||
                      jglobal < 0 || jglobal >= jlen_global ||
                      kglobal < 0 || kglobal >= klen_global) {
-            expected = -zone_global - var_i; found = data[zone]; next = -1.0;
+            expected =-(zone_global+var_i); found = data[zone]; next = -1.0;
           } else {
-            expected = zone_global + var_i;  found = data[zone]; next = -1.0;
+            expected = zone_global + var_i; found = data[zone]; next = -1.0;
           }
-          //if (found != expected) FPRINTF(stdout, "zone %i(%i %i %i) = %f expected %f\n", zone, i, j, k, found, expected);
-          //FPRINTF(stdout, "%p[%i] = %f\n", data, zone, 1.0);
+          // if (found != expected)
+            FPRINTF(stdout, "%p zone %i(%i %i %i) = %f expected %f next %f\n", data, zone, i, j, k, found, expected, next);
+          // FPRINTF(stdout, "%p[%i] = %f\n", data, zone, 1.0);
           assert(found == expected);
           data[zone] = next;
         });
       }
-      
+
       synchronize(pol_loop{});
 
       // tm.stop();
@@ -329,27 +339,27 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles,
       IdxT jlen = info.len[1];
       IdxT klen = info.len[2];
       IdxT ijlen = info.stride[2];
-      
-      
+
+
       Range r2("pre-comm", Range::red);
       tm.start("pre-comm");
 
       for (IdxT i = 0; i < num_vars; ++i) {
-      
+
         DataT* data = vars[i].data();
-      
+
         for_all_3d(pol_loop{}, kmin, kmax,
                                jmin, jmax,
                                imin, imax,
                                detail::set_1(ilen, ijlen, data));
       }
-      
+
       synchronize(pol_loop{});
 
       tm.stop();
       r2.restart("post-recv", Range::pink);
       tm.start("post-recv");
-      
+
       comm.postRecv();
 
       tm.stop();
@@ -357,15 +367,15 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles,
       tm.start("post-send");
 
       comm.postSend();
-      
+
       tm.stop();
       r2.stop();
-      
+
       /*
       for (IdxT i = 0; i < num_vars; ++i) {
-      
+
         DataT* data = vars[i].data();
-        
+
         for_all_3d(pol_loop{}, 0, klen,
                                0, jlen,
                                0, ilen,
@@ -402,15 +412,15 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles,
       tm.start("post-comm");
 
       for (IdxT i = 0; i < num_vars; ++i) {
-      
+
         DataT* data = vars[i].data();
-        
+
         for_all_3d(pol_loop{}, 0, klen,
                                0, jlen,
                                0, ilen,
                                detail::reset_1(ilen, ijlen, data, imin, jmin, kmin, imax, jmax, kmax));
       }
-      
+
       synchronize(pol_loop{});
 
       tm.stop();
@@ -421,33 +431,33 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles,
     tm.print();
     tm.clear();
 }
- 
+
 template < typename pol_type >
 void prime_allocator(pol_type const& pol, Allocator& aloc, Timer& tm, IdxT num_vars, IdxT len)
 {
   DataT** vars = new DataT*[num_vars];
-  
+
   tm.start(aloc.name());
-    
+
   for (IdxT i = 0; i < num_vars; ++i) {
     vars[i] = (DataT*)aloc.allocate(len*sizeof(DataT));
   }
-  
+
   for (IdxT i = 0; i < num_vars; ++i) {
-  
+
     DataT* data = vars[i];
-    
+
     for_all(pol, 0, len, [=] HOST DEVICE (IdxT, IdxT idx) {
       data[idx] = 0.0;
     });
   }
-  
+
   for (IdxT i = 0; i < num_vars; ++i) {
     aloc.deallocate(vars[i]);
   }
-  
+
   tm.stop();
-  
+
   delete[] vars;
 }
 
@@ -455,16 +465,16 @@ int main(int argc, char** argv)
 {
   int required = MPI_THREAD_SINGLE;
   int provided = detail::MPI::Init_thread(&argc, &argv, required);
-  
+
   CommInfo comminfo;
-  
+
   if (required != provided) {
     comminfo.abort_master("Didn't receive MPI thread support required %i provided %i.\n", required, provided);
   }
-  
+
   comminfo.print_master("Started rank %i of %i\n", comminfo.rank, comminfo.size);
 
-  cudaCheck(cudaDeviceSynchronize());  
+  cudaCheck(cudaDeviceSynchronize());
 
   IdxT sizes[3] = {0, 0, 0};
   int divisions[3] = {0, 0, 0};
@@ -472,7 +482,7 @@ int main(int argc, char** argv)
   IdxT ghost_width = 1;
   IdxT num_vars = 1;
   IdxT ncycles = 5;
-  
+
   IdxT i = 1;
   IdxT s = 0;
   for(; i < argc; ++i) {
@@ -578,7 +588,7 @@ int main(int argc, char** argv)
           comminfo.warn_master("No argument to option, ignoring %s.\n", argv[i]);
         }
       } else {
-        comminfo.warn_master("Unknown option, ignoring %s.\n", argv[i]); 
+        comminfo.warn_master("Unknown option, ignoring %s.\n", argv[i]);
       }
     } else if (std::isdigit(argv[i][0]) && s < 1) {
       long read_sizes[3] {0, 0, 0};
@@ -604,7 +614,7 @@ int main(int argc, char** argv)
       comminfo.warn_master("Invalid argument, ignoring %s.\n", argv[i]);
     }
   }
-  
+
   if (ncycles <= 0) {
     comminfo.abort_master("Invalid cycles argument.\n");
   } else if (num_vars <= 0) {
@@ -615,14 +625,14 @@ int main(int argc, char** argv)
            && comminfo.size != divisions[0] * divisions[1] * divisions[2]) {
     comminfo.abort_master("Invalid mesh divisions\n");
   }
-  
+
   GlobalMeshInfo global_info(sizes, comminfo.size, divisions, periodic, ghost_width);
-  
+
   // create cartesian communicator and get rank
   comminfo.cart.create(global_info.divisions, global_info.periodic);
-  
+
   MeshInfo info = MeshInfo::get_local(global_info, comminfo.cart.coords);
-  
+
   // print info about problem setup
   comminfo.print_master("Do %s communication\n", comminfo.mock_communication ? "mock" : "real");
   comminfo.print_master("Message policy cutoff %i\n", comminfo.cutoff);
@@ -653,7 +663,7 @@ int main(int argc, char** argv)
     }
     comminfo.print_master("map       %8i %8i %8i\n", division_coords[0], division_coords[1], division_coords[2] );
   }
-  
+
   HostAllocator host_alloc;
   HostPinnedAllocator hostpinned_alloc;
   DeviceAllocator device_alloc;
@@ -662,29 +672,29 @@ int main(int argc, char** argv)
   ManagedHostPreferredDeviceAccessedAllocator managed_host_preferred_device_accessed_alloc;
   ManagedDevicePreferredAllocator managed_device_preferred_alloc;
   ManagedDevicePreferredHostAccessedAllocator managed_device_preferred_host_accessed_alloc;
-  
+
   Timer tm(1024);
 
   // warm-up memory pools
   {
     Range r("Memmory pool init", Range::green);
-    
+
     FPRINTF(stdout, "Starting up memory pools\n");
-    
+
     prime_allocator(seq_pol{},        host_alloc,                                   tm, num_vars+1, info.totallen);
-    
+
     prime_allocator(omp_pol{},        hostpinned_alloc,                             tm, num_vars+1, info.totallen);
-    
+
     prime_allocator(cuda_pol{},       device_alloc,                                 tm, num_vars+1, info.totallen);
-    
+
     prime_allocator(cuda_batch_pol{}, managed_alloc,                                tm, num_vars+1, info.totallen);
-    
+
     prime_allocator(seq_pol{},        managed_host_preferred_alloc,                 tm, num_vars+1, info.totallen);
-    
+
     prime_allocator(omp_pol{},        managed_host_preferred_device_accessed_alloc, tm, num_vars+1, info.totallen);
-    
+
     prime_allocator(cuda_pol{},       managed_device_preferred_alloc,               tm, num_vars+1, info.totallen);
-    
+
     prime_allocator(cuda_batch_pol{}, managed_device_preferred_host_accessed_alloc, tm, num_vars+1, info.totallen);
 
     tm.print();
@@ -738,12 +748,12 @@ int main(int argc, char** argv)
     // do_cycles<cuda_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm);
 
     do_cycles<cuda_pol, cuda_pol, cuda_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm);
-    
+
     do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm);
- 
+
     if (comminfo.mock_communication) {
       do_cycles<cuda_pol, cuda_pol, cuda_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, device_alloc, device_alloc, tm);
- 
+
       do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, device_alloc, device_alloc, tm);
     }
   }
@@ -844,7 +854,7 @@ int main(int argc, char** argv)
     do_cycles<cuda_pol, cuda_pol, cuda_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm);
 
     do_cycles<cuda_pol, cuda_batch_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm);
-    
+
     do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm);
   }
 

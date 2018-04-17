@@ -24,7 +24,7 @@ using DataT = double;
 #else
 #define FPRINTF(f, ...) fprintf(f, __VA_ARGS__), FFLUSH(f)
 #endif
-  
+
 
 namespace detail {
 
@@ -111,7 +111,7 @@ inline MPI_Comm Cart_create(MPI_Comm comm_old, int ndims, const int*dims, const 
 
 inline void Cart_coords(MPI_Comm cartcomm, int rank, int maxdims, int* coords)
 {
-  
+
   int ret = MPI_Cart_coords(cartcomm, rank, maxdims, coords);
   FPRINTF(stdout, "MPI_Cart_coords rank(w%i c%i) coords %i(%i %i %i)\n", Comm_rank(MPI_COMM_WORLD), rank, maxdims, coords[0], coords[1], coords[2]);
   assert(ret == MPI_SUCCESS);
@@ -289,7 +289,8 @@ struct copy_idxr_idxr {
   {
     IdxT dst_i = idxr_dst(args...);
     IdxT src_i = idxr_src(args...);
-    //FPRINTF(stdout, "copy_idxr_idxr %p[%i] = %p[%i] (%i)%i\n", ptr_dst, dst_i, ptr_src, src_i, args...);
+    FPRINTF(stdout, "copy_idxr_idxr %p[%i]{%f} = %p[%i]{%f} (%i)%i\n", ptr_dst, dst_i, (double)ptr_dst[dst_i],
+                                                                       ptr_src, src_i, (double)ptr_src[src_i], args...);
     ptr_dst[dst_i] = ptr_src[src_i];
   }
 };
@@ -310,7 +311,7 @@ struct set_idxr_idxr {
   {
     IdxT dst_i = idxr_dst(args...);
     IdxT src_i = idxr_src(args...);
-    //FPRINTF(stdout, "set_idxr_idxr %p[%i] = %i (%i %i %i)%i\n", ptr_dst, dst_i, src_i, args...);
+    FPRINTF(stdout, "set_idxr_idxr %p[%i]{%f} = %i (%i %i %i)%i\n", ptr_dst, dst_i, (double)ptr_dst[dst_i], src_i, args...);
     ptr_dst[dst_i] = src_i;
   }
 };
