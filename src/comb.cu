@@ -479,7 +479,7 @@ int main(int argc, char** argv)
     comminfo.abort_master("Didn't receive MPI thread support required %i provided %i.\n", required, provided);
   }
 
-  comminfo.print_master("Started rank %i of %i\n", comminfo.rank, comminfo.size);
+  comminfo.print_any("Started rank %i of %i\n", comminfo.rank, comminfo.size);
 
   cudaCheck(cudaDeviceSynchronize());
 
@@ -641,20 +641,20 @@ int main(int argc, char** argv)
   MeshInfo info = MeshInfo::get_local(global_info, comminfo.cart.coords);
 
   // print info about problem setup
-  comminfo.print_master("Do %s communication\n", comminfo.mock_communication ? "mock" : "real");
-  comminfo.print_master("Message policy cutoff %i\n", comminfo.cutoff);
-  comminfo.print_master("Post Recv using %s method\n", CommInfo::method_str(comminfo.post_recv_method));
-  comminfo.print_master("Post Send using %s method\n", CommInfo::method_str(comminfo.post_send_method));
-  comminfo.print_master("Wait Recv using %s method\n", CommInfo::method_str(comminfo.wait_recv_method));
-  comminfo.print_master("Wait Send using %s method\n", CommInfo::method_str(comminfo.wait_send_method));
-  comminfo.print_master("Num cycles  %i\n", ncycles);
-  comminfo.print_master("Num cycles  %i\n", ncycles);
-  comminfo.print_master("Num vars    %i\n", num_vars);
-  comminfo.print_master("ghost_width %i\n", info.ghost_width);
-  comminfo.print_master("size      %8i %8i %8i\n", global_info.sizes[0],       global_info.sizes[1],       global_info.sizes[2]);
-  comminfo.print_master("divisions %8i %8i %8i\n", comminfo.cart.divisions[0], comminfo.cart.divisions[1], comminfo.cart.divisions[2]);
-  comminfo.print_master("periodic  %8i %8i %8i\n", comminfo.cart.periodic[0],  comminfo.cart.periodic[1],  comminfo.cart.periodic[2]);
-  comminfo.print_master("division map\n", comminfo.cart.periodic[0], comminfo.cart.periodic[1], comminfo.cart.periodic[2]);
+  comminfo.print_any("Do %s communication\n", comminfo.mock_communication ? "mock" : "real");
+  comminfo.print_any("Message policy cutoff %i\n", comminfo.cutoff);
+  comminfo.print_any("Post Recv using %s method\n", CommInfo::method_str(comminfo.post_recv_method));
+  comminfo.print_any("Post Send using %s method\n", CommInfo::method_str(comminfo.post_send_method));
+  comminfo.print_any("Wait Recv using %s method\n", CommInfo::method_str(comminfo.wait_recv_method));
+  comminfo.print_any("Wait Send using %s method\n", CommInfo::method_str(comminfo.wait_send_method));
+  comminfo.print_any("Num cycles  %i\n", ncycles);
+  comminfo.print_any("Num cycles  %i\n", ncycles);
+  comminfo.print_any("Num vars    %i\n", num_vars);
+  comminfo.print_any("ghost_width %i\n", info.ghost_width);
+  comminfo.print_any("size      %8i %8i %8i\n", global_info.sizes[0],       global_info.sizes[1],       global_info.sizes[2]);
+  comminfo.print_any("divisions %8i %8i %8i\n", comminfo.cart.divisions[0], comminfo.cart.divisions[1], comminfo.cart.divisions[2]);
+  comminfo.print_any("periodic  %8i %8i %8i\n", comminfo.cart.periodic[0],  comminfo.cart.periodic[1],  comminfo.cart.periodic[2]);
+  comminfo.print_any("division map\n", comminfo.cart.periodic[0], comminfo.cart.periodic[1], comminfo.cart.periodic[2]);
   // print division map
   IdxT max_cuts = std::max(std::max(comminfo.cart.divisions[0], comminfo.cart.divisions[1]), comminfo.cart.divisions[2]);
   for (IdxT ci = 0; ci <= max_cuts; ++ci) {
@@ -668,7 +668,7 @@ int main(int argc, char** argv)
     if (ci <= comminfo.cart.divisions[0]) {
       division_coords[2] = ci * (sizes[2] / comminfo.cart.divisions[2]) + std::min(ci, sizes[2] % comminfo.cart.divisions[2]);
     }
-    comminfo.print_master("map       %8i %8i %8i\n", division_coords[0], division_coords[1], division_coords[2] );
+    comminfo.print_any("map       %8i %8i %8i\n", division_coords[0], division_coords[1], division_coords[2] );
   }
 
   HostAllocator host_alloc;
