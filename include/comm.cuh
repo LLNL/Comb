@@ -279,6 +279,7 @@ struct Message
       DataT const* src = i->data;
       LidxT const* indices = i->indices;
       IdxT len = i->size;
+      FPRINTF(stdout, "%p pack %p = %p[%p] len %d\n", this, buf, src, indices, len);
       if (have_many) {
         for_all(policy_many{}, 0, len, make_copy_idxr_idxr(src, detail::indexer_list_idx{indices}, buf, detail::indexer_idx{}));
       } else {
@@ -297,6 +298,7 @@ struct Message
       DataT* dst = i->data;
       LidxT const* indices = i->indices;
       IdxT len = i->size;
+      FPRINTF(stdout, "%p unpack %p[%p] = %p len %d\n", this, dst, indices, buf, len);
       if (have_many) {
         for_all(policy_many{}, 0, len, make_copy_idxr_idxr(buf, detail::indexer_idx{}, dst, detail::indexer_list_idx{indices}));
       } else {
@@ -329,13 +331,17 @@ struct Message
     }
   }
 
-  ~Message()
+  void destroy()
   {
-    deallocate();
     auto end = std::end(items);
     for (auto i = std::begin(items); i != end; ++i) {
       i->aloc.deallocate(i->indices); i->indices = nullptr;
     }
+    items.clear();
+  }
+
+  ~Message()
+  {
   }
 };
 
@@ -768,6 +774,12 @@ struct Comm
 
   ~Comm()
   {
+    for(message_type& msg : m_sends) {
+      msg.destroy();
+    }
+    for(message_type& msg : m_recvs) {
+      msg.destroy();
+    }
   }
 };
 
