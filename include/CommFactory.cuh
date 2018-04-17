@@ -130,8 +130,8 @@ struct CommFactory
     Box3d self_own            = Box3d::make_owned_box(meshinfo);
     Box3d self_potential_recv = Box3d::make_ghost_box(meshinfo);
 
-    self_own.print("self_own");
-    self_potential_recv.print("self_potential_recv");
+    // self_own.print("self_own");
+    // self_potential_recv.print("self_potential_recv");
 
     {
       int self_rank = comminfo.cart.get_rank(meshinfo.global_coords);
@@ -158,20 +158,20 @@ struct CommFactory
       Box3d neighbor_own            = Box3d::make_owned_box(neighbor_info);
       Box3d neighbor_potential_recv = Box3d::make_ghost_box(neighbor_info);
 
-      neighbor_own.print("neighbor_own");
-      neighbor_potential_recv.print("neighbor_potential_recv");
+      // neighbor_own.print("neighbor_own");
+      // neighbor_potential_recv.print("neighbor_potential_recv");
 
       Box3d self_recv     = self_potential_recv.intersect(neighbor_own);
       Box3d neighbor_recv = neighbor_potential_recv.intersect(self_own);
 
-      self_recv.print("self_recv");
-      neighbor_recv.print("neighbor_recv");
+      // self_recv.print("self_recv");
+      // neighbor_recv.print("neighbor_recv");
 
       Box3d self_send     = self_own.intersect(neighbor_recv);
       Box3d neighbor_send = neighbor_own.intersect(self_recv);
 
-      self_send.print("self_send");
-      neighbor_send.print("neighbor_send");
+      // self_send.print("self_send");
+      // neighbor_send.print("neighbor_send");
 
       assert(self_recv.size() == neighbor_send.size());
       assert(self_send.size() == neighbor_recv.size());
@@ -185,8 +185,8 @@ struct CommFactory
       neighbor_recv.correct_periodicity();
       neighbor_send.correct_periodicity();
 
-      neighbor_recv.print("neighbor_recv_corrected");
-      neighbor_send.print("neighbor_send_corrected");
+      // neighbor_recv.print("neighbor_recv_corrected");
+      // neighbor_send.print("neighbor_send_corrected");
 
       {
         int neighbor_recv_rank = comminfo.cart.get_rank(neighbor_recv.info.global_coords);
@@ -275,8 +275,8 @@ struct CommFactory
       Box3d const& recv_box = recv_send_iter->first;
       Box3d const& send_box = recv_send_iter->second;
 
-      recv_box.print("recv_box");
-      send_box.print("send_box");
+      // recv_box.print("recv_box");
+      // send_box.print("send_box");
 
       auto recv_rank_iter = rank_map.find(recv_box.info);
       assert(recv_rank_iter != rank_map.end());

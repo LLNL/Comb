@@ -23,7 +23,7 @@ namespace detail {
      void operator()(IdxT i, IdxT) const {
        IdxT zone = i;
        DataT next = -1.0;
-       FPRINTF(stdout, "%p[%i] = %f\n", data, zone, next);
+       // FPRINTF(stdout, "%p[%i] = %f\n", data, zone, next);
        data[zone] = next;
      }
   };
@@ -62,7 +62,9 @@ namespace detail {
        } else {
          expected = 0.0; found = data[zone]; next = -1.0;
        }
-       //if (found != expected) FPRINTF(stdout, "zone %i(%i %i %i) = %f expected %f\n", zone, i, j, k, found, expected);
+       // if (found != expected) {
+       //   FPRINTF(stdout, "zone %i(%i %i %i) = %f expected %f\n", zone, i, j, k, found, expected);
+       // }
        //FPRINTF(stdout, "%p[%i] = %f\n", data, zone, 1.0);
        data[zone] = next;
      }
@@ -182,8 +184,9 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles,
           } else {
             expected = -1.0; found = data[zone]; next =-(zone_global+var_i);
           }
-          // if (found != expected)
+          if (found != expected) {
             FPRINTF(stdout, "%p zone %i(%i %i %i) = %f expected %f next %f\n", data, zone, i, j, k, found, expected, next);
+          }
           // FPRINTF(stdout, "%p[%i] = %f\n", data, zone, 1.0);
           assert(found == expected);
           data[zone] = next;
@@ -246,8 +249,9 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles,
           } else {
             expected =-(zone_global+var_i); found = data[zone]; next = 1.0;
           }
-          // if (found != expected)
+          if (found != expected) {
             FPRINTF(stdout, "%p zone %i(%i %i %i) = %f expected %f next %f\n", data, zone, i, j, k, found, expected, next);
+          }
           // FPRINTF(stdout, "%p[%i] = %f\n", data, zone, 1.0);
           assert(found == expected);
           data[zone] = next;
@@ -310,8 +314,9 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles,
           } else {
             expected = zone_global + var_i; found = data[zone]; next = -1.0;
           }
-          // if (found != expected)
+          if (found != expected) {
             FPRINTF(stdout, "%p zone %i(%i %i %i) = %f expected %f next %f\n", data, zone, i, j, k, found, expected, next);
+          }
           // FPRINTF(stdout, "%p[%i] = %f\n", data, zone, 1.0);
           assert(found == expected);
           data[zone] = next;
@@ -389,7 +394,9 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles,
           } else {
             expected = -1.0; found = data[zone]; next = -1.0;
           }
-          if (found != expected) FPRINTF(stdout, "zone %i(%i %i %i) = %f expected %f\n", zone, i, j, k, found, expected);
+          // if (found != expected) {
+          //   FPRINTF(stdout, "zone %i(%i %i %i) = %f expected %f\n", zone, i, j, k, found, expected);
+          // }
           //FPRINTF(stdout, "%p[%i] = %f\n", data, zone, 1.0);
           data[zone] = next;
         });
