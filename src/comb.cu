@@ -81,7 +81,7 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles,
     char test_name[1024] = ""; snprintf(test_name, 1024, "Mesh %s %s %s", pol_loop::name, aloc_mesh.name(), rname);
     FPRINTF(stdout, "Starting test %s\n", test_name);
 
-    Range r0(rname, Range::orange);
+    Range r0(test_name, Range::orange);
 
     comm_info.barrier();
 
@@ -115,11 +115,13 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles,
       factory.populate(comm);
     }
 
-    tm.restart("test-comm");
+    tm.stop();
 
-    { // test comm
+    if (!comm_info.mock_communication) { // test comm
 
-      Range r1("test comm", Range::magenta);
+      Range r1("test comm", Range::indigo);
+
+      // tm.start("test-comm");
 
       IdxT imin = info.min[0];
       IdxT jmin = info.min[1];
@@ -328,15 +330,19 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles,
       // tm.stop();
       r2.stop();
 
-    }
+      // tm.stop();
 
-    tm.stop();
+      r1.stop();
+
+    }
 
     comm_info.barrier();
 
+    Range r1("bench comm", Range::magenta);
+
     for(IdxT cycle = 0; cycle < ncycles; cycle++) {
 
-      Range r1("cycle", Range::yellow);
+      Range r2("cycle", Range::yellow);
 
       IdxT imin = info.min[0];
       IdxT jmin = info.min[1];
@@ -350,7 +356,7 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles,
       IdxT ijlen = info.stride[2];
 
 
-      Range r2("pre-comm", Range::red);
+      Range r3("pre-comm", Range::red);
       tm.start("pre-comm");
 
       for (IdxT i = 0; i < num_vars; ++i) {
@@ -366,19 +372,19 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles,
       synchronize(pol_loop{});
 
       tm.stop();
-      r2.restart("post-recv", Range::pink);
+      r3.restart("post-recv", Range::pink);
       tm.start("post-recv");
 
       comm.postRecv();
 
       tm.stop();
-      r2.restart("post-send", Range::pink);
+      r3.restart("post-send", Range::pink);
       tm.start("post-send");
 
       comm.postSend();
 
       tm.stop();
-      r2.stop();
+      r3.stop();
 
       /*
       for (IdxT i = 0; i < num_vars; ++i) {
@@ -407,19 +413,19 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles,
       }
       */
 
-      r2.start("wait-recv", Range::pink);
+      r3.start("wait-recv", Range::pink);
       tm.start("wait-recv");
 
       comm.waitRecv();
 
       tm.stop();
-      r2.restart("wait-send", Range::pink);
+      r3.restart("wait-send", Range::pink);
       tm.start("wait-send");
 
       comm.waitSend();
 
       tm.stop();
-      r2.restart("post-comm", Range::red);
+      r3.restart("post-comm", Range::red);
       tm.start("post-comm");
 
       for (IdxT i = 0; i < num_vars; ++i) {
@@ -435,9 +441,13 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles,
       synchronize(pol_loop{});
 
       tm.stop();
+      r3.stop();
+
       r2.stop();
 
     }
+
+    r1.stop();
 
     tm.print();
     tm.clear();
@@ -762,11 +772,11 @@ int main(int argc, char** argv)
 
     do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm);
 
-    if (comminfo.mock_communication) {
-      do_cycles<cuda_pol, cuda_pol, cuda_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, device_alloc, device_alloc, tm);
+    // if (comminfo.mock_communication) {
+    //   do_cycles<cuda_pol, cuda_pol, cuda_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, device_alloc, device_alloc, tm);
 
-      do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, device_alloc, device_alloc, tm);
-    }
+    //   do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, device_alloc, device_alloc, tm);
+    // }
   }
 
   // managed allocated

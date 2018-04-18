@@ -62,7 +62,7 @@ struct Timer {
       ++idx;
     }
   }
-  
+
 
   void print(const char* prefix = "") {
     // gather bsic per name statistics in first seen order
@@ -76,7 +76,7 @@ struct Timer {
     std::vector<std::string> name_order;
     using map_type = std::unordered_map<std::string, stats>;
     map_type name_map;
-    
+
     for (IdxT i = 1; i < idx; ++i) {
       if (names[i-1] != nullptr) {
         std::string name{names[i-1]};
@@ -95,7 +95,7 @@ struct Timer {
         }
       }
     }
-    
+
     for (IdxT i = 0; i < name_order.size(); ++i) {
       auto item = name_map.find(name_order[i]);
       assert(item != name_map.end());
@@ -136,6 +136,7 @@ struct Range {
   static const uint32_t blue     = 0x000000FF;
   static const uint32_t yellow   = 0x00FFFF00;
   static const uint32_t cyan     = 0x0000FFFF;
+  static const uint32_t indigo   = 0x004B0082;
   static const uint32_t magenta  = 0x00FF00FF;
   static const uint32_t orange   = 0x00FFA500;
   static const uint32_t pink     = 0x00FF69B4;
