@@ -330,6 +330,8 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles,
 
     }
 
+    comm_info.barrier();
+
     for(IdxT cycle = 0; cycle < ncycles; cycle++) {
 
       Range r1("cycle", Range::yellow);
