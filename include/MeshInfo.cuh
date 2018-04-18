@@ -27,15 +27,15 @@ struct GlobalMeshInfo {
   {
     set_divisions(num_divisions);
   }
-  
+
   void set_divisions(IdxT num_divisions)
   {
     if (divisions[0] == 0 && divisions[1] == 0 && divisions[2] == 0) {
       // decide how to cut up mesh
-  
+
       IdxT P = num_divisions;
       IdxT sqrtP = sqrt(P);
-    
+
       // get prime factors of P
       std::multiset<IdxT> prime_factors;
       {
@@ -51,7 +51,7 @@ struct GlobalMeshInfo {
             primes.push_back(p);
           }
         }
-    
+
         IdxT P_tmp = P;
         IdxT pi = 0;
         IdxT primes_size = primes.size();
@@ -68,20 +68,20 @@ struct GlobalMeshInfo {
           prime_factors.insert(P_tmp);
         }
       }
-    
+
       double I = std::cbrt(sizes[0] * sizes[1] * sizes[2]) / P;
       IdxT divisions[3] {1, 1, 1};
-    
+
       while(std::begin(prime_factors) != std::end(prime_factors)) {
-      
+
         double best_relative_remainder_dist = std::numeric_limits<double>::max();
         auto best_factor = std::end(prime_factors);
         IdxT best_dim = 3;
-      
+
         double ideal[3] {sizes[0] / (divisions[0] * I),
                          sizes[1] / (divisions[1] * I),
                          sizes[2] / (divisions[2] * I)};
-      
+
         auto end = std::end(prime_factors);
         for(auto k = std::begin(prime_factors); k != end; ++k) {
           IdxT factor = *k;
@@ -96,22 +96,24 @@ struct GlobalMeshInfo {
             }
           }
         }
-      
+
         assert(best_factor != end && best_dim < 3);
-      
+
         divisions[best_dim] *= *best_factor;
-       
+
         prime_factors.erase(best_factor);
       }
-    
+
       divisions[0] = divisions[0];
       divisions[1] = divisions[1];
       divisions[2] = divisions[2];
     }
-    
+
+    assert(sizes[0] >= divisions[0] && sizes[1] >= divisions[1] && sizes[2] >= divisions[2]);
+
     for (IdxT dim = 0; dim < 3; ++dim) {
       division_indices[dim] = new IdxT[divisions[dim]+1];
-      
+
       for (IdxT div = 0; div < divisions[dim]+1; ++div) {
         division_indices[dim][div] = div * (sizes[dim] / divisions[dim]) + std::min(div, sizes[dim] % divisions[dim]);
       }
@@ -119,7 +121,7 @@ struct GlobalMeshInfo {
       assert(division_indices[dim][divisions[dim]] == sizes[dim]);
     }
   }
-  
+
   IdxT division_index(IdxT dim, IdxT coord) const
   {
     // correct for periodicity when looking up values
@@ -136,7 +138,7 @@ struct GlobalMeshInfo {
     assert(0 <= coord && coord <= divisions[dim]);
     return division_indices[dim][coord] + idx_offset;
   }
-  
+
   bool operator==(GlobalMeshInfo const& other) const
   {
     if (this == &other) return true;
@@ -147,7 +149,7 @@ struct GlobalMeshInfo {
     }
     return equal;
   }
-  
+
   bool operator<(GlobalMeshInfo const& other) const
   {
     if (this == &other) return false;
@@ -165,7 +167,7 @@ struct GlobalMeshInfo {
     }
     return false;
   }
-  
+
   int compare_totalsize(GlobalMeshInfo const& other) const
   {
     if (totalsize < other.totalsize) {
@@ -176,7 +178,7 @@ struct GlobalMeshInfo {
       return 1;
     }
   }
-  
+
   int compare_size(IdxT dim, GlobalMeshInfo const& other) const
   {
     if (sizes[dim] < other.sizes[dim]) {
@@ -187,7 +189,7 @@ struct GlobalMeshInfo {
       return 1;
     }
   }
-  
+
   int compare_ghostwidth(GlobalMeshInfo const& other) const
   {
     if (ghost_width < other.ghost_width) {
@@ -198,7 +200,7 @@ struct GlobalMeshInfo {
       return 1;
     }
   }
-  
+
   int compare_periodic(IdxT dim, GlobalMeshInfo const& other) const
   {
     if (periodic[dim] < other.periodic[dim]) {
@@ -209,7 +211,7 @@ struct GlobalMeshInfo {
       return 1;
     }
   }
-  
+
 
   ~GlobalMeshInfo()
   {
@@ -232,7 +234,7 @@ struct MeshInfo {
                       , global.division_index(2, arg_coords[2]+1) };
     return MeshInfo{global, global_min, global_max, global.ghost_width, arg_coords};
   }
-  
+
   GlobalMeshInfo const& global;
   IdxT min[3];
   IdxT max[3];
@@ -296,11 +298,11 @@ struct MeshInfo {
   {
     assert(size[0] >= ghost_width && size[1] >= ghost_width && size[2] >= ghost_width);
   }
-  
+
   void correct_periodicity()
   {
     for (IdxT dim = 0; dim < 3; ++dim) {
-      
+
       IdxT idx_offset = 0;
       if (global.periodic[dim]) {
         IdxT mult = global_coords[dim] / global.divisions[dim];
@@ -312,7 +314,7 @@ struct MeshInfo {
         idx_offset = mult * global.sizes[dim];
       }
       assert(0 <= global_coords[dim] && global_coords[dim] < global.divisions[dim]);
-      
+
       global_min[dim] -= idx_offset;
       global_max[dim] -= idx_offset;
       global_offset[dim] -= idx_offset;
@@ -320,7 +322,7 @@ struct MeshInfo {
       global_own_max[dim] -= idx_offset;
     }
   }
-  
+
   bool operator==(MeshInfo const& other) const
   {
     return this == &other || (
@@ -332,7 +334,7 @@ struct MeshInfo {
            global_max[1] == other.global_max[1] &&
            global_max[2] == other.global_max[2] );
   }
-  
+
   bool operator<(MeshInfo const& other) const
   {
     if (this == &other) return false;
@@ -350,7 +352,7 @@ struct MeshInfo {
     }
     return false;
   }
-  
+
   int compare_global(MeshInfo const& other) const
   {
     if (global < other.global) {
@@ -361,7 +363,7 @@ struct MeshInfo {
       return 1;
     }
   }
-  
+
   int compare_totalsize(MeshInfo const& other) const
   {
     if (totalsize < other.totalsize) {
@@ -372,7 +374,7 @@ struct MeshInfo {
       return 1;
     }
   }
-  
+
   int compare_size(IdxT dim, MeshInfo const& other) const
   {
     if (size[dim] < other.size[dim]) {
@@ -383,7 +385,7 @@ struct MeshInfo {
       return 1;
     }
   }
-  
+
   int compare_globalmin(IdxT dim, MeshInfo const& other) const
   {
     if (global_min[dim] < other.global_min[dim]) {
@@ -394,7 +396,7 @@ struct MeshInfo {
       return 1;
     }
   }
-  
+
   ~MeshInfo()
   {
 
