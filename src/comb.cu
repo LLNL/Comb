@@ -115,7 +115,7 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles,
       factory.populate(comm);
     }
 
-    tm.stop();
+    tm.restart("test-comm");
 
     { // test comm
 
@@ -329,6 +329,8 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles,
       r2.stop();
 
     }
+
+    tm.stop();
 
     comm_info.barrier();
 
