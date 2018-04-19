@@ -73,8 +73,9 @@ namespace detail {
 } // namespace detail
 
 template < typename pol_loop, typename pol_many, typename pol_few >
-void do_cycles(CommInfo& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles, Allocator& aloc_mesh, Allocator& aloc_many, Allocator& aloc_few, Timer& tm)
+void do_cycles(CommInfo& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles, Allocator& aloc_mesh, Allocator& aloc_many, Allocator& aloc_few, Timer& tm, Timer& tm_total)
 {
+    tm_total.clear();
     tm.clear();
 
     char rname[1024] = ""; snprintf(rname, 1024, "Buffers %s %s %s %s", pol_many::name, aloc_many.name(), pol_few::name, aloc_few.name());
@@ -85,7 +86,7 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles,
 
     comm_info.barrier();
 
-    tm.start("start-up");
+    tm_total.start("start-up");
 
     std::vector<MeshData> vars;
     vars.reserve(num_vars);
@@ -115,13 +116,15 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles,
       factory.populate(comm);
     }
 
-    tm.stop();
+    tm_total.stop();
 
-    if (!comm_info.mock_communication) { // test comm
+    comm_info.barrier();
 
-      Range r1("test comm", Range::indigo);
+    Range r1("test comm", Range::indigo);
 
-      // tm.start("test-comm");
+    tm_total.start("test-comm");
+
+    { // test comm
 
       IdxT imin = info.min[0];
       IdxT jmin = info.min[1];
@@ -153,46 +156,48 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles,
         DataT* data = vars[i].data();
         IdxT var_i = i;
 
-        for_all_3d(pol_loop{}, 0, klen,
-                               0, jlen,
-                               0, ilen,
-                               [=] HOST DEVICE (IdxT k, IdxT j, IdxT i, IdxT idx) {
-          IdxT zone = i + j * ilen + k * ijlen;
-          IdxT iglobal = i + iglobal_offset;
-          if (iperiodic) {
-            iglobal = iglobal % ilen_global;
-            if (iglobal < 0) iglobal += ilen_global;
-          }
-          IdxT jglobal = j + jglobal_offset;
-          if (jperiodic) {
-            jglobal = jglobal % jlen_global;
-            if (jglobal < 0) jglobal += jlen_global;
-          }
-          IdxT kglobal = k + kglobal_offset;
-          if (kperiodic) {
-            kglobal = kglobal % klen_global;
-            if (kglobal < 0) kglobal += klen_global;
-          }
-          IdxT zone_global = iglobal + jglobal * ilen_global + kglobal * ijlen_global;
-          DataT expected, found, next;
-          if (k >= kmin && k < kmax &&
-              j >= jmin && j < jmax &&
-              i >= imin && i < imax) {
-            expected = -1.0; found = data[zone]; next = zone_global + var_i;
-          } else if (iglobal < 0 || iglobal >= ilen_global ||
-                     jglobal < 0 || jglobal >= jlen_global ||
-                     kglobal < 0 || kglobal >= klen_global) {
-            expected = -1.0; found = data[zone]; next =-(zone_global+var_i);
-          } else {
-            expected = -1.0; found = data[zone]; next =-(zone_global+var_i);
-          }
-          if (found != expected) {
-            FPRINTF(stdout, "%p zone %i(%i %i %i) = %f expected %f next %f\n", data, zone, i, j, k, found, expected, next);
-          }
-          // FPRINTF(stdout, "%p[%i] = %f\n", data, zone, 1.0);
-          assert(found == expected);
-          data[zone] = next;
-        });
+        if (!comm_info.mock_communication) {
+          for_all_3d(pol_loop{}, 0, klen,
+                                 0, jlen,
+                                 0, ilen,
+                                 [=] HOST DEVICE (IdxT k, IdxT j, IdxT i, IdxT idx) {
+            IdxT zone = i + j * ilen + k * ijlen;
+            IdxT iglobal = i + iglobal_offset;
+            if (iperiodic) {
+              iglobal = iglobal % ilen_global;
+              if (iglobal < 0) iglobal += ilen_global;
+            }
+            IdxT jglobal = j + jglobal_offset;
+            if (jperiodic) {
+              jglobal = jglobal % jlen_global;
+              if (jglobal < 0) jglobal += jlen_global;
+            }
+            IdxT kglobal = k + kglobal_offset;
+            if (kperiodic) {
+              kglobal = kglobal % klen_global;
+              if (kglobal < 0) kglobal += klen_global;
+            }
+            IdxT zone_global = iglobal + jglobal * ilen_global + kglobal * ijlen_global;
+            DataT expected, found, next;
+            if (k >= kmin && k < kmax &&
+                j >= jmin && j < jmax &&
+                i >= imin && i < imax) {
+              expected = -1.0; found = data[zone]; next = zone_global + var_i;
+            } else if (iglobal < 0 || iglobal >= ilen_global ||
+                       jglobal < 0 || jglobal >= jlen_global ||
+                       kglobal < 0 || kglobal >= klen_global) {
+              expected = -1.0; found = data[zone]; next =-(zone_global+var_i);
+            } else {
+              expected = -1.0; found = data[zone]; next =-(zone_global+var_i);
+            }
+            if (found != expected) {
+              FPRINTF(stdout, "%p zone %i(%i %i %i) = %f expected %f next %f\n", data, zone, i, j, k, found, expected, next);
+            }
+            // FPRINTF(stdout, "%p[%i] = %f\n", data, zone, 1.0);
+            assert(found == expected);
+            data[zone] = next;
+          });
+        }
       }
 
       synchronize(pol_loop{});
@@ -218,46 +223,48 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles,
         DataT* data = vars[i].data();
         IdxT var_i = i;
 
-        for_all_3d(pol_loop{}, 0, klen,
-                               0, jlen,
-                               0, ilen,
-                               [=] HOST DEVICE (IdxT k, IdxT j, IdxT i, IdxT idx) {
-          IdxT zone = i + j * ilen + k * ijlen;
-          IdxT iglobal = i + iglobal_offset;
-          if (iperiodic) {
-            iglobal = iglobal % ilen_global;
-            if (iglobal < 0) iglobal += ilen_global;
-          }
-          IdxT jglobal = j + jglobal_offset;
-          if (jperiodic) {
-            jglobal = jglobal % jlen_global;
-            if (jglobal < 0) jglobal += jlen_global;
-          }
-          IdxT kglobal = k + kglobal_offset;
-          if (kperiodic) {
-            kglobal = kglobal % klen_global;
-            if (kglobal < 0) kglobal += klen_global;
-          }
-          IdxT zone_global = iglobal + jglobal * ilen_global + kglobal * ijlen_global;
-          DataT expected, found, next;
-          if (k >= kmin && k < kmax &&
-              j >= jmin && j < jmax &&
-              i >= imin && i < imax) {
-            expected = zone_global + var_i; found = data[zone]; next = -1.0;
-          } else if (iglobal < 0 || iglobal >= ilen_global ||
-                     jglobal < 0 || jglobal >= jlen_global ||
-                     kglobal < 0 || kglobal >= klen_global) {
-            expected =-(zone_global+var_i); found = data[zone]; next = -zone_global - var_i;
-          } else {
-            expected =-(zone_global+var_i); found = data[zone]; next = 1.0;
-          }
-          if (found != expected) {
-            FPRINTF(stdout, "%p zone %i(%i %i %i) = %f expected %f next %f\n", data, zone, i, j, k, found, expected, next);
-          }
-          // FPRINTF(stdout, "%p[%i] = %f\n", data, zone, 1.0);
-          assert(found == expected);
-          data[zone] = next;
-        });
+        if (!comm_info.mock_communication) {
+          for_all_3d(pol_loop{}, 0, klen,
+                                 0, jlen,
+                                 0, ilen,
+                                 [=] HOST DEVICE (IdxT k, IdxT j, IdxT i, IdxT idx) {
+            IdxT zone = i + j * ilen + k * ijlen;
+            IdxT iglobal = i + iglobal_offset;
+            if (iperiodic) {
+              iglobal = iglobal % ilen_global;
+              if (iglobal < 0) iglobal += ilen_global;
+            }
+            IdxT jglobal = j + jglobal_offset;
+            if (jperiodic) {
+              jglobal = jglobal % jlen_global;
+              if (jglobal < 0) jglobal += jlen_global;
+            }
+            IdxT kglobal = k + kglobal_offset;
+            if (kperiodic) {
+              kglobal = kglobal % klen_global;
+              if (kglobal < 0) kglobal += klen_global;
+            }
+            IdxT zone_global = iglobal + jglobal * ilen_global + kglobal * ijlen_global;
+            DataT expected, found, next;
+            if (k >= kmin && k < kmax &&
+                j >= jmin && j < jmax &&
+                i >= imin && i < imax) {
+              expected = zone_global + var_i; found = data[zone]; next = -1.0;
+            } else if (iglobal < 0 || iglobal >= ilen_global ||
+                       jglobal < 0 || jglobal >= jlen_global ||
+                       kglobal < 0 || kglobal >= klen_global) {
+              expected =-(zone_global+var_i); found = data[zone]; next = -zone_global - var_i;
+            } else {
+              expected =-(zone_global+var_i); found = data[zone]; next = 1.0;
+            }
+            if (found != expected) {
+              FPRINTF(stdout, "%p zone %i(%i %i %i) = %f expected %f next %f\n", data, zone, i, j, k, found, expected, next);
+            }
+            // FPRINTF(stdout, "%p[%i] = %f\n", data, zone, 1.0);
+            assert(found == expected);
+            data[zone] = next;
+          });
+        }
       }
 
       synchronize(pol_loop{});
@@ -283,62 +290,63 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles,
         DataT* data = vars[i].data();
         IdxT var_i = i;
 
-        for_all_3d(pol_loop{}, 0, klen,
-                               0, jlen,
-                               0, ilen,
-                               [=] HOST DEVICE (IdxT k, IdxT j, IdxT i, IdxT idx) {
-          IdxT zone = i + j * ilen + k * ijlen;
-          IdxT iglobal = i + iglobal_offset;
-          if (iperiodic) {
-            iglobal = iglobal % ilen_global;
-            if (iglobal < 0) iglobal += ilen_global;
-          }
-          IdxT jglobal = j + jglobal_offset;
-          if (jperiodic) {
-            jglobal = jglobal % jlen_global;
-            if (jglobal < 0) jglobal += jlen_global;
-          }
-          IdxT kglobal = k + kglobal_offset;
-          if (kperiodic) {
-            kglobal = kglobal % klen_global;
-            if (kglobal < 0) kglobal += klen_global;
-          }
-          IdxT zone_global = iglobal + jglobal * ilen_global + kglobal * ijlen_global;
-          DataT expected, found, next;
-          if (k >= kmin && k < kmax &&
-              j >= jmin && j < jmax &&
-              i >= imin && i < imax) {
-            expected = -1.0;                found = data[zone]; next = 1.0;
-          } else if (iglobal < 0 || iglobal >= ilen_global ||
-                     jglobal < 0 || jglobal >= jlen_global ||
-                     kglobal < 0 || kglobal >= klen_global) {
-            expected =-(zone_global+var_i); found = data[zone]; next = -1.0;
-          } else {
-            expected = zone_global + var_i; found = data[zone]; next = -1.0;
-          }
-          if (found != expected) {
-            FPRINTF(stdout, "%p zone %i(%i %i %i) = %f expected %f next %f\n", data, zone, i, j, k, found, expected, next);
-          }
-          // FPRINTF(stdout, "%p[%i] = %f\n", data, zone, 1.0);
-          assert(found == expected);
-          data[zone] = next;
-        });
+        if (!comm_info.mock_communication) {
+          for_all_3d(pol_loop{}, 0, klen,
+                                 0, jlen,
+                                 0, ilen,
+                                 [=] HOST DEVICE (IdxT k, IdxT j, IdxT i, IdxT idx) {
+            IdxT zone = i + j * ilen + k * ijlen;
+            IdxT iglobal = i + iglobal_offset;
+            if (iperiodic) {
+              iglobal = iglobal % ilen_global;
+              if (iglobal < 0) iglobal += ilen_global;
+            }
+            IdxT jglobal = j + jglobal_offset;
+            if (jperiodic) {
+              jglobal = jglobal % jlen_global;
+              if (jglobal < 0) jglobal += jlen_global;
+            }
+            IdxT kglobal = k + kglobal_offset;
+            if (kperiodic) {
+              kglobal = kglobal % klen_global;
+              if (kglobal < 0) kglobal += klen_global;
+            }
+            IdxT zone_global = iglobal + jglobal * ilen_global + kglobal * ijlen_global;
+            DataT expected, found, next;
+            if (k >= kmin && k < kmax &&
+                j >= jmin && j < jmax &&
+                i >= imin && i < imax) {
+              expected = -1.0;                found = data[zone]; next = 1.0;
+            } else if (iglobal < 0 || iglobal >= ilen_global ||
+                       jglobal < 0 || jglobal >= jlen_global ||
+                       kglobal < 0 || kglobal >= klen_global) {
+              expected =-(zone_global+var_i); found = data[zone]; next = -1.0;
+            } else {
+              expected = zone_global + var_i; found = data[zone]; next = -1.0;
+            }
+            if (found != expected) {
+              FPRINTF(stdout, "%p zone %i(%i %i %i) = %f expected %f next %f\n", data, zone, i, j, k, found, expected, next);
+            }
+            // FPRINTF(stdout, "%p[%i] = %f\n", data, zone, 1.0);
+            assert(found == expected);
+            data[zone] = next;
+          });
+        }
       }
 
       synchronize(pol_loop{});
 
       // tm.stop();
       r2.stop();
-
-      // tm.stop();
-
-      r1.stop();
-
     }
 
     comm_info.barrier();
 
-    Range r1("bench comm", Range::magenta);
+    tm_total.stop();
+
+    r1.restart("bench comm", Range::magenta);
+
+    tm_total.start("bench-comm");
 
     for(IdxT cycle = 0; cycle < ncycles; cycle++) {
 
@@ -447,10 +455,17 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles,
 
     }
 
+    comm_info.barrier();
+
+    tm_total.stop();
+
     r1.stop();
 
     tm.print();
+    tm_total.print();
+
     tm.clear();
+    tm_total.clear();
 }
 
 template < typename pol_type >
@@ -694,7 +709,8 @@ int main(int argc, char** argv)
   ManagedDevicePreferredAllocator managed_device_preferred_alloc;
   ManagedDevicePreferredHostAccessedAllocator managed_device_preferred_host_accessed_alloc;
 
-  Timer tm(1024);
+  Timer tm(16384);
+  Timer tm_total(1024);
 
   // warm-up memory pools
   {
@@ -730,13 +746,13 @@ int main(int argc, char** argv)
     char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.name());
     Range r0(name, Range::blue);
 
-    do_cycles<seq_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm);
+    do_cycles<seq_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
 
-    // do_cycles<cuda_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm);
+    // do_cycles<cuda_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
 
-    // do_cycles<cuda_pol, cuda_pol, cuda_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm);
+    // do_cycles<cuda_pol, cuda_pol, cuda_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
 
-    // do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm);
+    // do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
   }
 
   // host pinned allocated
@@ -746,15 +762,15 @@ int main(int argc, char** argv)
     char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.name());
     Range r0(name, Range::blue);
 
-    do_cycles<seq_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm);
+    do_cycles<seq_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
 
-    do_cycles<cuda_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm);
+    do_cycles<cuda_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
 
-    // do_cycles<cuda_pol, cuda_pol, cuda_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm);
+    // do_cycles<cuda_pol, cuda_pol, cuda_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
 
-    do_cycles<cuda_pol, cuda_pol, cuda_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm);
+    do_cycles<cuda_pol, cuda_pol, cuda_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
 
-    do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm);
+    do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
   }
 
   // device allocated
@@ -764,18 +780,18 @@ int main(int argc, char** argv)
     char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.name());
     Range r0(name, Range::blue);
 
-    // do_cycles<seq_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm);
+    // do_cycles<seq_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
 
-    // do_cycles<cuda_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm);
+    // do_cycles<cuda_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
 
-    do_cycles<cuda_pol, cuda_pol, cuda_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm);
+    do_cycles<cuda_pol, cuda_pol, cuda_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
 
-    do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm);
+    do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
 
     // if (comminfo.mock_communication) {
-    //   do_cycles<cuda_pol, cuda_pol, cuda_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, device_alloc, device_alloc, tm);
+    //   do_cycles<cuda_pol, cuda_pol, cuda_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, device_alloc, device_alloc, tm, tm_total);
 
-    //   do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, device_alloc, device_alloc, tm);
+    //   do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, device_alloc, device_alloc, tm, tm_total);
     // }
   }
 
@@ -786,17 +802,17 @@ int main(int argc, char** argv)
     char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.name());
     Range r0(name, Range::blue);
 
-    do_cycles<seq_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm);
+    do_cycles<seq_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
 
-    do_cycles<cuda_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm);
+    do_cycles<cuda_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
 
-    do_cycles<cuda_pol, cuda_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm);
+    do_cycles<cuda_pol, cuda_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
 
-    do_cycles<cuda_pol, cuda_pol, cuda_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm);
+    do_cycles<cuda_pol, cuda_pol, cuda_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
 
-    do_cycles<cuda_pol, cuda_batch_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm);
+    do_cycles<cuda_pol, cuda_batch_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
 
-    do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm);
+    do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
   }
 
   // managed host preferred allocated
@@ -806,17 +822,17 @@ int main(int argc, char** argv)
     char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.name());
     Range r0(name, Range::blue);
 
-    do_cycles<seq_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm);
+    do_cycles<seq_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
 
-    do_cycles<cuda_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm);
+    do_cycles<cuda_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
 
-    do_cycles<cuda_pol, cuda_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm);
+    do_cycles<cuda_pol, cuda_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
 
-    do_cycles<cuda_pol, cuda_pol, cuda_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm);
+    do_cycles<cuda_pol, cuda_pol, cuda_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
 
-    do_cycles<cuda_pol, cuda_batch_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm);
+    do_cycles<cuda_pol, cuda_batch_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
 
-    do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm);
+    do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
   }
 
   // managed host preferred device accessed allocated
@@ -826,17 +842,17 @@ int main(int argc, char** argv)
     char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.name());
     Range r0(name, Range::blue);
 
-    do_cycles<seq_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm);
+    do_cycles<seq_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
 
-    do_cycles<cuda_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm);
+    do_cycles<cuda_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
 
-    do_cycles<cuda_pol, cuda_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm);
+    do_cycles<cuda_pol, cuda_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
 
-    do_cycles<cuda_pol, cuda_pol, cuda_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm);
+    do_cycles<cuda_pol, cuda_pol, cuda_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
 
-    do_cycles<cuda_pol, cuda_batch_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm);
+    do_cycles<cuda_pol, cuda_batch_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
 
-    do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm);
+    do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
   }
 
   // managed device preferred allocated
@@ -846,17 +862,17 @@ int main(int argc, char** argv)
     char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.name());
     Range r0(name, Range::blue);
 
-    do_cycles<seq_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm);
+    do_cycles<seq_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
 
-    do_cycles<cuda_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm);
+    do_cycles<cuda_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
 
-    do_cycles<cuda_pol, cuda_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm);
+    do_cycles<cuda_pol, cuda_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
 
-    do_cycles<cuda_pol, cuda_pol, cuda_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm);
+    do_cycles<cuda_pol, cuda_pol, cuda_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
 
-    do_cycles<cuda_pol, cuda_batch_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm);
+    do_cycles<cuda_pol, cuda_batch_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
 
-    do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm);
+    do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
   }
 
   // managed device preferred host accessed allocated
@@ -866,17 +882,17 @@ int main(int argc, char** argv)
     char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.name());
     Range r0(name, Range::blue);
 
-    do_cycles<seq_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm);
+    do_cycles<seq_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
 
-    do_cycles<cuda_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm);
+    do_cycles<cuda_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
 
-    do_cycles<cuda_pol, cuda_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm);
+    do_cycles<cuda_pol, cuda_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
 
-    do_cycles<cuda_pol, cuda_pol, cuda_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm);
+    do_cycles<cuda_pol, cuda_pol, cuda_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
 
-    do_cycles<cuda_pol, cuda_batch_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm);
+    do_cycles<cuda_pol, cuda_batch_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
 
-    do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm);
+    do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
   }
 
   comminfo.cart.disconnect();
