@@ -465,37 +465,51 @@ struct Comm
       {
         IdxT num_sends = m_sends.size();
 
-        for (int val = 0; val < 2; ++val) {
-
-          bool expected = val;
-          bool found_expected = false;
+        {
+          // have many case, send after all packed
+          bool found_many = false;
 
           for (IdxT i = 0; i < num_sends; ++i) {
 
-            if (m_sends[i].have_many == expected) {
+            if (m_sends[i].have_many) {
               m_sends[i].allocate();
               m_sends[i].pack();
-              found_expected = true;
+              found_many = true;
             }
           }
 
-          if (found_expected) {
+          if (found_many) {
 
-            if (expected) {
-              synchronize(policy_many{});
-            } else {
-              synchronize(policy_few{});
-            }
+            synchronize(policy_many{});
 
             for (IdxT i = 0; i < num_sends; ++i) {
 
-              if (m_sends[i].have_many == expected) {
+              if (m_sends[i].have_many) {
 
                 if (!comminfo.mock_communication) {
                   detail::MPI::Isend( m_sends[i].buffer(), m_sends[i].nbytes(),
                                      m_sends[i].dest_rank(), m_sends[i].tag(),
                                      comminfo.cart.comm, &m_send_requests[i] );
                 }
+              }
+            }
+          }
+        }
+
+        {
+          // have_few case, send immediately
+          for (IdxT i = 0; i < num_sends; ++i) {
+
+            if (!m_sends[i].have_many) {
+              m_sends[i].allocate();
+              m_sends[i].pack();
+
+              synchronize(policy_few{});
+
+              if (!comminfo.mock_communication) {
+                detail::MPI::Isend( m_sends[i].buffer(), m_sends[i].nbytes(),
+                                    m_sends[i].dest_rank(), m_sends[i].tag(),
+                                    comminfo.cart.comm, &m_send_requests[i] );
               }
             }
           }
