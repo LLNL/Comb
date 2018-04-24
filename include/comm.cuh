@@ -363,6 +363,9 @@ struct Comm
   std::vector<MPI_Request> m_send_requests;
   std::vector<MPI_Request> m_recv_requests;
 
+  std::vector<typename policy_many::event_type> m_many_events;
+  std::vector<typename policy_few::event_type> m_few_events;
+
   Comm(CommInfo const& comminfo_, Allocator& many_aloc_, Allocator& few_aloc_)
     : many_aloc(many_aloc_)
     , few_aloc(few_aloc_)
@@ -488,8 +491,8 @@ struct Comm
 
                 if (!comminfo.mock_communication) {
                   detail::MPI::Isend( m_sends[i].buffer(), m_sends[i].nbytes(),
-                                     m_sends[i].dest_rank(), m_sends[i].tag(),
-                                     comminfo.cart.comm, &m_send_requests[i] );
+                                      m_sends[i].dest_rank(), m_sends[i].tag(),
+                                      comminfo.cart.comm, &m_send_requests[i] );
                 }
               }
             }

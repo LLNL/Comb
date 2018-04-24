@@ -26,6 +26,20 @@ inline void cudaCheckError(const char* str, cudaError_t code, const char* file, 
   }
 }
 
+#define cudaCheckReady(...) cudaCheckReadyError(#__VA_ARGS__, __VA_ARGS__, __FILE__, __LINE__)
+
+inline bool cudaCheckReadyError(const char* str, cudaError_t code, const char* file, int line)
+{
+  if (code == cudaSuccess) {
+    return true;
+  } else if (code != cudaErrorNotReady) {
+    fprintf(stderr, "Error performing %s; %s %s %s:%i\n", str, cudaGetErrorName(code), cudaGetErrorString(code), file, line); fflush(stderr);
+    assert(0);
+    // MPI_Abort(MPI_COMM_WORLD, 1);
+  }
+  return false;
+}
+
 
 namespace detail {
 

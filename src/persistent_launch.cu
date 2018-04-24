@@ -69,8 +69,12 @@ void force_start(cudaStream_t stream)
    }
 }
 
+void force_check(cudaStream_t stream)
+{
+}
+
 // Ensure current batch launched (does nothing)
-void force_complete(cudaStream_t stream)
+void force_stop(cudaStream_t stream)
 {
    if (detail::getLaunched()) {
       detail::stop(detail::getMultiBuffer(), stream);
@@ -81,7 +85,7 @@ void force_complete(cudaStream_t stream)
 void synchronize(cudaStream_t stream)
 {
    // NVTX_RANGE_COLOR(NVTX_CYAN)
-   force_complete(stream);
+   force_stop(stream);
 
    // perform synchronization
    cudaCheck(cudaDeviceSynchronize());

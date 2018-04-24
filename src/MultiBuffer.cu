@@ -14,11 +14,12 @@ MultiBuffer::MultiBuffer()
   cudaCheck(cudaMemAdvise(m_buffer, total_capacity, cudaMemAdviseSetAccessedBy, cudaCpuDeviceId));
   cudaCheck(cudaMemPrefetchAsync(m_buffer, total_capacity, cudaCpuDeviceId, cudaStream_t{0}));
   cudaCheck(cudaMemPrefetchAsync(m_buffer, total_capacity, ::detail::cuda::get_device(), cudaStream_t{0}));
-  
+
+
   size_t num_info = total_capacity / buffer_capacity;
-  
+
   m_info_first = m_info_cur = m_info_arr = new internal_info[num_info];
-  
+
   for (size_t i = 0; i < num_info; ++i) {
     m_info_arr[i].next = &m_info_arr[(i+1) % num_info];
     m_info_arr[i].buffer_device = &m_buffer[i];

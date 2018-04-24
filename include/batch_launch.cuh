@@ -23,6 +23,13 @@ inline ::detail::MultiBuffer::buffer_size_type& getMaxN()
   return maxN;
 }
 
+inline ::detail::EventBuffer& getEventBuffer()
+{
+  static ::detail::EventBuffer buf(1024);
+  return buf;
+}
+
+
 extern void launch(::detail::MultiBuffer& mb, cudaStream_t stream);
 
 // Enqueue a kernel in the current buffer.
@@ -33,7 +40,7 @@ inline void enqueue(::detail::MultiBuffer& mb, int begin, int n, kernel_type_in&
 
    // write device wrapper function pointer to pinned buffer
    ::detail::device_wrapper_ptr wrapper_ptr = ::detail::get_device_wrapper_ptr<kernel_type>();
-   
+
    // Copy kernel into kernel holder and write to pinned buffer
    kernel_type kernel{kernel_in, begin, n};
 
@@ -42,26 +49,67 @@ inline void enqueue(::detail::MultiBuffer& mb, int begin, int n, kernel_type_in&
       // ensure other thread/device done reading buffer before launch
       while(!mb.cur_buffer_empty());
    }
-   
+
    // pack function pointer and kernel body
    bool success = mb.pack(wrapper_ptr, &kernel);
-   
+
    if ( !success ) {
-   
+
       // Not enough room, launch current buffer (switches to next buffer)
       launch(mb, stream);
-      
+
       // Wait for next buffer to be writeable, then pack
       while ( !mb.pack(wrapper_ptr, &kernel) );
    }
-   
+
    getMaxN() = std::max(getMaxN(), static_cast<::detail::MultiBuffer::buffer_size_type>(n));
 }
 
 } // namespace detail
 
+
+inline ::detail::batch_event_type_ptr createEvent()
+{
+   return detail::getEventBuffer().createEvent();
+}
+
+inline void recordEvent(::detail::batch_event_type_ptr event, cudaStream_t stream = 0)
+{
+   ::detail::EventBuffer& eb = detail::getEventBuffer();
+   ::detail::MultiBuffer& mb = detail::getMultiBuffer();
+
+   bool success = eb.recordEvent(event, mb);
+
+   if ( !success ) {
+
+      // Not enough room, launch current buffer (switches to next buffer)
+      detail::launch(mb, stream);
+
+      // Wait for next buffer to be writeable, then record event
+      while ( !eb.recordEvent(event, mb) );
+
+   }
+}
+
+inline bool queryEvent(::detail::batch_event_type_ptr event)
+{
+   return detail::getEventBuffer().queryEvent(event);
+}
+
+inline void waitEvent(::detail::batch_event_type_ptr event)
+{
+   detail::getEventBuffer().waitEvent(event);
+}
+
+inline void destroyEvent(::detail::batch_event_type_ptr event)
+{
+   detail::getEventBuffer().destroyEvent(event);
+}
+
+
 extern void force_start(cudaStream_t stream = 0);
-extern void force_complete(cudaStream_t stream = 0);
+extern void force_check(cudaStream_t stream = 0);
+extern void force_stop(cudaStream_t stream = 0);
 extern void synchronize(cudaStream_t stream = 0);
 
 template <typename kernel_type_in>

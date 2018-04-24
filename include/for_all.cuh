@@ -21,22 +21,27 @@
 struct seq_pol {
   static const bool async = false;
   static constexpr const char* name = "seq";
+  using event_type = int;
 };
 struct omp_pol {
   static const bool async = false;
   static constexpr const char* name = "omp";
+  using event_type = int;
 };
 struct cuda_pol {
   static const bool async = true;
   static constexpr const char* name = "cuda";
+  using event_type = cudaEvent_t;
 };
 struct cuda_batch_pol {
   static const bool async = true;
   static constexpr const char* name = "cudaBatch";
+  using event_type = detail::batch_event_type_ptr;
 };
 struct cuda_persistent_pol {
   static const bool async = true;
   static constexpr const char* name = "cudaPersistent";
+  using event_type = detail::batch_event_type_ptr;
 };
 
 // synchronization functions
@@ -109,6 +114,206 @@ inline void synchronize(policy0 const& p0, policy1 const& p1, policies const&...
   detail::MultiSynchronizer<policy0, policy1, policies...>{p0, p1, ps...}();
 }
 
+
+// force start functions
+inline void force_start(seq_pol const&)
+{
+}
+
+inline void force_start(omp_pol const&)
+{
+}
+
+inline void force_start(cuda_pol const&)
+{
+}
+
+inline void force_start(cuda_batch_pol const&)
+{
+  cuda::batch_launch::force_start();
+}
+
+inline void force_start(cuda_persistent_pol const&)
+{
+  cuda::persistent_launch::force_start();
+}
+
+
+// force complete functions
+inline void force_check(seq_pol const&)
+{
+}
+
+inline void force_check(omp_pol const&)
+{
+}
+
+inline void force_check(cuda_pol const&)
+{
+}
+
+inline void force_check(cuda_batch_pol const&)
+{
+  cuda::batch_launch::force_check();
+}
+
+inline void force_check(cuda_persistent_pol const&)
+{
+  cuda::persistent_launch::force_check();
+}
+
+
+// force complete functions
+inline void force_stop(seq_pol const&)
+{
+}
+
+inline void force_stop(omp_pol const&)
+{
+}
+
+inline void force_stop(cuda_pol const&)
+{
+}
+
+inline void force_stop(cuda_batch_pol const&)
+{
+  cuda::batch_launch::force_stop();
+}
+
+inline void force_stop(cuda_persistent_pol const&)
+{
+  cuda::persistent_launch::force_stop();
+}
+
+
+// event synchronization functions
+inline typename seq_pol::event_type createEvent(seq_pol const&)
+{
+  return typename seq_pol::event_type{};
+}
+
+inline typename omp_pol::event_type createEvent(omp_pol const&)
+{
+  return typename omp_pol::event_type{};
+}
+
+inline typename cuda_pol::event_type createEvent(cuda_pol const&)
+{
+  cudaEvent_t event;
+  cudaCheck(cudaEventCreateWithFlags(&event, cudaEventDisableTiming));
+  return event;
+}
+
+inline typename cuda_batch_pol::event_type createEvent(cuda_batch_pol const&)
+{
+  return cuda::batch_launch::createEvent();
+}
+
+inline typename cuda_persistent_pol::event_type createEvent(cuda_persistent_pol const&)
+{
+  return cuda::persistent_launch::createEvent();
+}
+
+
+inline void recordEvent(seq_pol const&, typename seq_pol::event_type)
+{
+}
+
+inline void recordEvent(omp_pol const&, typename omp_pol::event_type)
+{
+}
+
+inline void recordEvent(cuda_pol const&, typename cuda_pol::event_type event)
+{
+  cudaCheck(cudaEventRecord(event, cudaStream_t{0}));
+}
+
+inline void recordEvent(cuda_batch_pol const&, typename cuda_batch_pol::event_type event)
+{
+  return cuda::batch_launch::recordEvent(event);
+}
+
+inline void recordEvent(cuda_persistent_pol const&, typename cuda_persistent_pol::event_type event)
+{
+  return cuda::persistent_launch::recordEvent(event);
+}
+
+
+inline bool queryEvent(seq_pol const&, typename seq_pol::event_type)
+{
+  return true;
+}
+
+inline bool queryEvent(omp_pol const&, typename omp_pol::event_type)
+{
+  return true;
+}
+
+inline bool queryEvent(cuda_pol const&, typename cuda_pol::event_type event)
+{
+  return cudaCheckReady(cudaEventQuery(event));
+}
+
+inline bool queryEvent(cuda_batch_pol const&, typename cuda_batch_pol::event_type event)
+{
+  return cuda::batch_launch::queryEvent(event);
+}
+
+inline bool queryEvent(cuda_persistent_pol const&, typename cuda_persistent_pol::event_type event)
+{
+  return cuda::persistent_launch::queryEvent(event);
+}
+
+
+inline void waitEvent(seq_pol const&, typename seq_pol::event_type)
+{
+}
+
+inline void waitEvent(omp_pol const&, typename omp_pol::event_type)
+{
+}
+
+inline void waitEvent(cuda_pol const&, typename cuda_pol::event_type event)
+{
+  cudaCheck(cudaEventSynchronize(event));
+}
+
+inline void waitEvent(cuda_batch_pol const&, typename cuda_batch_pol::event_type event)
+{
+  cuda::batch_launch::waitEvent(event);
+}
+
+inline void waitEvent(cuda_persistent_pol const&, typename cuda_persistent_pol::event_type event)
+{
+  cuda::persistent_launch::waitEvent(event);
+}
+
+
+inline void destroyEvent(seq_pol const&, typename seq_pol::event_type)
+{
+}
+
+inline void destroyEvent(omp_pol const&, typename omp_pol::event_type)
+{
+}
+
+inline void destroyEvent(cuda_pol const&, typename cuda_pol::event_type event)
+{
+  cudaCheck(cudaEventDestroy(event));
+}
+
+inline void destroyEvent(cuda_batch_pol const&, typename cuda_batch_pol::event_type event)
+{
+  cuda::batch_launch::destroyEvent(event);
+}
+
+inline void destroyEvent(cuda_persistent_pol const&, typename cuda_persistent_pol::event_type event)
+{
+  cuda::persistent_launch::destroyEvent(event);
+}
+
+
 namespace detail {
 
 template < typename body_type >
@@ -128,11 +333,11 @@ struct adapter_2d {
   {
     IdxT i0 = idx / len1;
     IdxT i1 = idx - i0 * len1;
-    
+
     //FPRINTF(stdout, "adapter_2d (%i+%i %i+%i)%i\n", i0, begin0, i1, begin1, idx);
     //assert(0 <= i0 + begin0 && i0 + begin0 < 3);
     //assert(0 <= i1 + begin1 && i1 + begin1 < 3);
-    
+
     body(i0 + begin0, i1 + begin1, idx);
   }
 };
@@ -159,7 +364,7 @@ struct adapter_3d {
 
     IdxT i1 = idx12 / len2;
     IdxT i2 = idx12 - i1 * len2;
-    
+
     //FPRINTF(stdout, "adapter_3d (%i+%i %i+%i %i+%i)%i\n", i0, begin0, i1, begin1, i2, begin2, idx);
     //assert(0 <= i0 + begin0 && i0 + begin0 < 3);
     //assert(0 <= i1 + begin1 && i1 + begin1 < 3);
@@ -219,7 +424,7 @@ inline void for_all(cuda_pol const& pol, IdxT begin, IdxT end, body_type&& body)
   void* args[]{&begin, &len, &body};
   size_t sharedMem = 0;
   cudaStream_t stream = 0;
-  
+
   cudaCheck(cudaLaunchKernel(func, gridDim, blockDim, args, sharedMem, stream));
   //synchronize(pol);
 }
@@ -299,7 +504,7 @@ inline void for_all_2d(cuda_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1,
   void* args[]{&begin0, &len0, &begin1, &len1, &body};
   size_t sharedMem = 0;
   cudaStream_t stream = 0;
-  
+
   cudaCheck(cudaLaunchKernel(func, gridDim, blockDim, args, sharedMem, stream));
   //synchronize(pol);
 }
@@ -394,7 +599,7 @@ inline void for_all_3d(cuda_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1,
   void* args[]{&begin0, &len0, &begin1, &len1, &begin2, &len2, &len12, &body};
   size_t sharedMem = 0;
   cudaStream_t stream = 0;
-  
+
   cudaCheck(cudaLaunchKernel(func, gridDim, blockDim, args, sharedMem, stream));
   //synchronize(pol);
 }
