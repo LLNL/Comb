@@ -31,7 +31,8 @@ using batch_event_type_ptr = volatile batch_event_type*;
 constexpr batch_event_type event_init_val = 0;
 constexpr batch_event_type event_complete_val = 1;
 
-static const device_wrapper_ptr fnc_event_val = (device_wrapper_ptr)1;
+#define comb_detail_fnc_null_val  ((device_wrapper_ptr)0)
+#define comb_detail_fnc_event_val ((device_wrapper_ptr)1)
 
 template < typename len_type, typename read_type >
 struct DynamicBuffer
@@ -384,13 +385,13 @@ void block_read_device(typename shared_buffer_type::buffer_type volatile* arg_bu
           FPRINTF(stdout, "block %6i thread %6i read fnc %p\n", blockIdx.x, threadIdx.x, fnc);
         }
         */
-        if (fnc == fnc_event_val) {
+        if (fnc == comb_detail_fnc_event_val) {
 
           // nothing done yet, so nothing to synchronize
           // complete event located at shr_buf
           shr_ptr = event_complete(&((const volatile device_wrapper_ptr*)shr_ptr)[1]);
 
-        } else if (fnc != nullptr) {
+        } else if (fnc != comb_detail_fnc_null_val) {
 
           goto do_fnc;
 
@@ -414,7 +415,7 @@ void block_read_device(typename shared_buffer_type::buffer_type volatile* arg_bu
           FPRINTF(stdout, "block %6i thread %6i read fnc %p\n", blockIdx.x, threadIdx.x, fnc);
         }
         */
-        if (fnc == fnc_event_val) {
+        if (fnc == comb_detail_fnc_event_val) {
 
           // ensure memory writes in all threads readable everywhere
           __threadfence_system();
@@ -435,13 +436,13 @@ void block_read_device(typename shared_buffer_type::buffer_type volatile* arg_bu
                 FPRINTF(stdout, "block %6i thread %6i read fnc %p\n", blockIdx.x, threadIdx.x, fnc);
               }
               */
-              if (fnc == fnc_event_val) {
+              if (fnc == comb_detail_fnc_event_val) {
 
                 // repeat event, no need to synchronize
                 // complete event located at shr_buf
                 shr_ptr = event_complete(&((const volatile device_wrapper_ptr*)shr_ptr)[1]);
 
-              } else if (fnc != nullptr) {
+              } else if (fnc != comb_detail_fnc_null_val) {
 
                 goto do_fnc;
 
@@ -460,7 +461,7 @@ void block_read_device(typename shared_buffer_type::buffer_type volatile* arg_bu
 
 
 
-        } else if (fnc != nullptr) {
+        } else if (fnc != comb_detail_fnc_null_val) {
           /*
           if (threadIdx.x+1 == blockDim.x) {
             FPRINTF(stdout, "block %6i thread %6i grid sync\n", blockIdx.x, threadIdx.x);

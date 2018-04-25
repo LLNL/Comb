@@ -150,7 +150,7 @@ private:
 
    buffer_type* stop_and_next_buffer()
    {
-      void* ptrs[2] {nullptr, nullptr};
+      void* ptrs[2] {(void*)comb_detail_fnc_null_val, nullptr};
       //FPRINTF(stdout, "stop_and_next_buffer cur %p writing %p %p\n", m_info_cur->buffer_device, ptrs[0], ptrs[1]);
       m_info_cur->buffer_pos = buffer_capacity;
       bool wrote = m_info_cur->buffer_device->write( buffer_type::dynamic_buffer_type<void*>(2, &ptrs[0]) );
@@ -163,7 +163,7 @@ private:
 
    void continue_and_next_buffer()
    {
-      void* ptrs[2] {nullptr, (void*)m_info_cur->next->buffer_device};
+      void* ptrs[2] {(void*)comb_detail_fnc_null_val, (void*)m_info_cur->next->buffer_device};
       //FPRINTF(stdout, "continue_and_next_buffer cur %p writing %p %p\n", m_info_cur->buffer_device, ptrs[0], ptrs[1]);
       m_info_cur->buffer_pos = buffer_capacity;
       bool wrote = m_info_cur->buffer_device->write( buffer_type::dynamic_buffer_type<void*>(2, &ptrs[0]) );
@@ -230,7 +230,7 @@ public:
    {
       *event = event_init_val;
       // relies on pack to perform thread fence
-      return mb.pack(fnc_event_val, &event);
+      return mb.pack(comb_detail_fnc_event_val, &event);
    }
 
    bool queryEvent(batch_event_type_ptr event)
