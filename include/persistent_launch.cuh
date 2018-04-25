@@ -84,8 +84,7 @@ inline void destroyEvent(::detail::batch_event_type_ptr event)
 }
 
 
-extern void force_start(cudaStream_t stream = 0);
-extern void force_check(cudaStream_t stream = 0);
+extern void force_launch(cudaStream_t stream = 0);
 extern void force_stop(cudaStream_t stream = 0);
 extern void synchronize(cudaStream_t stream = 0);
 

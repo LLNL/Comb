@@ -68,126 +68,168 @@ inline void synchronize(cuda_persistent_pol const&)
   cuda::persistent_launch::synchronize();
 }
 
-namespace detail {
-
-template < typename type >
-struct Synchronizer {
-  type const& t;
-  Synchronizer(type const& t_) : t(t_) {}
-  void operator()() const { synchronize(t); }
-};
-
-template < typename type, size_t repeats >
-struct ConditionalSynchronizer {
-  ConditionalSynchronizer(type const&) {}
-  void operator()() const { }
-};
-
-template < typename type >
-struct ConditionalSynchronizer<type, 0> : Synchronizer<type> {
-  using parent = Synchronizer<type>;
-  ConditionalSynchronizer(type const& t_) : parent(t_) {}
-  void operator()() const { parent::operator()(); }
-};
-
-template < typename ... types >
-struct MultiSynchronizer;
-
-template < >
-struct MultiSynchronizer<> {
-  void operator()() const { }
-};
-
-template < typename type0, typename ... types >
-struct MultiSynchronizer<type0, types...> : ConditionalSynchronizer<type0, Count<type0, types...>::value>, MultiSynchronizer<types...> {
-  using cparent = ConditionalSynchronizer<type0, Count<type0, types...>::value>;
-  using mparent = MultiSynchronizer<types...>;
-  MultiSynchronizer(type0 const& t_, types const&... ts_) : cparent(t_), mparent(ts_...) {}
-  void operator()() const { cparent::operator()(); mparent::operator()(); }
-};
-
-} // namespace detail
-
-template < typename policy0, typename policy1, typename... policies >
-inline void synchronize(policy0 const& p0, policy1 const& p1, policies const&...ps)
-{
-  detail::MultiSynchronizer<policy0, policy1, policies...>{p0, p1, ps...}();
-}
-
 
 // force start functions
-inline void force_start(seq_pol const&)
+inline void persistent_launch(seq_pol const&)
 {
 }
 
-inline void force_start(omp_pol const&)
+inline void persistent_launch(omp_pol const&)
 {
 }
 
-inline void force_start(cuda_pol const&)
+inline void persistent_launch(cuda_pol const&)
 {
 }
 
-inline void force_start(cuda_batch_pol const&)
-{
-  cuda::batch_launch::force_start();
-}
-
-inline void force_start(cuda_persistent_pol const&)
-{
-  cuda::persistent_launch::force_start();
-}
-
-
-// force complete functions
-inline void force_check(seq_pol const&)
+inline void persistent_launch(cuda_batch_pol const&)
 {
 }
 
-inline void force_check(omp_pol const&)
+inline void persistent_launch(cuda_persistent_pol const&)
 {
-}
-
-inline void force_check(cuda_pol const&)
-{
-}
-
-inline void force_check(cuda_batch_pol const&)
-{
-  cuda::batch_launch::force_check();
-}
-
-inline void force_check(cuda_persistent_pol const&)
-{
-  cuda::persistent_launch::force_check();
+  cuda::persistent_launch::force_launch();
 }
 
 
 // force complete functions
-inline void force_stop(seq_pol const&)
+inline void batch_launch(seq_pol const&)
 {
 }
 
-inline void force_stop(omp_pol const&)
+inline void batch_launch(omp_pol const&)
 {
 }
 
-inline void force_stop(cuda_pol const&)
+inline void batch_launch(cuda_pol const&)
 {
 }
 
-inline void force_stop(cuda_batch_pol const&)
+inline void batch_launch(cuda_batch_pol const&)
 {
-  cuda::batch_launch::force_stop();
+  cuda::batch_launch::force_launch();
 }
 
-inline void force_stop(cuda_persistent_pol const&)
+inline void batch_launch(cuda_persistent_pol const&)
+{
+}
+
+
+// force complete functions
+inline void persistent_stop(seq_pol const&)
+{
+}
+
+inline void persistent_stop(omp_pol const&)
+{
+}
+
+inline void persistent_stop(cuda_pol const&)
+{
+}
+
+inline void persistent_stop(cuda_batch_pol const&)
+{
+}
+
+inline void persistent_stop(cuda_persistent_pol const&)
 {
   cuda::persistent_launch::force_stop();
 }
 
 
-// event synchronization functions
+namespace detail {
+
+template < typename type >
+struct Synchronizer {
+  using value_type = type;
+  value_type const& t;
+  Synchronizer(value_type const& t_) : t(t_) {}
+  void operator()() const { synchronize(t); }
+};
+
+template < typename type >
+struct PersistentLauncher {
+  using value_type = type;
+  value_type const& t;
+  PersistentLauncher(value_type const& t_) : t(t_) {}
+  void operator()() const { persistent_launch(t); }
+};
+
+template < typename type >
+struct BatchLauncher {
+  using value_type = type;
+  value_type const& t;
+  BatchLauncher(value_type const& t_) : t(t_) {}
+  void operator()() const { batch_launch(t); }
+};
+
+template < typename type >
+struct PersistentStopper {
+  using value_type = type;
+  value_type const& t;
+  PersistentStopper(value_type const& t_) : t(t_) {}
+  void operator()() const { persistent_stop(t); }
+};
+
+template < typename type, size_t repeats >
+struct ConditionalOperator {
+  ConditionalOperator(typename type::value_type const&) {}
+  void operator()() const { }
+};
+
+template < typename type >
+struct ConditionalOperator<type, 0> : type {
+  using parent = type;
+  ConditionalOperator(typename type::value_type const& t_) : parent(t_) {}
+  void operator()() const { parent::operator()(); }
+};
+
+template < typename ... types >
+struct MultiOperator;
+
+template < >
+struct MultiOperator<> {
+  void operator()() const { }
+};
+
+template < typename type0, typename ... types >
+struct MultiOperator<type0, types...> : ConditionalOperator<type0, Count<type0, types...>::value>, MultiOperator<types...> {
+  using cparent = ConditionalOperator<type0, Count<type0, types...>::value>;
+  using mparent = MultiOperator<types...>;
+  MultiOperator(typename type0::value_type const& t_, typename types::value_type const&... ts_) : cparent(t_), mparent(ts_...) {}
+  void operator()() const { cparent::operator()(); mparent::operator()(); }
+};
+
+} // namespace detail
+
+// multiple argument synchronization and other functions
+template < typename policy0, typename policy1, typename... policies >
+inline void synchronize(policy0 const& p0, policy1 const& p1, policies const&...ps)
+{
+  detail::MultiOperator<detail::Synchronizer<policy0>, detail::Synchronizer<policy1>, detail::Synchronizer<policies>...>{p0, p1, ps...}();
+}
+
+template < typename policy0, typename policy1, typename... policies >
+inline void persistent_launch(policy0 const& p0, policy1 const& p1, policies const&...ps)
+{
+  detail::MultiOperator<detail::PersistentLauncher<policy0>, detail::PersistentLauncher<policy1>, detail::PersistentLauncher<policies>...>{p0, p1, ps...}();
+}
+
+template < typename policy0, typename policy1, typename... policies >
+inline void batch_launch(policy0 const& p0, policy1 const& p1, policies const&...ps)
+{
+  detail::MultiOperator<detail::BatchLauncher<policy0>, detail::BatchLauncher<policy1>, detail::BatchLauncher<policies>...>{p0, p1, ps...}();
+}
+
+template < typename policy0, typename policy1, typename... policies >
+inline void persistent_stop(policy0 const& p0, policy1 const& p1, policies const&...ps)
+{
+  detail::MultiOperator<detail::PersistentStopper<policy0>, detail::PersistentStopper<policy1>, detail::PersistentStopper<policies>...>{p0, p1, ps...}();
+}
+
+
+// event creation functions
 inline typename seq_pol::event_type createEvent(seq_pol const&)
 {
   return typename seq_pol::event_type{};
@@ -216,6 +258,7 @@ inline typename cuda_persistent_pol::event_type createEvent(cuda_persistent_pol 
 }
 
 
+// event record functions
 inline void recordEvent(seq_pol const&, typename seq_pol::event_type)
 {
 }
@@ -240,6 +283,7 @@ inline void recordEvent(cuda_persistent_pol const&, typename cuda_persistent_pol
 }
 
 
+// event query functions
 inline bool queryEvent(seq_pol const&, typename seq_pol::event_type)
 {
   return true;
@@ -266,6 +310,7 @@ inline bool queryEvent(cuda_persistent_pol const&, typename cuda_persistent_pol:
 }
 
 
+// event wait functions
 inline void waitEvent(seq_pol const&, typename seq_pol::event_type)
 {
 }
@@ -290,6 +335,7 @@ inline void waitEvent(cuda_persistent_pol const&, typename cuda_persistent_pol::
 }
 
 
+// event destroy functions
 inline void destroyEvent(seq_pol const&, typename seq_pol::event_type)
 {
 }

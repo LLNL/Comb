@@ -61,16 +61,12 @@ void stop(::detail::MultiBuffer& mb, cudaStream_t stream)
 } // namespace detail
 
 // Start the current batch (launches kernel)
-void force_start(cudaStream_t stream)
+void force_launch(cudaStream_t stream)
 {
    // NVTX_RANGE_COLOR(NVTX_CYAN)
    if (!detail::getLaunched()) {
       detail::launch(detail::getMultiBuffer(), stream);
    }
-}
-
-void force_check(cudaStream_t stream)
-{
 }
 
 // Ensure current batch launched (does nothing)
