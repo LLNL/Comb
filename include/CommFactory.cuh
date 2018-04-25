@@ -361,37 +361,11 @@ struct CommFactory
           }
         }
       }
-
     }
+
+
   }
 
-  /*
-  void add(MeshData const& meshdata)
-  {
-    IdxT size = box.size();
-    LidxT* indices = (LidxT*)meshdata.aloc.allocate(size*sizeof(LidxT));
-    box.set_indices(policy_many{}, indices);
-
-    msg.add(meshdata.data(), indices, size);
-  }
-
-  void allocate()
-  {
-  }
-
-  void deallocate()
-  {
-  }
-
-  ~Message()
-  {
-    deallocate();
-    auto end = std::end(data);
-    for (auto i = std::begin(data); i != end; ++i) {
-      i->data.aloc.deallocate(i->indices);
-    }
-  }
-  */
   ~CommFactory()
   {
   }
