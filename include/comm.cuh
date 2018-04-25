@@ -373,6 +373,7 @@ struct Comm
   {
   }
 
+
   void postRecv()
   {
     //FPRINTF(stdout, "posting receives\n");
@@ -434,6 +435,8 @@ struct Comm
     }
   }
 
+
+
   void postSend()
   {
     //FPRINTF(stdout, "posting sends\n");
@@ -442,7 +445,6 @@ struct Comm
 
     switch (comminfo.post_send_method) {
       case CommInfo::method::waitany:
-      case CommInfo::method::testany:
       {
         IdxT num_sends = m_sends.size();
         for (IdxT i = 0; i < num_sends; ++i) {
@@ -463,8 +465,125 @@ struct Comm
           }
         }
       } break;
+      case CommInfo::method::testany:
+      {
+        IdxT num_sends = m_sends.size();
+        bool have_many = false;
+        bool have_few = false;
+
+        // allocate
+        for (IdxT i = 0; i < num_sends; ++i) {
+
+          m_sends[i].allocate();
+
+          if (m_sends[i].have_many) {
+            have_many = true;
+          } else {
+            have_few = true;
+          }
+        }
+
+        // pack and send
+        if (have_many && have_few) {
+          persistent_launch(policy_few{}, policy_many{});
+        } else if (have_many) {
+          persistent_launch(policy_many{});
+        } else if (have_few) {
+          persistent_launch(policy_few{});
+        }
+
+        bool post_pack_complete = false;
+        IdxT pack_send = 0;
+        IdxT post_many_send = 0;
+        IdxT post_few_send = 0;
+
+        while (post_many_send < num_sends || post_few_send < num_sends) {
+
+          // pack and record events
+          if (pack_send < num_sends) {
+            bool has_many = m_sends[pack_send].have_many;
+            m_sends[pack_send].pack();
+
+            if (has_many) {
+              recordEvent(policy_many{}, m_many_events[pack_send]);
+            } else {
+              recordEvent(policy_few{}, m_few_events[pack_send]);
+            }
+
+            ++pack_send;
+
+          } else if (!post_pack_complete) {
+
+            if (have_many && have_few) {
+              batch_launch(policy_few{}, policy_many{});
+            } else if (have_many) {
+              batch_launch(policy_many{});
+            } else if (have_few) {
+              batch_launch(policy_few{});
+            }
+
+            // stop persistent kernel
+            if (have_many && have_few) {
+              persistent_stop(policy_few{}, policy_many{});
+            } else if (have_many) {
+              persistent_stop(policy_many{});
+            } else if (have_few) {
+              persistent_stop(policy_few{});
+            }
+
+            post_pack_complete = true;
+          }
+
+          while (post_many_send < pack_send) {
+
+            if (m_sends[post_many_send].have_many) {
+
+              if (queryEvent(policy_many{}, m_many_events[post_many_send])) {
+
+                if (!comminfo.mock_communication) {
+                  detail::MPI::Isend( m_sends[post_many_send].buffer(), m_sends[post_many_send].nbytes(),
+                                      m_sends[post_many_send].dest_rank(), m_sends[post_many_send].tag(),
+                                      comminfo.cart.comm, &m_send_requests[post_many_send] );
+                }
+
+                ++post_many_send;
+
+              } else {
+                break;
+              }
+            } else {
+
+              ++post_many_send;
+            }
+          }
+
+          while (post_few_send < pack_send) {
+
+            if (!m_sends[post_few_send].have_many) {
+
+              if (queryEvent(policy_few{}, m_few_events[post_few_send])) {
+
+                if (!comminfo.mock_communication) {
+                  detail::MPI::Isend( m_sends[post_few_send].buffer(), m_sends[post_few_send].nbytes(),
+                                      m_sends[post_few_send].dest_rank(), m_sends[post_few_send].tag(),
+                                      comminfo.cart.comm, &m_send_requests[post_few_send] );
+                }
+
+                ++post_few_send;
+
+              } else {
+                break;
+              }
+
+            } else {
+
+              ++post_few_send;
+            }
+          }
+
+        }
+      } break;
       case CommInfo::method::waitsome:
-      case CommInfo::method::testsome:
       {
         IdxT num_sends = m_sends.size();
 
@@ -518,8 +637,207 @@ struct Comm
           }
         }
       } break;
+      case CommInfo::method::testsome:
+      {
+        IdxT num_sends = m_sends.size();
+
+        bool have_many = false;
+        bool have_few = false;
+
+        // allocate
+        for (IdxT i = 0; i < num_sends; ++i) {
+
+          m_sends[i].allocate();
+
+          if (m_sends[i].have_many) {
+            have_many = true;
+          } else {
+            have_few = true;
+          }
+        }
+
+        IdxT pack_many_send = 0;
+        IdxT pack_few_send = 0;
+        IdxT post_many_send = 0;
+        IdxT post_few_send = 0;
+
+        if (have_many) {
+
+          persistent_launch(policy_many{});
+
+          while (pack_many_send < num_sends) {
+
+            if (m_sends[pack_many_send].have_many) {
+
+              m_sends[pack_many_send].pack();
+
+              recordEvent(policy_many{}, m_many_events[pack_many_send]);
+
+            }
+
+            ++pack_many_send;
+
+            // post sends if possible
+            while (post_many_send < pack_many_send) {
+
+              if (m_sends[post_many_send].have_many) {
+
+                if (queryEvent(policy_many{}, m_many_events[post_many_send])) {
+
+                  if (!comminfo.mock_communication) {
+                    detail::MPI::Isend( m_sends[post_many_send].buffer(), m_sends[post_many_send].nbytes(),
+                                        m_sends[post_many_send].dest_rank(), m_sends[post_many_send].tag(),
+                                        comminfo.cart.comm, &m_send_requests[post_many_send] );
+                  }
+
+                  ++post_many_send;
+
+                } else {
+
+                  break;
+                }
+              } else {
+
+                ++post_many_send;
+              }
+            }
+          }
+
+          batch_launch(policy_many{});
+          persistent_stop(policy_many{});
+        } else {
+          pack_many_send = num_sends;
+          post_many_send = num_sends;
+        }
+
+        if (have_few) {
+
+          persistent_launch(policy_few{});
+
+          while (pack_few_send < num_sends) {
+
+            if (!m_sends[pack_few_send].have_many) {
+
+              m_sends[pack_few_send].pack();
+
+              recordEvent(policy_few{}, m_few_events[pack_few_send]);
+
+            }
+
+            ++pack_few_send;
+
+            // post more sends if possible
+            while (post_many_send < pack_many_send) {
+
+              if (m_sends[post_many_send].have_many) {
+
+                if (queryEvent(policy_many{}, m_many_events[post_many_send])) {
+
+                  if (!comminfo.mock_communication) {
+                    detail::MPI::Isend( m_sends[post_many_send].buffer(), m_sends[post_many_send].nbytes(),
+                                        m_sends[post_many_send].dest_rank(), m_sends[post_many_send].tag(),
+                                        comminfo.cart.comm, &m_send_requests[post_many_send] );
+                  }
+
+                  ++post_many_send;
+
+                } else {
+
+                  break;
+                }
+              } else {
+
+                ++post_many_send;
+              }
+            }
+
+            // post sends if possible
+            while (post_few_send < pack_few_send) {
+
+              if (!m_sends[post_few_send].have_many) {
+
+                if (queryEvent(policy_few{}, m_few_events[post_few_send])) {
+
+                  if (!comminfo.mock_communication) {
+                    detail::MPI::Isend( m_sends[post_few_send].buffer(), m_sends[post_few_send].nbytes(),
+                                        m_sends[post_few_send].dest_rank(), m_sends[post_few_send].tag(),
+                                        comminfo.cart.comm, &m_send_requests[post_few_send] );
+                  }
+
+                  ++post_few_send;
+
+                } else {
+
+                  break;
+                }
+              } else {
+
+                ++post_few_send;
+              }
+            }
+          }
+
+          batch_launch(policy_few{});
+          persistent_stop(policy_few{});
+        } else {
+          pack_few_send = num_sends;
+          post_few_send = num_sends;
+        }
+
+        // finish posting sends
+        while (post_many_send < num_sends || post_few_send < num_sends) {
+
+          while (post_many_send < pack_many_send) {
+
+            if (m_sends[post_many_send].have_many) {
+
+              if (queryEvent(policy_many{}, m_many_events[post_many_send])) {
+
+                if (!comminfo.mock_communication) {
+                  detail::MPI::Isend( m_sends[post_many_send].buffer(), m_sends[post_many_send].nbytes(),
+                                      m_sends[post_many_send].dest_rank(), m_sends[post_many_send].tag(),
+                                      comminfo.cart.comm, &m_send_requests[post_many_send] );
+                }
+
+                ++post_many_send;
+
+              } else {
+
+                break;
+              }
+            } else {
+
+              ++post_many_send;
+            }
+          }
+
+          while (post_few_send < pack_few_send) {
+
+            if (!m_sends[post_few_send].have_many) {
+
+              if (queryEvent(policy_few{}, m_few_events[post_few_send])) {
+
+                if (!comminfo.mock_communication) {
+                  detail::MPI::Isend( m_sends[post_few_send].buffer(), m_sends[post_few_send].nbytes(),
+                                      m_sends[post_few_send].dest_rank(), m_sends[post_few_send].tag(),
+                                      comminfo.cart.comm, &m_send_requests[post_few_send] );
+                }
+
+                ++post_few_send;
+
+              } else {
+
+                break;
+              }
+            } else {
+
+              ++post_few_send;
+            }
+          }
+
+        }
+      } break;
       case CommInfo::method::waitall:
-      case CommInfo::method::testall:
       {
         IdxT num_sends = m_sends.size();
         bool have_many = false;
@@ -554,12 +872,129 @@ struct Comm
           }
         }
       } break;
+      case CommInfo::method::testall:
+      {
+        IdxT num_sends = m_sends.size();
+        bool have_many = false;
+        bool have_few = false;
+
+        // allocate
+        for (IdxT i = 0; i < num_sends; ++i) {
+
+          m_sends[i].allocate();
+
+          if (m_sends[i].have_many) {
+            have_many = true;
+          } else {
+            have_few = true;
+          }
+        }
+
+        // pack and send
+        if (have_many && have_few) {
+          persistent_launch(policy_few{}, policy_many{});
+        } else if (have_many) {
+          persistent_launch(policy_many{});
+        } else if (have_few) {
+          persistent_launch(policy_few{});
+        }
+
+        IdxT pack_send = 0;
+        IdxT post_many_send = 0;
+        IdxT post_few_send = 0;
+
+        while (pack_send < num_sends) {
+
+          // pack and record events
+          bool has_many = m_sends[pack_send].have_many;
+          m_sends[pack_send].pack();
+
+          if (has_many) {
+            recordEvent(policy_many{}, m_many_events[pack_send]);
+          } else {
+            recordEvent(policy_few{}, m_few_events[pack_send]);
+          }
+
+          ++pack_send;
+        }
+
+        if (have_many && have_few) {
+          batch_launch(policy_few{}, policy_many{});
+        } else if (have_many) {
+          batch_launch(policy_many{});
+        } else if (have_few) {
+          batch_launch(policy_few{});
+        }
+
+        // stop persistent kernel
+        if (have_many && have_few) {
+          persistent_stop(policy_few{}, policy_many{});
+        } else if (have_many) {
+          persistent_stop(policy_many{});
+        } else if (have_few) {
+          persistent_stop(policy_few{});
+        }
+
+        // post all sends
+        while (post_many_send < num_sends || post_few_send < num_sends) {
+
+          while (post_many_send < num_sends) {
+
+            if (m_sends[post_many_send].have_many) {
+
+              if (queryEvent(policy_many{}, m_many_events[post_many_send])) {
+
+                if (!comminfo.mock_communication) {
+                  detail::MPI::Isend( m_sends[post_many_send].buffer(), m_sends[post_many_send].nbytes(),
+                                      m_sends[post_many_send].dest_rank(), m_sends[post_many_send].tag(),
+                                      comminfo.cart.comm, &m_send_requests[post_many_send] );
+                }
+
+                ++post_many_send;
+
+              } else {
+                break;
+              }
+            } else {
+
+              ++post_many_send;
+            }
+          }
+
+          while (post_few_send < num_sends) {
+
+            if (!m_sends[post_few_send].have_many) {
+
+              if (queryEvent(policy_few{}, m_few_events[post_few_send])) {
+
+                if (!comminfo.mock_communication) {
+                  detail::MPI::Isend( m_sends[post_few_send].buffer(), m_sends[post_few_send].nbytes(),
+                                      m_sends[post_few_send].dest_rank(), m_sends[post_few_send].tag(),
+                                      comminfo.cart.comm, &m_send_requests[post_few_send] );
+                }
+
+                ++post_few_send;
+
+              } else {
+                break;
+              }
+
+            } else {
+
+              ++post_few_send;
+            }
+          }
+
+        }
+      } break;
       default:
       {
        assert(0);
       } break;
     }
   }
+
+
 
   void waitRecv()
   {
@@ -573,10 +1008,26 @@ struct Comm
       case CommInfo::method::testany:
       {
         IdxT num_recvs = m_recvs.size();
-        IdxT num_done = 0;
+
+        for (IdxT i = 0; i < num_recvs; ++i) {
+          if (m_recvs[i].have_many) {
+            have_many = true;
+          } else {
+            have_few = true;
+          }
+        }
+
+        if (have_many && have_few) {
+          persistent_launch(policy_few{}, policy_many{});
+        } else if (have_many) {
+          persistent_launch(policy_many{});
+        } else if (have_few) {
+          persistent_launch(policy_few{});
+        }
 
         MPI_Status status;
 
+        IdxT num_done = 0;
         while (num_done < num_recvs) {
 
           IdxT idx = num_done;
@@ -595,24 +1046,56 @@ struct Comm
           m_recvs[idx].deallocate();
 
           if (m_recvs[idx].have_many) {
-            have_many = true;
+            batch_launch(policy_many{});
           } else {
-            have_few = true;
+            batch_launch(policy_few{});
           }
 
           num_done += 1;
 
+        }
+
+        // if (have_many && have_few) {
+        //   batch_launch(policy_few{}, policy_many{});
+        // } else if (have_many) {
+        //   batch_launch(policy_many{});
+        // } else if (have_few) {
+        //   batch_launch(policy_few{});
+        // }
+
+        if (have_many && have_few) {
+          persistent_stop(policy_few{}, policy_many{});
+        } else if (have_many) {
+          persistent_stop(policy_many{});
+        } else if (have_few) {
+          persistent_stop(policy_few{});
         }
       } break;
       case CommInfo::method::waitsome:
       case CommInfo::method::testsome:
       {
         IdxT num_recvs = m_recvs.size();
-        IdxT num_done = 0;
+
+        for (IdxT i = 0; i < num_recvs; ++i) {
+          if (m_recvs[i].have_many) {
+            have_many = true;
+          } else {
+            have_few = true;
+          }
+        }
+
+        if (have_many && have_few) {
+          persistent_launch(policy_few{}, policy_many{});
+        } else if (have_many) {
+          persistent_launch(policy_many{});
+        } else if (have_few) {
+          persistent_launch(policy_few{});
+        }
 
         std::vector<MPI_Status> recv_statuses(m_recv_requests.size());
         std::vector<int> indices(m_recv_requests.size(), -1);
 
+        IdxT num_done = 0;
         while (num_done < num_recvs) {
 
           IdxT num = num_recvs;
@@ -620,7 +1103,7 @@ struct Comm
             if (comminfo.wait_recv_method == CommInfo::method::waitsome) {
               num = detail::MPI::Waitsome( num_recvs, &m_recv_requests[0], &indices[0], &recv_statuses[0]);
             } else {
-              num = detail::MPI::Testsome( num_recvs, &m_recv_requests[0], &indices[0], &recv_statuses[0]);
+              while( 0 == (num = detail::MPI::Testsome( num_recvs, &m_recv_requests[0], &indices[0], &recv_statuses[0])) );
             }
           } else {
             for (IdxT i = 0; i < num; ++i) {
@@ -628,27 +1111,61 @@ struct Comm
             }
           }
 
+          bool inner_have_many = false;
+          bool inner_have_few = false;
+
           for (IdxT i = 0; i < num; ++i) {
 
             m_recvs[indices[i]].unpack();
             m_recvs[indices[i]].deallocate();
 
             if (m_recvs[indices[i]].have_many) {
-              have_many = true;
+              inner_have_many = true;
             } else {
-              have_few = true;
+              inner_have_few = true;
             }
 
             num_done += 1;
 
           }
+
+          if (inner_have_many && inner_have_few) {
+            batch_launch(policy_few{}, policy_many{});
+          } else if (inner_have_many) {
+            batch_launch(policy_many{});
+          } else if (inner_have_few) {
+            batch_launch(policy_few{});
+          }
+        }
+
+        if (have_many && have_few) {
+          persistent_stop(policy_few{}, policy_many{});
+        } else if (have_many) {
+          persistent_stop(policy_many{});
+        } else if (have_few) {
+          persistent_stop(policy_few{});
         }
       } break;
       case CommInfo::method::waitall:
       case CommInfo::method::testall:
       {
         IdxT num_recvs = m_recvs.size();
-        IdxT num_done = 0;
+
+        for (IdxT i = 0; i < num_recvs; ++i) {
+          if (m_recvs[i].have_many) {
+            have_many = true;
+          } else {
+            have_few = true;
+          }
+        }
+
+        if (have_many && have_few) {
+          persistent_launch(policy_few{}, policy_many{});
+        } else if (have_many) {
+          persistent_launch(policy_many{});
+        } else if (have_few) {
+          persistent_launch(policy_few{});
+        }
 
         std::vector<MPI_Status> recv_statuses(m_recv_requests.size());
 
@@ -660,6 +1177,7 @@ struct Comm
           }
         }
 
+        IdxT num_done = 0;
         while (num_done < num_recvs) {
 
           m_recvs[num_done].unpack();
@@ -672,6 +1190,22 @@ struct Comm
           }
 
           num_done += 1;
+        }
+
+        if (have_many && have_few) {
+          batch_launch(policy_few{}, policy_many{});
+        } else if (have_many) {
+          batch_launch(policy_many{});
+        } else if (have_few) {
+          batch_launch(policy_few{});
+        }
+
+        if (have_many && have_few) {
+          persistent_stop(policy_few{}, policy_many{});
+        } else if (have_many) {
+          persistent_stop(policy_many{});
+        } else if (have_few) {
+          persistent_stop(policy_few{});
         }
       } break;
       default:
@@ -690,6 +1224,8 @@ struct Comm
       synchronize(policy_few{});
     }
   }
+
+
 
   void waitSend()
   {
@@ -791,6 +1327,14 @@ struct Comm
 
   ~Comm()
   {
+    size_t num_events = m_many_events.size();
+    for(size_t i = 0; i != num_events; ++i) {
+      destroyEvent(policy_many{}, m_many_events[i]);
+    }
+    num_events = m_few_events.size();
+    for(size_t i = 0; i != num_events; ++i) {
+      destroyEvent(policy_few{}, m_few_events[i]);
+    }
     for(message_type& msg : m_sends) {
       msg.destroy();
     }

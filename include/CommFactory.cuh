@@ -363,6 +363,11 @@ struct CommFactory
       }
     }
 
+    size_t num_events = std::max(comm.m_recvs.size(), comm.m_sends.size());
+    for(size_t i = 0; i != num_events; ++i) {
+      comm.m_many_events.push_back( createEvent(typename comm_type::policy_many{}) );
+      comm.m_few_events.push_back( createEvent(typename comm_type::policy_few{}) );
+    }
 
   }
 
