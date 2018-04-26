@@ -248,6 +248,7 @@ struct Box3d
     //  FPRINTF(stdout, "indices[%i] = %i\n", idx, index_list[idx]);
     //  assert(0 <= index_list[idx] && index_list[idx] < (imax-imin)*(jmax-jmin)*(kmax-kmin));
     //}
+    synchronize(pol);
   }
 };
 
