@@ -672,6 +672,7 @@ int main(int argc, char** argv)
 
   // print info about problem setup
   comminfo.print_any("Do %s communication\n", comminfo.mock_communication ? "mock" : "real");
+  comminfo.print_any("Cart coords %8i %8i %8i\n", comminfo.cart.coords[0], comminfo.cart.coords[1], comminfo.cart.coords[2]);
   comminfo.print_any("Message policy cutoff %i\n", comminfo.cutoff);
   comminfo.print_any("Post Recv using %s method\n", CommInfo::method_str(comminfo.post_recv_method));
   comminfo.print_any("Post Send using %s method\n", CommInfo::method_str(comminfo.post_send_method));
