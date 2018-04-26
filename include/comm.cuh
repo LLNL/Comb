@@ -1116,24 +1116,35 @@ struct Comm
 
           for (IdxT i = 0; i < num; ++i) {
 
-            m_recvs[indices[i]].unpack();
-            m_recvs[indices[i]].deallocate();
-
             if (m_recvs[indices[i]].have_many) {
+
+              m_recvs[indices[i]].unpack();
+              m_recvs[indices[i]].deallocate();
+
               inner_have_many = true;
-            } else {
-              inner_have_few = true;
+
+              num_done += 1;
             }
-
-            num_done += 1;
-
           }
 
-          if (inner_have_many && inner_have_few) {
-            batch_launch(policy_few{}, policy_many{});
-          } else if (inner_have_many) {
+          if (inner_have_many) {
             batch_launch(policy_many{});
-          } else if (inner_have_few) {
+          }
+
+          for (IdxT i = 0; i < num; ++i) {
+
+            if (!m_recvs[indices[i]].have_many) {
+
+              m_recvs[indices[i]].unpack();
+              m_recvs[indices[i]].deallocate();
+
+              inner_have_few = true;
+
+              num_done += 1;
+            }
+          }
+
+          if (inner_have_few) {
             batch_launch(policy_few{});
           }
         }
