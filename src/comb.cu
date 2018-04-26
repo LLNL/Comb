@@ -54,18 +54,19 @@ namespace detail {
      HOST DEVICE
      void operator()(IdxT k, IdxT j, IdxT i, IdxT idx) const {
        IdxT zone = i + j * ilen + k * ijlen;
-       DataT expected, found, next;
-       if (k >= kmin && k < kmax &&
-           j >= jmin && j < jmax &&
-           i >= imin && i < imax) {
-         expected = 1.0; found = data[zone]; next = 1.0;
-       } else {
-         expected = 0.0; found = data[zone]; next = -1.0;
-       }
+       // DataT expected, found, next;
+       // if (k >= kmin && k < kmax &&
+       //     j >= jmin && j < jmax &&
+       //     i >= imin && i < imax) {
+       //   expected = 1.0; found = data[zone]; next = 1.0;
+       // } else {
+       //   expected = 0.0; found = data[zone]; next = -1.0;
+       // }
        // if (found != expected) {
        //   FPRINTF(stdout, "zone %i(%i %i %i) = %f expected %f\n", zone, i, j, k, found, expected);
        // }
        //FPRINTF(stdout, "%p[%i] = %f\n", data, zone, 1.0);
+       DataT next = 1.0;
        data[zone] = next;
      }
   };
