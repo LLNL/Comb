@@ -8,9 +8,9 @@ SRC_DIR=src
 
 # CXX=nvcc -ccbin mpixlC -Xcompiler '-qmaxmem=-1'
 CXX=nvcc -ccbin mpiclang++
-#CXX=nvcc -ccbin mpig++
+# CXX=nvcc -ccbin mpig++
 CXX_FLAGS=-std=c++11 -I./$(INC_DIR) -lnvToolsExt -rdc=true -arch=sm_60 --expt-extended-lambda -m64
-CXX_OPT_FLAGS=$(CXX_FLAGS) -O2 -g -lineinfo  -Xcompiler '-O2 -g'
+CXX_OPT_FLAGS=$(CXX_FLAGS) -O3 -g -lineinfo  -Xcompiler '-O3 -g'
 CXX_DEB_FLAGS=$(CXX_FLAGS) -O0 -G -g -Xcompiler '-O0 -g'
 
 _DEPS=basic_mempool.hpp align.hpp mutex.hpp memory.cuh for_all.cuh profiling.cuh MeshData.cuh MeshInfo.cuh Box3d.cuh comm.cuh utils.cuh cuda_utils.cuh batch_launch.cuh persistent_launch.cuh MultiBuffer.cuh batch_utils.cuh CommFactory.cuh
