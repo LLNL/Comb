@@ -14,6 +14,8 @@
 #include "MeshData.cuh"
 #include "comm.cuh"
 #include "CommFactory.cuh"
+#include "batch_utils.cuh"
+#include "SetReset.cuh"
 
 namespace detail {
 
@@ -80,8 +82,8 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles,
     tm_total.clear();
     tm.clear();
 
-    char rname[1024] = ""; snprintf(rname, 1024, "Buffers %s %s %s %s", pol_many::name, aloc_many.name(), pol_few::name, aloc_few.name());
-    char test_name[1024] = ""; snprintf(test_name, 1024, "Mesh %s %s %s", pol_loop::name, aloc_mesh.name(), rname);
+    char rname[1024] = ""; snprintf(rname, 1024, "Buffers %s %s %s %s", pol_many::get_name(), aloc_many.name(), pol_few::get_name(), aloc_few.name());
+    char test_name[1024] = ""; snprintf(test_name, 1024, "Mesh %s %s %s", pol_loop::get_name(), aloc_mesh.name(), rname);
     FPRINTF(stdout, "Starting test %s\n", test_name);
 
     Range r0(test_name, Range::orange);
@@ -491,6 +493,8 @@ void prime_allocator(pol_type const& pol, Allocator& aloc, Timer& tm, IdxT num_v
     });
   }
 
+  synchronize(pol);
+
   for (IdxT i = 0; i < num_vars; ++i) {
     aloc.deallocate(vars[i]);
   }
@@ -514,14 +518,6 @@ int main(int argc, char** argv)
   comminfo.print_any("Started rank %i of %i\n", comminfo.rank, comminfo.size);
 
   int omp_threads = 1;
-
-#pragma omp parallel shared(omp_threads)
-  {
-#pragma omp master
-    omp_threads = omp_get_num_threads();
-  }
-
-  comminfo.print_any("OMP num threads %i\n", omp_threads);
 
   cudaCheck(cudaDeviceSynchronize());
 
@@ -636,6 +632,12 @@ int main(int argc, char** argv)
         } else {
           comminfo.warn_master("No argument to option, ignoring %s.\n", argv[i]);
         }
+      } else if (strcmp(&argv[i][1], "omp_threads") == 0) {
+        if (i+1 < argc && argv[i+1][0] != '-') {
+          omp_threads = static_cast<int>(atoll(argv[++i]));
+        } else {
+          comminfo.warn_master("No argument to option, ignoring %s.\n", argv[i]);
+        }
       } else {
         comminfo.warn_master("Unknown option, ignoring %s.\n", argv[i]);
       }
@@ -674,6 +676,19 @@ int main(int argc, char** argv)
            && comminfo.size != divisions[0] * divisions[1] * divisions[2]) {
     comminfo.abort_master("Invalid mesh divisions\n");
   }
+
+  omp_set_num_threads(omp_threads);
+
+  // OMP setup
+#pragma omp parallel shared(omp_threads)
+  {
+#pragma omp master
+    omp_threads = omp_get_num_threads();
+  }
+
+  comminfo.print_any("OMP num threads %i\n", omp_threads);
+
+
 
   GlobalMeshInfo global_info(sizes, comminfo.size, divisions, periodic, ghost_width);
 
@@ -740,13 +755,17 @@ int main(int argc, char** argv)
 
     prime_allocator(cuda_batch_pol{}, managed_alloc,                                tm, num_vars+1, info.totallen);
 
-    prime_allocator(seq_pol{},        managed_host_preferred_alloc,                 tm, num_vars+1, info.totallen);
+    prime_allocator(cuda_persistent_pol{}, managed_host_preferred_alloc,            tm, num_vars+1, info.totallen);
 
-    prime_allocator(omp_pol{},        managed_host_preferred_device_accessed_alloc, tm, num_vars+1, info.totallen);
+    prime_allocator(seq_pol{},        managed_host_preferred_device_accessed_alloc, tm, num_vars+1, info.totallen);
 
-    prime_allocator(cuda_pol{},       managed_device_preferred_alloc,               tm, num_vars+1, info.totallen);
+    {
+      SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
-    prime_allocator(cuda_batch_pol{}, managed_device_preferred_host_accessed_alloc, tm, num_vars+1, info.totallen);
+      prime_allocator(cuda_batch_pol{}, managed_device_preferred_alloc,             tm, num_vars+1, info.totallen);
+
+      prime_allocator(cuda_persistent_pol{}, managed_device_preferred_host_accessed_alloc, tm, num_vars+1, info.totallen);
+    }
 
     tm.print();
     tm.clear();
@@ -785,6 +804,18 @@ int main(int argc, char** argv)
     // do_cycles<cuda_pol, cuda_persistent_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
 
     // do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+
+    {
+      SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
+
+      // do_cycles<cuda_pol, cuda_batch_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+
+      // do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+
+      // do_cycles<cuda_pol, cuda_persistent_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+
+      // do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+    }
   }
 
   // host pinned allocated
@@ -819,6 +850,18 @@ int main(int argc, char** argv)
     do_cycles<cuda_pol, cuda_persistent_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
 
     do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
+
+    {
+      SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
+
+      do_cycles<cuda_pol, cuda_batch_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
+
+      do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
+
+      do_cycles<cuda_pol, cuda_persistent_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
+
+      do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
+    }
   }
 
   // device allocated
@@ -853,6 +896,18 @@ int main(int argc, char** argv)
     // do_cycles<cuda_pol, cuda_persistent_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
 
     do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
+
+    {
+      SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
+
+      do_cycles<cuda_pol, cuda_batch_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
+
+      do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
+
+      do_cycles<cuda_pol, cuda_persistent_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
+
+      do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
+    }
 
     // if (comminfo.mock_communication) {
     //   do_cycles<cuda_pol, cuda_pol, cuda_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, device_alloc, device_alloc, tm, tm_total);
@@ -895,6 +950,18 @@ int main(int argc, char** argv)
     do_cycles<cuda_pol, cuda_persistent_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
 
     do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
+
+    {
+      SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
+
+      do_cycles<cuda_pol, cuda_batch_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
+
+      do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
+
+      do_cycles<cuda_pol, cuda_persistent_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
+
+      do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
+    }
   }
 
   // managed host preferred allocated
@@ -929,6 +996,18 @@ int main(int argc, char** argv)
     do_cycles<cuda_pol, cuda_persistent_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
 
     do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
+
+    {
+      SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
+
+      do_cycles<cuda_pol, cuda_batch_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
+
+      do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
+
+      do_cycles<cuda_pol, cuda_persistent_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
+
+      do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
+    }
   }
 
   // managed host preferred device accessed allocated
@@ -963,6 +1042,18 @@ int main(int argc, char** argv)
     do_cycles<cuda_pol, cuda_persistent_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
 
     do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
+
+    {
+      SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
+
+      do_cycles<cuda_pol, cuda_batch_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
+
+      do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
+
+      do_cycles<cuda_pol, cuda_persistent_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
+
+      do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
+    }
   }
 
   // managed device preferred allocated
@@ -997,6 +1088,18 @@ int main(int argc, char** argv)
     do_cycles<cuda_pol, cuda_persistent_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
 
     do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
+
+    {
+      SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
+
+      do_cycles<cuda_pol, cuda_batch_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
+
+      do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
+
+      do_cycles<cuda_pol, cuda_persistent_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
+
+      do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
+    }
   }
 
   // managed device preferred host accessed allocated
@@ -1031,6 +1134,18 @@ int main(int argc, char** argv)
     do_cycles<cuda_pol, cuda_persistent_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
 
     do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
+
+    {
+      SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
+
+      do_cycles<cuda_pol, cuda_batch_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
+
+      do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
+
+      do_cycles<cuda_pol, cuda_persistent_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
+
+      do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
+    }
   }
 
   comminfo.cart.disconnect();

@@ -20,27 +20,27 @@
 
 struct seq_pol {
   static const bool async = false;
-  static constexpr const char* name = "seq";
+  static const char* get_name() { return "seq"; }
   using event_type = int;
 };
 struct omp_pol {
   static const bool async = false;
-  static constexpr const char* name = "omp";
+  static const char* get_name() { return "omp"; }
   using event_type = int;
 };
 struct cuda_pol {
   static const bool async = true;
-  static constexpr const char* name = "cuda";
+  static const char* get_name() { return "cuda"; }
   using event_type = cudaEvent_t;
 };
 struct cuda_batch_pol {
   static const bool async = true;
-  static constexpr const char* name = "cudaBatch";
+  static const char* get_name() { return ( get_batch_always_grid_sync() ? "cudaBatch"      : "cudaBatch_fewgs"      ); }
   using event_type = detail::batch_event_type_ptr;
 };
 struct cuda_persistent_pol {
   static const bool async = true;
-  static constexpr const char* name = "cudaPersistent";
+  static const char* get_name() { return ( get_batch_always_grid_sync() ? "cudaPersistent" : "cudaPersistent_fewgs" ); }
   using event_type = detail::batch_event_type_ptr;
 };
 

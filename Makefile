@@ -13,7 +13,7 @@ CXX_FLAGS=-std=c++11 -I./$(INC_DIR) -lnvToolsExt -rdc=true -arch=sm_60 --expt-ex
 CXX_OPT_FLAGS=$(CXX_FLAGS) -O3 -g -lineinfo  -Xcompiler '-O3 -g'
 CXX_DEB_FLAGS=$(CXX_FLAGS) -O0 -G -g -Xcompiler '-O0 -g'
 
-_DEPS=basic_mempool.hpp align.hpp mutex.hpp memory.cuh for_all.cuh profiling.cuh MeshData.cuh MeshInfo.cuh Box3d.cuh comm.cuh utils.cuh cuda_utils.cuh batch_launch.cuh persistent_launch.cuh MultiBuffer.cuh batch_utils.cuh CommFactory.cuh
+_DEPS=basic_mempool.hpp align.hpp mutex.hpp memory.cuh for_all.cuh profiling.cuh MeshData.cuh MeshInfo.cuh Box3d.cuh comm.cuh utils.cuh cuda_utils.cuh batch_launch.cuh persistent_launch.cuh MultiBuffer.cuh batch_utils.cuh CommFactory.cuh SetReset.cuh
 DEPS=$(patsubst %,$(INC_DIR)/%,$(_DEPS))
 
 _OBJ_OPT=comb_o.o batch_launch_o.o persistent_launch_o.o MultiBuffer_o.o
