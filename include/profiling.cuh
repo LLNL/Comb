@@ -9,6 +9,7 @@
 #include <vector>
 #include <string>
 #include <utility>
+#include <atomic>
 
 #include <cuda.h>
 #include <nvToolsExt.h>
@@ -126,7 +127,13 @@ struct Timer {
   ~Timer() { clean(); }
 private:
   void record_time() {
-      new(&times[idx]) TimePoint{std::chrono::high_resolution_clock::now()};
+
+    std::atomic_thread_fence(std::memory_order_release);
+
+    new(&times[idx]) TimePoint{std::chrono::high_resolution_clock::now()};
+
+    std::atomic_thread_fence(std::memory_order_acquire);
+
   }
 };
 
