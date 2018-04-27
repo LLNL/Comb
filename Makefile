@@ -6,9 +6,9 @@ OBJ_DIR=obj
 LIB_DIR=lib
 SRC_DIR=src
 
-# CXX=nvcc -ccbin mpixlC -Xcompiler '-qmaxmem=-1'
-CXX=nvcc -ccbin mpiclang++
-# CXX=nvcc -ccbin mpig++
+# CXX=nvcc -ccbin mpixlC -Xcompiler '-qmaxmem=-1 -qsmp=omp'
+CXX=nvcc -ccbin mpiclang++ -Xcompiler '-fopenmp=libomp'
+# CXX=nvcc -ccbin mpig++ -Xcompiler '-fopenmp'
 CXX_FLAGS=-std=c++11 -I./$(INC_DIR) -lnvToolsExt -rdc=true -arch=sm_60 --expt-extended-lambda -m64
 CXX_OPT_FLAGS=$(CXX_FLAGS) -O3 -g -lineinfo  -Xcompiler '-O3 -g'
 CXX_DEB_FLAGS=$(CXX_FLAGS) -O0 -G -g -Xcompiler '-O0 -g'
