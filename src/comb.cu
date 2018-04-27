@@ -5,6 +5,7 @@
 #include <cctype>
 
 #include <mpi.h>
+#include <omp.h>
 
 #include "memory.cuh"
 #include "for_all.cuh"
@@ -512,6 +513,16 @@ int main(int argc, char** argv)
 
   comminfo.print_any("Started rank %i of %i\n", comminfo.rank, comminfo.size);
 
+  int omp_threads = 1;
+
+#pragma omp parallel shared(omp_threads)
+  {
+#pragma omp master
+    omp_threads = omp_get_num_threads();
+  }
+
+  comminfo.print_any("OMP num threads %i\n", omp_threads);
+
   cudaCheck(cudaDeviceSynchronize());
 
   IdxT sizes[3] = {0, 0, 0};
@@ -673,7 +684,7 @@ int main(int argc, char** argv)
 
   // print info about problem setup
   comminfo.print_any("Do %s communication\n", comminfo.mock_communication ? "mock" : "real");
-  comminfo.print_any("Cart coords %8i %8i %8i\n", comminfo.cart.coords[0], comminfo.cart.coords[1], comminfo.cart.coords[2]);
+  comminfo.print_any("Cart coords %4i %4i %4i\n", comminfo.cart.coords[0], comminfo.cart.coords[1], comminfo.cart.coords[2]);
   comminfo.print_any("Message policy cutoff %i\n", comminfo.cutoff);
   comminfo.print_any("Post Recv using %s method\n", CommInfo::method_str(comminfo.post_recv_method));
   comminfo.print_any("Post Send using %s method\n", CommInfo::method_str(comminfo.post_send_method));
@@ -751,11 +762,27 @@ int main(int argc, char** argv)
 
     do_cycles<seq_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
 
+    do_cycles<omp_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+
+    do_cycles<omp_pol, omp_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+
+    do_cycles<omp_pol, omp_pol, omp_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+
     // do_cycles<cuda_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+
+    // do_cycles<cuda_pol, omp_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+
+    // do_cycles<cuda_pol, omp_pol, omp_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+
+    // do_cycles<cuda_pol, cuda_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
 
     // do_cycles<cuda_pol, cuda_pol, cuda_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
 
+    // do_cycles<cuda_pol, cuda_batch_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+
     // do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+
+    // do_cycles<cuda_pol, cuda_persistent_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
 
     // do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
   }
@@ -769,13 +796,27 @@ int main(int argc, char** argv)
 
     do_cycles<seq_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
 
+    do_cycles<omp_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+
+    do_cycles<omp_pol, omp_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+
+    do_cycles<omp_pol, omp_pol, omp_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+
     do_cycles<cuda_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
 
-    // do_cycles<cuda_pol, cuda_pol, cuda_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+    do_cycles<cuda_pol, omp_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+
+    do_cycles<cuda_pol, omp_pol, omp_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+
+    do_cycles<cuda_pol, cuda_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
 
     do_cycles<cuda_pol, cuda_pol, cuda_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
 
+    do_cycles<cuda_pol, cuda_batch_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
+
     do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
+
+    do_cycles<cuda_pol, cuda_persistent_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
 
     do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
   }
@@ -789,11 +830,27 @@ int main(int argc, char** argv)
 
     // do_cycles<seq_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
 
+    // do_cycles<omp_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+
+    // do_cycles<omp_pol, omp_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+
+    // do_cycles<omp_pol, omp_pol, omp_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+
     // do_cycles<cuda_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+
+    // do_cycles<cuda_pol, omp_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+
+    // do_cycles<cuda_pol, omp_pol, omp_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+
+    // do_cycles<cuda_pol, cuda_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
 
     do_cycles<cuda_pol, cuda_pol, cuda_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
 
+    // do_cycles<cuda_pol, cuda_batch_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
+
     do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
+
+    // do_cycles<cuda_pol, cuda_persistent_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
 
     do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
 
@@ -815,7 +872,17 @@ int main(int argc, char** argv)
 
     do_cycles<seq_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
 
+    do_cycles<omp_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+
+    do_cycles<omp_pol, omp_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+
+    do_cycles<omp_pol, omp_pol, omp_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+
     do_cycles<cuda_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+
+    do_cycles<cuda_pol, omp_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+
+    do_cycles<cuda_pol, omp_pol, omp_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
 
     do_cycles<cuda_pol, cuda_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
 
@@ -839,7 +906,17 @@ int main(int argc, char** argv)
 
     do_cycles<seq_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
 
+    do_cycles<omp_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+
+    do_cycles<omp_pol, omp_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+
+    do_cycles<omp_pol, omp_pol, omp_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+
     do_cycles<cuda_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+
+    do_cycles<cuda_pol, omp_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+
+    do_cycles<cuda_pol, omp_pol, omp_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
 
     do_cycles<cuda_pol, cuda_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
 
@@ -863,7 +940,17 @@ int main(int argc, char** argv)
 
     do_cycles<seq_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
 
+    do_cycles<omp_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+
+    do_cycles<omp_pol, omp_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+
+    do_cycles<omp_pol, omp_pol, omp_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+
     do_cycles<cuda_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+
+    do_cycles<cuda_pol, omp_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+
+    do_cycles<cuda_pol, omp_pol, omp_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
 
     do_cycles<cuda_pol, cuda_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
 
@@ -887,7 +974,17 @@ int main(int argc, char** argv)
 
     do_cycles<seq_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
 
+    do_cycles<omp_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+
+    do_cycles<omp_pol, omp_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+
+    do_cycles<omp_pol, omp_pol, omp_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+
     do_cycles<cuda_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+
+    do_cycles<cuda_pol, omp_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+
+    do_cycles<cuda_pol, omp_pol, omp_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
 
     do_cycles<cuda_pol, cuda_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
 
@@ -911,7 +1008,17 @@ int main(int argc, char** argv)
 
     do_cycles<seq_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
 
+    do_cycles<omp_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+
+    do_cycles<omp_pol, omp_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+
+    do_cycles<omp_pol, omp_pol, omp_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+
     do_cycles<cuda_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+
+    do_cycles<cuda_pol, omp_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+
+    do_cycles<cuda_pol, omp_pol, omp_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
 
     do_cycles<cuda_pol, cuda_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
 
