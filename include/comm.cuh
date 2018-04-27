@@ -371,6 +371,10 @@ struct Comm
     , few_aloc(few_aloc_)
     , comminfo(comminfo_)
   {
+    // if policies are the same set cutoff to 0 (always use policy_many) to simplify algorithms
+    if (std::is_same<policy_many, policy_few>::value) {
+      comminfo.cutoff = 0;
+    }
   }
 
 
