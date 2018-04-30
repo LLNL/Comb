@@ -506,7 +506,7 @@ void prime_allocator(pol_type const& pol, Allocator& aloc, Timer& tm, IdxT num_v
 
 int main(int argc, char** argv)
 {
-  int required = MPI_THREAD_SINGLE;
+  int required = MPI_THREAD_FUNNELED; // MPI_THREAD_SINGLE, MPI_THREAD_FUNNELED, MPI_THREAD_SERIALIZED, MPI_THREAD_MULTIPLE
   int provided = detail::MPI::Init_thread(&argc, &argv, required);
 
   CommInfo comminfo;
