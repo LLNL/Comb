@@ -17,6 +17,12 @@
 #include "batch_utils.cuh"
 #include "SetReset.cuh"
 
+#define PRINT_THREAD_MAP
+
+#ifdef PRINT_THREAD_MAP
+#include <linux/sched.h>
+#endif
+
 namespace detail {
 
   struct set_n1 {
@@ -517,7 +523,7 @@ int main(int argc, char** argv)
 
   comminfo.print_any("Started rank %i of %i\n", comminfo.rank, comminfo.size);
 
-  int omp_threads = 1;
+  int omp_threads = -1;
 
   cudaCheck(cudaDeviceSynchronize());
 
@@ -677,16 +683,57 @@ int main(int argc, char** argv)
     comminfo.abort_master("Invalid mesh divisions\n");
   }
 
-  omp_set_num_threads(omp_threads);
+  comminfo.print_any("Compiler %s\n", COMB_SERIALIZE(COMB_COMPILER));
+  comminfo.print_any("Cuda compiler %s\n", COMB_SERIALIZE(COMB_CUDA_COMPILER));
 
-  // OMP setup
+  if (omp_threads > 0) {
+
+    omp_set_num_threads(omp_threads);
+
+    // OMP setup
 #pragma omp parallel shared(omp_threads)
-  {
+    {
 #pragma omp master
-    omp_threads = omp_get_num_threads();
+      omp_threads = omp_get_num_threads();
+    }
+
+  } else {
+
+    // OMP setup
+#pragma omp parallel shared(omp_threads)
+    {
+#pragma omp master
+      omp_threads = omp_get_num_threads();
+    }
+
   }
 
   comminfo.print_any("OMP num threads %i\n", omp_threads);
+
+#ifdef PRINT_THREAD_MAP
+  {
+    int* thread_cpu_id = new int[omp_threads];
+
+#pragma omp parallel shared(thread_cpu_id)
+    {
+      int thread_id = omp_get_thread_num();
+
+      thread_cpu_id[thread_id] = sched_getcpu();
+    }
+
+
+    comminfo.print_any("OMP thread map");
+
+    for (int i = 0; i < omp_threads; ++i) {
+      comminfo.print_any(" %i", thread_cpu_id[i]);
+    }
+
+    comminfo.print_any("\n");
+
+    delete[] thread_cpu_id;
+
+  }
+#endif
 
 
 
