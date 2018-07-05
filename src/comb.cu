@@ -531,6 +531,9 @@ int main(int argc, char** argv)
     comminfo.print_any("Node %s\n", host);
   }
 
+  comminfo.print_any("Compiler %s\n", COMB_SERIALIZE(COMB_COMPILER));
+  comminfo.print_any("Cuda compiler %s\n", COMB_SERIALIZE(COMB_CUDA_COMPILER));
+
   {
     const char* visible_devices = nullptr;
     visible_devices = getenv("CUDA_VISIBLE_DEVICES");
@@ -544,10 +547,10 @@ int main(int argc, char** argv)
     comminfo.print_any("GPU %i visible %s\n", device, visible_devices);
   }
 
-
-  int omp_threads = -1;
-
   cudaCheck(cudaDeviceSynchronize());
+
+  // read command line arguments
+  int omp_threads = -1;
 
   IdxT sizes[3] = {0, 0, 0};
   int divisions[3] = {0, 0, 0};
@@ -704,9 +707,6 @@ int main(int argc, char** argv)
            && comminfo.size != divisions[0] * divisions[1] * divisions[2]) {
     comminfo.abort_master("Invalid mesh divisions\n");
   }
-
-  comminfo.print_any("Compiler %s\n", COMB_SERIALIZE(COMB_COMPILER));
-  comminfo.print_any("Cuda compiler %s\n", COMB_SERIALIZE(COMB_CUDA_COMPILER));
 
   if (omp_threads > 0) {
 
