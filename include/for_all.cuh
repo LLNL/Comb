@@ -518,7 +518,7 @@ inline void for_all_2d(omp_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1, 
     }
   }
 
-#else
+#elif defined(COMB_USE_OMP_WEAK_COLLAPSE)
 
 #pragma omp parallel
   {
@@ -550,6 +550,16 @@ inline void for_all_2d(omp_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1, 
 
       i0 += stride0 + carry1;
 
+    }
+  }
+
+#else
+
+#pragma omp parallel for
+  for(IdxT i0 = 0; i0 < len0; ++i0) {
+    for(IdxT i1 = 0; i1 < len1; ++i1) {
+      IdxT i = i0 * len1 + i1;
+      body(i0 + begin0, i1 + begin1, i);
     }
   }
 
@@ -646,7 +656,7 @@ inline void for_all_3d(omp_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1, 
     }
   }
 
-#else
+#elif defined(COMB_USE_OMP_WEAK_COLLAPSE)
 
 #pragma omp parallel
   {
@@ -693,6 +703,18 @@ inline void for_all_3d(omp_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1, 
 
       i0 += stride0 + carry1;
 
+    }
+  }
+
+#else
+
+#pragma omp parallel for
+  for(IdxT i0 = 0; i0 < len0; ++i0) {
+    for(IdxT i1 = 0; i1 < len1; ++i1) {
+      for(IdxT i2 = 0; i2 < len2; ++i2) {
+        IdxT i = i0 * len12 + i1 * len2 + i2;
+        body(i0 + begin0, i1 + begin1, i2 + begin2, i);
+      }
     }
   }
 
