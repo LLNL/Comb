@@ -148,45 +148,45 @@ struct CommInfo
     }
   }
 
-  template < typename ... Ts >
-  void print_any(const char* fmt, Ts&&... args)
+  template < typename Fmt, typename ... Ts >
+  void print_any(Fmt &&fmt, Ts&&... args)
   {
-    FPRINTF(stdout, fmt, std::forward<Ts>(args)...);
+    FPRINTF(stdout, std::forward<Fmt>(fmt), std::forward<Ts>(args)...);
   }
 
-  template < typename ... Ts >
-  void print_master(const char* fmt, Ts&&... args)
+  template < typename Fmt, typename ... Ts >
+  void print_master(Fmt &&fmt, Ts&&... args)
   {
     if (rank == 0) {
-      print_any(fmt, std::forward<Ts>(args)...);
+      print_any(std::forward<Fmt>(fmt), std::forward<Ts>(args)...);
     }
   }
 
-  template < typename ... Ts >
-  void warn_any(const char* fmt, Ts&&... args)
+  template < typename Fmt, typename ... Ts >
+  void warn_any(Fmt &&fmt, Ts&&... args)
   {
-    FPRINTF(stderr, fmt, std::forward<Ts>(args)...);
+    FPRINTF(stderr, std::forward<Fmt>(fmt), std::forward<Ts>(args)...);
   }
 
-  template < typename ... Ts >
-  void warn_master(const char* fmt, Ts&&... args)
+  template < typename Fmt, typename ... Ts >
+  void warn_master(Fmt &&fmt, Ts&&... args)
   {
     if (rank == 0) {
-      warn_any(fmt, std::forward<Ts>(args)...);
+      warn_any(std::forward<Fmt>(fmt), std::forward<Ts>(args)...);
     }
   }
 
-  template < typename ... Ts >
-  void abort_any(const char* fmt, Ts&&... args)
+  template < typename Fmt, typename ... Ts >
+  void abort_any(Fmt &&fmt, Ts&&... args)
   {
-    warn_any(fmt, std::forward<Ts>(args)...);
+    warn_any(std::forward<Fmt>(fmt), std::forward<Ts>(args)...);
     abort();
   }
 
-  template < typename ... Ts >
-  void abort_master(const char* fmt, Ts&&... args)
+  template < typename Fmt, typename ... Ts >
+  void abort_master(Fmt &&fmt, Ts&&... args)
   {
-    warn_master(fmt, std::forward<Ts>(args)...);
+    warn_master(std::forward<Fmt>(fmt), std::forward<Ts>(args)...);
     abort();
   }
 
