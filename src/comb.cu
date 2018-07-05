@@ -3,6 +3,7 @@
 #include <cmath>
 #include <vector>
 #include <cctype>
+#include <unistd.h>
 
 #include <mpi.h>
 #include <omp.h>
@@ -522,6 +523,27 @@ int main(int argc, char** argv)
   }
 
   comminfo.print_any("Started rank %i of %i\n", comminfo.rank, comminfo.size);
+
+  {
+    char host[256];
+    gethostname(host, 256);
+
+    comminfo.print_any("Node %s\n", host);
+  }
+
+  {
+    const char* visible_devices = nullptr;
+    visible_devices = getenv("CUDA_VISIBLE_DEVICES");
+    if (visible_devices == nullptr) {
+      visible_devices = "undefined";
+    }
+
+    int device = -1;
+    cudaCheck(cudaGetDevice(&device));
+
+    comminfo.print_any("GPU %i visible %s\n", device, visible_devices);
+  }
+
 
   int omp_threads = -1;
 
