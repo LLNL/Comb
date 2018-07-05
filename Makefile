@@ -9,40 +9,45 @@ SRC_DIR=src
 # MPI
 MPI_NAME=spectrum-mpi
 MPI_VERSION=2018.06.07
+MPI_EXEC=mpi
 MPI_MODULE_NAME=$(MPI_NAME)/$(MPI_VERSION)
 
 # cuda
-CUDA_COMPILER_NAME=nvcc
-CUDA_COMPILER_VERSION=9.2.88
-CUDA_MODULE_NAME=cuda/$(CUDA_COMPILER_VERSION)
+CUDA_NAME=cuda
+CUDA_VERSION=9.2.88
+CUDA_EXEC=nvcc
+CUDA_MODULE_NAME=cuda/$(CUDA_VERSION)
 
 # # xlc
-# CXX_COMPILER_NAME=xl
-# CXX_COMPILER_VERSION=beta-2018.06.27
-# CXX_COMPILER_EXEC_NAME=xlC
+# CXX_NAME=xl
+# CXX_VERSION=beta-2018.06.27
+# CXX_EXEC=xlC
+# CXX_MODULE_NAME=$(CXX_NAME)/$(CXX_VERSION)
 # CXX_EXTRA_FLAGS=-Xcompiler '-qmaxmem=-1'
 # CXX_OPT_OMP_FLAG=-Xcompiler '-qsmp=omp'
 # CXX_DEB_OMP_FLAG=-Xcompiler '-qsmp=omp:noopt'
 
 # clang
-CXX_COMPILER_NAME=clang
-CXX_COMPILER_VERSION=coral-2018.05.23
-CXX_COMPILER_EXEC_NAME=clang++
+CXX_NAME=clang
+CXX_VERSION=coral-2018.05.23
+CXX_EXEC=clang++
+CXX_MODULE_NAME=$(CXX_NAME)/$(CXX_VERSION)
 CXX_EXTRA_FLAGS=
 CXX_OPT_OMP_FLAG=-Xcompiler '-fopenmp'
 CXX_DEB_OMP_FLAG=-Xcompiler '-fopenmp'
 
 # # gcc
-# CXX_COMPILER_NAME=gcc
-# CXX_COMPILER_VERSION=7.2.1-redhat
-# CXX_COMPILER_EXEC_NAME=g++
+# CXX_NAME=gcc
+# CXX_VERSION=7.2.1-redhat
+# CXX_EXEC=g++
+# CXX_MODULE_NAME=$(CXX_NAME)/$(CXX_VERSION)
 # CXX_EXTRA_FLAGS=
 # CXX_OPT_OMP_FLAG=-Xcompiler '-fopenmp'
 # CXX_DEB_OMP_FLAG=-Xcompiler '-fopenmp'
 
 
-CUDA_COMPILER=/usr/tce/packages/cuda/cuda-$(CUDA_COMPILER_VERSION)/bin/nvcc
-CXX_MPI_COMPILER=/usr/tce/packages/$(MPI_NAME)/$(MPI_NAME)-$(MPI_VERSION)-$(CXX_COMPILER_NAME)-$(CXX_COMPILER_VERSION)/bin/mpi$(CXX_COMPILER_EXEC_NAME)
+CUDA_COMPILER=/usr/tce/packages/cuda/cuda-$(CUDA_VERSION)/bin/$(CUDA_EXEC)
+CXX_MPI_COMPILER=/usr/tce/packages/$(MPI_NAME)/$(MPI_NAME)-$(MPI_VERSION)-$(CXX_NAME)-$(CXX_VERSION)/bin/$(MPI_EXEC)$(CXX_EXEC)
 
 
 CXX_DEFINES=-DCOMB_CUDA_COMPILER=$(CUDA_COMPILER) -DCOMB_COMPILER=$(CXX_MPI_COMPILER)
@@ -61,15 +66,15 @@ _OBJ_DEB=comb_g.o batch_launch_g.o persistent_launch_g.o MultiBuffer_g.o
 OBJ_OPT=$(patsubst %,$(OBJ_DIR)/%,$(_OBJ_OPT))
 OBJ_DEB=$(patsubst %,$(OBJ_DIR)/%,$(_OBJ_DEB))
 
-opt: comb_o setup_env
+opt: setup_env comb_o
 
-all: comb_o comb_g setup_env
+all: setup_env comb_o comb_g
 
-debug: comb_g setup_env
+debug: setup_env comb_g
 
 
 setup_env:
-	echo "module load $(MPI_MODULE_NAME) $(CUDA_MODULE_NAME)"
+	echo "module load $(MPI_MODULE_NAME) $(CUDA_MODULE_NAME) $(CXX_MODULE_NAME)"
 
 
 $(OBJ_DIR)/%_o.o: $(SRC_DIR)/%.cu $(DEPS)
