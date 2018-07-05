@@ -6,12 +6,18 @@ OBJ_DIR=obj
 LIB_DIR=lib
 SRC_DIR=src
 
-# CXX=nvcc -ccbin mpixlC -Xcompiler '-qmaxmem=-1 -qsmp=omp'
-CXX=nvcc -ccbin mpiclang++ -Xcompiler '-fopenmp=libomp'
-# CXX=nvcc -ccbin mpig++ -Xcompiler '-fopenmp'
+# CXX=nvcc -ccbin mpixlC -Xcompiler '-qmaxmem=-1'
+# CXX_OPT_OMP_FLAG=-Xcompiler '-qsmp=omp'
+# CXX_DEB_OMP_FLAG=-Xcompiler '-qsmp=omp:noopt'
+CXX=nvcc -ccbin mpiclang++
+CXX_OPT_OMP_FLAG=-Xcompiler '-fopenmp'
+CXX_DEB_OMP_FLAG=-Xcompiler '-fopenmp'
+# CXX=nvcc -ccbin mpig++
+# CXX_OPT_OMP_FLAG=-Xcompiler '-fopenmp'
+# CXX_DEB_OMP_FLAG=-Xcompiler '-fopenmp'
 CXX_FLAGS=-std=c++11 -I./$(INC_DIR) -lnvToolsExt -rdc=true -arch=sm_60 --expt-extended-lambda -m64
-CXX_OPT_FLAGS=$(CXX_FLAGS) -O3 -g -lineinfo  -Xcompiler '-O3 -g'
-CXX_DEB_FLAGS=$(CXX_FLAGS) -O0 -G -g -Xcompiler '-O0 -g'
+CXX_OPT_FLAGS=$(CXX_FLAGS) $(CXX_OPT_OMP_FLAG) -O3 -g -lineinfo  -Xcompiler '-O3 -g'
+CXX_DEB_FLAGS=$(CXX_FLAGS) $(CXX_DEB_OMP_FLAG) -O0 -G -g -Xcompiler '-O0 -g'
 
 _DEPS=basic_mempool.hpp align.hpp mutex.hpp memory.cuh for_all.cuh profiling.cuh MeshData.cuh MeshInfo.cuh Box3d.cuh comm.cuh utils.cuh cuda_utils.cuh batch_launch.cuh persistent_launch.cuh MultiBuffer.cuh batch_utils.cuh CommFactory.cuh SetReset.cuh
 DEPS=$(patsubst %,$(INC_DIR)/%,$(_DEPS))
