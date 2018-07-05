@@ -7,6 +7,9 @@
 
 #ifdef _OPENMP
 #include <omp.h>
+
+// #define COMB_USE_OMP_COLLAPSE
+// #define COMB_USE_OMP_WEAK_COLLAPSE
 #endif
 
 #include <cuda.h>
@@ -520,36 +523,37 @@ inline void for_all_2d(omp_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1, 
 
 #elif defined(COMB_USE_OMP_WEAK_COLLAPSE)
 
+  const IdxT len01 = len0 * len1;
+
 #pragma omp parallel
   {
     IdxT nthreads = omp_get_num_threads();
     IdxT threadid = omp_get_thread_num();
 
-    const IdxT tmp1 = nthreads / len1;
-    const IdxT stride1 = nthreads - tmp1 * len1;
 
-    const IdxT stride0 = tmp1;
+    const IdxT stride = (len01 + nthreads - 1) / nthreads;
 
-    const IdxT tmp11 = threadid / len1;
-    IdxT i1 = threadid - tmp11 * len1;
+    IdxT i = threadid * stride;
+    IdxT iend = (threadid + 1) * stride;
+    if (iend > len01) iend = len01;
 
-    IdxT i0 = tmp11;
 
-    while (i0 < len0) {
+    const IdxT tmp1 = i / len1;
+    IdxT i1 = i - tmp1 * len1;
 
-      IdxT i = i0 * len1 + i1;
+    IdxT i0 = tmp1;
+
+    for (; i < iend; ++i) {
+
       body(i0 + begin0, i1 + begin1, i);
 
-      i1 += stride1;
+      i1 += 1;
 
-      IdxT carry1 = 0;
       if (i1 >= len1) {
         i1 -= len1;
-        carry1 = 1;
+
+        i0 += 1;
       }
-
-      i0 += stride0 + carry1;
-
     }
   }
 
@@ -658,51 +662,46 @@ inline void for_all_3d(omp_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1, 
 
 #elif defined(COMB_USE_OMP_WEAK_COLLAPSE)
 
+  const IdxT len012 = len0 * len1 * len2;
+
 #pragma omp parallel
   {
     IdxT nthreads = omp_get_num_threads();
     IdxT threadid = omp_get_thread_num();
 
-    const IdxT tmp2 = nthreads / len2;
-    const IdxT stride2 = nthreads - tmp2 * len2;
+
+    const IdxT stride = (len012 + nthreads - 1) / nthreads;
+
+    IdxT i = threadid * stride;
+    IdxT iend = (threadid + 1) * stride;
+    if (iend > len012) iend = len012;
+
+
+    const IdxT tmp2 = i / len2;
+    IdxT i2 = i - tmp2 * len2;
 
     const IdxT tmp1 = tmp2 / len1;
-    const IdxT stride1 = tmp2 - tmp1 * len1;
+    IdxT i1 = tmp2 - tmp1 * len1;
 
-    const IdxT stride0 = tmp1;
+    IdxT i0 = tmp1;
 
+    for (; i < iend; ++i) {
 
-    const IdxT tmp12 = threadid / len2;
-    IdxT i2 = threadid - tmp12 * len2;
-
-    const IdxT tmp11 = tmp12 / len1;
-    IdxT i1 = tmp12 - tmp11 * len1;
-
-    IdxT i0 = tmp11;
-
-    while (i0 < len0) {
-
-      IdxT i = i0 * len12 + i1 * len2 + i2;
       body(i0 + begin0, i1 + begin1, i2 + begin2, i);
 
-      i2 += stride2;
+      i2 += 1;
 
-      IdxT carry2 = 0;
       if (i2 >= len2) {
         i2 -= len2;
-        carry2 = 1;
+
+        i1 += 1;
+
+        if (i1 >= len1) {
+          i1 -= len1;
+
+          i0 += 1;
+        }
       }
-
-      i1 += stride1 + carry2;
-
-      IdxT carry1 = 0;
-      if (i1 >= len1) {
-        i1 -= len1;
-        carry1 = 1;
-      }
-
-      i0 += stride0 + carry1;
-
     }
   }
 
