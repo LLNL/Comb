@@ -9,6 +9,9 @@
 
 #include "cuda_utils.cuh"
 
+#define COMB_SERIALIZE_HELPER(a) #a
+#define COMB_SERIALIZE(a) COMB_SERIALIZE_HELPER(a)
+
 using IdxT = int;
 using LidxT = int;
 using DataT = double;
