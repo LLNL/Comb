@@ -77,7 +77,10 @@ end
 --Sample Input File
 --[[
 Started rank 62 of 64
-OMP num threads 10
+Node rzmanta21
+GPU 0 visible 0
+OMP num threads 4
+OMP thread map 0 1 2 3
 Do mock communication
 Cart coords    3    3    2
 Message policy cutoff 200
@@ -199,7 +202,22 @@ function do_combining(infiles, outfiles)
             line = string.format("Started %d ranks", nprocs)
          end
 
-         local start, stop = string.find(line, "Cart coords%s+%d+%s+%d+%s+%d+")
+         local start, stop = string.find(line, "Node ")
+         if (start == 1) then
+            line = string.format("Node")
+         end
+
+         local start, stop = string.find(line, "GPU ")
+         if (start == 1) then
+            line = string.format("GPU")
+         end
+
+         local start, stop = string.find(line, "OMP thread map ")
+         if (start == 1) then
+            line = string.format("OMP thread map")
+         end
+
+         local start, stop = string.find(line, "Cart coords ")
          if (start == 1) then
             line = string.format("Cart coords")
          end
