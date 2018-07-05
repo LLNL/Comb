@@ -507,6 +507,9 @@ inline void for_all_2d(omp_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1, 
 {
   const IdxT len0 = end0 - begin0;
   const IdxT len1 = end1 - begin1;
+
+#ifdef COMB_USE_OMP_COLLAPSE
+
 #pragma omp parallel for collapse(2)
   for(IdxT i0 = 0; i0 < len0; ++i0) {
     for(IdxT i1 = 0; i1 < len1; ++i1) {
@@ -514,6 +517,43 @@ inline void for_all_2d(omp_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1, 
       body(i0 + begin0, i1 + begin1, i);
     }
   }
+
+#else
+
+#pragma omp parallel
+  {
+    IdxT nthreads = omp_get_num_threads();
+    IdxT threadid = omp_get_thread_num();
+
+    const IdxT tmp1 = nthreads / len1;
+    const IdxT stride1 = nthreads - tmp1 * len1;
+
+    const IdxT stride0 = tmp1;
+
+    const IdxT tmp11 = threadid / len1;
+    IdxT i1 = threadid - tmp11 * len1;
+
+    IdxT i0 = tmp11;
+
+    while (i0 < len0) {
+
+      IdxT i = i0 * len1 + i1;
+      body(i0 + begin0, i1 + begin1, i);
+
+      i1 += stride1;
+
+      IdxT carry1 = 0;
+      if (i1 >= len1) {
+        i1 -= len1;
+        carry1 = 1;
+      }
+
+      i0 += stride0 + carry1;
+
+    }
+  }
+
+#endif
   //synchronize(pol);
 }
 
@@ -593,6 +633,9 @@ inline void for_all_3d(omp_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1, 
   const IdxT len1 = end1 - begin1;
   const IdxT len2 = end2 - begin2;
   const IdxT len12 = len1 * len2;
+
+#ifdef COMB_USE_OMP_COLLAPSE
+
 #pragma omp parallel for collapse(3)
   for(IdxT i0 = 0; i0 < len0; ++i0) {
     for(IdxT i1 = 0; i1 < len1; ++i1) {
@@ -602,6 +645,58 @@ inline void for_all_3d(omp_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1, 
       }
     }
   }
+
+#else
+
+#pragma omp parallel
+  {
+    IdxT nthreads = omp_get_num_threads();
+    IdxT threadid = omp_get_thread_num();
+
+    const IdxT tmp2 = nthreads / len2;
+    const IdxT stride2 = nthreads - tmp2 * len2;
+
+    const IdxT tmp1 = tmp2 / len1;
+    const IdxT stride1 = tmp2 - tmp1 * len1;
+
+    const IdxT stride0 = tmp1;
+
+
+    const IdxT tmp12 = threadid / len2;
+    IdxT i2 = threadid - tmp12 * len2;
+
+    const IdxT tmp11 = tmp12 / len1;
+    IdxT i1 = tmp12 - tmp11 * len1;
+
+    IdxT i0 = tmp11;
+
+    while (i0 < len0) {
+
+      IdxT i = i0 * len12 + i1 * len2 + i2;
+      body(i0 + begin0, i1 + begin1, i2 + begin2, i);
+
+      i2 += stride2;
+
+      IdxT carry2 = 0;
+      if (i2 >= len2) {
+        i2 -= len2;
+        carry2 = 1;
+      }
+
+      i1 += stride1 + carry2;
+
+      IdxT carry1 = 0;
+      if (i1 >= len1) {
+        i1 -= len1;
+        carry1 = 1;
+      }
+
+      i0 += stride0 + carry1;
+
+    }
+  }
+
+#endif
   //synchronize(pol);
 }
 
