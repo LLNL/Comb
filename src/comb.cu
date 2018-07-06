@@ -26,6 +26,31 @@
 
 namespace detail {
 
+  struct set_copy {
+     DataT* data;
+     const DataT* other;
+     set_copy(DataT* data_, const DataT* other_) : data(data_), other(other_) {}
+     HOST DEVICE
+     void operator()(IdxT i, IdxT) const {
+       IdxT zone = i;
+       DataT next = other[zone];
+       // FPRINTF(stdout, "%p[%i] = %f\n", data, zone, next);
+       data[zone] = next;
+     }
+  };
+
+  struct set_0 {
+     DataT* data;
+     set_0(DataT* data_) : data(data_) {}
+     HOST DEVICE
+     void operator()(IdxT i, IdxT) const {
+       IdxT zone = i;
+       DataT next = 0.0;
+       // FPRINTF(stdout, "%p[%i] = %f\n", data, zone, next);
+       data[zone] = next;
+     }
+  };
+
   struct set_n1 {
      DataT* data;
      set_n1(DataT* data_) : data(data_) {}
@@ -481,11 +506,14 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles,
 }
 
 template < typename pol_type >
-void prime_allocator(pol_type const& pol, Allocator& aloc, Timer& tm, IdxT num_vars, IdxT len)
+void do_warmup(pol_type const& pol, Allocator& aloc, Timer& tm,  IdxT num_vars, IdxT len)
 {
-  DataT** vars = new DataT*[num_vars];
+  tm.clear();
 
-  tm.start(aloc.name());
+  char test_name[1024] = ""; snprintf(test_name, 1024, "warmup %s %s", pol_type::get_name(), aloc.name());
+  Range r(test_name, Range::green);
+
+  DataT** vars = new DataT*[num_vars];
 
   for (IdxT i = 0; i < num_vars; ++i) {
     vars[i] = (DataT*)aloc.allocate(len*sizeof(DataT));
@@ -495,20 +523,71 @@ void prime_allocator(pol_type const& pol, Allocator& aloc, Timer& tm, IdxT num_v
 
     DataT* data = vars[i];
 
-    for_all(pol, 0, len, [=] HOST DEVICE (IdxT, IdxT idx) {
-      data[idx] = 0.0;
-    });
+    for_all(pol, 0, len, detail::set_n1{data});
   }
 
   synchronize(pol);
 
+}
+
+template < typename pol_type >
+void do_copy(pol_type const& pol, Allocator& src_aloc, Allocator& dst_aloc, Timer& tm, IdxT num_vars, IdxT len, IdxT nrepeats)
+{
+  tm.clear();
+
+  char test_name[1024] = ""; snprintf(test_name, 1024, "memcpy %s dst %s src %s", pol_type::get_name(), dst_aloc.name(), src_aloc.name());
+  FPRINTF(stdout, "Starting test %s\n", test_name);
+
+  Range r(test_name, Range::green);
+
+  DataT** src = new DataT*[num_vars];
+  DataT** dst = new DataT*[num_vars];
+
   for (IdxT i = 0; i < num_vars; ++i) {
-    aloc.deallocate(vars[i]);
+    src[i] = (DataT*)src_aloc.allocate(len*sizeof(DataT));
+    dst[i] = (DataT*)dst_aloc.allocate(len*sizeof(DataT));
   }
 
-  tm.stop();
+  // setup
+  for (IdxT i = 0; i < num_vars; ++i) {
+    for_all(pol, 0, len, detail::set_n1{dst[i]});
+    for_all(pol, 0, len, detail::set_0{src[i]});
+    for_all(pol, 0, len, detail::set_copy{dst[i], src[i]});
+  }
 
-  delete[] vars;
+  synchronize(pol);
+
+  char sub_test_name[1024] = ""; snprintf(sub_test_name, 1024, "copy_sync %d %d %zu", num_vars, len, sizeof(DataT));
+
+  for (IdxT rep = 0; rep < nrepeats; ++rep) {
+
+    for (IdxT i = 0; i < num_vars; ++i) {
+      for_all(pol, 0, len, detail::set_copy{src[i], dst[i]});
+    }
+
+    synchronize(pol);
+
+    tm.start(sub_test_name);
+
+    for (IdxT i = 0; i < num_vars; ++i) {
+      for_all(pol, 0, len, detail::set_copy{dst[i], src[i]});
+    }
+
+    synchronize(pol);
+
+    tm.stop();
+  }
+
+  tm.print();
+  tm.clear();
+
+  for (IdxT i = 0; i < num_vars; ++i) {
+    dst_aloc.deallocate(dst[i]);
+    src_aloc.deallocate(src[i]);
+  }
+
+  delete[] dst;
+  delete[] src;
 }
 
 int main(int argc, char** argv)
@@ -807,37 +886,223 @@ int main(int argc, char** argv)
   ManagedDevicePreferredAllocator managed_device_preferred_alloc;
   ManagedDevicePreferredHostAccessedAllocator managed_device_preferred_host_accessed_alloc;
 
-  Timer tm(16384);
+  Timer tm(2*6*ncycles);
   Timer tm_total(1024);
 
   // warm-up memory pools
   {
-    Range r("Memmory pool init", Range::green);
+    do_warmup(seq_pol{}, host_alloc, tm, num_vars+1, info.totallen);
 
-    FPRINTF(stdout, "Starting up memory pools\n");
+    do_warmup(omp_pol{}, hostpinned_alloc, tm, num_vars+1, info.totallen);
 
-    prime_allocator(seq_pol{},        host_alloc,                                   tm, num_vars+1, info.totallen);
+    do_warmup(cuda_pol{}, device_alloc, tm, num_vars+1, info.totallen);
 
-    prime_allocator(omp_pol{},        hostpinned_alloc,                             tm, num_vars+1, info.totallen);
+    do_warmup(omp_pol{}, managed_alloc, tm, num_vars+1, info.totallen);
 
-    prime_allocator(cuda_pol{},       device_alloc,                                 tm, num_vars+1, info.totallen);
+    do_warmup(cuda_batch_pol{}, managed_host_preferred_alloc, tm, num_vars+1, info.totallen);
 
-    prime_allocator(cuda_batch_pol{}, managed_alloc,                                tm, num_vars+1, info.totallen);
-
-    prime_allocator(cuda_persistent_pol{}, managed_host_preferred_alloc,            tm, num_vars+1, info.totallen);
-
-    prime_allocator(seq_pol{},        managed_host_preferred_device_accessed_alloc, tm, num_vars+1, info.totallen);
+    do_warmup(cuda_persistent_pol{}, managed_host_preferred_device_accessed_alloc, tm, num_vars+1, info.totallen);
 
     {
       SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
-      prime_allocator(cuda_batch_pol{}, managed_device_preferred_alloc,             tm, num_vars+1, info.totallen);
+      do_warmup(cuda_batch_pol{}, managed_device_preferred_alloc, tm, num_vars+1, info.totallen);
 
-      prime_allocator(cuda_persistent_pol{}, managed_device_preferred_host_accessed_alloc, tm, num_vars+1, info.totallen);
+      do_warmup(cuda_persistent_pol{}, managed_device_preferred_host_accessed_alloc, tm, num_vars+1, info.totallen);
     }
 
-    tm.print();
-    tm.clear();
+  }
+
+  // host memory
+  {
+    char name[1024] = ""; snprintf(name, 1024, "set_vars %s", host_alloc.name());
+    Range r0(name, Range::green);
+
+    do_copy(seq_pol{},               host_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
+
+    do_copy(omp_pol{},               host_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
+
+    // do_copy(cuda_pol{},              host_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
+
+    // do_copy(cuda_batch_pol{},        host_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
+
+    // do_copy(cuda_persistent_pol{},   host_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
+
+    {
+      SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
+
+      // do_copy(cuda_batch_pol{},      host_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
+
+      // do_copy(cuda_persistent_pol{}, host_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
+    }
+
+  }
+
+  {
+    char name[1024] = ""; snprintf(name, 1024, "set_vars %s", hostpinned_alloc.name());
+    Range r0(name, Range::green);
+
+    do_copy(seq_pol{},               hostpinned_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
+
+    do_copy(omp_pol{},               hostpinned_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
+
+    do_copy(cuda_pol{},              hostpinned_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+
+    do_copy(cuda_batch_pol{},        hostpinned_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+
+    do_copy(cuda_persistent_pol{},   hostpinned_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+
+    {
+      SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
+
+      do_copy(cuda_batch_pol{},      hostpinned_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+
+      do_copy(cuda_persistent_pol{}, hostpinned_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+    }
+
+  }
+
+  {
+    char name[1024] = ""; snprintf(name, 1024, "set_vars %s", device_alloc.name());
+    Range r0(name, Range::green);
+
+    // do_copy(seq_pol{},               device_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
+
+    // do_copy(omp_pol{},               device_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
+
+    do_copy(cuda_pol{},              device_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+
+    do_copy(cuda_batch_pol{},        device_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+
+    do_copy(cuda_persistent_pol{},   device_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+
+    {
+      SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
+
+      do_copy(cuda_batch_pol{},      device_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+
+      do_copy(cuda_persistent_pol{}, device_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+    }
+
+  }
+
+  {
+    char name[1024] = ""; snprintf(name, 1024, "set_vars %s", managed_alloc.name());
+    Range r0(name, Range::green);
+
+    do_copy(seq_pol{},               managed_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
+
+    do_copy(omp_pol{},               managed_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
+
+    do_copy(cuda_pol{},              managed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+
+    do_copy(cuda_batch_pol{},        managed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+
+    do_copy(cuda_persistent_pol{},   managed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+
+    {
+      SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
+
+      do_copy(cuda_batch_pol{},      managed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+
+      do_copy(cuda_persistent_pol{}, managed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+    }
+
+  }
+
+  {
+    char name[1024] = ""; snprintf(name, 1024, "set_vars %s", managed_host_preferred_alloc.name());
+    Range r0(name, Range::green);
+
+    do_copy(seq_pol{},               managed_host_preferred_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
+
+    do_copy(omp_pol{},               managed_host_preferred_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
+
+    do_copy(cuda_pol{},              managed_host_preferred_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+
+    do_copy(cuda_batch_pol{},        managed_host_preferred_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+
+    do_copy(cuda_persistent_pol{},   managed_host_preferred_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+
+    {
+      SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
+
+      do_copy(cuda_batch_pol{},      managed_host_preferred_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+
+      do_copy(cuda_persistent_pol{}, managed_host_preferred_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+    }
+
+  }
+
+  {
+    char name[1024] = ""; snprintf(name, 1024, "set_vars %s", managed_host_preferred_device_accessed_alloc.name());
+    Range r0(name, Range::green);
+
+    do_copy(seq_pol{},               managed_host_preferred_device_accessed_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
+
+    do_copy(omp_pol{},               managed_host_preferred_device_accessed_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
+
+    do_copy(cuda_pol{},              managed_host_preferred_device_accessed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+
+    do_copy(cuda_batch_pol{},        managed_host_preferred_device_accessed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+
+    do_copy(cuda_persistent_pol{},   managed_host_preferred_device_accessed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+
+    {
+      SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
+
+      do_copy(cuda_batch_pol{},      managed_host_preferred_device_accessed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+
+      do_copy(cuda_persistent_pol{}, managed_host_preferred_device_accessed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+    }
+
+  }
+
+  {
+    char name[1024] = ""; snprintf(name, 1024, "set_vars %s", managed_device_preferred_alloc.name());
+    Range r0(name, Range::green);
+
+    do_copy(seq_pol{},               managed_device_preferred_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
+
+    do_copy(omp_pol{},               managed_device_preferred_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
+
+    do_copy(cuda_pol{},              managed_device_preferred_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+
+    do_copy(cuda_batch_pol{},        managed_device_preferred_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+
+    do_copy(cuda_persistent_pol{},   managed_device_preferred_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+
+    {
+      SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
+
+      do_copy(cuda_batch_pol{},      managed_device_preferred_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+
+      do_copy(cuda_persistent_pol{}, managed_device_preferred_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+    }
+
+  }
+
+  {
+    char name[1024] = ""; snprintf(name, 1024, "set_vars %s", managed_device_preferred_host_accessed_alloc.name());
+    Range r0(name, Range::green);
+
+    do_copy(seq_pol{},               managed_device_preferred_host_accessed_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
+
+    do_copy(omp_pol{},               managed_device_preferred_host_accessed_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
+
+    do_copy(cuda_pol{},              managed_device_preferred_host_accessed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+
+    do_copy(cuda_batch_pol{},        managed_device_preferred_host_accessed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+
+    do_copy(cuda_persistent_pol{},   managed_device_preferred_host_accessed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+
+    {
+      SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
+
+      do_copy(cuda_batch_pol{},      managed_device_preferred_host_accessed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+
+      do_copy(cuda_persistent_pol{}, managed_device_preferred_host_accessed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+    }
 
   }
 
