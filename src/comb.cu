@@ -557,7 +557,7 @@ void do_copy(pol_type const& pol, Allocator& src_aloc, Allocator& dst_aloc, Time
 
   synchronize(pol);
 
-  char sub_test_name[1024] = ""; snprintf(sub_test_name, 1024, "copy_sync %d %d %zu", num_vars, len, sizeof(DataT));
+  char sub_test_name[1024] = ""; snprintf(sub_test_name, 1024, "copy_sync-%d-%d-%zu", num_vars, len, sizeof(DataT));
 
   for (IdxT rep = 0; rep < nrepeats; ++rep) {
 
