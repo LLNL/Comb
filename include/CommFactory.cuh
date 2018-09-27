@@ -1,3 +1,17 @@
+//////////////////////////////////////////////////////////////////////////////
+// Copyright (c) 2018, Lawrence Livermore National Security, LLC.
+// Produced at the Lawrence Livermore National Laboratory
+//
+// Created by Jason Burmark, burmark1@llnl.gov
+// LLNL-CODE-758885
+//
+// All rights reserved.
+//
+// This file is part of Comb.
+//
+// For details, see https://github.com/LLNL/Comb
+// Please also see the LICENSE file for MIT license.
+//////////////////////////////////////////////////////////////////////////////
 
 #ifndef _COMM_FACTORY_CUH
 #define _COMM_FACTORY_CUH
