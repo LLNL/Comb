@@ -26,6 +26,8 @@ User Documentation
 
 Minimal documentation is available.
 
+The [scale_tests.bash](./scripts/scale_tests.bash) script shows the basic options available and how the code may be run.
+
 Related Software
 --------------------
 
