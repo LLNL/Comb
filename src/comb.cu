@@ -19,6 +19,7 @@
 #include <vector>
 #include <cctype>
 #include <unistd.h>
+#include <sched.h>
 
 #include <mpi.h>
 #include <omp.h>

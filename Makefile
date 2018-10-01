@@ -33,8 +33,10 @@ CXX_VERSION=coral-2018.05.23
 CXX_EXEC=clang++
 CXX_MODULE_NAME=$(CXX_NAME)/$(CXX_VERSION)
 CXX_EXTRA_FLAGS=
-CXX_OPT_OMP_FLAG=-Xcompiler '-fopenmp'
-CXX_DEB_OMP_FLAG=-Xcompiler '-fopenmp'
+#CXX_OPT_OMP_FLAG=-Xcompiler '-fopenmp'
+#CXX_DEB_OMP_FLAG=-Xcompiler '-fopenmp'
+CXX_OPT_OMP_FLAG=-fopenmp
+CXX_DEB_OMP_FLAG=-fopenmp
 
 # # gcc
 # CXX_NAME=gcc
@@ -52,11 +54,16 @@ CXX_MPI_COMPILER=/usr/tce/packages/$(MPI_NAME)/$(MPI_NAME)-$(MPI_VERSION)-$(CXX_
 
 CXX_DEFINES=-DCOMB_CUDA_COMPILER=$(CUDA_COMPILER) -DCOMB_COMPILER=$(CXX_MPI_COMPILER)
 
-CXX=$(CUDA_COMPILER) -ccbin $(CXX_MPI_COMPILER)
+# CXX=$(CUDA_COMPILER) -ccbin $(CXX_MPI_COMPILER)
+CXX=/usr/workspace/wsrzc/pozulp1/sp/spack/opt/spack/linux-rhel7-ppc64le/gcc-4.9.3/llvm-7.0.0-2udlapjrujevo6uqz3avu75f7bz3klpx/bin/clang++
+MPI_WRAPPER_FLAGS=-I/usr/tce/packages/spectrum-mpi/ibm/spectrum-mpi-2018.06.07/include -pthread -L/usr/tce/packages/spectrum-mpi/ibm/spectrum-mpi-2018.06.07/lib -lmpiprofilesupport -lmpi_ibm -Wl,-rpath,/usr/tce/packages/spectrum-mpi/ibm/spectrum-mpi-2018.06.07/lib
 
-CXX_FLAGS=$(CXX_EXTRA_FLAGS) -std=c++11 -I./$(INC_DIR) -lnvToolsExt -rdc=true -arch=sm_60 --expt-extended-lambda -m64 $(CXX_DEFINES)
-CXX_OPT_FLAGS=$(CXX_FLAGS) $(CXX_OPT_OMP_FLAG) -O3 -g -lineinfo  -Xcompiler '-O3 -g'
-CXX_DEB_FLAGS=$(CXX_FLAGS) $(CXX_DEB_OMP_FLAG) -O0 -G -g -Xcompiler '-O0 -g'
+#CXX_FLAGS=$(CXX_EXTRA_FLAGS) -std=c++11 -I./$(INC_DIR) -lnvToolsExt -rdc=true -arch=sm_60 --expt-extended-lambda -m64 $(CXX_DEFINES)
+CXX_FLAGS=$(MPI_WRAPPER_FLAGS) -std=c++11 -I./$(INC_DIR) -L/usr/tce/packages/cuda/cuda-9.2.148/lib64 -lnvToolsExt -fcuda-rdc --cuda-gpu-arch=sm_70 -m64 $(CXX_DEFINES)
+#CXX_OPT_FLAGS=$(CXX_FLAGS) $(CXX_OPT_OMP_FLAG) -O3 -g -lineinfo  -Xcompiler '-O3 -g'
+#CXX_DEB_FLAGS=$(CXX_FLAGS) $(CXX_DEB_OMP_FLAG) -O0 -G -g -Xcompiler '-O0 -g'
+CXX_OPT_FLAGS=$(CXX_FLAGS) $(CXX_OPT_OMP_FLAG) -O3 -g
+CXX_DEB_FLAGS=$(CXX_FLAGS) $(CXX_DEB_OMP_FLAG) -O0 -G -g
 
 _DEPS=basic_mempool.hpp align.hpp mutex.hpp memory.cuh for_all.cuh profiling.cuh MeshData.cuh MeshInfo.cuh Box3d.cuh comm.cuh utils.cuh cuda_utils.cuh batch_launch.cuh persistent_launch.cuh MultiBuffer.cuh batch_utils.cuh CommFactory.cuh SetReset.cuh
 DEPS=$(patsubst %,$(INC_DIR)/%,$(_DEPS))
@@ -73,15 +80,16 @@ all: setup_env comb_o comb_g
 debug: setup_env comb_g
 
 
-setup_env:
-	echo "module load $(MPI_MODULE_NAME) $(CUDA_MODULE_NAME) $(CXX_MODULE_NAME)"
+#setup_env:
+#	echo "module load $(MPI_MODULE_NAME) $(CUDA_MODULE_NAME) $(CXX_MODULE_NAME)"
 
 
 $(OBJ_DIR)/%_o.o: $(SRC_DIR)/%.cu $(DEPS)
 	$(CXX) $(CXX_OPT_FLAGS) -c $< -o $@
 
 comb_o: $(OBJ_OPT)
-	$(CXX) $(CXX_OPT_FLAGS) $^ -o $@
+	nvcc -arch=sm_70 -dlink $^ -o dlinked.o 
+	$(CXX) $(CXX_OPT_FLAGS) $^ -o $@ -lcudart_static -lrt -ldl
 
 
 $(OBJ_DIR)/%_g.o: $(SRC_DIR)/%.cu $(DEPS)
