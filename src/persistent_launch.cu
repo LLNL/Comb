@@ -23,6 +23,9 @@ namespace persistent_launch {
 
 namespace detail {
 
+// included here to avoid linker error with clangcuda
+#include "batch_exec.cuh"
+
 // Launches a batch kernel and cycles to next buffer
 void launch(::detail::MultiBuffer& mb, cudaStream_t stream)
 {
@@ -54,16 +57,16 @@ void launch(::detail::MultiBuffer& mb, cudaStream_t stream)
       if (num_blocks < blocks_cutoff) {
          // don't use device cache
          if (get_batch_always_grid_sync()) {
-            func = (void*)&::detail::block_read_device<::detail::MultiBuffer::shared_buffer_type>;
+            func = (void*)&block_read_device<::detail::MultiBuffer::shared_buffer_type>;
          } else {
-            func = (void*)&::detail::block_read_device_few_grid_sync<::detail::MultiBuffer::shared_buffer_type>;
+            func = (void*)&block_read_device_few_grid_sync<::detail::MultiBuffer::shared_buffer_type>;
          }
       } else {
          // use device cache
          if (get_batch_always_grid_sync()) {
-            func = (void*)&::detail::block_read_device<::detail::MultiBuffer::shared_buffer_type>;
+            func = (void*)&block_read_device<::detail::MultiBuffer::shared_buffer_type>;
          } else {
-            func = (void*)&::detail::block_read_device_few_grid_sync<::detail::MultiBuffer::shared_buffer_type>;
+            func = (void*)&block_read_device_few_grid_sync<::detail::MultiBuffer::shared_buffer_type>;
          }
       }
       cudaCheck(cudaLaunchCooperativeKernel(func, num_blocks, blocksize,
