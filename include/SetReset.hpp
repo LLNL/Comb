@@ -13,8 +13,8 @@
 // Please also see the LICENSE file for MIT license.
 //////////////////////////////////////////////////////////////////////////////
 
-#ifndef _SETRESET_CUH
-#define _SETRESET_CUH
+#ifndef _SETRESET_HPP
+#define _SETRESET_HPP
 
 template <typename T>
 class SetReset
@@ -35,4 +35,4 @@ private:
    T orig_val;
 };
 
-#endif // _SETRESET_CUH
+#endif // _SETRESET_HPP

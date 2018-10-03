@@ -13,8 +13,10 @@
 // Please also see the LICENSE file for MIT license.
 //////////////////////////////////////////////////////////////////////////////
 
-#ifndef _BATCH_UTILS_CUH
-#define _BATCH_UTILS_CUH
+#ifndef _BATCH_UTILS_HPP
+#define _BATCH_UTILS_HPP
+
+#ifdef __CUDACC__
 
 #include <cstddef>
 #include <cassert>
@@ -734,5 +736,7 @@ void block_read_device_few_grid_sync(typename shared_buffer_type::buffer_type vo
 
 } // namespace detail
 
-#endif // _BATCH_UTILS_CUH
+#endif
+
+#endif // _BATCH_UTILS_HPP
 

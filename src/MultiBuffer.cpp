@@ -13,6 +13,8 @@
 // Please also see the LICENSE file for MIT license.
 //////////////////////////////////////////////////////////////////////////////
 
+#ifdef __CUDACC__
+
 #include "MultiBuffer.hpp"
 
 namespace detail {
@@ -52,3 +54,4 @@ MultiBuffer::~MultiBuffer()
 
 } // namespace detail
 
+#endif

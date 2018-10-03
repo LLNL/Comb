@@ -13,8 +13,8 @@
 // Please also see the LICENSE file for MIT license.
 //////////////////////////////////////////////////////////////////////////////
 
-#ifndef _BOX3D_CUH
-#define _BOX3D_CUH
+#ifndef _BOX3D_HPP
+#define _BOX3D_HPP
 
 #include "memory.hpp"
 #include "utils.hpp"
@@ -353,5 +353,5 @@ private:
   }
 };
 
-#endif // _BOX3D_CUH
+#endif // _BOX3D_HPP
 

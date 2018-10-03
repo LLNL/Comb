@@ -13,6 +13,8 @@
 // Please also see the LICENSE file for MIT license.
 //////////////////////////////////////////////////////////////////////////////
 
+#ifdef __CUDACC__
+
 #include "batch_launch.hpp"
 
 #include <cooperative_groups.h>
@@ -98,3 +100,4 @@ void synchronize(cudaStream_t stream)
 
 } // namespace cuda
 
+#endif

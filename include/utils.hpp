@@ -13,8 +13,8 @@
 // Please also see the LICENSE file for MIT license.
 //////////////////////////////////////////////////////////////////////////////
 
-#ifndef _UTILS_CUH
-#define _UTILS_CUH
+#ifndef _UTILS_HPP
+#define _UTILS_HPP
 
 #include <cassert>
 #include <cstdio>
@@ -340,5 +340,5 @@ set_idxr_idxr<I_src, T_dst, I_dst> make_set_idxr_idxr(I_src const& idxr_src, T_d
 
 } // namespace detail
 
-#endif // _UTILS_CUH
+#endif // _UTILS_HPP
 

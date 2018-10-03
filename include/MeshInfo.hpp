@@ -13,8 +13,8 @@
 // Please also see the LICENSE file for MIT license.
 //////////////////////////////////////////////////////////////////////////////
 
-#ifndef _MESHINFO_CUH
-#define _MESHINFO_CUH
+#ifndef _MESHINFO_HPP
+#define _MESHINFO_HPP
 
 #include <cassert>
 #include <cmath>
@@ -418,5 +418,5 @@ struct MeshInfo {
 };
 
 
-#endif // _MESHINFO_CUH
+#endif // _MESHINFO_HPP
 

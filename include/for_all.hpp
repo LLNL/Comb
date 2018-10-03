@@ -13,8 +13,8 @@
 // Please also see the LICENSE file for MIT license.
 //////////////////////////////////////////////////////////////////////////////
 
-#ifndef _FOR_ALL_CUH
-#define _FOR_ALL_CUH
+#ifndef _FOR_ALL_HPP
+#define _FOR_ALL_HPP
 
 #include <cstdio>
 #include <cstdlib>
@@ -30,7 +30,9 @@
 // #define COMB_USE_OMP_WEAK_COLLAPSE
 #endif
 
+#ifdef COMB_HAVE_CUDA
 #include <cuda.h>
+#endif
 
 #include <type_traits>
 
@@ -51,6 +53,7 @@ struct omp_pol {
   using event_type = int;
 };
 #endif
+#ifdef COMB_HAVE_CUDA
 struct cuda_pol {
   static const bool async = true;
   static const char* get_name() { return "cuda"; }
@@ -66,6 +69,7 @@ struct cuda_persistent_pol {
   static const char* get_name() { return ( get_batch_always_grid_sync() ? "cudaPersistent" : "cudaPersistent_fewgs" ); }
   using event_type = detail::batch_event_type_ptr;
 };
+#endif
 
 // synchronization functions
 inline void synchronize(seq_pol const&)
@@ -78,6 +82,7 @@ inline void synchronize(omp_pol const&)
 }
 #endif
 
+#ifdef COMB_HAVE_CUDA
 inline void synchronize(cuda_pol const&)
 {
   cudaCheck(cudaDeviceSynchronize());
@@ -92,7 +97,7 @@ inline void synchronize(cuda_persistent_pol const&)
 {
   cuda::persistent_launch::synchronize();
 }
-
+#endif
 
 // force start functions
 inline void persistent_launch(seq_pol const&)
@@ -105,6 +110,7 @@ inline void persistent_launch(omp_pol const&)
 }
 #endif
 
+#ifdef COMB_HAVE_CUDA
 inline void persistent_launch(cuda_pol const&)
 {
 }
@@ -117,7 +123,7 @@ inline void persistent_launch(cuda_persistent_pol const&)
 {
   cuda::persistent_launch::force_launch();
 }
-
+#endif
 
 // force complete functions
 inline void batch_launch(seq_pol const&)
@@ -130,6 +136,7 @@ inline void batch_launch(omp_pol const&)
 }
 #endif
 
+#ifdef COMB_HAVE_CUDA
 inline void batch_launch(cuda_pol const&)
 {
 }
@@ -142,7 +149,7 @@ inline void batch_launch(cuda_batch_pol const&)
 inline void batch_launch(cuda_persistent_pol const&)
 {
 }
-
+#endif
 
 // force complete functions
 inline void persistent_stop(seq_pol const&)
@@ -155,6 +162,7 @@ inline void persistent_stop(omp_pol const&)
 }
 #endif
 
+#ifdef COMB_HAVE_CUDA
 inline void persistent_stop(cuda_pol const&)
 {
 }
@@ -167,7 +175,7 @@ inline void persistent_stop(cuda_persistent_pol const&)
 {
   cuda::persistent_launch::force_stop();
 }
-
+#endif
 
 namespace detail {
 
@@ -273,6 +281,7 @@ inline typename omp_pol::event_type createEvent(omp_pol const&)
 }
 #endif
 
+#ifdef COMB_HAVE_CUDA
 inline typename cuda_pol::event_type createEvent(cuda_pol const&)
 {
   cudaEvent_t event;
@@ -289,7 +298,7 @@ inline typename cuda_persistent_pol::event_type createEvent(cuda_persistent_pol 
 {
   return cuda::persistent_launch::createEvent();
 }
-
+#endif
 
 // event record functions
 inline void recordEvent(seq_pol const&, typename seq_pol::event_type)
@@ -302,6 +311,7 @@ inline void recordEvent(omp_pol const&, typename omp_pol::event_type)
 }
 #endif
 
+#ifdef COMB_HAVE_CUDA
 inline void recordEvent(cuda_pol const&, typename cuda_pol::event_type event)
 {
   cudaCheck(cudaEventRecord(event, cudaStream_t{0}));
@@ -316,7 +326,7 @@ inline void recordEvent(cuda_persistent_pol const&, typename cuda_persistent_pol
 {
   return cuda::persistent_launch::recordEvent(event);
 }
-
+#endif
 
 // event query functions
 inline bool queryEvent(seq_pol const&, typename seq_pol::event_type)
@@ -331,6 +341,7 @@ inline bool queryEvent(omp_pol const&, typename omp_pol::event_type)
 }
 #endif
 
+#ifdef COMB_HAVE_CUDA
 inline bool queryEvent(cuda_pol const&, typename cuda_pol::event_type event)
 {
   return cudaCheckReady(cudaEventQuery(event));
@@ -345,7 +356,7 @@ inline bool queryEvent(cuda_persistent_pol const&, typename cuda_persistent_pol:
 {
   return cuda::persistent_launch::queryEvent(event);
 }
-
+#endif
 
 // event wait functions
 inline void waitEvent(seq_pol const&, typename seq_pol::event_type)
@@ -358,6 +369,7 @@ inline void waitEvent(omp_pol const&, typename omp_pol::event_type)
 }
 #endif
 
+#ifdef COMB_HAVE_CUDA
 inline void waitEvent(cuda_pol const&, typename cuda_pol::event_type event)
 {
   cudaCheck(cudaEventSynchronize(event));
@@ -372,7 +384,7 @@ inline void waitEvent(cuda_persistent_pol const&, typename cuda_persistent_pol::
 {
   cuda::persistent_launch::waitEvent(event);
 }
-
+#endif
 
 // event destroy functions
 inline void destroyEvent(seq_pol const&, typename seq_pol::event_type)
@@ -385,6 +397,7 @@ inline void destroyEvent(omp_pol const&, typename omp_pol::event_type)
 }
 #endif
 
+#ifdef COMB_HAVE_CUDA
 inline void destroyEvent(cuda_pol const&, typename cuda_pol::event_type event)
 {
   cudaCheck(cudaEventDestroy(event));
@@ -399,7 +412,7 @@ inline void destroyEvent(cuda_persistent_pol const&, typename cuda_persistent_po
 {
   cuda::persistent_launch::destroyEvent(event);
 }
-
+#endif
 
 namespace detail {
 
@@ -487,6 +500,7 @@ inline void for_all(omp_pol const& pol, IdxT begin, IdxT end, body_type&& body)
 }
 #endif
 
+#ifdef COMB_HAVE_CUDA
 template < typename body_type >
 __global__
 void cuda_for_all(IdxT begin, IdxT len, body_type body)
@@ -531,7 +545,7 @@ inline void for_all(cuda_persistent_pol const& pol, IdxT begin, IdxT end, body_t
   cuda::persistent_launch::for_all(begin, end, std::forward<body_type>(body));
   //synchronize(pol);
 }
-
+#endif
 
 template < typename body_type >
 void for_all_2d(seq_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, body_type&& body)
@@ -613,6 +627,7 @@ inline void for_all_2d(omp_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1, 
 }
 #endif
 
+#ifdef COMB_HAVE_CUDA
 template < typename body_type >
 __global__
 void cuda_for_all_2d(IdxT begin0, IdxT len0, IdxT begin1, IdxT len1, body_type body)
@@ -666,7 +681,7 @@ inline void for_all_2d(cuda_persistent_pol const& pol, IdxT begin0, IdxT end0, I
   cuda::persistent_launch::for_all(0, len, detail::adapter_2d<typename std::remove_reference<body_type>::type>{begin0, end0, begin1, end1, std::forward<body_type>(body)});
   //synchronize(pol);
 }
-
+#endif
 
 template < typename body_type >
 inline void for_all_3d(seq_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, IdxT begin2, IdxT end2, body_type&& body)
@@ -765,6 +780,7 @@ inline void for_all_3d(omp_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1, 
 }
 #endif
 
+#ifdef COMB_HAVE_CUDA
 template < typename body_type >
 __global__
 void cuda_for_all_3d(IdxT begin0, IdxT len0, IdxT begin1, IdxT len1, IdxT begin2, IdxT len2, IdxT len12, body_type body)
@@ -825,6 +841,6 @@ inline void for_all_3d(cuda_persistent_pol const& pol, IdxT begin0, IdxT end0, I
   cuda::persistent_launch::for_all(0, len, detail::adapter_3d<typename std::remove_reference<body_type>::type>{begin0, end0, begin1, end1, begin2, end2, std::forward<body_type>(body)});
   //synchronize(pol);
 }
+#endif
 
-#endif // _FOR_ALL_CUH
-
+#endif // _FOR_ALL_HPP

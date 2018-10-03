@@ -13,8 +13,10 @@
 // Please also see the LICENSE file for MIT license.
 //////////////////////////////////////////////////////////////////////////////
 
-#ifndef _PERSISTENT_LAUNCH_CUH
-#define _PERSISTENT_LAUNCH_CUH
+#ifndef _PERSISTENT_LAUNCH_HPP
+#define _PERSISTENT_LAUNCH_HPP
+
+#ifdef __CUDACC__
 
 #include "batch_utils.hpp"
 #include "MultiBuffer.hpp"
@@ -114,5 +116,7 @@ inline void for_all(int begin, int end, kernel_type_in&& kernel_in, cudaStream_t
 
 } // namespace cuda
 
-#endif // _PERSISTENT_LAUNCH_CUH
+#endif
+
+#endif // _PERSISTENT_LAUNCH_HPP
 

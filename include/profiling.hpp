@@ -13,8 +13,8 @@
 // Please also see the LICENSE file for MIT license.
 //////////////////////////////////////////////////////////////////////////////
 
-#ifndef _PROFILING_CUH
-#define _PROFILING_CUH
+#ifndef _PROFILING_HPP
+#define _PROFILING_HPP
 
 #include <cstdio>
 #include <cstdlib>
@@ -25,9 +25,12 @@
 #include <utility>
 #include <atomic>
 
+#ifdef COMB_HAVE_CUDA
 #include <cuda.h>
 #include <nvToolsExt.h>
 #include <nvToolsExtCuda.h>
+#endif
+
 #include <mpi.h>
 
 struct Timer {
@@ -163,7 +166,9 @@ struct Range {
   static const uint32_t pink     = 0x00FF69B4;
 
   const char* name;
+#ifdef COMB_HAVE_CUDA
   nvtxRangeId_t id;
+#endif
 
   Range(const char* name_, uint32_t color)
     : name(nullptr)
@@ -173,6 +178,7 @@ struct Range {
 
   void start(const char* name_, uint32_t color) {
     if (name_ != nullptr) {
+#ifdef COMB_HAVE_CUDA
       nvtxEventAttributes_t eventAttrib = {0};
       eventAttrib.version = NVTX_VERSION;
       eventAttrib.size = NVTX_EVENT_ATTRIB_STRUCT_SIZE;
@@ -181,6 +187,7 @@ struct Range {
       eventAttrib.messageType = NVTX_MESSAGE_TYPE_ASCII;
       eventAttrib.message.ascii = name_;
       id = nvtxRangeStartEx(&eventAttrib);
+#endif
       name = name_;
     }
   }
@@ -188,7 +195,9 @@ struct Range {
   void stop()
   {
     if(name != nullptr) {
+#ifdef COMB_HAVE_CUDA
       nvtxRangeEnd(id);
+#endif
       name = nullptr;
     }
   }
@@ -204,5 +213,5 @@ struct Range {
   }
 };
 
-#endif // _PROFILING_CUH
+#endif // _PROFILING_HPP
 

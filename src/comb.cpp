@@ -15,6 +15,7 @@
 
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <cmath>
 #include <vector>
 #include <cctype>
@@ -34,8 +35,11 @@
 #include "MeshData.hpp"
 #include "comm.hpp"
 #include "CommFactory.hpp"
-#include "batch_utils.hpp"
 #include "SetReset.hpp"
+
+#ifdef COMB_HAVE_CUDA
+#include "batch_utils.hpp"
+#endif
 
 #define PRINT_THREAD_MAP
 
@@ -630,6 +634,8 @@ int main(int argc, char** argv)
   }
 
   comminfo.print_any("Compiler %s\n", COMB_SERIALIZE(COMB_COMPILER));
+
+#ifdef COMB_HAVE_CUDA
   comminfo.print_any("Cuda compiler %s\n", COMB_SERIALIZE(COMB_CUDA_COMPILER));
 
   {
@@ -646,6 +652,7 @@ int main(int argc, char** argv)
   }
 
   cudaCheck(cudaDeviceSynchronize());
+#endif
 
   // read command line arguments
 #ifdef COMB_HAVE_OPENMP
@@ -897,6 +904,7 @@ int main(int argc, char** argv)
   }
 
   HostAllocator host_alloc;
+#ifdef COMB_HAVE_CUDA
   HostPinnedAllocator hostpinned_alloc;
   DeviceAllocator device_alloc;
   ManagedAllocator managed_alloc;
@@ -904,6 +912,7 @@ int main(int argc, char** argv)
   ManagedHostPreferredDeviceAccessedAllocator managed_host_preferred_device_accessed_alloc;
   ManagedDevicePreferredAllocator managed_device_preferred_alloc;
   ManagedDevicePreferredHostAccessedAllocator managed_device_preferred_host_accessed_alloc;
+#endif
 
   Timer tm(2*6*ncycles);
   Timer tm_total(1024);
@@ -913,30 +922,33 @@ int main(int argc, char** argv)
     do_warmup(seq_pol{}, host_alloc, tm, num_vars+1, info.totallen);
 
 #ifdef COMB_HAVE_OPENMP
-    do_warmup(omp_pol{}, hostpinned_alloc, tm, num_vars+1, info.totallen);
-#else
-    do_warmup(seq_pol{}, hostpinned_alloc, tm, num_vars+1, info.totallen);
+    do_warmup(omp_pol{}, host_alloc, tm, num_vars+1, info.totallen);
 #endif
+
+#ifdef COMB_HAVE_CUDA
+    do_warmup(seq_pol{}, hostpinned_alloc, tm, num_vars+1, info.totallen);
 
     do_warmup(cuda_pol{}, device_alloc, tm, num_vars+1, info.totallen);
 
-#ifdef COMB_HAVE_OPENMP
-    do_warmup(omp_pol{}, managed_alloc, tm, num_vars+1, info.totallen);
-#else
-    do_warmup(seq_pol{}, managed_alloc, tm, num_vars+1, info.totallen);
-#endif
+    do_warmup(seq_pol{},  managed_alloc, tm, num_vars+1, info.totallen);
+    do_warmup(cuda_pol{}, managed_alloc, tm, num_vars+1, info.totallen);
 
+    do_warmup(seq_pol{},        managed_host_preferred_alloc, tm, num_vars+1, info.totallen);
     do_warmup(cuda_batch_pol{}, managed_host_preferred_alloc, tm, num_vars+1, info.totallen);
 
+    do_warmup(seq_pol{},             managed_host_preferred_device_accessed_alloc, tm, num_vars+1, info.totallen);
     do_warmup(cuda_persistent_pol{}, managed_host_preferred_device_accessed_alloc, tm, num_vars+1, info.totallen);
 
     {
       SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
+      do_warmup(seq_pol{},        managed_device_preferred_alloc, tm, num_vars+1, info.totallen);
       do_warmup(cuda_batch_pol{}, managed_device_preferred_alloc, tm, num_vars+1, info.totallen);
 
+      do_warmup(seq_pol{},             managed_device_preferred_host_accessed_alloc, tm, num_vars+1, info.totallen);
       do_warmup(cuda_persistent_pol{}, managed_device_preferred_host_accessed_alloc, tm, num_vars+1, info.totallen);
     }
+#endif
 
   }
 
@@ -951,6 +963,7 @@ int main(int argc, char** argv)
     do_copy(omp_pol{},               host_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
 #endif
 
+#ifdef COMB_HAVE_CUDA
     // do_copy(cuda_pol{},              host_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
 
     // do_copy(cuda_batch_pol{},        host_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
@@ -964,9 +977,10 @@ int main(int argc, char** argv)
 
       // do_copy(cuda_persistent_pol{}, host_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
     }
-
+#endif
   }
 
+#ifdef COMB_HAVE_CUDA
   {
     char name[1024] = ""; snprintf(name, 1024, "set_vars %s", hostpinned_alloc.name());
     Range r0(name, Range::green);
@@ -990,7 +1004,6 @@ int main(int argc, char** argv)
 
       do_copy(cuda_persistent_pol{}, hostpinned_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
     }
-
   }
 
   {
@@ -1016,7 +1029,6 @@ int main(int argc, char** argv)
 
       do_copy(cuda_persistent_pol{}, device_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
     }
-
   }
 
   {
@@ -1042,7 +1054,6 @@ int main(int argc, char** argv)
 
       do_copy(cuda_persistent_pol{}, managed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
     }
-
   }
 
   {
@@ -1068,7 +1079,6 @@ int main(int argc, char** argv)
 
       do_copy(cuda_persistent_pol{}, managed_host_preferred_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
     }
-
   }
 
   {
@@ -1094,7 +1104,6 @@ int main(int argc, char** argv)
 
       do_copy(cuda_persistent_pol{}, managed_host_preferred_device_accessed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
     }
-
   }
 
   {
@@ -1120,7 +1129,6 @@ int main(int argc, char** argv)
 
       do_copy(cuda_persistent_pol{}, managed_device_preferred_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
     }
-
   }
 
   {
@@ -1146,8 +1154,8 @@ int main(int argc, char** argv)
 
       do_copy(cuda_persistent_pol{}, managed_device_preferred_host_accessed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
     }
-
   }
+#endif // COMB_HAVE_CUDA
 
   // host allocated
   {
@@ -1166,6 +1174,7 @@ int main(int argc, char** argv)
     do_cycles<omp_pol, omp_pol, omp_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
 #endif
 
+#ifdef COMB_HAVE_CUDA
     // do_cycles<cuda_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
 
 #ifdef COMB_HAVE_OPENMP
@@ -1198,8 +1207,10 @@ int main(int argc, char** argv)
 
       // do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
     }
+#endif
   }
 
+#ifdef COMB_HAVE_CUDA
   // host pinned allocated
   {
     Allocator& mesh_aloc = hostpinned_alloc;
@@ -1556,6 +1567,7 @@ int main(int argc, char** argv)
       do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
     }
   }
+#endif // COMB_HAVE_CUDA
 
   comminfo.cart.disconnect();
   detail::MPI::Finalize();

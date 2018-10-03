@@ -13,17 +13,16 @@
 // Please also see the LICENSE file for MIT license.
 //////////////////////////////////////////////////////////////////////////////
 
-#ifndef _CUDA_UTILS_CUH
-#define _CUDA_UTILS_CUH
+#ifndef _CUDA_UTILS_HPP
+#define _CUDA_UTILS_HPP
+
+#ifdef COMB_HAVE_CUDA
 
 #include <cassert>
 #include <cstdio>
 
 #include <cuda.h>
 // #include <mpi.h>
-
-#define HOST __host__
-#define DEVICE __device__
 
 #define IS_DEVICE_LAMBDA(kernel_typetype) \
         __nv_is_extended_device_lambda_closure_type(kernel_type) || \
@@ -91,5 +90,15 @@ inline int get_arch() {
 
 } // namespace detail
 
-#endif // _CUDA_UTILS_CUH
 
+#define HOST __host__
+#define DEVICE __device__
+
+#else
+
+#define HOST
+#define DEVICE
+
+#endif
+
+#endif // _CUDA_UTILS_HPP

@@ -13,8 +13,8 @@
 // Please also see the LICENSE file for MIT license.
 //////////////////////////////////////////////////////////////////////////////
 
-#ifndef _COMM_FACTORY_CUH
-#define _COMM_FACTORY_CUH
+#ifndef _COMM_FACTORY_HPP
+#define _COMM_FACTORY_HPP
 
 #include <cstdio>
 #include <cstdlib>
@@ -390,5 +390,5 @@ struct CommFactory
   }
 };
 
-#endif // _COMM_FACTORY_CUH
+#endif // _COMM_FACTORY_HPP
 
