@@ -41,7 +41,7 @@ fi
 #     exec $@
 
 # Comb executable or symlink
-run_comb="comb_o"
+run_comb="comb"
 
 # Choose arguments for comb
 # overall size of the grid

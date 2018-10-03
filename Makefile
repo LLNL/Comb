@@ -66,9 +66,9 @@ _OBJ_DEB=comb_g.o batch_launch_g.o persistent_launch_g.o MultiBuffer_g.o
 OBJ_OPT=$(patsubst %,$(OBJ_DIR)/%,$(_OBJ_OPT))
 OBJ_DEB=$(patsubst %,$(OBJ_DIR)/%,$(_OBJ_DEB))
 
-opt: setup_env comb_o
+opt: setup_env comb
 
-all: setup_env comb_o comb_g
+all: setup_env comb comb_g
 
 debug: setup_env comb_g
 
@@ -82,7 +82,7 @@ setup_env:
 $(OBJ_DIR)/%_o.o: $(SRC_DIR)/%.cu $(DEPS) $(OBJ_DIR)
 	$(CXX) $(CXX_OPT_FLAGS) -c $< -o $@
 
-comb_o: $(OBJ_OPT)
+comb: $(OBJ_OPT)
 	$(CXX) $(CXX_OPT_FLAGS) $^ -o $@
 
 
