@@ -23,9 +23,9 @@ CUDA_MODULE_NAME=cuda/$(CUDA_VERSION)
 # CXX_VERSION=beta-2018.09.26
 # CXX_EXEC=xlC
 # CXX_MODULE_NAME=$(CXX_NAME)/$(CXX_VERSION)
-# CXX_EXTRA_FLAGS=-Xcompiler '-qmaxmem=-1'
-# CXX_OPT_OMP_FLAG=-Xcompiler '-qsmp=omp'
-# CXX_DEB_OMP_FLAG=-Xcompiler '-qsmp=omp:noopt'
+# CXX_EXTRA_FLAGS=-qmaxmem=-1
+# CXX_OPT_OMP_FLAG=-qsmp=omp
+# CXX_DEB_OMP_FLAG=-qsmp=omp:noopt
 
 # clang
 CXX_NAME=clang
@@ -33,8 +33,8 @@ CXX_VERSION=coral-2018.08.08
 CXX_EXEC=clang++
 CXX_MODULE_NAME=$(CXX_NAME)/$(CXX_VERSION)
 CXX_EXTRA_FLAGS=
-CXX_OPT_OMP_FLAG=-Xcompiler '-fopenmp'
-CXX_DEB_OMP_FLAG=-Xcompiler '-fopenmp'
+CXX_OPT_OMP_FLAG=-fopenmp
+CXX_DEB_OMP_FLAG=-fopenmp
 
 # # gcc
 # CXX_NAME=gcc
@@ -42,21 +42,55 @@ CXX_DEB_OMP_FLAG=-Xcompiler '-fopenmp'
 # CXX_EXEC=g++
 # CXX_MODULE_NAME=$(CXX_NAME)/$(CXX_VERSION)
 # CXX_EXTRA_FLAGS=
-# CXX_OPT_OMP_FLAG=-Xcompiler '-fopenmp'
-# CXX_DEB_OMP_FLAG=-Xcompiler '-fopenmp'
+# CXX_OPT_OMP_FLAG=-fopenmp
+# CXX_DEB_OMP_FLAG=-fopenmp
 
 
-CUDA_COMPILER=/usr/tce/packages/cuda/cuda-$(CUDA_VERSION)/bin/$(CUDA_EXEC)
+# set basic compiler options
 CXX_MPI_COMPILER=/usr/tce/packages/$(MPI_NAME)/$(MPI_NAME)-$(MPI_VERSION)-$(CXX_NAME)-$(CXX_VERSION)/bin/$(MPI_EXEC)$(CXX_EXEC)
 
+CXX_COMMON_DEFINES=-DCOMB_COMPILER=$(CXX_MPI_COMPILER)
 
-CXX_DEFINES=-DCOMB_CUDA_COMPILER=$(CUDA_COMPILER) -DCOMB_COMPILER=$(CXX_MPI_COMPILER)
+CXX_COMMON_FLAGS=-std=c++11 -m64 -I./$(INC_DIR)
 
-CXX=$(CUDA_COMPILER) -ccbin $(CXX_MPI_COMPILER)
+CXX_BASE_FLAGS=$(CXX_EXTRA_FLAGS)
+CXX_BASE_OPT_FLAGS=-O3 -g
+CXX_BASE_DEB_FLAGS=-O0 -g
 
-CXX_FLAGS=$(CXX_EXTRA_FLAGS) -std=c++11 -I./$(INC_DIR) -lnvToolsExt -rdc=true -arch=sm_60 --expt-extended-lambda -m64 $(CXX_DEFINES)
-CXX_OPT_FLAGS=$(CXX_FLAGS) $(CXX_OPT_OMP_FLAG) -O3 -g -lineinfo  -Xcompiler '-O3 -g'
-CXX_DEB_FLAGS=$(CXX_FLAGS) $(CXX_DEB_OMP_FLAG) -O0 -G -g -Xcompiler '-O0 -g'
+
+# add openmp to compile options
+# to disable openmp comment these omp specific lines
+CXX_COMMON_DEFINES+=-DCOMB_HAVE_OPENMP=1
+
+CXX_BASE_OPT_FLAGS+=$(CXX_OPT_OMP_FLAG)
+CXX_BASE_DEB_FLAGS+=$(CXX_DEB_OMP_FLAG)
+
+
+# add cuda to compile options
+CUDA_COMPILER=/usr/tce/packages/cuda/cuda-$(CUDA_VERSION)/bin/$(CUDA_EXEC)
+CXX_CUDA_COMPILER=$(CUDA_COMPILER) -ccbin $(CXX_MPI_COMPILER)
+
+CXX_CUDA_DEFINES=-DCOMB_HAVE_CUDA=1 -DCOMB_CUDA_COMPILER=$(CUDA_COMPILER)
+
+CXX_CUDA_FLAGS=-lnvToolsExt -rdc=true -arch=sm_60 --expt-extended-lambda
+CXX_CUDA_OPT_FLAGS=-O3 -g -lineinfo
+CXX_CUDA_DEB_FLAGS=-O0 -g -G
+
+
+# combine flags into final form with cuda
+CXX_FLAGS=$(CXX_COMMON_FLAGS) $(CXX_COMMON_DEFINES) $(CXX_CUDA_DEFINES) $(CXX_CUDA_FLAGS)
+CXX_OPT_FLAGS=$(CXX_FLAGS) -Xcompiler '$(CXX_BASE_FLAGS) $(CXX_BASE_OPT_FLAGS)' $(CXX_CUDA_OPT_FLAGS)
+CXX_DEB_FLAGS=$(CXX_FLAGS) -Xcompiler '$(CXX_BASE_FLAGS) $(CXX_BASE_DEB_FLAGS)' $(CXX_CUDA_DEB_FLAGS)
+CXX=$(CXX_CUDA_COMPILER) -x=cu
+LINK=$(CXX_CUDA_COMPILER)
+
+# combine flags into final form without cuda
+# CXX_FLAGS=$(CXX_COMMON_FLAGS) $(CXX_COMMON_DEFINES)
+# CXX_OPT_FLAGS=$(CXX_FLAGS) $(CXX_BASE_FLAGS) $(CXX_BASE_OPT_FLAGS)
+# CXX_DEB_FLAGS=$(CXX_FLAGS) $(CXX_BASE_FLAGS) $(CXX_BASE_DEB_FLAGS)
+# CXX=$(CXX_MPI_COMPILER)
+# LINK=$(CXX_MPI_COMPILER)
+
 
 _DEPS=basic_mempool.hpp align.hpp mutex.hpp memory.cuh for_all.cuh profiling.cuh MeshData.cuh MeshInfo.cuh Box3d.cuh comm.cuh utils.cuh cuda_utils.cuh batch_launch.cuh persistent_launch.cuh MultiBuffer.cuh batch_utils.cuh CommFactory.cuh SetReset.cuh
 DEPS=$(patsubst %,$(INC_DIR)/%,$(_DEPS))
@@ -83,14 +117,14 @@ $(OBJ_DIR)/%_o.o: $(SRC_DIR)/%.cu $(DEPS) $(OBJ_DIR)
 	$(CXX) $(CXX_OPT_FLAGS) -c $< -o $@
 
 comb: $(OBJ_OPT)
-	$(CXX) $(CXX_OPT_FLAGS) $^ -o $@
+	$(LINK) $(CXX_OPT_FLAGS) $^ -o $@
 
 
 $(OBJ_DIR)/%_g.o: $(SRC_DIR)/%.cu $(DEPS) $(OBJ_DIR)
 	$(CXX) $(CXX_DEB_FLAGS) -c $< -o $@
 
 comb_g: $(OBJ_DEB)
-	$(CXX) $(CXX_DEB_FLAGS) $^ -o $@
+	$(LINK) $(CXX_DEB_FLAGS) $^ -o $@
 
 
 clean:

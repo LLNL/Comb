@@ -19,8 +19,12 @@
 #include <cstdio>
 #include <cstdlib>
 
+#ifdef COMB_HAVE_OPENMP
 #ifdef _OPENMP
 #include <omp.h>
+#else
+#error "Comb build with openmp enabled, but openmp not found"
+#endif
 
 // #define COMB_USE_OMP_COLLAPSE
 // #define COMB_USE_OMP_WEAK_COLLAPSE
@@ -40,11 +44,13 @@ struct seq_pol {
   static const char* get_name() { return "seq"; }
   using event_type = int;
 };
+#ifdef COMB_HAVE_OPENMP
 struct omp_pol {
   static const bool async = false;
   static const char* get_name() { return "omp"; }
   using event_type = int;
 };
+#endif
 struct cuda_pol {
   static const bool async = true;
   static const char* get_name() { return "cuda"; }
@@ -66,9 +72,11 @@ inline void synchronize(seq_pol const&)
 {
 }
 
+#ifdef COMB_HAVE_OPENMP
 inline void synchronize(omp_pol const&)
 {
 }
+#endif
 
 inline void synchronize(cuda_pol const&)
 {
@@ -91,9 +99,11 @@ inline void persistent_launch(seq_pol const&)
 {
 }
 
+#ifdef COMB_HAVE_OPENMP
 inline void persistent_launch(omp_pol const&)
 {
 }
+#endif
 
 inline void persistent_launch(cuda_pol const&)
 {
@@ -114,9 +124,11 @@ inline void batch_launch(seq_pol const&)
 {
 }
 
+#ifdef COMB_HAVE_OPENMP
 inline void batch_launch(omp_pol const&)
 {
 }
+#endif
 
 inline void batch_launch(cuda_pol const&)
 {
@@ -137,9 +149,11 @@ inline void persistent_stop(seq_pol const&)
 {
 }
 
+#ifdef COMB_HAVE_OPENMP
 inline void persistent_stop(omp_pol const&)
 {
 }
+#endif
 
 inline void persistent_stop(cuda_pol const&)
 {
@@ -252,10 +266,12 @@ inline typename seq_pol::event_type createEvent(seq_pol const&)
   return typename seq_pol::event_type{};
 }
 
+#ifdef COMB_HAVE_OPENMP
 inline typename omp_pol::event_type createEvent(omp_pol const&)
 {
   return typename omp_pol::event_type{};
 }
+#endif
 
 inline typename cuda_pol::event_type createEvent(cuda_pol const&)
 {
@@ -280,9 +296,11 @@ inline void recordEvent(seq_pol const&, typename seq_pol::event_type)
 {
 }
 
+#ifdef COMB_HAVE_OPENMP
 inline void recordEvent(omp_pol const&, typename omp_pol::event_type)
 {
 }
+#endif
 
 inline void recordEvent(cuda_pol const&, typename cuda_pol::event_type event)
 {
@@ -306,10 +324,12 @@ inline bool queryEvent(seq_pol const&, typename seq_pol::event_type)
   return true;
 }
 
+#ifdef COMB_HAVE_OPENMP
 inline bool queryEvent(omp_pol const&, typename omp_pol::event_type)
 {
   return true;
 }
+#endif
 
 inline bool queryEvent(cuda_pol const&, typename cuda_pol::event_type event)
 {
@@ -332,9 +352,11 @@ inline void waitEvent(seq_pol const&, typename seq_pol::event_type)
 {
 }
 
+#ifdef COMB_HAVE_OPENMP
 inline void waitEvent(omp_pol const&, typename omp_pol::event_type)
 {
 }
+#endif
 
 inline void waitEvent(cuda_pol const&, typename cuda_pol::event_type event)
 {
@@ -357,9 +379,11 @@ inline void destroyEvent(seq_pol const&, typename seq_pol::event_type)
 {
 }
 
+#ifdef COMB_HAVE_OPENMP
 inline void destroyEvent(omp_pol const&, typename omp_pol::event_type)
 {
 }
+#endif
 
 inline void destroyEvent(cuda_pol const&, typename cuda_pol::event_type event)
 {
@@ -450,6 +474,7 @@ inline void for_all(seq_pol const& pol, IdxT begin, IdxT end, body_type&& body)
   //synchronize(pol);
 }
 
+#ifdef COMB_HAVE_OPENMP
 template < typename body_type >
 inline void for_all(omp_pol const& pol, IdxT begin, IdxT end, body_type&& body)
 {
@@ -460,6 +485,7 @@ inline void for_all(omp_pol const& pol, IdxT begin, IdxT end, body_type&& body)
   }
   //synchronize(pol);
 }
+#endif
 
 template < typename body_type >
 __global__
@@ -519,6 +545,7 @@ void for_all_2d(seq_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1, IdxT en
   //synchronize(pol);
 }
 
+#ifdef COMB_HAVE_OPENMP
 template < typename body_type >
 inline void for_all_2d(omp_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, body_type&& body)
 {
@@ -584,6 +611,7 @@ inline void for_all_2d(omp_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1, 
 #endif
   //synchronize(pol);
 }
+#endif
 
 template < typename body_type >
 __global__
@@ -654,6 +682,7 @@ inline void for_all_3d(seq_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1, 
   //synchronize(pol);
 }
 
+#ifdef COMB_HAVE_OPENMP
 template < typename body_type >
 inline void for_all_3d(omp_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, IdxT begin2, IdxT end2, body_type&& body)
 {
@@ -734,6 +763,7 @@ inline void for_all_3d(omp_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1, 
 #endif
   //synchronize(pol);
 }
+#endif
 
 template < typename body_type >
 __global__
