@@ -6,6 +6,18 @@ OBJ_DIR=obj
 LIB_DIR=lib
 SRC_DIR=src
 
+_DEPS=basic_mempool.hpp align.hpp mutex.hpp memory.hpp for_all.hpp profiling.hpp MeshData.hpp MeshInfo.hpp Box3d.hpp comm.hpp utils.hpp cuda_utils.hpp batch_launch.hpp persistent_launch.hpp MultiBuffer.hpp batch_utils.hpp CommFactory.hpp SetReset.hpp
+DEPS=$(patsubst %,$(INC_DIR)/%,$(_DEPS))
+
+_OBJ_OPT=comb_o.o batch_launch_o.o persistent_launch_o.o MultiBuffer_o.o
+_OBJ_DEB=comb_g.o batch_launch_g.o persistent_launch_g.o MultiBuffer_g.o
+_OBJ_DLINK_OPT=dlinked_o.o
+_OBJ_DLINK_DEB=dlinked_g.o
+OBJ_OPT=$(patsubst %,$(OBJ_DIR)/%,$(_OBJ_OPT))
+OBJ_DEB=$(patsubst %,$(OBJ_DIR)/%,$(_OBJ_DEB))
+OBJ_DLINK_OPT=$(patsubst %,$(OBJ_DIR)/%,$(_OBJ_DLINK_OPT))
+OBJ_DLINK_DEB=$(patsubst %,$(OBJ_DIR)/%,$(_OBJ_DLINK_DEB))
+
 # MPI
 MPI_NAME=spectrum-mpi
 MPI_VERSION=rolling-release
@@ -59,11 +71,12 @@ CXX_BASE_DEB_FLAGS=-O0 -g
 
 
 # add openmp to compile options
-# to disable openmp comment these omp specific lines
+# BEGIN COMMENT to disable openmp
 CXX_COMMON_DEFINES+=-DCOMB_HAVE_OPENMP=1
 
 CXX_BASE_OPT_FLAGS+=$(CXX_OPT_OMP_FLAG)
 CXX_BASE_DEB_FLAGS+=$(CXX_DEB_OMP_FLAG)
+# END COMMENT to disable openmp
 
 
 # add cuda to compile options
@@ -78,29 +91,28 @@ CXX_CUDA_DEB_FLAGS=-O0 -g -G
 
 
 # combine flags into final form with cuda
+# BEGIN COMMENT to disable cuda
 CXX_FLAGS=$(CXX_COMMON_FLAGS) $(CXX_COMMON_DEFINES) $(CXX_CUDA_DEFINES) $(CXX_CUDA_FLAGS)
 CXX_OPT_FLAGS=$(CXX_FLAGS) -Xcompiler '$(CXX_BASE_FLAGS) $(CXX_BASE_OPT_FLAGS)' $(CXX_CUDA_OPT_FLAGS)
 CXX_DEB_FLAGS=$(CXX_FLAGS) -Xcompiler '$(CXX_BASE_FLAGS) $(CXX_BASE_DEB_FLAGS)' $(CXX_CUDA_DEB_FLAGS)
 CXX=$(CXX_CUDA_COMPILER) -x=cu
 DLINK=$(CXX_CUDA_COMPILER) -dlink
 LINK=$(CXX_CUDA_COMPILER)
+OBJ_LINK_OPT=$(OBJ_OPT) $(OBJ_DLINK_OPT)
+OBJ_LINK_DEB=$(OBJ_DEB) $(OBJ_DLINK_DEB)
+# END COMMENT to disable cuda
 
 # combine flags into final form without cuda
+# BEGIN COMMENT to enable cuda
 # CXX_FLAGS=$(CXX_COMMON_FLAGS) $(CXX_COMMON_DEFINES)
 # CXX_OPT_FLAGS=$(CXX_FLAGS) $(CXX_BASE_FLAGS) $(CXX_BASE_OPT_FLAGS)
 # CXX_DEB_FLAGS=$(CXX_FLAGS) $(CXX_BASE_FLAGS) $(CXX_BASE_DEB_FLAGS)
 # CXX=$(CXX_MPI_COMPILER)
 # DLINK=$(CXX_MPI_COMPILER)
 # LINK=$(CXX_MPI_COMPILER)
-
-
-_DEPS=basic_mempool.hpp align.hpp mutex.hpp memory.hpp for_all.hpp profiling.hpp MeshData.hpp MeshInfo.hpp Box3d.hpp comm.hpp utils.hpp cuda_utils.hpp batch_launch.hpp persistent_launch.hpp MultiBuffer.hpp batch_utils.hpp CommFactory.hpp SetReset.hpp
-DEPS=$(patsubst %,$(INC_DIR)/%,$(_DEPS))
-
-_OBJ_OPT=comb_o.o batch_launch_o.o persistent_launch_o.o MultiBuffer_o.o
-_OBJ_DEB=comb_g.o batch_launch_g.o persistent_launch_g.o MultiBuffer_g.o
-OBJ_OPT=$(patsubst %,$(OBJ_DIR)/%,$(_OBJ_OPT))
-OBJ_DEB=$(patsubst %,$(OBJ_DIR)/%,$(_OBJ_DEB))
+# OBJ_LINK_OPT=$(OBJ_OPT)
+# OBJ_LINK_DEB=$(OBJ_DEB)
+# END COMMENT to enable cuda
 
 opt: setup_env comb
 
@@ -118,20 +130,20 @@ setup_env:
 $(OBJ_DIR)/%_o.o: $(SRC_DIR)/%.cpp $(DEPS) $(OBJ_DIR)
 	$(CXX) $(CXX_OPT_FLAGS) -c $< -o $@
 
-$(OBJ_DIR)/dlinked_o.o: $(OBJ_OPT)
+$(OBJ_DLINK_OPT): $(OBJ_OPT)
 	$(DLINK) $(CXX_OPT_FLAGS) $^ -o $@
 
-comb: $(OBJ_OPT) $(OBJ_DIR)/dlinked_o.o
+comb: $(OBJ_LINK_OPT)
 	$(LINK) $(CXX_OPT_FLAGS) $^ -o $@
 
 
 $(OBJ_DIR)/%_g.o: $(SRC_DIR)/%.cpp $(DEPS) $(OBJ_DIR)
 	$(CXX) $(CXX_DEB_FLAGS) -c $< -o $@
 
-$(OBJ_DIR)/dlinked_g.o: $(OBJ_OPT)
-	$(DLINK) $(CXX_OPT_FLAGS) $^ -o $@
+$(OBJ_DLINK_DEB): $(OBJ_DEB)
+	$(DLINK) $(CXX_DEB_FLAGS) $^ -o $@
 
-comb_g: $(OBJ_DEB) $(OBJ_DIR)/dlinked_g.o
+comb_g: $(OBJ_LINK_DEB)
 	$(LINK) $(CXX_DEB_FLAGS) $^ -o $@
 
 
