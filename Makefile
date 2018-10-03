@@ -80,12 +80,14 @@ all: setup_env comb_o comb_g
 
 debug: setup_env comb_g
 
+$(OBJ_DIR):
+	mkdir $(OBJ_DIR)
 
 #setup_env:
 #	echo "module load $(MPI_MODULE_NAME) $(CUDA_MODULE_NAME) $(CXX_MODULE_NAME)"
 
 
-$(OBJ_DIR)/%_o.o: $(SRC_DIR)/%.cu $(DEPS)
+$(OBJ_DIR)/%_o.o: $(SRC_DIR)/%.cu $(DEPS) $(OBJ_DIR)
 	$(CXX) $(CXX_OPT_FLAGS) -c $< -o $@
 
 $(OBJ_DIR)/dlinked_o.o: $(OBJ_OPT)
@@ -95,7 +97,7 @@ comb_o: $(OBJ_OPT) $(OBJ_DIR)/dlinked_o.o
 	$(CXX) $(CXX_OPT_FLAGS) $^ -o $@ -lcudart_static -lcudadevrt -lrt -ldl
 
 
-$(OBJ_DIR)/%_g.o: $(SRC_DIR)/%.cu $(DEPS)
+$(OBJ_DIR)/%_g.o: $(SRC_DIR)/%.cu $(DEPS) $(OBJ_DIR)
 	$(CXX) $(CXX_DEB_FLAGS) -c $< -o $@
 
 $(OBJ_DIR)/dlinked_g.o: $(OBJ_DEB)
