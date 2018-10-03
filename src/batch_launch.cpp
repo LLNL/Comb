@@ -13,7 +13,7 @@
 // Please also see the LICENSE file for MIT license.
 //////////////////////////////////////////////////////////////////////////////
 
-#include "batch_launch.cuh"
+#include "batch_launch.hpp"
 
 #include <cooperative_groups.h>
 

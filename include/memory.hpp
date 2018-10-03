@@ -21,7 +21,7 @@
 
 #include "basic_mempool.hpp"
 
-#include "cuda_utils.cuh"
+#include "cuda_utils.hpp"
 
 template < typename alloc >
 using mempool = RAJA::basic_mempool::MemPool<alloc>;

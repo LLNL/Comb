@@ -21,7 +21,7 @@
 
 #include <mpi.h>
 
-#include "cuda_utils.cuh"
+#include "cuda_utils.hpp"
 
 #define COMB_SERIALIZE_HELPER(a) #a
 #define COMB_SERIALIZE(a) COMB_SERIALIZE_HELPER(a)

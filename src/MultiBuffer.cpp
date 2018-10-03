@@ -13,7 +13,7 @@
 // Please also see the LICENSE file for MIT license.
 //////////////////////////////////////////////////////////////////////////////
 
-#include "MultiBuffer.cuh"
+#include "MultiBuffer.hpp"
 
 namespace detail {
 

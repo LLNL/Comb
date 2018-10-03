@@ -27,9 +27,9 @@
 
 #include <mpi.h>
 
-#include "memory.cuh"
-#include "for_all.cuh"
-#include "utils.cuh"
+#include "memory.hpp"
+#include "for_all.hpp"
+#include "utils.hpp"
 
 struct CartRank
 {

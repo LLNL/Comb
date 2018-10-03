@@ -27,15 +27,15 @@
 #include <omp.h>
 #endif
 
-#include "memory.cuh"
-#include "for_all.cuh"
-#include "profiling.cuh"
-#include "MeshInfo.cuh"
-#include "MeshData.cuh"
-#include "comm.cuh"
-#include "CommFactory.cuh"
-#include "batch_utils.cuh"
-#include "SetReset.cuh"
+#include "memory.hpp"
+#include "for_all.hpp"
+#include "profiling.hpp"
+#include "MeshInfo.hpp"
+#include "MeshData.hpp"
+#include "comm.hpp"
+#include "CommFactory.hpp"
+#include "batch_utils.hpp"
+#include "SetReset.hpp"
 
 #define PRINT_THREAD_MAP
 

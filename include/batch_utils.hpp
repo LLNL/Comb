@@ -26,7 +26,7 @@
 #include <cooperative_groups.h>
 #include <mpi.h>
 
-#include "utils.cuh"
+#include "utils.hpp"
 
 
 inline bool& get_batch_always_grid_sync()

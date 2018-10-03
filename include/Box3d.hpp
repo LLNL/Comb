@@ -16,9 +16,9 @@
 #ifndef _BOX3D_CUH
 #define _BOX3D_CUH
 
-#include "memory.cuh"
-#include "utils.cuh"
-#include "MeshInfo.cuh"
+#include "memory.hpp"
+#include "utils.hpp"
+#include "MeshInfo.hpp"
 
 struct IdxTemplate
 {

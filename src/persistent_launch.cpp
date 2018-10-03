@@ -13,7 +13,7 @@
 // Please also see the LICENSE file for MIT license.
 //////////////////////////////////////////////////////////////////////////////
 
-#include "persistent_launch.cuh"
+#include "persistent_launch.hpp"
 
 #include <cooperative_groups.h>
 

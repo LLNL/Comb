@@ -16,8 +16,8 @@
 #ifndef _BATCH_LAUNCH_CUH
 #define _BATCH_LAUNCH_CUH
 
-#include "batch_utils.cuh"
-#include "MultiBuffer.cuh"
+#include "batch_utils.hpp"
+#include "MultiBuffer.hpp"
 #include <algorithm>
 
 namespace cuda {

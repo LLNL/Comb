@@ -16,8 +16,8 @@
 #ifndef _PERSISTENT_LAUNCH_CUH
 #define _PERSISTENT_LAUNCH_CUH
 
-#include "batch_utils.cuh"
-#include "MultiBuffer.cuh"
+#include "batch_utils.hpp"
+#include "MultiBuffer.hpp"
 
 namespace cuda {
 

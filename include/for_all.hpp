@@ -34,10 +34,10 @@
 
 #include <type_traits>
 
-#include "utils.cuh"
-#include "memory.cuh"
-#include "batch_launch.cuh"
-#include "persistent_launch.cuh"
+#include "utils.hpp"
+#include "memory.hpp"
+#include "batch_launch.hpp"
+#include "persistent_launch.hpp"
 
 struct seq_pol {
   static const bool async = false;

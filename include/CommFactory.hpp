@@ -27,13 +27,13 @@
 #include <unordered_map>
 #include <utility>
 
-#include "memory.cuh"
-#include "for_all.cuh"
-#include "utils.cuh"
-#include "MeshInfo.cuh"
-#include "MeshData.cuh"
-#include "Box3d.cuh"
-#include "comm.cuh"
+#include "memory.hpp"
+#include "for_all.hpp"
+#include "utils.hpp"
+#include "MeshInfo.hpp"
+#include "MeshData.hpp"
+#include "Box3d.hpp"
+#include "comm.hpp"
 
 
 template < typename loop_body >

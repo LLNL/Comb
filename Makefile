@@ -94,7 +94,7 @@ LINK=$(CXX_CUDA_COMPILER)
 # LINK=$(CXX_MPI_COMPILER)
 
 
-_DEPS=basic_mempool.hpp align.hpp mutex.hpp memory.cuh for_all.cuh profiling.cuh MeshData.cuh MeshInfo.cuh Box3d.cuh comm.cuh utils.cuh cuda_utils.cuh batch_launch.cuh persistent_launch.cuh MultiBuffer.cuh batch_utils.cuh CommFactory.cuh SetReset.cuh
+_DEPS=basic_mempool.hpp align.hpp mutex.hpp memory.hpp for_all.hpp profiling.hpp MeshData.hpp MeshInfo.hpp Box3d.hpp comm.hpp utils.hpp cuda_utils.hpp batch_launch.hpp persistent_launch.hpp MultiBuffer.hpp batch_utils.hpp CommFactory.hpp SetReset.hpp
 DEPS=$(patsubst %,$(INC_DIR)/%,$(_DEPS))
 
 _OBJ_OPT=comb_o.o batch_launch_o.o persistent_launch_o.o MultiBuffer_o.o
@@ -115,7 +115,7 @@ setup_env:
 	echo "module load $(MPI_MODULE_NAME) $(CUDA_MODULE_NAME) $(CXX_MODULE_NAME)"
 
 
-$(OBJ_DIR)/%_o.o: $(SRC_DIR)/%.cu $(DEPS) $(OBJ_DIR)
+$(OBJ_DIR)/%_o.o: $(SRC_DIR)/%.cpp $(DEPS) $(OBJ_DIR)
 	$(CXX) $(CXX_OPT_FLAGS) -c $< -o $@
 
 $(OBJ_DIR)/dlinked_o.o: $(OBJ_OPT)
@@ -125,7 +125,7 @@ comb: $(OBJ_OPT) $(OBJ_DIR)/dlinked_o.o
 	$(LINK) $(CXX_OPT_FLAGS) $^ -o $@
 
 
-$(OBJ_DIR)/%_g.o: $(SRC_DIR)/%.cu $(DEPS) $(OBJ_DIR)
+$(OBJ_DIR)/%_g.o: $(SRC_DIR)/%.cpp $(DEPS) $(OBJ_DIR)
 	$(CXX) $(CXX_DEB_FLAGS) -c $< -o $@
 
 $(OBJ_DIR)/dlinked_g.o: $(OBJ_OPT)

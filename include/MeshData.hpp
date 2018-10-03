@@ -16,8 +16,8 @@
 #ifndef _MESHDATA_CUH
 #define _MESHDATA_CUH
 
-#include "memory.cuh"
-#include "MeshInfo.cuh"
+#include "memory.hpp"
+#include "MeshInfo.hpp"
 
 struct MeshData
 {

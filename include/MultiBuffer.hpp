@@ -18,7 +18,7 @@
 
 #include <atomic>
 
-#include "batch_utils.cuh"
+#include "batch_utils.hpp"
 
 namespace detail {
 
