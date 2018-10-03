@@ -18,6 +18,7 @@
 
 #include "batch_utils.cuh"
 #include "MultiBuffer.cuh"
+#include <algorithm>
 
 namespace cuda {
 
