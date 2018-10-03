@@ -82,6 +82,7 @@ CXX_FLAGS=$(CXX_COMMON_FLAGS) $(CXX_COMMON_DEFINES) $(CXX_CUDA_DEFINES) $(CXX_CU
 CXX_OPT_FLAGS=$(CXX_FLAGS) -Xcompiler '$(CXX_BASE_FLAGS) $(CXX_BASE_OPT_FLAGS)' $(CXX_CUDA_OPT_FLAGS)
 CXX_DEB_FLAGS=$(CXX_FLAGS) -Xcompiler '$(CXX_BASE_FLAGS) $(CXX_BASE_DEB_FLAGS)' $(CXX_CUDA_DEB_FLAGS)
 CXX=$(CXX_CUDA_COMPILER) -x=cu
+DLINK=$(CXX_CUDA_COMPILER) -dlink
 LINK=$(CXX_CUDA_COMPILER)
 
 # combine flags into final form without cuda
@@ -89,6 +90,7 @@ LINK=$(CXX_CUDA_COMPILER)
 # CXX_OPT_FLAGS=$(CXX_FLAGS) $(CXX_BASE_FLAGS) $(CXX_BASE_OPT_FLAGS)
 # CXX_DEB_FLAGS=$(CXX_FLAGS) $(CXX_BASE_FLAGS) $(CXX_BASE_DEB_FLAGS)
 # CXX=$(CXX_MPI_COMPILER)
+# DLINK=$(CXX_MPI_COMPILER)
 # LINK=$(CXX_MPI_COMPILER)
 
 
@@ -116,14 +118,20 @@ setup_env:
 $(OBJ_DIR)/%_o.o: $(SRC_DIR)/%.cu $(DEPS) $(OBJ_DIR)
 	$(CXX) $(CXX_OPT_FLAGS) -c $< -o $@
 
-comb: $(OBJ_OPT)
+$(OBJ_DIR)/dlinked_o.o: $(OBJ_OPT)
+	$(DLINK) $(CXX_OPT_FLAGS) $^ -o $@
+
+comb: $(OBJ_OPT) $(OBJ_DIR)/dlinked_o.o
 	$(LINK) $(CXX_OPT_FLAGS) $^ -o $@
 
 
 $(OBJ_DIR)/%_g.o: $(SRC_DIR)/%.cu $(DEPS) $(OBJ_DIR)
 	$(CXX) $(CXX_DEB_FLAGS) -c $< -o $@
 
-comb_g: $(OBJ_DEB)
+$(OBJ_DIR)/dlinked_g.o: $(OBJ_OPT)
+	$(DLINK) $(CXX_OPT_FLAGS) $^ -o $@
+
+comb_g: $(OBJ_DEB) $(OBJ_DIR)/dlinked_g.o
 	$(LINK) $(CXX_DEB_FLAGS) $^ -o $@
 
 
