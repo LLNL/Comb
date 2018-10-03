@@ -2,7 +2,6 @@ tmp*
 test*
 *.swp
 *.o
-*_o
-*_g
+comb
+comb_g
 *~
-
