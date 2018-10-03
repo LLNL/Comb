@@ -26,7 +26,13 @@ User Documentation
 
 Minimal documentation is available.
 
-The [scale_tests.bash](./scripts/scale_tests.bash) script shows the basic options available and how the code may be run.
+The [run_scale_tests.bash](./scripts/run_scale_tests.bash) is an example script that allocates resources and runs the code in a variety of configurations via the scale_tests.bash script. The run_scale_tests.bash script takes a single argument, the number of processes per side used to split the grid into an N x N x N decomposition.
+    * `mkdir 1_1_1`
+    * `ln -s path/to/comb/comb comb`
+    * `ln -s path/to/comb/scripts/* .`
+    * `./run_scale_tests.bash 1`
+The [scale_tests.bash](./scripts/scale_tests.bash) script used run_scale_tests.bash which shows the options available and how the code may be run with mpi.
+
 
 Related Software
 --------------------
