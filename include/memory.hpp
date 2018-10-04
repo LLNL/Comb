@@ -13,19 +13,20 @@
 // Please also see the LICENSE file for MIT license.
 //////////////////////////////////////////////////////////////////////////////
 
-#ifndef _MEMORY_CUH
-#define _MEMORY_CUH
+#ifndef _MEMORY_HPP
+#define _MEMORY_HPP
 
 #include <cstdio>
 #include <cstdlib>
 
 #include "basic_mempool.hpp"
 
-#include "cuda_utils.cuh"
+#include "cuda_utils.hpp"
 
 template < typename alloc >
 using mempool = RAJA::basic_mempool::MemPool<alloc>;
 
+#ifdef COMB_HAVE_CUDA
   struct cuda_host_pinned_allocator {
     void* malloc(size_t nbytes) {
       void* ptr = nullptr;
@@ -120,6 +121,7 @@ using mempool = RAJA::basic_mempool::MemPool<alloc>;
       cudaCheck(cudaFree(ptr));
     }
   };
+#endif
 
 struct Allocator
 {
@@ -144,6 +146,7 @@ struct HostAllocator : Allocator
   }
 };
 
+#ifdef COMB_HAVE_CUDA
 struct HostPinnedAllocator : Allocator
 {
   virtual const char* name() { return "HostPinned"; }
@@ -241,6 +244,7 @@ struct ManagedDevicePreferredHostAccessedAllocator : Allocator
     mempool<cuda_managed_device_preferred_host_accessed_allocator>::getInstance().free(ptr);
   }
 };
+#endif
 
-#endif // _MEMORY_CUH
+#endif // _MEMORY_HPP
 

@@ -13,16 +13,17 @@
 // Please also see the LICENSE file for MIT license.
 //////////////////////////////////////////////////////////////////////////////
 
-#ifndef _BATCH_LAUNCH_CUH
-#define _BATCH_LAUNCH_CUH
+#ifndef _PERSISTENT_LAUNCH_HPP
+#define _PERSISTENT_LAUNCH_HPP
 
-#include "batch_utils.cuh"
-#include "MultiBuffer.cuh"
-#include <algorithm>
+#ifdef __CUDACC__
+
+#include "batch_utils.hpp"
+#include "MultiBuffer.hpp"
 
 namespace cuda {
 
-namespace batch_launch {
+namespace persistent_launch {
 
 namespace detail {
 
@@ -32,20 +33,20 @@ inline ::detail::MultiBuffer& getMultiBuffer()
   return buf;
 }
 
-inline ::detail::MultiBuffer::buffer_size_type& getMaxN()
-{
-  static ::detail::MultiBuffer::buffer_size_type maxN = 0;
-  return maxN;
-}
-
 inline ::detail::EventBuffer& getEventBuffer()
 {
   static ::detail::EventBuffer buf(1024);
   return buf;
 }
 
+inline bool& getLaunched()
+{
+  static bool launched = false;
+  return launched;
+}
 
 extern void launch(::detail::MultiBuffer& mb, cudaStream_t stream);
+extern void stop(::detail::MultiBuffer& mb, cudaStream_t stream);
 
 // Enqueue a kernel in the current buffer.
 template <typename kernel_type_in>
@@ -59,25 +60,12 @@ inline void enqueue(::detail::MultiBuffer& mb, int begin, int n, kernel_type_in&
    // Copy kernel into kernel holder and write to pinned buffer
    kernel_type kernel{kernel_in, begin, n};
 
-   // if first write
-   if (getMaxN() == 0) {
-      // ensure other thread/device done reading buffer before launch
-      while(!mb.cur_buffer_empty());
+   if (!getLaunched()) {
+     launch(mb, stream);
    }
 
-   // pack function pointer and kernel body
-   bool success = mb.pack(wrapper_ptr, &kernel);
-
-   if ( !success ) {
-
-      // Not enough room, launch current buffer (switches to next buffer)
-      launch(mb, stream);
-
-      // Wait for next buffer to be writeable, then pack
-      while ( !mb.pack(wrapper_ptr, &kernel) );
-   }
-
-   getMaxN() = std::max(getMaxN(), static_cast<::detail::MultiBuffer::buffer_size_type>(n));
+   // Wait for next buffer to be writeable, then pack
+   while ( !mb.pack(wrapper_ptr, &kernel) );
 }
 
 } // namespace detail
@@ -93,17 +81,7 @@ inline void recordEvent(::detail::batch_event_type_ptr event, cudaStream_t strea
    ::detail::EventBuffer& eb = detail::getEventBuffer();
    ::detail::MultiBuffer& mb = detail::getMultiBuffer();
 
-   bool success = eb.recordEvent(event, mb);
-
-   if ( !success ) {
-
-      // Not enough room, launch current buffer (switches to next buffer)
-      detail::launch(mb, stream);
-
-      // Wait for next buffer to be writeable, then record event
-      while ( !eb.recordEvent(event, mb) );
-
-   }
+   while ( !eb.recordEvent(event, mb) );
 }
 
 inline bool queryEvent(::detail::batch_event_type_ptr event)
@@ -123,6 +101,7 @@ inline void destroyEvent(::detail::batch_event_type_ptr event)
 
 
 extern void force_launch(cudaStream_t stream = 0);
+extern void force_stop(cudaStream_t stream = 0);
 extern void synchronize(cudaStream_t stream = 0);
 
 template <typename kernel_type_in>
@@ -133,9 +112,11 @@ inline void for_all(int begin, int end, kernel_type_in&& kernel_in, cudaStream_t
    }
 }
 
-} // namespace batch_launch
+} // namespace persistent_launch
 
 } // namespace cuda
 
-#endif // _BATCH_LAUNCH_CUH
+#endif
+
+#endif // _PERSISTENT_LAUNCH_HPP
 

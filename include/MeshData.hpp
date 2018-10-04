@@ -13,11 +13,11 @@
 // Please also see the LICENSE file for MIT license.
 //////////////////////////////////////////////////////////////////////////////
 
-#ifndef _MESHDATA_CUH
-#define _MESHDATA_CUH
+#ifndef _MESHDATA_HPP
+#define _MESHDATA_HPP
 
-#include "memory.cuh"
-#include "MeshInfo.cuh"
+#include "memory.hpp"
+#include "MeshInfo.hpp"
 
 struct MeshData
 {
@@ -66,5 +66,5 @@ struct MeshData
   }
 };
 
-#endif // _MESHDATA_CUH
+#endif // _MESHDATA_HPP
 

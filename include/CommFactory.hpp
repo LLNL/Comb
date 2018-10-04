@@ -13,8 +13,8 @@
 // Please also see the LICENSE file for MIT license.
 //////////////////////////////////////////////////////////////////////////////
 
-#ifndef _COMM_FACTORY_CUH
-#define _COMM_FACTORY_CUH
+#ifndef _COMM_FACTORY_HPP
+#define _COMM_FACTORY_HPP
 
 #include <cstdio>
 #include <cstdlib>
@@ -27,13 +27,13 @@
 #include <unordered_map>
 #include <utility>
 
-#include "memory.cuh"
-#include "for_all.cuh"
-#include "utils.cuh"
-#include "MeshInfo.cuh"
-#include "MeshData.cuh"
-#include "Box3d.cuh"
-#include "comm.cuh"
+#include "memory.hpp"
+#include "for_all.hpp"
+#include "utils.hpp"
+#include "MeshInfo.hpp"
+#include "MeshData.hpp"
+#include "Box3d.hpp"
+#include "comm.hpp"
 
 
 template < typename loop_body >
@@ -390,5 +390,5 @@ struct CommFactory
   }
 };
 
-#endif // _COMM_FACTORY_CUH
+#endif // _COMM_FACTORY_HPP
 

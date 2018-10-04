@@ -13,12 +13,14 @@
 // Please also see the LICENSE file for MIT license.
 //////////////////////////////////////////////////////////////////////////////
 
-#ifndef _MULTIBUFFER_CUH
-#define _MULTIBUFFER_CUH
+#ifndef _MULTIBUFFER_HPP
+#define _MULTIBUFFER_HPP
+
+#ifdef __CUDACC__
 
 #include <atomic>
 
-#include "batch_utils.cuh"
+#include "batch_utils.hpp"
 
 namespace detail {
 
@@ -285,5 +287,7 @@ private:
 
 } // namespace detail
 
-#endif // _MULTIBUFFER_CUH
+#endif
+
+#endif // _MULTIBUFFER_HPP
 

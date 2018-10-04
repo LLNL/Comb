@@ -13,12 +13,12 @@
 // Please also see the LICENSE file for MIT license.
 //////////////////////////////////////////////////////////////////////////////
 
-#ifndef _BOX3D_CUH
-#define _BOX3D_CUH
+#ifndef _BOX3D_HPP
+#define _BOX3D_HPP
 
-#include "memory.cuh"
-#include "utils.cuh"
-#include "MeshInfo.cuh"
+#include "memory.hpp"
+#include "utils.hpp"
+#include "MeshInfo.hpp"
 
 struct IdxTemplate
 {
@@ -353,5 +353,5 @@ private:
   }
 };
 
-#endif // _BOX3D_CUH
+#endif // _BOX3D_HPP
 

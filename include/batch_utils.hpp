@@ -13,8 +13,10 @@
 // Please also see the LICENSE file for MIT license.
 //////////////////////////////////////////////////////////////////////////////
 
-#ifndef _BATCH_UTILS_CUH
-#define _BATCH_UTILS_CUH
+#ifndef _BATCH_UTILS_HPP
+#define _BATCH_UTILS_HPP
+
+#ifdef __CUDACC__
 
 #include <cstddef>
 #include <cassert>
@@ -26,7 +28,7 @@
 #include <cooperative_groups.h>
 #include <mpi.h>
 
-#include "utils.cuh"
+#include "utils.hpp"
 
 
 inline bool& get_batch_always_grid_sync()
@@ -368,5 +370,7 @@ inline const volatile device_wrapper_ptr* event_complete(const volatile device_w
 
 } // namespace detail
 
-#endif // _BATCH_UTILS_CUH
+#endif
+
+#endif // _BATCH_UTILS_HPP
 

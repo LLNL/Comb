@@ -13,7 +13,9 @@
 // Please also see the LICENSE file for MIT license.
 //////////////////////////////////////////////////////////////////////////////
 
-#include "persistent_launch.cuh"
+#ifdef __CUDACC__
+
+#include "persistent_launch.hpp"
 
 #include <cooperative_groups.h>
 
@@ -116,3 +118,4 @@ void synchronize(cudaStream_t stream)
 
 } // namespace cuda
 
+#endif
