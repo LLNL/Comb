@@ -20,11 +20,7 @@
 #include <cstdlib>
 
 #ifdef COMB_HAVE_OPENMP
-#ifdef _OPENMP
 #include <omp.h>
-#else
-#error "Comb build with openmp enabled, but openmp not found"
-#endif
 
 // #define COMB_USE_OMP_COLLAPSE
 // #define COMB_USE_OMP_WEAK_COLLAPSE
