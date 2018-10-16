@@ -1,8 +1,8 @@
 //////////////////////////////////////////////////////////////////////////////
 // Copyright (c) 2018, Lawrence Livermore National Security, LLC.
+//
 // Produced at the Lawrence Livermore National Laboratory
 //
-// Created by Jason Burmark, burmark1@llnl.gov
 // LLNL-CODE-758885
 //
 // All rights reserved.
