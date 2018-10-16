@@ -15,6 +15,9 @@
 
 set(COMB_COMPILER "COMB_COMPILER_CLANG" CACHE STRING "")
 
+set(MPI_CXX_COMPILER "/usr/apps/gnu/clang/r284961-stable/bin/mpiclang++11" CACHE PATH "")
+set(MPI_C_COMPILER "/usr/apps/gnu/clang/r284961-stable/bin/mpiclang" CACHE PATH "")
+
 set(CMAKE_CXX_COMPILER "/usr/apps/gnu/clang/r284961-stable/bin/bgclang++11" CACHE PATH "")
 set(CMAKE_C_COMPILER "/usr/apps/gnu/clang/r284961-stable/bin/bgclang" CACHE PATH "")
 

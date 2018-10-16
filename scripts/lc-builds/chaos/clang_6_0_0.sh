@@ -20,7 +20,7 @@ BUILD_SUFFIX=lc_chaos_clang_6_0_0
 rm -rf build_${BUILD_SUFFIX} 2>/dev/null
 mkdir build_${BUILD_SUFFIX} && cd build_${BUILD_SUFFIX}
 
-. /usr/local/tools/dotkit/init.sh && use cmake-3.4.1 && use clang-6.0.0
+. /usr/local/tools/dotkit/init.sh && use cmake-3.4.1
 
 cmake \
   -DCMAKE_BUILD_TYPE=Release \

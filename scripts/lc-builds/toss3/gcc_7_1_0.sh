@@ -20,7 +20,7 @@ BUILD_SUFFIX=lc_toss3_gcc_7_1_0
 rm -rf build_${BUILD_SUFFIX} 2>/dev/null
 mkdir build_${BUILD_SUFFIX} && cd build_${BUILD_SUFFIX}
 
-module load cmake/3.9.2 gcc/7.1.0
+module load cmake/3.9.2
 
 cmake \
   -DCMAKE_BUILD_TYPE=Release \

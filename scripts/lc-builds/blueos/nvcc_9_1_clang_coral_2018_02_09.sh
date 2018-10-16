@@ -20,7 +20,7 @@ BUILD_SUFFIX=lc_blueos_nvcc_9_1_clang_coral_2018_02_09
 rm -rf build_${BUILD_SUFFIX} >/dev/null
 mkdir build_${BUILD_SUFFIX} && cd build_${BUILD_SUFFIX}
 
-module load cmake/3.9.2 clang/coral-2018.02.09 cuda/9.1.85
+module load cmake/3.9.2
 
 cmake \
   -DCMAKE_BUILD_TYPE=Release \

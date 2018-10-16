@@ -15,6 +15,9 @@
 
 set(COMB_COMPILER "COMB_COMPILER_ICC" CACHE STRING "")
 
+set(MPI_CXX_COMPILER "/usr/tce/packages/mvapich2/mvapich2-2.3-intel-19.0-beta/bin/mpic++" CACHE PATH "")
+set(MPI_C_COMPILER "/usr/tce/packages/mvapich2/mvapich2-2.3-intel-19.0-beta/bin/mpicc" CACHE PATH "")
+
 set(CMAKE_CXX_COMPILER "/usr/tce/packages/intel/intel-19.0-beta/bin/icpc" CACHE PATH "")
 set(CMAKE_C_COMPILER "/usr/tce/packages/intel/intel-19.0-beta/bin/icc" CACHE PATH "")
 

@@ -15,6 +15,9 @@
 
 set(COMB_COMPILER "COMB_COMPILER_CLANG" CACHE STRING "")
 
+set(MPI_CXX_COMPILER "/usr/tce/packages/spectrum-mpi/spectrum-mpi-rolling-release-clang-coral-2017.12.06/bin/mpiclang++" CACHE PATH "")
+set(MPI_C_COMPILER "/usr/tce/packages/spectrum-mpi/spectrum-mpi-rolling-release-clang-coral-2017.12.06/bin/mpiclang" CACHE PATH "")
+
 set(CMAKE_CXX_COMPILER "/usr/tce/packages/clang/clang-coral-2017.12.06/bin/clang++" CACHE PATH "")
 set(CMAKE_C_COMPILER "/usr/tce/packages/clang/clang-coral-2017.12.06/bin/clang" CACHE PATH "")
 

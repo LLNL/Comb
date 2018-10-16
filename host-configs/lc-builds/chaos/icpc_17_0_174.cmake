@@ -15,6 +15,9 @@
 
 set(COMB_COMPILER "COMB_COMPILER_ICC" CACHE STRING "")
 
+set(MPI_CXX_COMPILER "/usr/local/bin/mpiicpc-17.0.174" CACHE PATH "")
+set(MPI_C_COMPILER "/usr/local/bin/mpiicc-17.0.174" CACHE PATH "")
+
 set(CMAKE_CXX_COMPILER "/usr/local/bin/icpc-17.0.174" CACHE PATH "")
 set(CMAKE_C_COMPILER "/usr/local/bin/icc-17.0.174" CACHE PATH "")
 

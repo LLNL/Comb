@@ -20,7 +20,7 @@ BUILD_SUFFIX=lc_chaos_icpc_16_0_258
 rm -rf build_${BUILD_SUFFIX} 2>/dev/null
 mkdir build_${BUILD_SUFFIX} && cd build_${BUILD_SUFFIX}
 
-. /usr/local/tools/dotkit/init.sh && use cmake-3.4.1 && use gcc-4.9.3p && use ic-16.0.258
+. /usr/local/tools/dotkit/init.sh && use cmake-3.4.1 && use gcc-4.9.3p
 
 cmake \
   -DCMAKE_BUILD_TYPE=Release \

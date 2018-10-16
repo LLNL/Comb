@@ -20,7 +20,7 @@ BUILD_SUFFIX=lc_blueos_clang_coral_2018_05_23
 rm -rf build_${BUILD_SUFFIX} 2>/dev/null
 mkdir build_${BUILD_SUFFIX} && cd build_${BUILD_SUFFIX}
 
-module load cmake/3.9.2 clang/coral-2018.05.23
+module load cmake/3.9.2
 
 cmake \
   -DCMAKE_BUILD_TYPE=Release \

@@ -20,7 +20,7 @@ BUILD_SUFFIX=lc_toss3_gcc_4_9_3
 rm -rf build_${BUILD_SUFFIX} 2>/dev/null
 mkdir build_${BUILD_SUFFIX} && cd build_${BUILD_SUFFIX}
 
-. /usr/local/tools/dotkit/init.sh && use cmake-3.4.1 && use gcc-4.9.3p
+. /usr/local/tools/dotkit/init.sh && use cmake-3.4.1
 
 cmake \
   -DCMAKE_BUILD_TYPE=Release \

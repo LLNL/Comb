@@ -20,7 +20,7 @@ BUILD_SUFFIX=lc_toss3_icpc_16_0_4
 rm -rf build_${BUILD_SUFFIX} 2>/dev/null
 mkdir build_${BUILD_SUFFIX} && cd build_${BUILD_SUFFIX}
 
-module load cmake/3.9.2 gcc/4.9.3 intel/16.0.4
+module load cmake/3.9.2 gcc/4.9.3
 
 cmake \
   -DCMAKE_BUILD_TYPE=Release \

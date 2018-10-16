@@ -20,7 +20,7 @@ BUILD_SUFFIX=lc_blueos_nvcc_9_2_xl_2018_08_24
 rm -rf build_${BUILD_SUFFIX} 2>/dev/null
 mkdir build_${BUILD_SUFFIX} && cd build_${BUILD_SUFFIX}
 
-module load cmake/3.9.2 xl/2018.08.24 cuda/9.2.148
+module load cmake/3.9.2
 
 cmake \
   -DCMAKE_BUILD_TYPE=Release \

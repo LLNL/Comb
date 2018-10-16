@@ -15,6 +15,9 @@
 
 set(COMB_COMPILER "COMB_COMPILER_CLANG" CACHE STRING "")
 
+set(MPI_CXX_COMPILER "/usr/global/tools/clang/chaos_5_x86_64_ib/clang-6.0.0/bin/mpiclang++" CACHE PATH "")
+set(MPI_C_COMPILER "/usr/global/tools/clang/chaos_5_x86_64_ib/clang-6.0.0/bin/mpiclang" CACHE PATH "")
+
 set(CMAKE_CXX_COMPILER "/usr/global/tools/clang/chaos_5_x86_64_ib/clang-6.0.0/bin/clang++" CACHE PATH "")
 set(CMAKE_C_COMPILER "/usr/global/tools/clang/chaos_5_x86_64_ib/clang-6.0.0/bin/clang" CACHE PATH "")
 

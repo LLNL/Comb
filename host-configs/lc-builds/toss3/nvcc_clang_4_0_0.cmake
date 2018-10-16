@@ -15,6 +15,9 @@
 
 set(COMB_COMPILER "COMB_COMPILER_GNU" CACHE STRING "")
 
+set(MPI_CXX_COMPILER "/usr/tce/packages/mvapich2/mvapich2-2.2-clang-4.0.0/bin/mpic++" CACHE PATH "")
+set(MPI_C_COMPILER "/usr/tce/packages/mvapich2/mvapich2-2.2-clang-4.0.0/bin/mpicc" CACHE PATH "")
+
 set(CMAKE_CXX_COMPILER "/usr/tce/packages/clang/clang-4.0.0/bin/clang++" CACHE PATH "")
 set(CMAKE_C_COMPILER "/usr/tce/packages/clang/clang-4.0.0/bin/clang" CACHE PATH "")
 

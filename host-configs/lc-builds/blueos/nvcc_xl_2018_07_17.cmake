@@ -15,6 +15,9 @@
 
 set(COMB_COMPILER "COMB_COMPILER_XLC" CACHE STRING "")
 
+set(MPI_CXX_COMPILER "/usr/tce/packages/spectrum-mpi/spectrum-mpi-rolling-release-xl-beta-2018.07.17/bin/mpixlC" CACHE PATH "")
+set(MPI_C_COMPILER "/usr/tce/packages/spectrum-mpi/spectrum-mpi-rolling-release-xl-beta-2018.07.17/bin/mpixlc" CACHE PATH "")
+
 set(CMAKE_CXX_COMPILER "/usr/tce/packages/xl/xl-beta-2018.07.17/bin/xlc++_r" CACHE PATH "")
 set(CMAKE_C_COMPILER "/usr/tce/packages/xl/xl-beta-2018.07.17/bin/xlC_r" CACHE PATH "")
 
