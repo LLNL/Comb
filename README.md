@@ -16,9 +16,16 @@ The Comb code lives in a GitHub [repository](https://github.com/llnl/comb). To c
 
     git clone --recursive https://github.com/llnl/comb.git
 
-You can build Comb using the provided Makefile, provided you have a C++ compiler that supports the C++11 standard, an MPI library with compiler wrapper for said C++ compiler, and an install of cuda 9.0 or later.
-Simply change the CUDA_COMPILER and CXX_MPI_COMPILER in the Makefile to those on your system.
+You can build Comb using the provided cmake scripts and host-configs if you are using an lc system.
 
+    ./scripts/lc-builds/blueos/nvcc_9_2_gcc_4_9_3.sh
+    cd build_lc_blueos_nvcc_9_2_gcc_4_9_3
+    make
+
+You can also create your own script and host-config provided you have a C++ compiler that supports the C++11 standard, an MPI library with compiler wrapper for said C++ compiler, and optionally an install of cuda 9.0 or later.
+
+    ./scripts/my-builds/compiler_version.sh
+    cd build_my_compiler_version
     make
 
 User Documentation
