@@ -14,15 +14,10 @@
 ##############################################################################
 
 if (ENABLE_MPI)
-  message(STATUS "MPI enabled")
-  find_package(mpi)
   if(MPI_FOUND)
-    blt_register_library(
-        NAME mpi
-        INCLUDES ${MPI_INCLUDE_DIRS}
-        LIBRARIES ${MPI_LIBRARIES})
+    message(STATUS "MPI Enabled")
   else()
-    message(ERROR "MPI NOT FOUND")
+    message(FATAL_ERROR "MPI NOT FOUND")
   endif()
 endif()
 
