@@ -16,6 +16,8 @@
 #ifndef _MEMORY_HPP
 #define _MEMORY_HPP
 
+#include "config.hpp"
+
 #include <cstdio>
 #include <cstdlib>
 

@@ -18,6 +18,8 @@
 
 #ifdef COMB_HAVE_CUDA
 
+#include "config.hpp"
+
 #include <cassert>
 #include <cstdio>
 

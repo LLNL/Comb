@@ -16,6 +16,8 @@
 #ifndef _COMM_HPP
 #define _COMM_HPP
 
+#include "config.hpp"
+
 #include <cstdio>
 #include <cstdlib>
 #include <cassert>

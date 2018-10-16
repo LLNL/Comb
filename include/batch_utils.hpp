@@ -18,6 +18,8 @@
 
 #ifdef __CUDACC__
 
+#include "config.hpp"
+
 #include <cstddef>
 #include <cassert>
 #include <cstdint>

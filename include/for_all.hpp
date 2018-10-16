@@ -16,6 +16,8 @@
 #ifndef _FOR_ALL_HPP
 #define _FOR_ALL_HPP
 
+#include "config.hpp"
+
 #include <cstdio>
 #include <cstdlib>
 

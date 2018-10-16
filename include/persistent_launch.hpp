@@ -18,6 +18,8 @@
 
 #ifdef __CUDACC__
 
+#include "config.hpp"
+
 #include "batch_utils.hpp"
 #include "MultiBuffer.hpp"
 

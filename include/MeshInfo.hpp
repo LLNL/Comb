@@ -16,6 +16,8 @@
 #ifndef _MESHINFO_HPP
 #define _MESHINFO_HPP
 
+#include "config.hpp"
+
 #include <cassert>
 #include <cmath>
 #include <algorithm>

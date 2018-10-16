@@ -16,6 +16,8 @@
 #ifndef _PROFILING_HPP
 #define _PROFILING_HPP
 
+#include "config.hpp"
+
 #include <cstdio>
 #include <cstdlib>
 #include <chrono>

@@ -16,6 +16,8 @@
 #ifndef _UTILS_HPP
 #define _UTILS_HPP
 
+#include "config.hpp"
+
 #include <cassert>
 #include <cstdio>
 

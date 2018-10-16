@@ -16,6 +16,8 @@
 #ifndef _MESHDATA_HPP
 #define _MESHDATA_HPP
 
+#include "config.hpp"
+
 #include "memory.hpp"
 #include "MeshInfo.hpp"
 

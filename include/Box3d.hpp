@@ -16,6 +16,8 @@
 #ifndef _BOX3D_HPP
 #define _BOX3D_HPP
 
+#include "config.hpp"
+
 #include "memory.hpp"
 #include "utils.hpp"
 #include "MeshInfo.hpp"

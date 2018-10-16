@@ -1,0 +1,151 @@
+/*!
+ ******************************************************************************
+ *
+ * \file
+ *
+ * \brief   Header file for basic COMB configuration options.
+ *
+ *          This file contains platform-specific parameters that control
+ *          aspects of compilation of application code using COMB.
+ *
+ *          IMPORTANT: These options are set by CMake and depend on the options
+ *          passed to it.
+ *
+ *          IMPORTANT: Exactly one COMB_COMPILER_* option must be defined to
+ *          ensure correct behavior.
+ *
+ *          Definitions in this file will propagate to all COMB header files.
+ *
+ ******************************************************************************
+ */
+
+//////////////////////////////////////////////////////////////////////////////
+// Copyright (c) 2018, Lawrence Livermore National Security, LLC.
+//
+// Produced at the Lawrence Livermore National Laboratory
+//
+// LLNL-CODE-758885
+//
+// All rights reserved.
+//
+// This file is part of Comb.
+//
+// For details, see https://github.com/LLNL/Comb
+// Please also see the LICENSE file for MIT license.
+//////////////////////////////////////////////////////////////////////////////
+
+#ifndef COMB_config_HPP
+#define COMB_config_HPP
+
+/*!
+ ******************************************************************************
+ *
+ * \brief Programming model back-ends, plus CHAI enable/disable.
+ *
+ ******************************************************************************
+ */
+#cmakedefine COMB_ENABLE_OPENMP
+#cmakedefine COMB_ENABLE_CUDA
+#cmakedefine COMB_ENABLE_CLANG_CUDA
+
+/*!
+ ******************************************************************************
+ *
+ * \brief Detect the host C++ compiler we are using.
+ *
+ ******************************************************************************
+ */
+#if defined(__INTEL_COMPILER)
+#define COMB_COMPILER_INTEL
+#elif defined(__ibmxl__)
+#define COMB_COMPILER_XLC
+#elif defined(__clang__)
+#define COMB_COMPILER_CLANG
+#elif defined(__PGI)
+#define COMB_COMPILER_PGI
+#elif defined(_WIN32)
+#define COMB_COMPILER_MSVC
+#elif defined(__GNUC__)
+#define COMB_COMPILER_GNU
+#endif
+
+
+namespace COMB {
+
+#if defined(COMB_ENABLE_OPENMP)
+#if not defined(_OPENMP)
+#error COMB configured with ENABLE_OPENMP, but OpenMP not supported by current compiler
+#endif // _OPENMP
+#endif // COMB_ENABLE_OPENMP
+
+/*!
+ ******************************************************************************
+ *
+ * \brief COMB software version number.
+ *
+ ******************************************************************************
+ */
+#cmakedefine COMB_VERSION_MAJOR
+#cmakedefine COMB_VERSION_MINOR
+#cmakedefine COMB_VERSION_PATCHLEVEL
+
+/*!
+ ******************************************************************************
+ *
+ * \brief Useful macros.
+ *
+ ******************************************************************************
+ */
+
+#if defined (_WIN32)
+#define COMB_RESTRICT __restrict
+#else
+#define COMB_RESTRICT __restrict__
+#endif
+
+//
+//  Compiler-specific definitions for inline directives
+//
+//  Variables for compiler intrinsics, directives, typedefs
+//
+//     COMB_INLINE - macro to enforce method inlining
+//
+
+#if defined(COMB_COMPILER_INTEL)
+//
+// Configuration options for Intel compilers
+//
+
+#define COMB_INLINE inline  __attribute__((always_inline))
+
+#elif defined(COMB_COMPILER_GNU)
+//
+// Configuration options for GNU compilers
+//
+
+#define COMB_INLINE inline  __attribute__((always_inline))
+
+#elif defined(COMB_COMPILER_XLC)
+//
+// Configuration options for xlc compiler (i.e., bgq/sequoia).
+//
+
+#define COMB_INLINE inline  __attribute__((always_inline))
+
+#elif defined(COMB_COMPILER_CLANG)
+//
+// Configuration options for clang compilers
+//
+
+#define COMB_INLINE inline  __attribute__((always_inline))
+
+#else
+
+#pragma message("COMB_COMPILER unknown, using default empty macros.")
+#define COMB_INLINE inline
+
+#endif
+
+}  // closing brace for COMB namespace
+
+#endif // closing endif for header file include guard
