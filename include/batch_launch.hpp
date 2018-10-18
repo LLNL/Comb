@@ -16,7 +16,7 @@
 #ifndef _BATCH_LAUNCH_HPP
 #define _BATCH_LAUNCH_HPP
 
-#ifdef __CUDACC__
+#ifdef COMB_ENABLE_CUDA
 
 #include "config.hpp"
 

@@ -16,9 +16,9 @@
 #ifndef _PERSISTENT_LAUNCH_HPP
 #define _PERSISTENT_LAUNCH_HPP
 
-#ifdef __CUDACC__
-
 #include "config.hpp"
+
+#ifdef COMB_ENABLE_CUDA
 
 #include "batch_utils.hpp"
 #include "MultiBuffer.hpp"

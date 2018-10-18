@@ -27,7 +27,7 @@
 #include <utility>
 #include <atomic>
 
-#ifdef COMB_HAVE_CUDA
+#ifdef COMB_ENABLE_CUDA
 #include <cuda.h>
 #include <nvToolsExt.h>
 #include <nvToolsExtCuda.h>
@@ -168,7 +168,7 @@ struct Range {
   static const uint32_t pink     = 0x00FF69B4;
 
   const char* name;
-#ifdef COMB_HAVE_CUDA
+#ifdef COMB_ENABLE_CUDA
   nvtxRangeId_t id;
 #endif
 
@@ -180,7 +180,7 @@ struct Range {
 
   void start(const char* name_, uint32_t color) {
     if (name_ != nullptr) {
-#ifdef COMB_HAVE_CUDA
+#ifdef COMB_ENABLE_CUDA
       nvtxEventAttributes_t eventAttrib = {0};
       eventAttrib.version = NVTX_VERSION;
       eventAttrib.size = NVTX_EVENT_ATTRIB_STRUCT_SIZE;
@@ -197,7 +197,7 @@ struct Range {
   void stop()
   {
     if(name != nullptr) {
-#ifdef COMB_HAVE_CUDA
+#ifdef COMB_ENABLE_CUDA
       nvtxRangeEnd(id);
 #endif
       name = nullptr;

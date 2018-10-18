@@ -28,7 +28,7 @@
 template < typename alloc >
 using mempool = RAJA::basic_mempool::MemPool<alloc>;
 
-#ifdef COMB_HAVE_CUDA
+#ifdef COMB_ENABLE_CUDA
   struct cuda_host_pinned_allocator {
     void* malloc(size_t nbytes) {
       void* ptr = nullptr;
@@ -148,7 +148,7 @@ struct HostAllocator : Allocator
   }
 };
 
-#ifdef COMB_HAVE_CUDA
+#ifdef COMB_ENABLE_CUDA
 struct HostPinnedAllocator : Allocator
 {
   virtual const char* name() { return "HostPinned"; }

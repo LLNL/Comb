@@ -16,9 +16,9 @@
 #ifndef _MULTIBUFFER_HPP
 #define _MULTIBUFFER_HPP
 
-#ifdef __CUDACC__
-
 #include "config.hpp"
+
+#ifdef COMB_ENABLE_CUDA
 
 #include <atomic>
 

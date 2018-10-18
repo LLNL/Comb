@@ -21,14 +21,14 @@
 #include <cstdio>
 #include <cstdlib>
 
-#ifdef COMB_HAVE_OPENMP
+#ifdef COMB_ENABLE_OPENMP
 #include <omp.h>
 
 // #define COMB_USE_OMP_COLLAPSE
 // #define COMB_USE_OMP_WEAK_COLLAPSE
 #endif
 
-#ifdef COMB_HAVE_CUDA
+#ifdef COMB_ENABLE_CUDA
 #include <cuda.h>
 #endif
 
@@ -44,14 +44,14 @@ struct seq_pol {
   static const char* get_name() { return "seq"; }
   using event_type = int;
 };
-#ifdef COMB_HAVE_OPENMP
+#ifdef COMB_ENABLE_OPENMP
 struct omp_pol {
   static const bool async = false;
   static const char* get_name() { return "omp"; }
   using event_type = int;
 };
 #endif
-#ifdef COMB_HAVE_CUDA
+#ifdef COMB_ENABLE_CUDA
 struct cuda_pol {
   static const bool async = true;
   static const char* get_name() { return "cuda"; }
@@ -74,13 +74,13 @@ inline void synchronize(seq_pol const&)
 {
 }
 
-#ifdef COMB_HAVE_OPENMP
+#ifdef COMB_ENABLE_OPENMP
 inline void synchronize(omp_pol const&)
 {
 }
 #endif
 
-#ifdef COMB_HAVE_CUDA
+#ifdef COMB_ENABLE_CUDA
 inline void synchronize(cuda_pol const&)
 {
   cudaCheck(cudaDeviceSynchronize());
@@ -102,13 +102,13 @@ inline void persistent_launch(seq_pol const&)
 {
 }
 
-#ifdef COMB_HAVE_OPENMP
+#ifdef COMB_ENABLE_OPENMP
 inline void persistent_launch(omp_pol const&)
 {
 }
 #endif
 
-#ifdef COMB_HAVE_CUDA
+#ifdef COMB_ENABLE_CUDA
 inline void persistent_launch(cuda_pol const&)
 {
 }
@@ -128,13 +128,13 @@ inline void batch_launch(seq_pol const&)
 {
 }
 
-#ifdef COMB_HAVE_OPENMP
+#ifdef COMB_ENABLE_OPENMP
 inline void batch_launch(omp_pol const&)
 {
 }
 #endif
 
-#ifdef COMB_HAVE_CUDA
+#ifdef COMB_ENABLE_CUDA
 inline void batch_launch(cuda_pol const&)
 {
 }
@@ -154,13 +154,13 @@ inline void persistent_stop(seq_pol const&)
 {
 }
 
-#ifdef COMB_HAVE_OPENMP
+#ifdef COMB_ENABLE_OPENMP
 inline void persistent_stop(omp_pol const&)
 {
 }
 #endif
 
-#ifdef COMB_HAVE_CUDA
+#ifdef COMB_ENABLE_CUDA
 inline void persistent_stop(cuda_pol const&)
 {
 }
@@ -272,14 +272,14 @@ inline typename seq_pol::event_type createEvent(seq_pol const&)
   return typename seq_pol::event_type{};
 }
 
-#ifdef COMB_HAVE_OPENMP
+#ifdef COMB_ENABLE_OPENMP
 inline typename omp_pol::event_type createEvent(omp_pol const&)
 {
   return typename omp_pol::event_type{};
 }
 #endif
 
-#ifdef COMB_HAVE_CUDA
+#ifdef COMB_ENABLE_CUDA
 inline typename cuda_pol::event_type createEvent(cuda_pol const&)
 {
   cudaEvent_t event;
@@ -303,13 +303,13 @@ inline void recordEvent(seq_pol const&, typename seq_pol::event_type)
 {
 }
 
-#ifdef COMB_HAVE_OPENMP
+#ifdef COMB_ENABLE_OPENMP
 inline void recordEvent(omp_pol const&, typename omp_pol::event_type)
 {
 }
 #endif
 
-#ifdef COMB_HAVE_CUDA
+#ifdef COMB_ENABLE_CUDA
 inline void recordEvent(cuda_pol const&, typename cuda_pol::event_type event)
 {
   cudaCheck(cudaEventRecord(event, cudaStream_t{0}));
@@ -332,14 +332,14 @@ inline bool queryEvent(seq_pol const&, typename seq_pol::event_type)
   return true;
 }
 
-#ifdef COMB_HAVE_OPENMP
+#ifdef COMB_ENABLE_OPENMP
 inline bool queryEvent(omp_pol const&, typename omp_pol::event_type)
 {
   return true;
 }
 #endif
 
-#ifdef COMB_HAVE_CUDA
+#ifdef COMB_ENABLE_CUDA
 inline bool queryEvent(cuda_pol const&, typename cuda_pol::event_type event)
 {
   return cudaCheckReady(cudaEventQuery(event));
@@ -361,13 +361,13 @@ inline void waitEvent(seq_pol const&, typename seq_pol::event_type)
 {
 }
 
-#ifdef COMB_HAVE_OPENMP
+#ifdef COMB_ENABLE_OPENMP
 inline void waitEvent(omp_pol const&, typename omp_pol::event_type)
 {
 }
 #endif
 
-#ifdef COMB_HAVE_CUDA
+#ifdef COMB_ENABLE_CUDA
 inline void waitEvent(cuda_pol const&, typename cuda_pol::event_type event)
 {
   cudaCheck(cudaEventSynchronize(event));
@@ -389,13 +389,13 @@ inline void destroyEvent(seq_pol const&, typename seq_pol::event_type)
 {
 }
 
-#ifdef COMB_HAVE_OPENMP
+#ifdef COMB_ENABLE_OPENMP
 inline void destroyEvent(omp_pol const&, typename omp_pol::event_type)
 {
 }
 #endif
 
-#ifdef COMB_HAVE_CUDA
+#ifdef COMB_ENABLE_CUDA
 inline void destroyEvent(cuda_pol const&, typename cuda_pol::event_type event)
 {
   cudaCheck(cudaEventDestroy(event));
@@ -485,7 +485,7 @@ inline void for_all(seq_pol const& pol, IdxT begin, IdxT end, body_type&& body)
   //synchronize(pol);
 }
 
-#ifdef COMB_HAVE_OPENMP
+#ifdef COMB_ENABLE_OPENMP
 template < typename body_type >
 inline void for_all(omp_pol const& pol, IdxT begin, IdxT end, body_type&& body)
 {
@@ -498,7 +498,7 @@ inline void for_all(omp_pol const& pol, IdxT begin, IdxT end, body_type&& body)
 }
 #endif
 
-#ifdef COMB_HAVE_CUDA
+#ifdef COMB_ENABLE_CUDA
 template < typename body_type >
 __global__
 void cuda_for_all(IdxT begin, IdxT len, body_type body)
@@ -557,7 +557,7 @@ void for_all_2d(seq_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1, IdxT en
   //synchronize(pol);
 }
 
-#ifdef COMB_HAVE_OPENMP
+#ifdef COMB_ENABLE_OPENMP
 template < typename body_type >
 inline void for_all_2d(omp_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, body_type&& body)
 {
@@ -625,7 +625,7 @@ inline void for_all_2d(omp_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1, 
 }
 #endif
 
-#ifdef COMB_HAVE_CUDA
+#ifdef COMB_ENABLE_CUDA
 template < typename body_type >
 __global__
 void cuda_for_all_2d(IdxT begin0, IdxT len0, IdxT begin1, IdxT len1, body_type body)
@@ -695,7 +695,7 @@ inline void for_all_3d(seq_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1, 
   //synchronize(pol);
 }
 
-#ifdef COMB_HAVE_OPENMP
+#ifdef COMB_ENABLE_OPENMP
 template < typename body_type >
 inline void for_all_3d(omp_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, IdxT begin2, IdxT end2, body_type&& body)
 {
@@ -778,7 +778,7 @@ inline void for_all_3d(omp_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1, 
 }
 #endif
 
-#ifdef COMB_HAVE_CUDA
+#ifdef COMB_ENABLE_CUDA
 template < typename body_type >
 __global__
 void cuda_for_all_3d(IdxT begin0, IdxT len0, IdxT begin1, IdxT len1, IdxT begin2, IdxT len2, IdxT len12, body_type body)

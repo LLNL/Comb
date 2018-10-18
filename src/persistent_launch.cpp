@@ -13,7 +13,9 @@
 // Please also see the LICENSE file for MIT license.
 //////////////////////////////////////////////////////////////////////////////
 
-#ifdef __CUDACC__
+#include "config.hpp"
+
+#ifdef COMB_ENABLE_CUDA
 
 #include "persistent_launch.hpp"
 

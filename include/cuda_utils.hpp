@@ -16,9 +16,9 @@
 #ifndef _CUDA_UTILS_HPP
 #define _CUDA_UTILS_HPP
 
-#ifdef COMB_HAVE_CUDA
-
 #include "config.hpp"
+
+#ifdef COMB_ENABLE_CUDA
 
 #include <cassert>
 #include <cstdio>

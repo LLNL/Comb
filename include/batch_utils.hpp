@@ -16,9 +16,9 @@
 #ifndef _BATCH_UTILS_HPP
 #define _BATCH_UTILS_HPP
 
-#ifdef __CUDACC__
-
 #include "config.hpp"
+
+#ifdef COMB_ENABLE_CUDA
 
 #include <cstddef>
 #include <cassert>
