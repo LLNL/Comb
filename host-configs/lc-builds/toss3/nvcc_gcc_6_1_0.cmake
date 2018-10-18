@@ -25,6 +25,7 @@ set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -finline-functions -finline-limit=20000" CAC
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-Ofast -g -finline-functions -finline-limit=20000" CACHE STRING "")
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g" CACHE STRING "")
 
+set(CUDA_ARCH "sm_35" CACHE STRING "")
 set(CUDA_COMMON_OPT_FLAGS -restrict; -arch ${CUDA_ARCH}; -std c++11; --expt-extended-lambda)
 set(CUDA_COMMON_DEBUG_FLAGS -restrict; -arch ${CUDA_ARCH}; -std c++11; --expt-extended-lambda)
 

@@ -26,6 +26,7 @@ set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g9 " CACHE STRING "")
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g -qsmp=omp:noopt " CACHE STRING "")
 set(CMAKE_EXE_LINKER_FLAGS "-Wl,-z,muldefs" CACHE STRING "")
 
+set(CUDA_ARCH "sm_60" CACHE STRING "")
 set(CUDA_COMMON_OPT_FLAGS -restrict; -arch ${CUDA_ARCH}; -std c++11;  --generate-line-info; --expt-extended-lambda; --expt-relaxed-constexpr)
 set(CUDA_COMMON_DEBUG_FLAGS -restrict; -arch ${CUDA_ARCH}; -std c++11; --expt-extended-lambda; --expt-relaxed-constexpr)
 
