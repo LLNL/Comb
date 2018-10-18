@@ -24,10 +24,10 @@ module load cmake/3.9.2
 
 cmake \
   -DCMAKE_BUILD_TYPE=Release \
-  -C ../host-configs/lc-builds/blueos/nvcc_gcc_4_9_3.cmake \
-  -DENABLE_OPENMP=ON \
-  -DENABLE_CUDA=ON \
   -DCUDA_ARCH=sm_60 \
+  -C ../host-configs/lc-builds/blueos/nvcc_gcc_4_9_3.cmake \
+  -DENABLE_OPENMP=OFF \
+  -DENABLE_CUDA=ON \
   -DCUDA_TOOLKIT_ROOT_DIR=/usr/tce/packages/cuda/cuda-9.2.148 \
   -DCMAKE_INSTALL_PREFIX=../install_${BUILD_SUFFIX} \
   "$@" \
