@@ -21,6 +21,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cassert>
+#include <cstdarg>
 #include <type_traits>
 #include <list>
 #include <vector>
@@ -164,45 +165,59 @@ struct CommInfo
     }
   }
 
-  template < typename Fmt, typename ... Ts >
-  void print_any(Fmt &&fmt, Ts&&... args)
+  void print_any(const char* fmt, ...)
   {
-    FPRINTF(stdout, std::forward<Fmt>(fmt), std::forward<Ts>(args)...);
+    va_list args;
+    va_start(args, fmt);
+    vfprintf(stdout, fmt, args);
+    va_end(args);
   }
 
-  template < typename Fmt, typename ... Ts >
-  void print_master(Fmt &&fmt, Ts&&... args)
+  void print_master(const char* fmt, ...)
   {
     if (rank == 0) {
-      print_any(std::forward<Fmt>(fmt), std::forward<Ts>(args)...);
+      va_list args;
+      va_start(args, fmt);
+      vfprintf(stdout, fmt, args);
+      va_end(args);
     }
   }
 
-  template < typename Fmt, typename ... Ts >
-  void warn_any(Fmt &&fmt, Ts&&... args)
+  void warn_any(const char* fmt, ...)
   {
-    FPRINTF(stderr, std::forward<Fmt>(fmt), std::forward<Ts>(args)...);
+    va_list args;
+    va_start(args, fmt);
+    vfprintf(stderr, fmt, args);
+    va_end(args);
   }
 
-  template < typename Fmt, typename ... Ts >
-  void warn_master(Fmt &&fmt, Ts&&... args)
+  void warn_master(const char* fmt, ...)
   {
     if (rank == 0) {
-      warn_any(std::forward<Fmt>(fmt), std::forward<Ts>(args)...);
+      va_list args;
+      va_start(args, fmt);
+      vfprintf(stderr, fmt, args);
+      va_end(args);
     }
   }
 
-  template < typename Fmt, typename ... Ts >
-  void abort_any(Fmt &&fmt, Ts&&... args)
+  void abort_any(const char* fmt, ...)
   {
-    warn_any(std::forward<Fmt>(fmt), std::forward<Ts>(args)...);
+    va_list args;
+    va_start(args, fmt);
+    vfprintf(stderr, fmt, args);
+    va_end(args);
     abort();
   }
 
-  template < typename Fmt, typename ... Ts >
-  void abort_master(Fmt &&fmt, Ts&&... args)
+  void abort_master(const char* fmt, ...)
   {
-    warn_master(std::forward<Fmt>(fmt), std::forward<Ts>(args)...);
+    if (rank == 0) {
+      va_list args;
+      va_start(args, fmt);
+      vfprintf(stderr, fmt, args);
+      va_end(args);
+    }
     abort();
   }
 
