@@ -116,7 +116,7 @@ struct Timer {
       }
     }
 
-    for (IdxT i = 0; i < name_order.size(); ++i) {
+    for (size_t i = 0; i < name_order.size(); ++i) {
       auto item = name_map.find(name_order[i]);
       assert(item != name_map.end());
       FPRINTF(stdout, "%s%s: num %ld sum %.9f s min %.9f s max %.9f s\n", prefix, item->second.name.c_str(), item->second.num, item->second.sum, item->second.min, item->second.max);

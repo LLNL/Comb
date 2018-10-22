@@ -298,7 +298,8 @@ struct Message
     items.emplace_front(data, indices, aloc, size);
     m_size += size;
 
-    have_many = ( (m_size + items.size() - 1) / items.size() ) > m_cutoff ;
+    // average message number of data items rounded up
+    have_many = ( (m_size + static_cast<IdxT>(items.size()) - 1) / static_cast<IdxT>(items.size()) ) > m_cutoff ;
   }
 
   void pack()
