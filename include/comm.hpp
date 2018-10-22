@@ -145,11 +145,11 @@ struct CommInfo
     , size(0)
     , cart()
     , mock_communication(false)
+    , cutoff(200)
     , post_send_method(method::waitall)
     , post_recv_method(method::waitall)
     , wait_send_method(method::waitall)
     , wait_recv_method(method::waitall)
-    , cutoff(200)
   {
     rank = detail::MPI::Comm_rank(MPI_COMM_WORLD);
     size = detail::MPI::Comm_size(MPI_COMM_WORLD);
