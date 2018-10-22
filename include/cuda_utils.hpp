@@ -92,15 +92,6 @@ inline int get_arch() {
 
 } // namespace detail
 
-
-#define HOST __host__
-#define DEVICE __device__
-
-#else
-
-#define HOST
-#define DEVICE
-
 #endif
 
 #endif // _CUDA_UTILS_HPP

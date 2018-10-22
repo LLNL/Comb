@@ -179,6 +179,7 @@ struct Range {
   }
 
   void start(const char* name_, uint32_t color) {
+    COMB::ignore_unused(color);
     if (name_ != nullptr) {
 #ifdef COMB_ENABLE_CUDA
       nvtxEventAttributes_t eventAttrib = {0};

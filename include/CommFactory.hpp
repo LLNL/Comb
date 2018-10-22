@@ -166,6 +166,7 @@ struct CommFactory
 
     // go though neighbors adding to msg_map[recv_box] = neighbor_send_box, msg_map[neighbor_recv_box] = send_box
     for_connections(meshinfo, [&](IdxT cnct, const int neighbor_coords[]) {
+      COMB::ignore_unused(cnct);
 
       MeshInfo neighbor_info = MeshInfo::get_local(meshinfo.global, neighbor_coords);
 

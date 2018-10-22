@@ -97,10 +97,18 @@ namespace COMB {
  ******************************************************************************
  */
 
-#if defined (_WIN32)
+#if defined(_WIN32)
 #define COMB_RESTRICT __restrict
 #else
 #define COMB_RESTRICT __restrict__
+#endif
+
+#if defined(COMB_ENABLE_CUDA)
+#define COMB_HOST __host__
+#define COMB_DEVICE __device__
+#else
+#define COMB_HOST
+#define COMB_DEVICE
 #endif
 
 //
@@ -145,6 +153,17 @@ namespace COMB {
 #define COMB_INLINE inline
 
 #endif
+
+/*!
+ ******************************************************************************
+ *
+ * \brief Useful functions.
+ *
+ ******************************************************************************
+ */
+
+template < typename... Ts >
+COMB_HOST COMB_DEVICE COMB_INLINE void ignore_unused(Ts&&...) { }
 
 }  // closing brace for COMB namespace
 

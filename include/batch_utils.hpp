@@ -202,7 +202,7 @@ struct SharedStaticBuffer : StaticBuffer<len_type, total_bytes, read_type>
   SharedStaticBuffer& operator=(SharedStaticBuffer const&) = delete;
 
   // do first time initialization
-  DEVICE
+  COMB_DEVICE
   void init() volatile
   {
     if (threadIdx.x == 0) {
@@ -212,7 +212,7 @@ struct SharedStaticBuffer : StaticBuffer<len_type, total_bytes, read_type>
   }
 
   // reinitialize after finisheding reading from another buffer
-  DEVICE
+  COMB_DEVICE
   bool reinit() volatile
   {
     if (threadIdx.x == 0) {
@@ -224,7 +224,7 @@ struct SharedStaticBuffer : StaticBuffer<len_type, total_bytes, read_type>
 
   // read data from another buffer into this shared buffer
   // returns true if read new data, false otherwise
-  DEVICE
+  COMB_DEVICE
   bool read(buffer_type const volatile* src) volatile
   {
                len_type old_len = this->len;
@@ -249,7 +249,7 @@ struct SharedStaticBuffer : StaticBuffer<len_type, total_bytes, read_type>
     return new_len != old_len;
   }
 
-  DEVICE
+  COMB_DEVICE
   const volatile void* buffer() const volatile
   {
     return &this->buf[this->len];
@@ -258,7 +258,7 @@ struct SharedStaticBuffer : StaticBuffer<len_type, total_bytes, read_type>
   // does nothing to this SharedStaticBuffer
   // resets src StaticBuffer to a writeable state
   // programmer must ensure all grids/blocks/threads are finished using src before calling this
-  DEVICE
+  COMB_DEVICE
   void done_reading(buffer_type volatile* src) volatile
   {
     if (threadIdx.x == 0) {
@@ -336,7 +336,7 @@ public:
 
   }
 
-  DEVICE
+  COMB_DEVICE
   void operator()() const
   {
      // create local copies to avoid avoid changing the canonical version in
@@ -357,7 +357,7 @@ private:
 };
 
 
-DEVICE
+COMB_DEVICE
 inline const volatile device_wrapper_ptr* event_complete(const volatile device_wrapper_ptr* buf_ptr)
 {
   const volatile batch_event_type_ptr* event_ptr_ptr = (const volatile batch_event_type_ptr*)buf_ptr;

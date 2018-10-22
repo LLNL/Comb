@@ -55,7 +55,7 @@ namespace detail {
      DataT* data;
      const DataT* other;
      set_copy(DataT* data_, const DataT* other_) : data(data_), other(other_) {}
-     HOST DEVICE
+     COMB_HOST COMB_DEVICE
      void operator()(IdxT i, IdxT) const {
        IdxT zone = i;
        DataT next = other[zone];
@@ -67,7 +67,7 @@ namespace detail {
   struct set_0 {
      DataT* data;
      set_0(DataT* data_) : data(data_) {}
-     HOST DEVICE
+     COMB_HOST COMB_DEVICE
      void operator()(IdxT i, IdxT) const {
        IdxT zone = i;
        DataT next = 0.0;
@@ -79,7 +79,7 @@ namespace detail {
   struct set_n1 {
      DataT* data;
      set_n1(DataT* data_) : data(data_) {}
-     HOST DEVICE
+     COMB_HOST COMB_DEVICE
      void operator()(IdxT i, IdxT) const {
        IdxT zone = i;
        DataT next = -1.0;
@@ -92,8 +92,9 @@ namespace detail {
      IdxT ilen, ijlen;
      DataT* data;
      set_1(IdxT ilen_, IdxT ijlen_, DataT* data_) : ilen(ilen_), ijlen(ijlen_), data(data_) {}
-     HOST DEVICE
+     COMB_HOST COMB_DEVICE
      void operator()(IdxT k, IdxT j, IdxT i, IdxT idx) const {
+       COMB::ignore_unused(idx);
        IdxT zone = i + j * ilen + k * ijlen;
        DataT next = 1.0;
        // FPRINTF(stdout, "%p[%i] = %f\n", data, zone, next);
@@ -111,8 +112,9 @@ namespace detail {
        , imin(imin_), jmin(jmin_), kmin(kmin_)
        , imax(imax_), jmax(jmax_), kmax(kmax_)
      {}
-     HOST DEVICE
+     COMB_HOST COMB_DEVICE
      void operator()(IdxT k, IdxT j, IdxT i, IdxT idx) const {
+       COMB::ignore_unused(idx);
        IdxT zone = i + j * ilen + k * ijlen;
        // DataT expected, found, next;
        // if (k >= kmin && k < kmax &&
@@ -221,7 +223,8 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles,
         for_all_3d(pol_loop{}, 0, klen,
                                0, jlen,
                                0, ilen,
-                               [=] HOST DEVICE (IdxT k, IdxT j, IdxT i, IdxT idx) {
+                               [=] COMB_HOST COMB_DEVICE (IdxT k, IdxT j, IdxT i, IdxT idx) {
+          COMB::ignore_unused(idx);
           IdxT zone = i + j * ilen + k * ijlen;
           IdxT iglobal = i + iglobal_offset;
           if (iperiodic) {
@@ -288,7 +291,8 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles,
         for_all_3d(pol_loop{}, 0, klen,
                                0, jlen,
                                0, ilen,
-                               [=] HOST DEVICE (IdxT k, IdxT j, IdxT i, IdxT idx) {
+                               [=] COMB_HOST COMB_DEVICE (IdxT k, IdxT j, IdxT i, IdxT idx) {
+          COMB::ignore_unused(idx);
           IdxT zone = i + j * ilen + k * ijlen;
           IdxT iglobal = i + iglobal_offset;
           if (iperiodic) {
@@ -355,7 +359,8 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles,
         for_all_3d(pol_loop{}, 0, klen,
                                0, jlen,
                                0, ilen,
-                               [=] HOST DEVICE (IdxT k, IdxT j, IdxT i, IdxT idx) {
+                               [=] COMB_HOST COMB_DEVICE (IdxT k, IdxT j, IdxT i, IdxT idx) {
+          COMB::ignore_unused(idx);
           IdxT zone = i + j * ilen + k * ijlen;
           IdxT iglobal = i + iglobal_offset;
           if (iperiodic) {
@@ -464,7 +469,7 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles,
         for_all_3d(pol_loop{}, 0, klen,
                                0, jlen,
                                0, ilen,
-                               [=] HOST DEVICE (IdxT k, IdxT j, IdxT i, IdxT idx) {
+                               [=] COMB_HOST COMB_DEVICE (IdxT k, IdxT j, IdxT i, IdxT idx) {
           IdxT zone = i + j * ilen + k * ijlen;
           DataT expected, found, next;
           if (k >= kmin && k < kmax &&

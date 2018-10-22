@@ -241,59 +241,59 @@ inline bool Testall(int count, MPI_Request *requests, MPI_Status *statuses)
 struct indexer_kji {
   IdxT ijlen, ilen;
   indexer_kji(IdxT ijlen_, IdxT ilen_) : ijlen(ijlen_), ilen(ilen_) {}
-  HOST DEVICE IdxT operator()(IdxT k, IdxT j, IdxT i, IdxT) const { return i + j * ilen + k * ijlen; }
+  COMB_HOST COMB_DEVICE IdxT operator()(IdxT k, IdxT j, IdxT i, IdxT) const { return i + j * ilen + k * ijlen; }
 };
 struct indexer_ji {
   IdxT ilen, koff;
   indexer_ji(IdxT ilen_, IdxT koff_) : ilen(ilen_), koff(koff_) {}
-  HOST DEVICE IdxT operator()(IdxT j, IdxT i, IdxT) const { return i + j * ilen + koff; }
+  COMB_HOST COMB_DEVICE IdxT operator()(IdxT j, IdxT i, IdxT) const { return i + j * ilen + koff; }
 };
 struct indexer_ki {
   IdxT ijlen, joff;
   indexer_ki(IdxT ijlen_, IdxT joff_) : ijlen(ijlen_), joff(joff_) {}
-  HOST DEVICE IdxT operator()(IdxT k, IdxT i, IdxT) const { return i + joff + k * ijlen; }
+  COMB_HOST COMB_DEVICE IdxT operator()(IdxT k, IdxT i, IdxT) const { return i + joff + k * ijlen; }
 };
 struct indexer_kj {
   IdxT ijlen, ilen, ioff;
   indexer_kj(IdxT ijlen_, IdxT ilen_, IdxT ioff_) : ijlen(ijlen_), ilen(ilen_), ioff(ioff_) {}
-  HOST DEVICE IdxT operator()(IdxT k, IdxT j, IdxT) const { return ioff + j * ilen + k * ijlen; }
+  COMB_HOST COMB_DEVICE IdxT operator()(IdxT k, IdxT j, IdxT) const { return ioff + j * ilen + k * ijlen; }
 };
 
 struct indexer_i {
   IdxT off;
   indexer_i(IdxT off_) : off(off_) {}
-  HOST DEVICE IdxT operator()(IdxT i, IdxT) const { return i + off; }
+  COMB_HOST COMB_DEVICE IdxT operator()(IdxT i, IdxT) const { return i + off; }
 };
 struct indexer_j {
   IdxT ilen, off;
   indexer_j(IdxT ilen_, IdxT off_) : ilen(ilen_), off(off_) {}
-  HOST DEVICE IdxT operator()(IdxT j, IdxT) const { return j * ilen + off; }
+  COMB_HOST COMB_DEVICE IdxT operator()(IdxT j, IdxT) const { return j * ilen + off; }
 };
 struct indexer_k {
   IdxT ijlen, off;
   indexer_k(IdxT ijlen_, IdxT off_) : ijlen(ijlen_), off(off_) {}
-  HOST DEVICE IdxT operator()(IdxT k, IdxT) const { return k * ijlen + off; }
+  COMB_HOST COMB_DEVICE IdxT operator()(IdxT k, IdxT) const { return k * ijlen + off; }
 };
 
 struct indexer_ {
   IdxT off;
   indexer_(IdxT off_) : off(off_) {}
-  HOST DEVICE IdxT operator()(IdxT, IdxT) const { return off; }
+  COMB_HOST COMB_DEVICE IdxT operator()(IdxT, IdxT) const { return off; }
 };
 
 struct indexer_idx {
   indexer_idx() {}
-  HOST DEVICE IdxT operator()(IdxT, IdxT idx) const { return idx; }
-  HOST DEVICE IdxT operator()(IdxT, IdxT, IdxT idx) const { return idx; }
-  HOST DEVICE IdxT operator()(IdxT, IdxT, IdxT, IdxT idx) const { return idx; }
+  COMB_HOST COMB_DEVICE IdxT operator()(IdxT, IdxT idx) const { return idx; }
+  COMB_HOST COMB_DEVICE IdxT operator()(IdxT, IdxT, IdxT idx) const { return idx; }
+  COMB_HOST COMB_DEVICE IdxT operator()(IdxT, IdxT, IdxT, IdxT idx) const { return idx; }
 };
 
 struct indexer_list_idx {
   LidxT const* indices;
   indexer_list_idx(LidxT const* indices_) : indices(indices_) {}
-  HOST DEVICE IdxT operator()(IdxT, IdxT idx) const { return indices[idx]; }
-  HOST DEVICE IdxT operator()(IdxT, IdxT, IdxT idx) const { return indices[idx]; }
-  HOST DEVICE IdxT operator()(IdxT, IdxT, IdxT, IdxT idx) const { return indices[idx]; }
+  COMB_HOST COMB_DEVICE IdxT operator()(IdxT, IdxT idx) const { return indices[idx]; }
+  COMB_HOST COMB_DEVICE IdxT operator()(IdxT, IdxT, IdxT idx) const { return indices[idx]; }
+  COMB_HOST COMB_DEVICE IdxT operator()(IdxT, IdxT, IdxT, IdxT idx) const { return indices[idx]; }
 };
 
 template < typename T_src, typename I_src, typename T_dst, typename I_dst >
@@ -304,7 +304,7 @@ struct copy_idxr_idxr {
   I_dst idxr_dst;
   copy_idxr_idxr(T_src const* const& ptr_src_, I_src const& idxr_src_, T_dst* const& ptr_dst_, I_dst const& idxr_dst_) : ptr_src(ptr_src_), ptr_dst(ptr_dst_), idxr_src(idxr_src_), idxr_dst(idxr_dst_) {}
   template < typename ... Ts >
-  HOST DEVICE void operator()(Ts... args) const
+  COMB_HOST COMB_DEVICE void operator()(Ts... args) const
   {
     IdxT dst_i = idxr_dst(args...);
     IdxT src_i = idxr_src(args...);
@@ -324,9 +324,13 @@ struct set_idxr_idxr {
   T_dst* ptr_dst;
   I_src idxr_src;
   I_dst idxr_dst;
-  set_idxr_idxr(I_src const& idxr_src_, T_dst* const& ptr_dst_, I_dst const& idxr_dst_) : idxr_src(idxr_src_), ptr_dst(ptr_dst_), idxr_dst(idxr_dst_) {}
+  set_idxr_idxr(I_src const& idxr_src_, T_dst* const& ptr_dst_, I_dst const& idxr_dst_)
+    : ptr_dst(ptr_dst_)
+    , idxr_src(idxr_src_)
+    , idxr_dst(idxr_dst_)
+  { }
   template < typename ... Ts >
-  HOST DEVICE void operator()(Ts... args) const
+  COMB_HOST COMB_DEVICE void operator()(Ts... args) const
   {
     IdxT dst_i = idxr_dst(args...);
     IdxT src_i = idxr_src(args...);
