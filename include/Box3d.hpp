@@ -345,9 +345,9 @@ private:
     IdxT idx = 0;
     switch (it.idx) {
       case ITL::min:
-        idx = info.min[0]; break;
+        idx = info.min[dim]; break;
       case ITL::max:
-        idx = info.max[0]; break;
+        idx = info.max[dim]; break;
       default:
         assert(0); break;
     }
