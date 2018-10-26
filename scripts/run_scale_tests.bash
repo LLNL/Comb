@@ -5,13 +5,22 @@ let procs=procs_per_side*procs_per_side*procs_per_side
 
 # Choose a command to get nodes
 if [[ ! "x" == "x$SYS_TYPE" ]]; then
-   if [[ "x$SYS_TYPE" =~ xblueos.* ]]; then
-      # Command used to get nodes on EA or sierra systems
+   if [[ "x$SYS_TYPE" =~ xblueos.*_p9 ]]; then
+      # Command used to get nodes on sierra systems
 
       procs_per_node=4
       let nodes=(procs+procs_per_node-1)/procs_per_node
 
-      get_nodes="bsub -nnodes ${nodes} -core_isolation 2 -W 60 -G guests -Is -XF"
+      # get_nodes="bsub -nnodes ${nodes} -core_isolation 2 -W 60 -G guests -Is -XF"
+      get_nodes="lalloc ${nodes} -W 60 --shared-launch"
+
+   elif [[ "x$SYS_TYPE" =~ xblueos.* ]]; then
+      # Command used to get nodes on EA systems
+
+      procs_per_node=4
+      let nodes=(procs+procs_per_node-1)/procs_per_node
+
+      get_nodes="bsub -n ${procs} -R \"span[ptile=${procs_per_node}]\" -W 60 -G guests -Is -XF"
 
    else
       # Command used to get nodes on slurm scheduled systems
