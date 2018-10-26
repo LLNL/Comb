@@ -28,7 +28,7 @@ if [[ ! "x" == "x$SYS_TYPE" ]]; then
       procs_per_node=1
       let nodes=(procs+procs_per_node-1)/procs_per_node
 
-      get_nodes="salloc -N${nodes}"
+      get_nodes="salloc -N${nodes} --exclusive"
 
    fi
 else

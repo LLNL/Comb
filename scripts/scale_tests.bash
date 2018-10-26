@@ -14,7 +14,7 @@ if [[ ! "x" == "x$SYS_TYPE" ]]; then
       run_mpi="mpirun -np $procs"
    else
       # Command used to run mpi on slurm scheduled systems
-      run_mpi="srun -N$nodes -n$procs"
+      run_mpi="srun -N$nodes -n$procs --exclusive"
    fi
 else
    # Command used to run mpi with mpirun
