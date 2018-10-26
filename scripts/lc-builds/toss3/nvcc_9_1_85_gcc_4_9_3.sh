@@ -24,11 +24,11 @@ module load cmake/3.9.2 gcc/4.9.3
 
 cmake \
   -DCMAKE_BUILD_TYPE=Release \
-  -DCUDA_ARCH=sm_35 \
-  -C ../host-configs/lc-builds/toss3/nvcc_gcc_4_9_3.cmake \
   -DENABLE_OPENMP=ON \
   -DENABLE_CUDA=ON \
+  -DCUDA_ARCH=sm_35 \
   -DCUDA_TOOLKIT_ROOT_DIR=/usr/tce/packages/cuda/cuda-9.1.85 \
+  -C ../host-configs/lc-builds/toss3/nvcc_gcc_4_9_3.cmake \
   -DCMAKE_INSTALL_PREFIX=../install_${BUILD_SUFFIX} \
   "$@" \
   ..

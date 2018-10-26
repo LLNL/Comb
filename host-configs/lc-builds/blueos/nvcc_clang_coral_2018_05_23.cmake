@@ -21,20 +21,20 @@ set(MPI_C_COMPILER "/usr/tce/packages/spectrum-mpi/spectrum-mpi-rolling-release-
 set(CMAKE_CXX_COMPILER "/usr/tce/packages/clang/clang-coral-2018.05.23/bin/clang++" CACHE PATH "")
 set(CMAKE_C_COMPILER "/usr/tce/packages/clang/clang-coral-2018.05.23/bin/clang" CACHE PATH "")
 
-set(CMAKE_CXX_FLAGS_RELEASE "-O3" CACHE STRING "")
+set(CMAKE_CXX_FLAGS_RELEASE        "-O3"    CACHE STRING "")
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -g" CACHE STRING "")
-set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g" CACHE STRING "")
+set(CMAKE_CXX_FLAGS_MINSIZEREL     "-Os"    CACHE STRING "")
+set(CMAKE_CXX_FLAGS_DEBUG          "-O0 -g" CACHE STRING "")
 
-set(CUDA_ARCH "sm_60" CACHE STRING "")
-set(CUDA_COMMON_OPT_FLAGS -restrict; -arch ${CUDA_ARCH}; -std c++11; --expt-extended-lambda)
-set(CUDA_COMMON_DEBUG_FLAGS -restrict; -arch ${CUDA_ARCH}; -std c++11; --expt-extended-lambda)
 
-set(HOST_OPT_FLAGS -Xcompiler -O3 -Xcompiler -fopenmp)
-
-if(CMAKE_BUILD_TYPE MATCHES Release)
-  set(COMB_NVCC_FLAGS -O3; ${CUDA_COMMON_OPT_FLAGS}; -ccbin; ${CMAKE_CXX_COMPILER} ; ${HOST_OPT_FLAGS} CACHE LIST "")
-elseif(CMAKE_BUILD_TYPE MATCHES RelWithDebInfo)
-  set(COMB_NVCC_FLAGS -g; -G; -O3; ${CUDA_COMMON_OPT_FLAGS}; -ccbin; ${CMAKE_CXX_COMPILER} ; ${HOST_OPT_FLAGS} CACHE LIST "")
-elseif(CMAKE_BUILD_TYPE MATCHES Debug)
-  set(COMB_NVCC_FLAGS -g; -G; -O0; ${CUDA_COMMON_DEBUG_FLAGS}; -ccbin; ${CMAKE_CXX_COMPILER} ; -Xcompiler -fopenmp CACHE LIST "")
+if(NOT DEFINED CUDA_ARCH)
+  message(FATAL_ERROR "CUDA_ARCH NOT DEFINED")
 endif()
+
+set(COMB_NVCC_FLAGS "-restrict -arch ${CUDA_ARCH} --expt-extended-lambda" CACHE STRING "")
+set(COMB_NVCC_FLAGS_RELEASE        "-O3"                                             CACHE STRING "")
+set(COMB_NVCC_FLAGS_RELWITHDEBINFO "-O2 -g -lineinfo"                                CACHE STRING "")
+set(COMB_NVCC_FLAGS_MINSIZEREL     "-Os"                                             CACHE STRING "")
+set(COMB_NVCC_FLAGS_DEBUG          "-O0 -g -G"                                       CACHE STRING "")
+
+set(COMB_HOST_CONFIG_LOADED On CACHE Bool "")

@@ -78,6 +78,12 @@ namespace COMB {
 #endif // _OPENMP
 #endif // COMB_ENABLE_OPENMP
 
+#if defined(COMB_ENABLE_CLANG_CUDA)
+#if not defined(COMB_ENABLE_CUDA)
+#error COMB configured with ENABLE_CLANG_CUDA, but without ENABLE_CUDA
+#endif // COMB_ENABLE_CUDA
+#endif // COMB_ENABLE_CLANG_CUDA
+
 /*!
  ******************************************************************************
  *

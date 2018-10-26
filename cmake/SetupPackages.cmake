@@ -21,14 +21,20 @@ if (ENABLE_MPI)
   endif()
 endif()
 
+
 if (ENABLE_OPENMP)
   if(OPENMP_FOUND)
-    list(APPEND COMB_EXTRA_NVCC_FLAGS -Xcompiler ${OpenMP_CXX_FLAGS})
     message(STATUS "OpenMP Enabled")
   else()
-    message(WARNING "OpenMP NOT FOUND")
-    set(ENABLE_OPENMP Off)
+    message(FATAL_ERROR "OpenMP NOT FOUND")
   endif()
 endif()
 
 
+if (ENABLE_CUDA)
+  if(CUDA_FOUND)
+    message(STATUS "Cuda Enabled")
+  else()
+    message(FATAL_ERROR "Cuda NOT FOUND")
+  endif()
+endif()

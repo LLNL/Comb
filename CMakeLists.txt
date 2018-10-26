@@ -33,6 +33,9 @@ set(COMB_CXX_STANDARD_FLAG "default" CACHE STRING "Specific c++ standard flag to
 option(ENABLE_CLANG_CUDA "Use Clang's native CUDA support" OFF)
 set(CUDA_ARCH "sm_70" CACHE STRING "Compute architecture to pass to CUDA builds")
 
+# Separable compilation is required by comb, set before load BLT
+set(CUDA_SEPARABLE_COMPILATION ON CACHE BOOL "")
+
 # Load BLT
 if (NOT BLT_LOADED)
   if (DEFINED BLT_SOURCE_DIR)
@@ -76,17 +79,26 @@ if(ENABLE_MPI)
 endif()
 
 if(ENABLE_OPENMP)
-  set(comb_depends ${comb_depends} openmp)
+  # set(comb_depends ${comb_depends} openmp)
 endif()
 
 if (ENABLE_CUDA)
-  set(comb_depends ${comb_depends} cuda)
+  set(comb_depends ${comb_depends} cuda nvToolsExt)
 endif()
 
 blt_add_executable(
   NAME comb
   SOURCES ${comb_sources}
   DEPENDS_ON ${comb_depends})
+
+if(ENABLE_OPENMP)
+  if(ENABLE_CUDA AND (NOT ENABLE_CLANG_CUDA))
+    blt_add_target_compile_flags(TO comb FLAGS -Xcompiler ${OpenMP_CXX_FLAGS})
+  else()
+    blt_add_target_compile_flags(TO comb FLAGS ${OpenMP_CXX_FLAGS})
+  endif()
+  blt_add_target_link_flags(TO comb FLAGS ${OpenMP_CXX_FLAGS})
+endif()
 
 install(TARGETS comb
   EXPORT comb

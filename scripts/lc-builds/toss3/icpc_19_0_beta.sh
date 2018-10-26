@@ -24,9 +24,9 @@ module load cmake/3.9.2 gcc/4.9.3
 
 cmake \
   -DCMAKE_BUILD_TYPE=Release \
-  -C ../host-configs/lc-builds/toss3/icpc_19_0_beta.cmake \
   -DENABLE_OPENMP=ON \
   -DENABLE_CUDA=OFF \
+  -C ../host-configs/lc-builds/toss3/icpc_19_0_beta.cmake \
   -DCMAKE_INSTALL_PREFIX=../install_${BUILD_SUFFIX} \
   "$@" \
   ..

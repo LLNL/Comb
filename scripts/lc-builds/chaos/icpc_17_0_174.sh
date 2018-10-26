@@ -24,9 +24,9 @@ mkdir build_${BUILD_SUFFIX} && cd build_${BUILD_SUFFIX}
 
 cmake \
   -DCMAKE_BUILD_TYPE=Release \
-  -C ../host-configs/lc-builds/chaos/icpc_17_0_174.cmake \
   -DENABLE_OPENMP=ON \
   -DENABLE_CUDA=OFF \
+  -C ../host-configs/lc-builds/chaos/icpc_17_0_174.cmake \
   -DCMAKE_INSTALL_PREFIX=../install_${BUILD_SUFFIX} \
   "$@" \
   ..

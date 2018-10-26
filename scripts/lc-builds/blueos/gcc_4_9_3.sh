@@ -24,9 +24,9 @@ module load cmake/3.9.2
 
 cmake \
   -DCMAKE_BUILD_TYPE=Release \
-  -C ../host-configs/lc-builds/blueos/gcc_4_9_3.cmake \
   -DENABLE_OPENMP=ON \
   -DENABLE_CUDA=OFF \
+  -C ../host-configs/lc-builds/blueos/gcc_4_9_3.cmake \
   -DCMAKE_INSTALL_PREFIX=../install_${BUILD_SUFFIX} \
   "$@" \
   ..

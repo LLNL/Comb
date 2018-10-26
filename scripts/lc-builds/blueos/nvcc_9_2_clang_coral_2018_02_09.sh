@@ -24,11 +24,11 @@ module load cmake/3.9.2
 
 cmake \
   -DCMAKE_BUILD_TYPE=Release \
-  -DCUDA_ARCH=sm_60 \
-  -C ../host-configs/lc-builds/blueos/nvcc_clang_coral_2018_02_09.cmake \
   -DENABLE_OPENMP=ON \
   -DENABLE_CUDA=ON \
+  -DCUDA_ARCH=sm_60 \
   -DCUDA_TOOLKIT_ROOT_DIR=/usr/tce/packages/cuda/cuda-9.2.148 \
+  -C ../host-configs/lc-builds/blueos/nvcc_clang_coral_2018_02_09.cmake \
   -DCMAKE_INSTALL_PREFIX=../install_${BUILD_SUFFIX} \
   "$@" \
   ..
