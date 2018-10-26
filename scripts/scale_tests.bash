@@ -11,7 +11,7 @@ if [[ ! "x" == "x$SYS_TYPE" ]]; then
       run_mpi="lrun -N$nodes -p$procs"
    elif [[ "x$SYS_TYPE" =~ xblueos.* ]]; then
       # Command used to run mpi on EA systems
-      run_mpi="mpirun -np $procs"
+      run_mpi="mpirun -np $procs /usr/tcetmp/bin/mpibind"
    else
       # Command used to run mpi on slurm scheduled systems
       run_mpi="srun -N$nodes -n$procs --exclusive"
@@ -41,7 +41,7 @@ fi
 #     exec $@
 
 # Comb executable or symlink
-run_comb="comb"
+run_comb="$(pwd)/comb"
 
 # Choose arguments for comb
 # overall size of the grid
@@ -73,7 +73,7 @@ test_any_method="-comm post_recv wait_any -comm post_send test_any -comm wait_re
 
 # set up the base command to run a test
 # use sep_out.bash to separate each rank's output
-run_test_base="${run_mpi} sep_out.bash ${run_comb}"
+run_test_base="${run_mpi} $(pwd)/sep_out.bash ${run_comb}"
 
 # for each communication method
 for comm_method in "${wait_all_method}" "${wait_some_method}" "${wait_any_method}" "${test_all_method}" "${test_some_method}" "${test_any_method}"; do
