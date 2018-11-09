@@ -51,7 +51,7 @@ The runtime options change the properties of the grid and its decomposition, as 
   - __\-ghost \#__ The halo width or number of ghost zones
   - __\-vars \#__ The number of grid variables
   - __\-comm *option*__ Communication options
-    - __mock__ Do mock communication (if out MPI calls)
+    - __mock__ Do mock communication (do not make MPI calls)
     - __cutoff \#__ Number of elements cutoff between large and small message packing kernels
     - __post_recv *option*__ Communication post receive (MPI_Irecv) options
       - __wait_any__ Post recvs one-by-one
