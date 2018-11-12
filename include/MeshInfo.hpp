@@ -30,15 +30,15 @@ struct GlobalMeshInfo {
   IdxT totalsize;
   int divisions[3];
   int periodic[3];
-  IdxT ghost_width;
+  IdxT ghost_widths[3];
   IdxT* division_indices[3];
 
-  GlobalMeshInfo(IdxT sizes_[], IdxT num_divisions, int divisions_[], int periodic_[], IdxT ghost_width_)
+  GlobalMeshInfo(IdxT sizes_[], IdxT num_divisions, int divisions_[], int periodic_[], IdxT ghost_widths_[])
     : sizes{sizes_[0], sizes_[1], sizes_[2]}
     , totalsize{sizes_[0] * sizes_[1] * sizes_[2]}
     , divisions{divisions_[0], divisions_[1], divisions_[2]}
     , periodic{periodic_[0] ? 1 : 0, periodic_[1] ? 1 : 0, periodic_[2] ? 1 : 0}
-    , ghost_width(ghost_width_)
+    , ghost_widths{ghost_widths_[0], ghost_widths_[1], ghost_widths_[2]}
     , division_indices{nullptr, nullptr, nullptr}
   {
     set_divisions(num_divisions);
@@ -159,7 +159,9 @@ struct GlobalMeshInfo {
   {
     if (this == &other) return true;
     bool equal = false;
-    equal = equal && (ghost_width == other.ghost_width);
+    equal = equal && (ghost_widths[0] == other.ghost_widths[0] &&
+                      ghost_widths[1] == other.ghost_widths[1] &&
+                      ghost_widths[2] == other.ghost_widths[2] );
     for (IdxT dim = 0; dim < 3; ++dim) {
       equal = compare_size(dim, other) == 0;
     }
@@ -208,10 +210,22 @@ struct GlobalMeshInfo {
 
   int compare_ghostwidth(GlobalMeshInfo const& other) const
   {
-    if (ghost_width < other.ghost_width) {
+    if (ghost_widths[0] < other.ghost_widths[0]) {
       return -1;
-    } else if (ghost_width == other.ghost_width) {
-      return 0;
+    } else if (ghost_widths[0] == other.ghost_widths[0]) {
+      if (ghost_widths[1] < other.ghost_widths[1]) {
+        return -1;
+      } else if (ghost_widths[1] == other.ghost_widths[1]) {
+        if (ghost_widths[2] < other.ghost_widths[2]) {
+          return -1;
+        } else if (ghost_widths[2] == other.ghost_widths[2]) {
+          return 0;
+        } else {
+          return 1;
+        }
+      } else {
+        return 1;
+      }
     } else {
       return 1;
     }
@@ -248,7 +262,7 @@ struct MeshInfo {
     IdxT global_max[3]{ global.division_index(0, arg_coords[0]+1)
                       , global.division_index(1, arg_coords[1]+1)
                       , global.division_index(2, arg_coords[2]+1) };
-    return MeshInfo{global, global_min, global_max, global.ghost_width, arg_coords};
+    return MeshInfo{global, global_min, global_max, global.ghost_widths, arg_coords};
   }
 
   GlobalMeshInfo const& global;
@@ -259,7 +273,7 @@ struct MeshInfo {
   IdxT len[3];
   IdxT totallen;
   IdxT stride[3]; // stride[0] = 1
-  IdxT ghost_width;
+  IdxT ghost_widths[3];
   IdxT global_min[3];
   IdxT global_max[3];
   IdxT global_offset[3];
@@ -269,50 +283,54 @@ struct MeshInfo {
 
   MeshInfo(GlobalMeshInfo const& global_,
            const IdxT global_min_[], const IdxT global_max_[],
-           IdxT ghost_width_, const int global_coords_[])
+           const IdxT ghost_widths_[], const int global_coords_[])
     : global(global_)
-    , min{ ghost_width_
-         , ghost_width_
-         , ghost_width_ }
-    , max{ global_max_[0] - global_min_[0] + ghost_width_
-         , global_max_[1] - global_min_[1] + ghost_width_
-         , global_max_[2] - global_min_[2] + ghost_width_ }
+    , min{ ghost_widths_[0]
+         , ghost_widths_[1]
+         , ghost_widths_[2] }
+    , max{ global_max_[0] - global_min_[0] + ghost_widths_[0]
+         , global_max_[1] - global_min_[1] + ghost_widths_[1]
+         , global_max_[2] - global_min_[2] + ghost_widths_[2] }
     , size{ global_max_[0] - global_min_[0]
           , global_max_[1] - global_min_[1]
           , global_max_[2] - global_min_[2] }
     , totalsize{ (global_max_[0] - global_min_[0])
                * (global_max_[1] - global_min_[1])
                * (global_max_[2] - global_min_[2]) }
-    , len{ global_max_[0] - global_min_[0] + 2*ghost_width_
-         , global_max_[1] - global_min_[1] + 2*ghost_width_
-         , global_max_[2] - global_min_[2] + 2*ghost_width_ }
-    , totallen{ (global_max_[0] - global_min_[0] + 2*ghost_width_)
-              * (global_max_[1] - global_min_[1] + 2*ghost_width_)
-              * (global_max_[2] - global_min_[2] + 2*ghost_width_) }
+    , len{ global_max_[0] - global_min_[0] + 2*ghost_widths_[0]
+         , global_max_[1] - global_min_[1] + 2*ghost_widths_[1]
+         , global_max_[2] - global_min_[2] + 2*ghost_widths_[2] }
+    , totallen{ (global_max_[0] - global_min_[0] + 2*ghost_widths_[0])
+              * (global_max_[1] - global_min_[1] + 2*ghost_widths_[1])
+              * (global_max_[2] - global_min_[2] + 2*ghost_widths_[2]) }
     , stride{ 1
-            , global_max_[0] - global_min_[0] + 2*ghost_width_
-            , (global_max_[0] - global_min_[0] + 2*ghost_width_) * (global_max_[1] - global_min_[1] + 2*ghost_width_) }
-    , ghost_width(ghost_width_)
+            , global_max_[0] - global_min_[0] + 2*ghost_widths_[0]
+            , (global_max_[0] - global_min_[0] + 2*ghost_widths_[0]) * (global_max_[1] - global_min_[1] + 2*ghost_widths_[1]) }
+    , ghost_widths{ ghost_widths_[0]
+                  , ghost_widths_[1]
+                  , ghost_widths_[2] }
     , global_min{ global_min_[0]
                 , global_min_[1]
                 , global_min_[2] }
     , global_max{ global_max_[0]
                 , global_max_[1]
                 , global_max_[2] }
-    , global_offset{ global_min_[0] - ghost_width_
-                   , global_min_[1] - ghost_width_
-                   , global_min_[2] - ghost_width_ }
-    , global_own_min{ global_min_[0] - ((global_min_[0] == 0                && !global_.periodic[0]) ? ghost_width_ : 0)
-                    , global_min_[1] - ((global_min_[1] == 0                && !global_.periodic[1]) ? ghost_width_ : 0)
-                    , global_min_[2] - ((global_min_[2] == 0                && !global_.periodic[2]) ? ghost_width_ : 0) }
-    , global_own_max{ global_max_[0] + ((global_max_[0] == global_.sizes[0] && !global_.periodic[0]) ? ghost_width_ : 0)
-                    , global_max_[1] + ((global_max_[1] == global_.sizes[1] && !global_.periodic[1]) ? ghost_width_ : 0)
-                    , global_max_[2] + ((global_max_[2] == global_.sizes[2] && !global_.periodic[2]) ? ghost_width_ : 0) }
+    , global_offset{ global_min_[0] - ghost_widths_[0]
+                   , global_min_[1] - ghost_widths_[1]
+                   , global_min_[2] - ghost_widths_[2] }
+    , global_own_min{ global_min_[0] - ((global_min_[0] == 0                && !global_.periodic[0]) ? ghost_widths_[0] : 0)
+                    , global_min_[1] - ((global_min_[1] == 0                && !global_.periodic[1]) ? ghost_widths_[1] : 0)
+                    , global_min_[2] - ((global_min_[2] == 0                && !global_.periodic[2]) ? ghost_widths_[2] : 0) }
+    , global_own_max{ global_max_[0] + ((global_max_[0] == global_.sizes[0] && !global_.periodic[0]) ? ghost_widths_[0] : 0)
+                    , global_max_[1] + ((global_max_[1] == global_.sizes[1] && !global_.periodic[1]) ? ghost_widths_[1] : 0)
+                    , global_max_[2] + ((global_max_[2] == global_.sizes[2] && !global_.periodic[2]) ? ghost_widths_[2] : 0) }
     , global_coords{ global_coords_[0]
                    , global_coords_[1]
                    , global_coords_[2] }
   {
-    assert(size[0] >= ghost_width && size[1] >= ghost_width && size[2] >= ghost_width);
+    assert(size[0] >= ghost_widths[0]);
+    assert(size[1] >= ghost_widths[1]);
+    assert(size[2] >= ghost_widths[2]);
   }
 
   void correct_periodicity()

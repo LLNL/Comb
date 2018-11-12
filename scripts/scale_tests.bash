@@ -52,7 +52,7 @@ comb_args="${comb_args} -divide ${procs_per_side}_${procs_per_side}_${procs_per_
 # set the grid to be periodic in each dimension
 comb_args="${comb_args} -periodic 1_1_1"
 # set the halo width or number of ghost zones
-comb_args="${comb_args} -ghost 1"
+comb_args="${comb_args} -ghost 1_1_1"
 # set number of grid variables
 comb_args="${comb_args} -vars 3"
 # set number of communication cycles

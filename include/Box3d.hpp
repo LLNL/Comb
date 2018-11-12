@@ -282,7 +282,7 @@ struct Box3dTemplate
                 , (bounds[1] == -1) ? ITL::min : ( (bounds[1] == 1) ? ITL::max : ITL::mid )
                 , (bounds[2] == -1) ? ITL::min : ( (bounds[2] == 1) ? ITL::max : ITL::mid ) };
 
-    return Box3dTemplate::make_Box3dTemplate_inner(info.ghost_width, locs).make_box(info);
+    return Box3dTemplate::make_Box3dTemplate_inner(info.ghost_widths, locs).make_box(info);
   }
 
   static Box3d get_connection_ghost_box(MeshInfo const& info, const int neighbor_coords[])
@@ -295,33 +295,33 @@ struct Box3dTemplate
                 , (bounds[1] == -1) ? ITL::min : ( (bounds[1] == 1) ? ITL::max : ITL::mid )
                 , (bounds[2] == -1) ? ITL::min : ( (bounds[2] == 1) ? ITL::max : ITL::mid ) };
 
-    return Box3dTemplate::make_Box3dTemplate_ghost(info.ghost_width, locs).make_box(info);
+    return Box3dTemplate::make_Box3dTemplate_ghost(info.ghost_widths, locs).make_box(info);
   }
 
-  static Box3dTemplate make_Box3dTemplate_inner(IdxT width, ITL bounds[])
+  static Box3dTemplate make_Box3dTemplate_inner(const IdxT widths[], const ITL bounds[])
   {
-    IT tmin[3] { IT{(bounds[0] == ITL::mid) ? ITL::min : bounds[0], (bounds[0] == ITL::max) ? -width : 0 }
-               , IT{(bounds[1] == ITL::mid) ? ITL::min : bounds[1], (bounds[1] == ITL::max) ? -width : 0 }
-               , IT{(bounds[2] == ITL::mid) ? ITL::min : bounds[2], (bounds[2] == ITL::max) ? -width : 0 } };
-    IT tmax[3] { IT{(bounds[0] == ITL::mid) ? ITL::max : bounds[0], (bounds[0] == ITL::min) ?  width : 0 }
-               , IT{(bounds[1] == ITL::mid) ? ITL::max : bounds[1], (bounds[1] == ITL::min) ?  width : 0 }
-               , IT{(bounds[2] == ITL::mid) ? ITL::max : bounds[2], (bounds[2] == ITL::min) ?  width : 0 } };
+    IT tmin[3] { IT{(bounds[0] == ITL::mid) ? ITL::min : bounds[0], (bounds[0] == ITL::max) ? -widths[0] : 0 }
+               , IT{(bounds[1] == ITL::mid) ? ITL::min : bounds[1], (bounds[1] == ITL::max) ? -widths[1] : 0 }
+               , IT{(bounds[2] == ITL::mid) ? ITL::min : bounds[2], (bounds[2] == ITL::max) ? -widths[2] : 0 } };
+    IT tmax[3] { IT{(bounds[0] == ITL::mid) ? ITL::max : bounds[0], (bounds[0] == ITL::min) ?  widths[0] : 0 }
+               , IT{(bounds[1] == ITL::mid) ? ITL::max : bounds[1], (bounds[1] == ITL::min) ?  widths[1] : 0 }
+               , IT{(bounds[2] == ITL::mid) ? ITL::max : bounds[2], (bounds[2] == ITL::min) ?  widths[2] : 0 } };
     return Box3dTemplate{ tmin, tmax };
   }
-  static Box3dTemplate make_Box3dTemplate_ghost(IdxT width, IT::location bounds[])
+  static Box3dTemplate make_Box3dTemplate_ghost(const IdxT widths[], const ITL bounds[])
   {
-    IT tmin[3] { IT{(bounds[0] == ITL::mid) ? ITL::min : bounds[0], (bounds[0] == ITL::min) ? -width : 0 }
-               , IT{(bounds[1] == ITL::mid) ? ITL::min : bounds[1], (bounds[1] == ITL::min) ? -width : 0 }
-               , IT{(bounds[2] == ITL::mid) ? ITL::min : bounds[2], (bounds[2] == ITL::min) ? -width : 0 } };
-    IT tmax[3] { IT{(bounds[0] == ITL::mid) ? ITL::max : bounds[0], (bounds[0] == ITL::max) ?  width : 0 }
-               , IT{(bounds[1] == ITL::mid) ? ITL::max : bounds[1], (bounds[1] == ITL::max) ?  width : 0 }
-               , IT{(bounds[2] == ITL::mid) ? ITL::max : bounds[2], (bounds[2] == ITL::max) ?  width : 0 } };
+    IT tmin[3] { IT{(bounds[0] == ITL::mid) ? ITL::min : bounds[0], (bounds[0] == ITL::min) ? -widths[0] : 0 }
+               , IT{(bounds[1] == ITL::mid) ? ITL::min : bounds[1], (bounds[1] == ITL::min) ? -widths[1] : 0 }
+               , IT{(bounds[2] == ITL::mid) ? ITL::min : bounds[2], (bounds[2] == ITL::min) ? -widths[2] : 0 } };
+    IT tmax[3] { IT{(bounds[0] == ITL::mid) ? ITL::max : bounds[0], (bounds[0] == ITL::max) ?  widths[0] : 0 }
+               , IT{(bounds[1] == ITL::mid) ? ITL::max : bounds[1], (bounds[1] == ITL::max) ?  widths[1] : 0 }
+               , IT{(bounds[2] == ITL::mid) ? ITL::max : bounds[2], (bounds[2] == ITL::max) ?  widths[2] : 0 } };
     return Box3dTemplate{ tmin, tmax };
   }
 
-  IdxTemplate tmin[3];
-  IdxTemplate tmax[3];
-  constexpr Box3dTemplate(IdxTemplate const tmin_[], IdxTemplate const tmax_[])
+  IT tmin[3];
+  IT tmax[3];
+  constexpr Box3dTemplate(IT const tmin_[], IT const tmax_[])
     : tmin{tmin_[0], tmin_[1], tmin_[2]}
     , tmax{tmax_[0], tmax_[1], tmax_[2]}
   {
@@ -340,7 +340,7 @@ struct Box3dTemplate
 
 private:
 
-  IdxT idx(IdxT dim, MeshInfo const& info, IdxTemplate it)
+  IdxT idx(IdxT dim, MeshInfo const& info, IT it)
   {
     IdxT idx = 0;
     switch (it.idx) {

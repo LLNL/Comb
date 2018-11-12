@@ -669,7 +669,7 @@ int main(int argc, char** argv)
   IdxT sizes[3] = {0, 0, 0};
   int divisions[3] = {0, 0, 0};
   int periodic[3] = {0, 0, 0};
-  IdxT ghost_width = 1;
+  IdxT ghost_widths[3] = {1, 1, 1};
   IdxT num_vars = 1;
   IdxT ncycles = 5;
 
@@ -685,9 +685,15 @@ int main(int argc, char** argv)
             comminfo.mock_communication = true;
           } else if (strcmp(argv[i], "cutoff") == 0) {
             if (i+1 < argc && argv[i+1][0] != '-') {
-              comminfo.cutoff = static_cast<IdxT>(atoll(argv[++i]));
+              long read_cutoff = comminfo.cutoff;
+              int ret = sscanf(argv[++i], "%ld", &read_cutoff);
+              if (ret == 1) {
+                comminfo.cutoff = read_cutoff;
+              } else {
+                comminfo.warn_master("Invalid argument to sub-option, ignoring %s %s %s.\n", argv[i-2], argv[i-1], argv[i]);
+              }
             } else {
-              comminfo.warn_master("No argument to sub-option, ignoring %s.\n", argv[i]);
+              comminfo.warn_master("No argument to sub-option, ignoring %s %s.\n", argv[i-1], argv[i]);
             }
           } else if ( strcmp(argv[i], "post_recv") == 0
                    || strcmp(argv[i], "post_send") == 0
@@ -718,73 +724,108 @@ int main(int argc, char** argv)
               } else if (strcmp(argv[i], "test_all") == 0) {
                 *method = CommInfo::method::testall;
               } else {
-                comminfo.warn_master("Invalid argument to sub-option, ignoring %s.\n", argv[i-1]);
+                comminfo.warn_master("Invalid argument to sub-option, ignoring %s %s %s.\n", argv[i-2], argv[i-1], argv[i]);
               }
             } else {
-              comminfo.warn_master("No argument to sub-option, ignoring %s.\n", argv[i]);
+              comminfo.warn_master("No argument to sub-option, ignoring %s %s.\n", argv[i-1], argv[i]);
             }
           } else {
-            comminfo.warn_master("Invalid argument to option, ignoring %s.\n", argv[i-1]);
+            comminfo.warn_master("Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
           }
         } else {
           comminfo.warn_master("No argument to option, ignoring %s.\n", argv[i]);
         }
       } else if (strcmp(&argv[i][1], "ghost") == 0) {
         if (i+1 < argc && argv[i+1][0] != '-') {
-          ghost_width = static_cast<IdxT>(atoll(argv[++i]));
+          long read_ghost_widths[3] {ghost_widths[0], ghost_widths[1], ghost_widths[2]};
+          int ret = sscanf(argv[++i], "%ld_%ld_%ld", &read_ghost_widths[0], &read_ghost_widths[1], &read_ghost_widths[2]);
+          if (ret == 1) {
+            ghost_widths[0] = read_ghost_widths[0];
+            ghost_widths[1] = read_ghost_widths[0];
+            ghost_widths[2] = read_ghost_widths[0];
+          } else if (ret == 3) {
+            ghost_widths[0] = read_ghost_widths[0];
+            ghost_widths[1] = read_ghost_widths[1];
+            ghost_widths[2] = read_ghost_widths[2];
+          } else {
+            comminfo.warn_master("Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
+          }
         } else {
           comminfo.warn_master("No argument to option, ignoring %s.\n", argv[i]);
         }
       } else if (strcmp(&argv[i][1], "vars") == 0) {
         if (i+1 < argc && argv[i+1][0] != '-') {
-          num_vars = static_cast<IdxT>(atoll(argv[++i]));
+          long read_num_vars = num_vars;
+          int ret = sscanf(argv[++i], "%ld", &read_num_vars);
+          if (ret == 1) {
+            num_vars = read_num_vars;
+          } else {
+            comminfo.warn_master("Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
+          }
         } else {
           comminfo.warn_master("No argument to option, ignoring %s.\n", argv[i]);
         }
       } else if (strcmp(&argv[i][1], "cycles") == 0) {
         if (i+1 < argc && argv[i+1][0] != '-') {
-          ncycles = static_cast<IdxT>(atoll(argv[++i]));
+          long read_ncycles = ncycles;
+          int ret = sscanf(argv[++i], "%ld", &read_ncycles);
+          if (ret == 1) {
+            ncycles = read_ncycles;
+          } else {
+            comminfo.warn_master("Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
+          }
         } else {
           comminfo.warn_master("No argument to option, ignoring %s.\n", argv[i]);
         }
       } else if (strcmp(&argv[i][1], "periodic") == 0) {
         if (i+1 < argc && argv[i+1][0] != '-') {
-          int ret = sscanf(argv[++i], "%d_%d_%d", &periodic[0], &periodic[1], &periodic[2]);
+          long read_periodic[3] {periodic[0], periodic[1], periodic[2]};
+          int ret = sscanf(argv[++i], "%ld_%ld_%ld", &read_periodic[0], &read_periodic[1], &read_periodic[2]);
           if (ret == 1) {
-            periodic[1] = periodic[0];
-            periodic[2] = periodic[0];
-          } else if (ret != 3) {
-            periodic[0] = 0;
-            periodic[1] = 0;
-            periodic[2] = 0;
-            comminfo.warn_master("Invalid arguments to option, ignoring %s.\n", argv[i-1]);
+            periodic[0] = read_periodic[0] ? 1 : 0;
+            periodic[1] = read_periodic[0] ? 1 : 0;
+            periodic[2] = read_periodic[0] ? 1 : 0;
+          } else if (ret == 3) {
+            periodic[0] = read_periodic[0] ? 1 : 0;
+            periodic[1] = read_periodic[1] ? 1 : 0;
+            periodic[2] = read_periodic[2] ? 1 : 0;
+          } else {
+            comminfo.warn_master("Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
           }
-          periodic[0] = periodic[0] ? 1 : 0;
-          periodic[1] = periodic[1] ? 1 : 0;
-          periodic[2] = periodic[2] ? 1 : 0;
         } else {
           comminfo.warn_master("No argument to option, ignoring %s.\n", argv[i]);
         }
       } else if (strcmp(&argv[i][1], "divide") == 0) {
         if (i+1 < argc && argv[i+1][0] != '-') {
-          int ret = sscanf(argv[++i], "%d_%d_%d", &divisions[0], &divisions[1], &divisions[2]);
-          if (ret != 3 || divisions[0] < 1 || divisions[1] < 1 || divisions[2] < 1) {
-            divisions[0] = 0;
-            divisions[1] = 0;
-            divisions[2] = 0;
-            comminfo.warn_master("Invalid arguments to option, ignoring %s.\n", argv[i-1]);
+          long read_divisions[3] {divisions[0], divisions[1], divisions[2]};
+          int ret = sscanf(argv[++i], "%ld_%ld_%ld", &read_divisions[0], &read_divisions[1], &read_divisions[2]);
+          if (ret == 1) {
+            divisions[0] = read_divisions[0];
+            divisions[1] = read_divisions[0];
+            divisions[2] = read_divisions[0];
+          } else if (ret == 3) {
+            divisions[0] = read_divisions[0];
+            divisions[1] = read_divisions[1];
+            divisions[2] = read_divisions[2];
+          } else {
+            comminfo.warn_master("Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
           }
         } else {
           comminfo.warn_master("No argument to option, ignoring %s.\n", argv[i]);
         }
       } else if (strcmp(&argv[i][1], "omp_threads") == 0) {
         if (i+1 < argc && argv[i+1][0] != '-') {
+          long read_omp_threads = omp_threads;
+          int ret = sscanf(argv[++i], "%ld", &read_omp_threads);
+          if (ret == 1) {
 #ifdef COMB_ENABLE_OPENMP
-          omp_threads = static_cast<int>(atoll(argv[++i]));
+            omp_threads = read_omp_threads;
 #else
-          comminfo.warn_master("Not built with openmp, ignoring %s %s.\n", argv[i], argv[i+1]);
-          ++i;
+            comminfo.warn_master("Not built with openmp, ignoring %s %s.\n", argv[i-1], argv[i]);
 #endif
+          } else {
+            comminfo.warn_master("Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
+          }
         } else {
           comminfo.warn_master("No argument to option, ignoring %s.\n", argv[i]);
         }
@@ -792,7 +833,7 @@ int main(int argc, char** argv)
         comminfo.warn_master("Unknown option, ignoring %s.\n", argv[i]);
       }
     } else if (std::isdigit(argv[i][0]) && s < 1) {
-      long read_sizes[3] {0, 0, 0};
+      long read_sizes[3] {sizes[0], sizes[1], sizes[2]};
       int ret = sscanf(argv[i], "%ld_%ld_%ld", &read_sizes[0], &read_sizes[1], &read_sizes[2]);
       if (ret == 1) {
         ++s;
@@ -805,11 +846,7 @@ int main(int argc, char** argv)
         sizes[1] = read_sizes[1];
         sizes[2] = read_sizes[2];
       } else {
-        // set sizes invalid
-        sizes[0] = 0;
-        sizes[1] = 0;
-        sizes[2] = 0;
-        comminfo.warn_master("Invalid sizes argument, ignoring %s.\n", argv[i]);
+        comminfo.warn_master("Invalid argument to sizes, ignoring %s.\n", argv[i]);
       }
     } else {
       comminfo.warn_master("Invalid argument, ignoring %s.\n", argv[i]);
@@ -820,10 +857,11 @@ int main(int argc, char** argv)
     comminfo.abort_master("Invalid cycles argument.\n");
   } else if (num_vars <= 0) {
     comminfo.abort_master("Invalid vars argument.\n");
-  } else if (ghost_width <= 0) {
-    comminfo.abort_master("Invalid ghost argument.\n");
+  } else if ( (ghost_widths[0] <  0 || ghost_widths[1] <  0 || ghost_widths[2] <  0)
+           || (ghost_widths[0] == 0 && ghost_widths[1] == 0 && ghost_widths[2] == 0) ) {
+    comminfo.abort_master("Invalid ghost widths.\n");
   } else if ( (divisions[0] != 0 || divisions[1] != 0 || divisions[2] != 0)
-           && comminfo.size != divisions[0] * divisions[1] * divisions[2]) {
+           && (comminfo.size != divisions[0] * divisions[1] * divisions[2]) ) {
     comminfo.abort_master("Invalid mesh divisions\n");
   }
 
@@ -871,7 +909,7 @@ int main(int argc, char** argv)
 #endif // ifdef COMB_ENABLE_OPENMP
 
 
-  GlobalMeshInfo global_info(sizes, comminfo.size, divisions, periodic, ghost_width);
+  GlobalMeshInfo global_info(sizes, comminfo.size, divisions, periodic, ghost_widths);
 
   // create cartesian communicator and get rank
   comminfo.cart.create(global_info.divisions, global_info.periodic);
@@ -880,19 +918,18 @@ int main(int argc, char** argv)
 
   // print info about problem setup
   comminfo.print_any("Do %s communication\n", comminfo.mock_communication ? "mock" : "real");
-  comminfo.print_any("Cart coords %4i %4i %4i\n", comminfo.cart.coords[0], comminfo.cart.coords[1], comminfo.cart.coords[2]);
+  comminfo.print_any("Cart coords  %8i %8i %8i\n", comminfo.cart.coords[0], comminfo.cart.coords[1], comminfo.cart.coords[2]);
   comminfo.print_any("Message policy cutoff %i\n", comminfo.cutoff);
   comminfo.print_any("Post Recv using %s method\n", CommInfo::method_str(comminfo.post_recv_method));
   comminfo.print_any("Post Send using %s method\n", CommInfo::method_str(comminfo.post_send_method));
   comminfo.print_any("Wait Recv using %s method\n", CommInfo::method_str(comminfo.wait_recv_method));
   comminfo.print_any("Wait Send using %s method\n", CommInfo::method_str(comminfo.wait_send_method));
-  comminfo.print_any("Num cycles  %i\n", ncycles);
-  comminfo.print_any("Num cycles  %i\n", ncycles);
-  comminfo.print_any("Num vars    %i\n", num_vars);
-  comminfo.print_any("ghost_width %i\n", info.ghost_width);
-  comminfo.print_any("size      %8i %8i %8i\n", global_info.sizes[0],       global_info.sizes[1],       global_info.sizes[2]);
-  comminfo.print_any("divisions %8i %8i %8i\n", comminfo.cart.divisions[0], comminfo.cart.divisions[1], comminfo.cart.divisions[2]);
-  comminfo.print_any("periodic  %8i %8i %8i\n", comminfo.cart.periodic[0],  comminfo.cart.periodic[1],  comminfo.cart.periodic[2]);
+  comminfo.print_any("Num cycles   %i\n", ncycles);
+  comminfo.print_any("Num vars     %i\n", num_vars);
+  comminfo.print_any("ghost_widths %8i %8i %8i\n", info.ghost_widths[0], info.ghost_widths[1], info.ghost_widths[2]);
+  comminfo.print_any("sizes        %8i %8i %8i\n", global_info.sizes[0],       global_info.sizes[1],       global_info.sizes[2]);
+  comminfo.print_any("divisions    %8i %8i %8i\n", comminfo.cart.divisions[0], comminfo.cart.divisions[1], comminfo.cart.divisions[2]);
+  comminfo.print_any("periodic     %8i %8i %8i\n", comminfo.cart.periodic[0],  comminfo.cart.periodic[1],  comminfo.cart.periodic[2]);
   comminfo.print_any("division map\n", comminfo.cart.periodic[0], comminfo.cart.periodic[1], comminfo.cart.periodic[2]);
   // print division map
   IdxT max_cuts = std::max(std::max(comminfo.cart.divisions[0], comminfo.cart.divisions[1]), comminfo.cart.divisions[2]);
@@ -907,7 +944,7 @@ int main(int argc, char** argv)
     if (ci <= comminfo.cart.divisions[0]) {
       division_coords[2] = ci * (sizes[2] / comminfo.cart.divisions[2]) + std::min(ci, sizes[2] % comminfo.cart.divisions[2]);
     }
-    comminfo.print_any("map       %8i %8i %8i\n", division_coords[0], division_coords[1], division_coords[2] );
+    comminfo.print_any("map        %8i %8i %8i\n", division_coords[0], division_coords[1], division_coords[2] );
   }
 
   HostAllocator host_alloc;

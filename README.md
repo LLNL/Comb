@@ -45,14 +45,14 @@ The cmake configuration options change which execution patterns and memory space
 
 The runtime options change the properties of the grid and its decomposition, as well as the communication pattern used.
 
-  -   __\#\_\#\_\#__ Grid size in each dimension (Required)
-  -   __\-divide \#\_\#\_\#__ Number of subgrids in each dimension (Required)
-  -   __\-periodic \#\_\#\_\#__ Periodicity in each dimension
-  -   __\-ghost \#__ The halo width or number of ghost zones
-  -   __\-vars \#__ The number of grid variables
+  -   __*\#\_\#\_\#*__ Grid size in each dimension (Required)
+  -   __\-divide *\#\_\#\_\#*__ Number of subgrids in each dimension (Required)
+  -   __\-periodic *\#\_\#\_\#*_ Periodicity in each dimension
+  -   __\-ghost *\#\_\#\_\#*__ The halo width or number of ghost zones in each dimension
+  -   __\-vars *\#*__ The number of grid variables
   -   __\-comm *option*__ Communication options
       -   __mock__ Do mock communication (do not make MPI calls)
-      -   __cutoff \#__ Number of elements cutoff between large and small message packing kernels
+      -   __cutoff *\#*__ Number of elements cutoff between large and small message packing kernels
       -   __post_recv *option*__ Communication post receive (MPI_Irecv) options
           -   __wait_any__ Post recvs one-by-one
           -   __wait_some__ Post recvs one-by-one
@@ -81,8 +81,8 @@ The runtime options change the properties of the grid and its decomposition, as 
           -   __test_any__ Wait for each send to complete one-by-one by polling (MPI_Testany)
           -   __test_some__ Wait for all sends to complete in groups by polling (MPI_Testsome)
           -   __test_all__ Wait for all sends to complete by polling (MPI_Testall)
-  -   __\-cycles \#__ Number of times the communication pattern is tested
-  -   __\-omp_threads \#__ Number of openmp threads requested
+  -   __\-cycles *\#*__ Number of times the communication pattern is tested
+  -   __\-omp_threads *\#*__ Number of openmp threads requested
 
 #### Example Script
 
