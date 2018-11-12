@@ -93,6 +93,7 @@ struct Timer {
       double max;
       long   num;
     };
+    int max_name_len = 0;
     std::vector<std::string> name_order;
     using map_type = std::unordered_map<std::string, stats>;
     map_type name_map;
@@ -100,6 +101,10 @@ struct Timer {
     for (IdxT i = 1; i < idx; ++i) {
       if (names[i-1] != nullptr) {
         std::string name{names[i-1]};
+        int name_len = name.size();
+        if (name_len > max_name_len) {
+          max_name_len = name_len;
+        }
         double time_s = std::chrono::duration<double>(times[i].tp - times[i-1].tp).count();
         auto item = name_map.find(name);
         if (item == name_map.end()) {
@@ -119,7 +124,8 @@ struct Timer {
     for (size_t i = 0; i < name_order.size(); ++i) {
       auto item = name_map.find(name_order[i]);
       assert(item != name_map.end());
-      FPRINTF(stdout, "%s%s: num %ld sum %.9f s min %.9f s max %.9f s\n", prefix, item->second.name.c_str(), item->second.num, item->second.sum, item->second.min, item->second.max);
+      int padding = max_name_len - item->second.name.size();
+      FPRINTF(stdout, "%s%s:%*s num %ld sum %.9f s min %.9f s max %.9f s\n", prefix, item->second.name.c_str(), padding, "", item->second.num, item->second.sum, item->second.min, item->second.max);
     }
   }
 
