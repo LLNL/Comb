@@ -47,7 +47,7 @@ The runtime options change the properties of the grid and its decomposition, as 
 
   -   __*\#\_\#\_\#*__ Grid size in each dimension (Required)
   -   __\-divide *\#\_\#\_\#*__ Number of subgrids in each dimension (Required)
-  -   __\-periodic *\#\_\#\_\#*_ Periodicity in each dimension
+  -   __\-periodic *\#\_\#\_\#*__ Periodicity in each dimension
   -   __\-ghost *\#\_\#\_\#*__ The halo width or number of ghost zones in each dimension
   -   __\-vars *\#*__ The number of grid variables
   -   __\-comm *option*__ Communication options
