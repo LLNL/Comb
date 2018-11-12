@@ -865,47 +865,50 @@ int main(int argc, char** argv)
     comminfo.abort_master("Invalid mesh divisions\n");
   }
 
-
 #ifdef COMB_ENABLE_OPENMP
-  if (omp_threads > 0) {
-
-    omp_set_num_threads(omp_threads);
-
-  }
-
   // OMP setup
-#pragma omp parallel shared(omp_threads)
   {
-#pragma omp master
-    omp_threads = omp_get_num_threads();
-  }
+    if (omp_threads > 0) {
 
-  comminfo.print_any("OMP num threads %i\n", omp_threads);
+      omp_set_num_threads(omp_threads);
+
+    }
+
+#pragma omp parallel shared(omp_threads)
+    {
+#pragma omp master
+      omp_threads = omp_get_num_threads();
+    }
+
+    long print_omp_threads = omp_threads;
+    comminfo.print_any("OMP num threads %5li\n", print_omp_threads);
 
 #ifdef PRINT_THREAD_MAP
-  {
-    int* thread_cpu_id = new int[omp_threads];
+    {
+      int* thread_cpu_id = new int[omp_threads];
 
 #pragma omp parallel shared(thread_cpu_id)
-    {
-      int thread_id = omp_get_thread_num();
+      {
+        int thread_id = omp_get_thread_num();
 
-      thread_cpu_id[thread_id] = sched_getcpu();
+        thread_cpu_id[thread_id] = sched_getcpu();
+      }
+
+      int i = 0;
+      if (i < omp_threads) {
+        comminfo.print_any("OMP thread map %6i", thread_cpu_id[i]);
+        for (++i; i < omp_threads; ++i) {
+          comminfo.print_any(" %8i", thread_cpu_id[i]);
+        }
+      }
+
+      comminfo.print_any("\n");
+
+      delete[] thread_cpu_id;
+
     }
-
-
-    comminfo.print_any("OMP thread map");
-
-    for (int i = 0; i < omp_threads; ++i) {
-      comminfo.print_any(" %i", thread_cpu_id[i]);
-    }
-
-    comminfo.print_any("\n");
-
-    delete[] thread_cpu_id;
-
-  }
 #endif // ifdef PRINT_THREAD_MAP
+  }
 #endif // ifdef COMB_ENABLE_OPENMP
 
 
@@ -917,34 +920,54 @@ int main(int argc, char** argv)
   MeshInfo info = MeshInfo::get_local(global_info, comminfo.cart.coords);
 
   // print info about problem setup
-  comminfo.print_any("Do %s communication\n", comminfo.mock_communication ? "mock" : "real");
-  comminfo.print_any("Cart coords  %8i %8i %8i\n", comminfo.cart.coords[0], comminfo.cart.coords[1], comminfo.cart.coords[2]);
-  comminfo.print_any("Message policy cutoff %i\n", comminfo.cutoff);
-  comminfo.print_any("Post Recv using %s method\n", CommInfo::method_str(comminfo.post_recv_method));
-  comminfo.print_any("Post Send using %s method\n", CommInfo::method_str(comminfo.post_send_method));
-  comminfo.print_any("Wait Recv using %s method\n", CommInfo::method_str(comminfo.wait_recv_method));
-  comminfo.print_any("Wait Send using %s method\n", CommInfo::method_str(comminfo.wait_send_method));
-  comminfo.print_any("Num cycles   %i\n", ncycles);
-  comminfo.print_any("Num vars     %i\n", num_vars);
-  comminfo.print_any("ghost_widths %8i %8i %8i\n", info.ghost_widths[0], info.ghost_widths[1], info.ghost_widths[2]);
-  comminfo.print_any("sizes        %8i %8i %8i\n", global_info.sizes[0],       global_info.sizes[1],       global_info.sizes[2]);
-  comminfo.print_any("divisions    %8i %8i %8i\n", comminfo.cart.divisions[0], comminfo.cart.divisions[1], comminfo.cart.divisions[2]);
-  comminfo.print_any("periodic     %8i %8i %8i\n", comminfo.cart.periodic[0],  comminfo.cart.periodic[1],  comminfo.cart.periodic[2]);
-  comminfo.print_any("division map\n", comminfo.cart.periodic[0], comminfo.cart.periodic[1], comminfo.cart.periodic[2]);
-  // print division map
-  IdxT max_cuts = std::max(std::max(comminfo.cart.divisions[0], comminfo.cart.divisions[1]), comminfo.cart.divisions[2]);
-  for (IdxT ci = 0; ci <= max_cuts; ++ci) {
-    int division_coords[3] {-1, -1, -1};
-    if (ci <= comminfo.cart.divisions[0]) {
-      division_coords[0] = ci * (sizes[0] / comminfo.cart.divisions[0]) + std::min(ci, sizes[0] % comminfo.cart.divisions[0]);
+  {
+    long print_coords[3]       = {comminfo.cart.coords[0],    comminfo.cart.coords[1],    comminfo.cart.coords[2]   };
+    long print_cutoff          = comminfo.cutoff;
+    long print_ncycles         = ncycles;
+    long print_num_vars        = num_vars;
+    long print_ghost_widths[3] = {info.ghost_widths[0],       info.ghost_widths[1],       info.ghost_widths[2]      };
+    long print_sizes[3]        = {global_info.sizes[0],       global_info.sizes[1],       global_info.sizes[2]      };
+    long print_divisions[3]    = {comminfo.cart.divisions[0], comminfo.cart.divisions[1], comminfo.cart.divisions[2]};
+    long print_periodic[3]     = {comminfo.cart.periodic[0],  comminfo.cart.periodic[1],  comminfo.cart.periodic[2] };
+
+    comminfo.print_any("Do %s communication\n",         comminfo.mock_communication ? "mock" : "real"                      );
+    comminfo.print_any("Cart coords  %8li %8li %8li\n", print_coords[0],       print_coords[1],       print_coords[2]      );
+    comminfo.print_any("Message policy cutoff %li\n",   print_cutoff                                                       );
+    comminfo.print_any("Post Recv using %s method\n",   CommInfo::method_str(comminfo.post_recv_method)                    );
+    comminfo.print_any("Post Send using %s method\n",   CommInfo::method_str(comminfo.post_send_method)                    );
+    comminfo.print_any("Wait Recv using %s method\n",   CommInfo::method_str(comminfo.wait_recv_method)                    );
+    comminfo.print_any("Wait Send using %s method\n",   CommInfo::method_str(comminfo.wait_send_method)                    );
+    comminfo.print_any("Num cycles   %8li\n",           print_ncycles                                                      );
+    comminfo.print_any("Num vars     %8li\n",           print_num_vars                                                     );
+    comminfo.print_any("ghost_widths %8li %8li %8li\n", print_ghost_widths[0], print_ghost_widths[1], print_ghost_widths[2]);
+    comminfo.print_any("sizes        %8li %8li %8li\n", print_sizes[0],        print_sizes[1],        print_sizes[2]       );
+    comminfo.print_any("divisions    %8li %8li %8li\n", print_divisions[0],    print_divisions[1],    print_divisions[2]   );
+    comminfo.print_any("periodic     %8li %8li %8li\n", print_periodic[0],     print_periodic[1],     print_periodic[2]    );
+    comminfo.print_any("division map\n");
+    // print division map
+    IdxT max_cuts = std::max(std::max(comminfo.cart.divisions[0], comminfo.cart.divisions[1]), comminfo.cart.divisions[2]);
+    for (IdxT ci = 0; ci <= max_cuts; ++ci) {
+      comminfo.print_any("map         ");
+      if (ci <= comminfo.cart.divisions[0]) {
+        long print_division_coord = ci * (sizes[0] / comminfo.cart.divisions[0]) + std::min(ci, sizes[0] % comminfo.cart.divisions[0]);
+        comminfo.print_any(" %8li", print_division_coord);
+      } else {
+        comminfo.print_any(" %8s", "");
+      }
+      if (ci <= comminfo.cart.divisions[1]) {
+        long print_division_coord = ci * (sizes[1] / comminfo.cart.divisions[1]) + std::min(ci, sizes[1] % comminfo.cart.divisions[1]);
+        comminfo.print_any(" %8li", print_division_coord);
+      } else {
+        comminfo.print_any(" %8s", "");
+      }
+      if (ci <= comminfo.cart.divisions[2]) {
+        long print_division_coord = ci * (sizes[2] / comminfo.cart.divisions[2]) + std::min(ci, sizes[2] % comminfo.cart.divisions[2]);
+        comminfo.print_any(" %8li", print_division_coord);
+      } else {
+        comminfo.print_any(" %8s", "");
+      }
+      comminfo.print_any("\n");
     }
-    if (ci <= comminfo.cart.divisions[0]) {
-      division_coords[1] = ci * (sizes[1] / comminfo.cart.divisions[1]) + std::min(ci, sizes[1] % comminfo.cart.divisions[1]);
-    }
-    if (ci <= comminfo.cart.divisions[0]) {
-      division_coords[2] = ci * (sizes[2] / comminfo.cart.divisions[2]) + std::min(ci, sizes[2] % comminfo.cart.divisions[2]);
-    }
-    comminfo.print_any("map        %8i %8i %8i\n", division_coords[0], division_coords[1], division_coords[2] );
   }
 
   HostAllocator host_alloc;
