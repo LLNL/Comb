@@ -815,7 +815,11 @@ int main(int argc, char** argv)
         }
       } else if (strcmp(&argv[i][1], "omp_threads") == 0) {
         if (i+1 < argc && argv[i+1][0] != '-') {
+#ifdef COMB_ENABLE_OPENMP
           long read_omp_threads = omp_threads;
+#else
+          long read_omp_threads = 0;
+#endif
           int ret = sscanf(argv[++i], "%ld", &read_omp_threads);
           if (ret == 1) {
 #ifdef COMB_ENABLE_OPENMP
