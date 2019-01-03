@@ -276,16 +276,47 @@ struct CommFactory
     iter->second.push_back(&meshdata);
   }
 
+
+  struct message_info_item_type
+  {
+    MeshData const* data;
+    Box3d const& box;
+
+    message_info_item_type(MeshData const* data_, Box3d const& box_)
+      : data(data_), box(box_)
+    { }
+  };
+
+  struct message_info_type
+  {
+    int partner_rank;
+    int msg_tag;
+    IdxT total_size;
+    std::list<message_info_item_type> items;
+
+    message_info_type(int partner_rank_, int msg_tag_)
+      : partner_rank(partner_rank_), msg_tag(msg_tag_), total_size(0), items()
+    { }
+
+    void add_item(MeshData const* msg_data, Box3d const& msg_box)
+    {
+      total_size += msg_box.size();
+      items.emplace_back(msg_data, msg_box);
+    }
+  };
+
+  using msg_info_map_type = std::map<int, message_info_type>;
+
   template < typename comm_type >
   void populate(comm_type& comm) const
   {
-    using msg_idcs_type = std::unordered_map<int, IdxT>;
 
-    // map from rank to message indices
-    msg_idcs_type recv_msg_idcs;
-    // map from rank to message indices
-    msg_idcs_type send_msg_idcs;
+    // map from partner rank to message indices
+    msg_info_map_type recv_msg_info_map;
+    // map from partner rank to message indices
+    msg_info_map_type send_msg_info_map;
 
+    // populate the msg_info_maps
     auto recv_send_end = msg_map.end();
     for (auto recv_send_iter = msg_map.begin(); recv_send_iter != recv_send_end; ++recv_send_iter) {
 
@@ -303,93 +334,93 @@ struct CommFactory
       assert(send_rank_iter != rank_map.end());
       int send_rank = send_rank_iter->second;
 
-      // add recvs
-      auto recv_data_list_iter = data_map.find(recv_box.info);
-      if (recv_data_list_iter != data_map.end()) {
-        std::list<MeshData const*> const& recv_data_list = recv_data_list_iter->second;
-        if (!recv_data_list.empty()) {
+      // TODO: check for out of bounds tag
+      int msg_tag = recv_rank;
 
-          auto recv_msg_idx_iter = recv_msg_idcs.find(send_rank);
-          if (recv_msg_idx_iter == recv_msg_idcs.end()) {
-            // didn't find existing message
-            // add new recv message to map and comm
-            auto ret = recv_msg_idcs.insert(typename msg_idcs_type::value_type{send_rank, comm.m_recvs.size()});
-            assert(ret.second);
-            recv_msg_idx_iter = ret.first;
-
-            comm.m_recvs.emplace_back(send_rank, recv_rank, recv_box.size() >= comm.comminfo.cutoff);
-          }
-          IdxT recv_msg_idx = recv_msg_idx_iter->second;
-
-          typename comm_type::message_type& recv_msg = comm.m_recvs[recv_msg_idx];
-
-          auto recv_data_end = recv_data_list.end();
-          for (auto recv_data_iter = recv_data_list.begin(); recv_data_iter != recv_data_end; ++recv_data_iter) {
-            MeshData const* recv_data = *recv_data_iter;
-
-            IdxT len = recv_box.size();
-            LidxT* indices = (LidxT*)recv_data->aloc.allocate(sizeof(LidxT)*len);
-            if (recv_msg.have_many()) {
-              recv_box.set_indices(typename comm_type::policy_many{}, indices);
-            } else {
-              recv_box.set_indices(typename comm_type::policy_few{}, indices);
-            }
-
-            // give ownership of indices to the msg
-            recv_msg.add(recv_data->data(), indices, recv_data->aloc, len);
-          }
-        }
-      }
-
-      // add sends
-      auto send_data_list_iter = data_map.find(send_box.info);
-      if (send_data_list_iter != data_map.end()) {
-        std::list<MeshData const*> const& send_data_list = send_data_list_iter->second;
-        if (!send_data_list.empty()) {
-
-          auto send_msg_idx_iter = send_msg_idcs.find(recv_rank);
-          if (send_msg_idx_iter == send_msg_idcs.end()) {
-            // didn't find existing message
-            // add new send message to map and comm
-            auto ret = send_msg_idcs.insert(typename msg_idcs_type::value_type{recv_rank, comm.m_sends.size()});
-            assert(ret.second);
-            send_msg_idx_iter = ret.first;
-
-            comm.m_sends.emplace_back(recv_rank, recv_rank, send_box.size() >= comm.comminfo.cutoff);
-          }
-          IdxT send_msg_idx = send_msg_idx_iter->second;
-
-          typename comm_type::message_type& send_msg = comm.m_sends[send_msg_idx];
-
-          auto send_data_end = send_data_list.end();
-          for (auto send_data_iter = send_data_list.begin(); send_data_iter != send_data_end; ++send_data_iter) {
-            MeshData const* send_data = *send_data_iter;
-
-            IdxT len = send_box.size();
-            LidxT* indices = (LidxT*)send_data->aloc.allocate(sizeof(LidxT)*len);
-            if (send_msg.have_many()) {
-              send_box.set_indices(typename comm_type::policy_many{}, indices);
-            } else {
-              send_box.set_indices(typename comm_type::policy_few{}, indices);
-            }
-
-            // give ownership of indices to the msg
-            send_msg.add(send_data->data(), indices, send_data->aloc, len);
-          }
-        }
-      }
+      populate_msg_info_map(recv_msg_info_map, recv_box, send_rank, msg_tag);
+      populate_msg_info_map(send_msg_info_map, send_box, recv_rank, msg_tag);
     }
+
+    // use the msg_info_maps to populate messages in comm
+    populate_comm(comm, comm.m_recvs, recv_msg_info_map);
+    populate_comm(comm, comm.m_sends, send_msg_info_map);
 
     size_t num_events = std::max(comm.m_recvs.size(), comm.m_sends.size());
     for(size_t i = 0; i != num_events; ++i) {
       comm.m_many_events.push_back( createEvent(typename comm_type::policy_many{}) );
       comm.m_few_events.push_back( createEvent(typename comm_type::policy_few{}) );
     }
-
   }
 
   ~CommFactory()
   {
+  }
+
+private:
+  void populate_msg_info_map(msg_info_map_type& msg_info_map, Box3d const& msg_box, int partner_rank, int msg_tag) const
+  {
+    auto msg_data_list_iter = data_map.find(msg_box.info);
+    if (msg_data_list_iter != data_map.end()) {
+      std::list<MeshData const*> const& msg_data_list = msg_data_list_iter->second;
+      if (!msg_data_list.empty()) {
+
+        auto msg_info_iter = msg_info_map.find(partner_rank);
+        if (msg_info_iter == msg_info_map.end()) {
+          // didn't find existing entry, add new
+          auto ret = msg_info_map.emplace(std::make_pair(partner_rank, message_info_type{partner_rank, msg_tag}));
+          assert(ret.second);
+          msg_info_iter = ret.first;
+        }
+        message_info_type& msginfo = msg_info_iter->second;
+
+        auto msg_data_end = msg_data_list.end();
+        for (auto msg_data_iter = msg_data_list.begin(); msg_data_iter != msg_data_end; ++msg_data_iter) {
+          MeshData const* msg_data = *msg_data_iter;
+
+          msginfo.add_item(msg_data, msg_box);
+        }
+      }
+    }
+  }
+
+  template < typename comm_type, typename msg_list_type >
+  void populate_comm(comm_type& comm, msg_list_type& msg_list, msg_info_map_type& msg_info_map) const
+  {
+    auto lambda = [&](message_info_type& msginfo) {
+
+      IdxT total_size = msginfo.total_size;
+      IdxT num_items = msginfo.items.size();
+      bool have_many = ((total_size + num_items - 1) / num_items) >= comm.comminfo.cutoff;
+
+      msg_list.emplace_back(msginfo.partner_rank, msginfo.msg_tag, have_many);
+      typename comm_type::message_type& msg = msg_list.back();
+
+      auto msginfo_items_end = msginfo.items.end();
+      for (auto msginfo_items_iter = msginfo.items.begin(); msginfo_items_iter != msginfo_items_end; ++msginfo_items_iter) {
+        MeshData const* msg_data = msginfo_items_iter->data;
+        Box3d const& msg_box = msginfo_items_iter->box;
+
+        IdxT len = msg_box.size();
+        LidxT* indices = (LidxT*)msg_data->aloc.allocate(sizeof(LidxT)*len);
+        if (have_many) {
+          msg_box.set_indices(typename comm_type::policy_many{}, indices);
+        } else {
+          msg_box.set_indices(typename comm_type::policy_few{}, indices);
+        }
+
+        // give ownership of indices to the msg
+        msg.add(msg_data->data(), indices, msg_data->aloc, len);
+      }
+    };
+
+    int myrank = comm.comminfo.rank;
+
+    auto msg_info_begin  = msg_info_map.begin();
+    auto msg_info_end    = msg_info_map.end();
+
+    for (auto msg_info_iter = msg_info_begin; msg_info_iter != msg_info_end; ++msg_info_iter) {
+      lambda(msg_info_iter->second);
+    }
   }
 };
 
