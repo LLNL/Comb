@@ -317,7 +317,7 @@ struct CommFactory
             assert(ret.second);
             recv_msg_idx_iter = ret.first;
 
-            comm.m_recvs.emplace_back(send_rank, recv_rank, comm.many_aloc, comm.few_aloc, comm.comminfo.cutoff);
+            comm.m_recvs.emplace_back(send_rank, recv_rank, recv_box.size() >= comm.comminfo.cutoff);
           }
           IdxT recv_msg_idx = recv_msg_idx_iter->second;
 
@@ -329,7 +329,7 @@ struct CommFactory
 
             IdxT len = recv_box.size();
             LidxT* indices = (LidxT*)recv_data->aloc.allocate(sizeof(LidxT)*len);
-            if (len >= comm.comminfo.cutoff) {
+            if (recv_msg.have_many()) {
               recv_box.set_indices(typename comm_type::policy_many{}, indices);
             } else {
               recv_box.set_indices(typename comm_type::policy_few{}, indices);
@@ -355,7 +355,7 @@ struct CommFactory
             assert(ret.second);
             send_msg_idx_iter = ret.first;
 
-            comm.m_sends.emplace_back(recv_rank, recv_rank, comm.many_aloc, comm.few_aloc, comm.comminfo.cutoff);
+            comm.m_sends.emplace_back(recv_rank, recv_rank, send_box.size() >= comm.comminfo.cutoff);
           }
           IdxT send_msg_idx = send_msg_idx_iter->second;
 
@@ -367,7 +367,7 @@ struct CommFactory
 
             IdxT len = send_box.size();
             LidxT* indices = (LidxT*)send_data->aloc.allocate(sizeof(LidxT)*len);
-            if (len >= comm.comminfo.cutoff) {
+            if (send_msg.have_many()) {
               send_box.set_indices(typename comm_type::policy_many{}, indices);
             } else {
               send_box.set_indices(typename comm_type::policy_few{}, indices);
