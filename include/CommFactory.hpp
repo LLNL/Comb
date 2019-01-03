@@ -416,9 +416,20 @@ private:
     int myrank = comm.comminfo.rank;
 
     auto msg_info_begin  = msg_info_map.begin();
+    auto msg_info_middle = msg_info_map.lower_bound(myrank);
     auto msg_info_end    = msg_info_map.end();
 
-    for (auto msg_info_iter = msg_info_begin; msg_info_iter != msg_info_end; ++msg_info_iter) {
+    // myrank = 4;
+    // partner ranks = [2, 3, 7, 9];
+    // send/recv order = [7, 9, 2, 3];
+
+    // reorder messages so that each rank sends/recvs messages in order
+    // starting with the lowest ranked partner whose rank is greater than its rank
+    for (auto msg_info_iter = msg_info_middle; msg_info_iter != msg_info_end;    ++msg_info_iter) {
+      lambda(msg_info_iter->second);
+    }
+    // then wrapping back around to its lowest ranked partner
+    for (auto msg_info_iter = msg_info_begin;  msg_info_iter != msg_info_middle; ++msg_info_iter) {
       lambda(msg_info_iter->second);
     }
   }
