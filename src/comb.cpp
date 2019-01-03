@@ -145,19 +145,24 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles,
     char test_name[1024] = ""; snprintf(test_name, 1024, "Mesh %s %s %s", pol_loop::get_name(), aloc_mesh.name(), rname);
     FPRINTF(stdout, "Starting test %s\n", test_name);
 
+    char comm_name[MPI_MAX_OBJECT_NAME] = "";
+    snprintf(comm_name, MPI_MAX_OBJECT_NAME, "COMB_MPI_CART_COMM");
+
     Range r0(test_name, Range::orange);
 
-    comm_info.barrier();
+    Comm<pol_many, pol_few> comm(comm_info, aloc_many, aloc_few);
+
+    comm.comminfo.set_name(comm_name);
+
+    comm.comminfo.barrier();
 
     tm_total.start("start-up");
 
     std::vector<MeshData> vars;
     vars.reserve(num_vars);
 
-    Comm<pol_many, pol_few> comm(comm_info, aloc_many, aloc_few);
-
     {
-      CommFactory factory(comm_info);
+      CommFactory factory(comm.comminfo);
 
       for (IdxT i = 0; i < num_vars; ++i) {
 
@@ -181,7 +186,7 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles,
 
     tm_total.stop();
 
-    comm_info.barrier();
+    comm.comminfo.barrier();
 
     Range r1("test comm", Range::indigo);
 
@@ -189,7 +194,7 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles,
 
     { // test comm
 
-      bool mock_communication = comm_info.mock_communication;
+      bool mock_communication = comm.comminfo.mock_communication;
       IdxT imin = info.min[0];
       IdxT jmin = info.min[1];
       IdxT kmin = info.min[2];
@@ -407,7 +412,7 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles,
       r2.stop();
     }
 
-    comm_info.barrier();
+    comm.comminfo.barrier();
 
     tm_total.stop();
 
@@ -522,7 +527,7 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles,
 
     }
 
-    comm_info.barrier();
+    comm.comminfo.barrier();
 
     tm_total.stop();
 
@@ -625,6 +630,7 @@ int main(int argc, char** argv)
   int required = MPI_THREAD_FUNNELED; // MPI_THREAD_SINGLE, MPI_THREAD_FUNNELED, MPI_THREAD_SERIALIZED, MPI_THREAD_MULTIPLE
   int provided = detail::MPI::Init_thread(&argc, &argv, required);
 
+  { // begin region MPI communication via comminfo
   CommInfo comminfo;
 
   if (required != provided) {
@@ -1640,7 +1646,8 @@ int main(int argc, char** argv)
   }
 #endif // COMB_ENABLE_CUDA
 
-  comminfo.cart.disconnect();
+  } // end region MPI communication via comminfo
+
   detail::MPI::Finalize();
   return 0;
 }

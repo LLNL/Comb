@@ -102,6 +102,14 @@ inline MPI_Comm Comm_dup(MPI_Comm comm_old)
   assert(ret == MPI_SUCCESS);
   return comm;
 }
+
+inline void Comm_set_name(MPI_Comm comm, const char* name)
+{
+  // FPRINTF(stdout, "MPI_Comm_set_name rank(w%i) %s\n", Comm_rank(MPI_COMM_WORLD), name);
+  int ret = MPI_Comm_set_name(comm, name);
+  assert(ret == MPI_SUCCESS);
+}
+
 inline int Comm_rank(MPI_Comm comm)
 {
   int rank = -1;

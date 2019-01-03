@@ -179,6 +179,13 @@ struct CommInfo
     }
   }
 
+  void set_name(const char* name)
+  {
+    if (cart.comm != MPI_COMM_NULL) {
+      detail::MPI::Comm_set_name(cart.comm, name);
+    }
+  }
+
   void print_any(const char* fmt, ...)
   {
     va_list args;
