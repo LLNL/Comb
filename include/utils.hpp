@@ -94,6 +94,14 @@ inline void Finalize()
   assert(ret == MPI_SUCCESS);
 }
 
+inline MPI_Comm Comm_dup(MPI_Comm comm_old)
+{
+  MPI_Comm comm;
+  // FPRINTF(stdout, "MPI_Comm_dup rank(w%i) %s\n", Comm_rank(MPI_COMM_WORLD), name);
+  int ret = MPI_Comm_dup(comm_old, &comm);
+  assert(ret == MPI_SUCCESS);
+  return comm;
+}
 inline int Comm_rank(MPI_Comm comm)
 {
   int rank = -1;
@@ -112,10 +120,10 @@ inline int Comm_size(MPI_Comm comm)
   return size;
 }
 
-inline void Comm_disconnect(MPI_Comm* comm)
+inline void Comm_free(MPI_Comm* comm)
 {
-  // FPRINTF(stdout, "MPI_Comm_disconnect rank(w%i)\n", Comm_rank(MPI_COMM_WORLD));
-  int ret = MPI_Comm_disconnect(comm);
+  // FPRINTF(stdout, "MPI_Comm_free rank(w%i)\n", Comm_rank(MPI_COMM_WORLD));
+  int ret = MPI_Comm_free(comm);
   assert(ret == MPI_SUCCESS);
 }
 

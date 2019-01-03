@@ -66,6 +66,18 @@ struct CartComm : CartRank
   {
   }
 
+  CartComm(CartComm const& other)
+    : CartRank(other)
+    , comm(other.comm != MPI_COMM_NULL ? detail::MPI::Comm_dup(other.comm) : MPI_COMM_NULL)
+    , size(other.size)
+    , divisions{other.divisions[0], other.divisions[1], other.divisions[2]}
+    , periodic{other.periodic[0], other.periodic[1], other.periodic[2]}
+  {
+  }
+
+  // don't allow assignment
+  CartComm& operator=(CartComm const&) = delete;
+
   void create(const int divisions_[], const int periodic_[])
   {
     divisions[0] = divisions_[0];
@@ -97,9 +109,11 @@ struct CartComm : CartRank
     return output_rank;
   }
 
-  void disconnect()
+  ~CartComm()
   {
-    detail::MPI::Comm_disconnect(&comm);
+    if (comm != MPI_COMM_NULL) {
+      detail::MPI::Comm_free(&comm);
+    }
   }
 };
 
