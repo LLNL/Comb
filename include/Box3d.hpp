@@ -250,6 +250,11 @@ struct Box3d
     return equiv;
   }
 
+  MPI_Datatype get_type_subarray() const
+  {
+    return detail::MPI::Type_create_subarray(3, info.len, sizes, min, MPI_ORDER_FORTRAN, MPI_DOUBLE);
+  }
+
   template < typename policy >
   void set_indices(policy const& pol, LidxT* index_list) const
   {

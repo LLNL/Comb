@@ -68,6 +68,13 @@ struct cuda_persistent_pol {
   using event_type = detail::batch_event_type_ptr;
 };
 #endif
+// execution policy indicating that message packing/unpacking should be done
+// in MPI using MPI_Types
+struct mpi_type_pol {
+  static const bool async = false;
+  static const char* get_name() { return "mpi_type"; }
+  using event_type = int;
+};
 
 // synchronization functions
 inline void synchronize(seq_pol const&)
@@ -96,6 +103,9 @@ inline void synchronize(cuda_persistent_pol const&)
   cuda::persistent_launch::synchronize();
 }
 #endif
+inline void synchronize(mpi_type_pol const&)
+{
+}
 
 // force start functions
 inline void persistent_launch(seq_pol const&)
@@ -122,6 +132,9 @@ inline void persistent_launch(cuda_persistent_pol const&)
   cuda::persistent_launch::force_launch();
 }
 #endif
+inline void persistent_launch(mpi_type_pol const&)
+{
+}
 
 // force complete functions
 inline void batch_launch(seq_pol const&)
@@ -148,6 +161,9 @@ inline void batch_launch(cuda_persistent_pol const&)
 {
 }
 #endif
+inline void batch_launch(mpi_type_pol const&)
+{
+}
 
 // force complete functions
 inline void persistent_stop(seq_pol const&)
@@ -174,6 +190,9 @@ inline void persistent_stop(cuda_persistent_pol const&)
   cuda::persistent_launch::force_stop();
 }
 #endif
+inline void persistent_stop(mpi_type_pol const&)
+{
+}
 
 namespace detail {
 
@@ -297,6 +316,10 @@ inline typename cuda_persistent_pol::event_type createEvent(cuda_persistent_pol 
   return cuda::persistent_launch::createEvent();
 }
 #endif
+inline typename mpi_type_pol::event_type createEvent(mpi_type_pol const&)
+{
+  return typename mpi_type_pol::event_type{};
+}
 
 // event record functions
 inline void recordEvent(seq_pol const&, typename seq_pol::event_type)
@@ -325,6 +348,9 @@ inline void recordEvent(cuda_persistent_pol const&, typename cuda_persistent_pol
   return cuda::persistent_launch::recordEvent(event);
 }
 #endif
+inline void recordEvent(mpi_type_pol const&, typename mpi_type_pol::event_type)
+{
+}
 
 // event query functions
 inline bool queryEvent(seq_pol const&, typename seq_pol::event_type)
@@ -355,6 +381,10 @@ inline bool queryEvent(cuda_persistent_pol const&, typename cuda_persistent_pol:
   return cuda::persistent_launch::queryEvent(event);
 }
 #endif
+inline bool queryEvent(mpi_type_pol const&, typename mpi_type_pol::event_type)
+{
+  return true;
+}
 
 // event wait functions
 inline void waitEvent(seq_pol const&, typename seq_pol::event_type)
@@ -383,6 +413,9 @@ inline void waitEvent(cuda_persistent_pol const&, typename cuda_persistent_pol::
   cuda::persistent_launch::waitEvent(event);
 }
 #endif
+inline void waitEvent(mpi_type_pol const&, typename mpi_type_pol::event_type)
+{
+}
 
 // event destroy functions
 inline void destroyEvent(seq_pol const&, typename seq_pol::event_type)
@@ -411,6 +444,9 @@ inline void destroyEvent(cuda_persistent_pol const&, typename cuda_persistent_po
   cuda::persistent_launch::destroyEvent(event);
 }
 #endif
+inline void destroyEvent(mpi_type_pol const&, typename mpi_type_pol::event_type)
+{
+}
 
 namespace detail {
 
@@ -549,6 +585,12 @@ inline void for_all(cuda_persistent_pol const& pol, IdxT begin, IdxT end, body_t
   //synchronize(pol);
 }
 #endif
+// template < typename body_type >
+// inline void for_all(mpi_type_pol const& pol, IdxT begin, IdxT end, body_type&& body)
+// {
+//   COMB::ignore_unused(pol, begin, end, body);
+//   static_assert(false, "This method should never be used");
+// }
 
 template < typename body_type >
 void for_all_2d(seq_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, body_type&& body)
@@ -690,6 +732,12 @@ inline void for_all_2d(cuda_persistent_pol const& pol, IdxT begin0, IdxT end0, I
   //synchronize(pol);
 }
 #endif
+// template < typename body_type >
+// void for_all_2d(mpi_type_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, body_type&& body)
+// {
+//   COMB::ignore_unused(pol, begin0, end0, begin1, end1, body);
+//   static_assert(false, "This method should never be used");
+// }
 
 template < typename body_type >
 inline void for_all_3d(seq_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, IdxT begin2, IdxT end2, body_type&& body)
@@ -855,5 +903,11 @@ inline void for_all_3d(cuda_persistent_pol const& pol, IdxT begin0, IdxT end0, I
   //synchronize(pol);
 }
 #endif
+// template < typename body_type >
+// void for_all_3d(mpi_type_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, IdxT begin2, IdxT end2, body_type&& body)
+// {
+//   COMB::ignore_unused(pol, begin0, end0, begin1, end1, begin2, end2, body);
+//   static_assert(false, "This method should never be used");
+// }
 
 #endif // _FOR_ALL_HPP

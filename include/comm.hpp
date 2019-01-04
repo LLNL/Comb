@@ -262,8 +262,9 @@ struct Message
     LidxT* indices;
     Allocator& aloc;
     IdxT size;
-    list_item_type(DataT* data_, LidxT* indices_, Allocator& aloc_, IdxT size_)
-     : data(data_), indices(indices_), aloc(aloc_), size(size_)
+    MPI_Datatype mpi_type;
+    list_item_type(DataT* data_, LidxT* indices_, Allocator& aloc_, IdxT size_, MPI_Datatype mpi_type_)
+     : data(data_), indices(indices_), aloc(aloc_), size(size_), mpi_type(mpi_type_)
     { }
   };
 
@@ -309,14 +310,17 @@ struct Message
     return m_have_many;
   }
 
-  void add(DataT* data, LidxT* indices, Allocator& aloc, IdxT size)
+  void add(DataT* data, LidxT* indices, Allocator& aloc, IdxT size, MPI_Datatype mpi_type)
   {
-    items.emplace_front(data, indices, aloc, size);
+    items.emplace_back(data, indices, aloc, size, mpi_type);
+    if (items.back().mpi_type != MPI_DATATYPE_NULL) {
+      detail::MPI::Type_commit(&items.back().mpi_type);
+    }
     m_size += size;
   }
 
   template < typename policy >
-  void pack(policy&& pol)
+  void pack(policy const& pol)
   {
     DataT* buf = m_buf;
     assert(buf != nullptr);
@@ -331,8 +335,13 @@ struct Message
     }
   }
 
+  void pack(mpi_type_pol const&)
+  {
+    // TODO: implement if necessary
+  }
+
   template < typename policy >
-  void unpack(policy&& pol)
+  void unpack(policy const& pol)
   {
     DataT const* buf = m_buf;
     assert(buf != nullptr);
@@ -344,6 +353,53 @@ struct Message
       // FPRINTF(stdout, "%p unpack %p[%p] = %p len %d\n", this, dst, indices, buf, len);
       for_all(pol, 0, len, make_copy_idxr_idxr(buf, detail::indexer_idx{}, dst, detail::indexer_list_idx{indices}));
       buf += len;
+    }
+  }
+
+  void unpack(mpi_type_pol const&)
+  {
+    // TODO: implement if necessary
+  }
+
+  template < typename policy >
+  void Isend(policy const&, MPI_Comm comm, MPI_Request* request)
+  {
+    // FPRINTF(stdout, "%p Isend %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
+    detail::MPI::Isend(buffer(), nbytes(), MPI_BYTE, partner_rank(), tag(), comm, request);
+  }
+
+  void Isend(mpi_type_pol const&, MPI_Comm comm, MPI_Request* request)
+  {
+    // TODO: implement general version
+    assert(items.size() == 1);
+
+    auto end = std::end(items);
+    for (auto i = std::begin(items); i != end; ++i) {
+      DataT const* src = i->data;
+      MPI_Datatype mpi_type = i->mpi_type;
+      // FPRINTF(stdout, "%p Isend %p to %i tag %i\n", this, src, partner_rank(), tag());
+      detail::MPI::Isend(src, 1, mpi_type, partner_rank(), tag(), comm, request);
+    }
+  }
+
+  template < typename policy >
+  void Irecv(policy const&, MPI_Comm comm, MPI_Request* request)
+  {
+    // FPRINTF(stdout, "%p Irecv %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
+    detail::MPI::Irecv(buffer(), nbytes(), MPI_BYTE, partner_rank(), tag(), comm, request);
+  }
+
+  void Irecv(mpi_type_pol const&, MPI_Comm comm, MPI_Request* request)
+  {
+    // TODO: implement general version
+    assert(items.size() == 1);
+
+    auto end = std::end(items);
+    for (auto i = std::begin(items); i != end; ++i) {
+      DataT* dst = i->data;
+      MPI_Datatype mpi_type = i->mpi_type;
+      // FPRINTF(stdout, "%p Irecv %p to %i tag %i\n", this, dst, partner_rank(), tag());
+      detail::MPI::Irecv(dst, 1, mpi_type, partner_rank(), tag(), comm, request);
     }
   }
 
@@ -366,7 +422,12 @@ struct Message
   {
     auto end = std::end(items);
     for (auto i = std::begin(items); i != end; ++i) {
-      i->aloc.deallocate(i->indices); i->indices = nullptr;
+      if (i->indices) {
+        i->aloc.deallocate(i->indices); i->indices = nullptr;
+      }
+      if (i->mpi_type != MPI_DATATYPE_NULL) {
+        detail::MPI::Type_free(&i->mpi_type); i->mpi_type = MPI_DATATYPE_NULL;
+      }
     }
     items.clear();
   }
@@ -382,6 +443,15 @@ struct Comm
   using policy_many = policy_many_;
   using policy_few  = policy_few_;
 
+  static constexpr bool pol_many_is_mpi_type = std::is_same<policy_many, mpi_type_pol>::value;
+  static constexpr bool pol_few_is_mpi_type  = std::is_same<policy_few,  mpi_type_pol>::value;
+  static constexpr bool use_mpi_type = pol_many_is_mpi_type && pol_few_is_mpi_type;
+
+  // check policies are consistent
+  static_assert(pol_many_is_mpi_type == pol_few_is_mpi_type,
+      "pol_many and pol_few must both be mpi_type_pol if either is mpi_type_pol");
+
+  Allocator& mesh_aloc;
   Allocator& many_aloc;
   Allocator& few_aloc;
 
@@ -397,11 +467,25 @@ struct Comm
   std::vector<typename policy_many::event_type> m_many_events;
   std::vector<typename policy_few::event_type> m_few_events;
 
-  Comm(CommInfo const& comminfo_, Allocator& many_aloc_, Allocator& few_aloc_)
-    : many_aloc(many_aloc_)
+  Comm(CommInfo const& comminfo_, Allocator& mesh_aloc_, Allocator& many_aloc_, Allocator& few_aloc_)
+    : mesh_aloc(mesh_aloc_)
+    , many_aloc(many_aloc_)
     , few_aloc(few_aloc_)
     , comminfo(comminfo_)
   {
+    // check allocators are consistent with policies
+    // assert((pol_many_is_mpi_type == (strcmp(many_aloc.name(), "Null") == 0)) && "Must use NullAllocator with mpi_type_pol");
+    // assert((pol_few_is_mpi_type  == (strcmp(few_aloc.name(),  "Null") == 0)) && "Must use NullAllocator with mpi_type_pol");
+
+    // set name of communicator
+    // include name of memory space if using mpi datatypes for pack/unpack
+    char comm_name[MPI_MAX_OBJECT_NAME] = "";
+    snprintf(comm_name, MPI_MAX_OBJECT_NAME, "COMB_MPI_CART_COMM%s%s",
+        (use_mpi_type) ? "_"              : "",
+        (use_mpi_type) ? mesh_aloc.name() : "");
+
+    comminfo.set_name(comm_name);
+
     // if policies are the same set cutoff to 0 (always use policy_many) to simplify algorithms
     if (std::is_same<policy_many, policy_few>::value) {
       comminfo.cutoff = 0;
@@ -424,14 +508,14 @@ struct Comm
 
           if (m_recvs[i].have_many()) {
             m_recvs[i].allocate(many_aloc);
+            if (!comminfo.mock_communication) {
+              m_recvs[i].Irecv(policy_many{}, comminfo.cart.comm, &m_recv_requests[i]);
+            }
           } else {
             m_recvs[i].allocate(few_aloc);
-          }
-
-          if (!comminfo.mock_communication) {
-            detail::MPI::Irecv( m_recvs[i].buffer(), m_recvs[i].nbytes(),
-                                m_recvs[i].partner_rank(), m_recvs[i].tag(),
-                                comminfo.cart.comm, &m_recv_requests[i] );
+            if (!comminfo.mock_communication) {
+              m_recvs[i].Irecv(policy_few{}, comminfo.cart.comm, &m_recv_requests[i]);
+            }
           }
         }
       } break;
@@ -443,14 +527,14 @@ struct Comm
 
           if (m_recvs[i].have_many()) {
             m_recvs[i].allocate(many_aloc);
+            if (!comminfo.mock_communication) {
+              m_recvs[i].Irecv(policy_many{}, comminfo.cart.comm, &m_recv_requests[i]);
+            }
           } else {
             m_recvs[i].allocate(few_aloc);
-          }
-
-          if (!comminfo.mock_communication) {
-            detail::MPI::Irecv( m_recvs[i].buffer(), m_recvs[i].nbytes(),
-                                m_recvs[i].partner_rank(), m_recvs[i].tag(),
-                                comminfo.cart.comm, &m_recv_requests[i] );
+            if (!comminfo.mock_communication) {
+              m_recvs[i].Irecv(policy_few{}, comminfo.cart.comm, &m_recv_requests[i]);
+            }
           }
         }
       } break;
@@ -468,10 +552,14 @@ struct Comm
         }
         for (IdxT i = 0; i < num_recvs; ++i) {
 
-          if (!comminfo.mock_communication) {
-            detail::MPI::Irecv( m_recvs[i].buffer(), m_recvs[i].nbytes(),
-                                m_recvs[i].partner_rank(), m_recvs[i].tag(),
-                                comminfo.cart.comm, &m_recv_requests[i] );
+          if (m_recvs[i].have_many()) {
+            if (!comminfo.mock_communication) {
+              m_recvs[i].Irecv(policy_many{}, comminfo.cart.comm, &m_recv_requests[i]);
+            }
+          } else {
+            if (!comminfo.mock_communication) {
+              m_recvs[i].Irecv(policy_few{}, comminfo.cart.comm, &m_recv_requests[i]);
+            }
           }
         }
       } break;
@@ -500,16 +588,16 @@ struct Comm
             m_sends[i].allocate(many_aloc);
             m_sends[i].pack(policy_many{});
             synchronize(policy_many{});
+            if (!comminfo.mock_communication) {
+              m_sends[i].Isend(policy_many{}, comminfo.cart.comm, &m_send_requests[i]);
+            }
           } else {
             m_sends[i].allocate(few_aloc);
             m_sends[i].pack(policy_few{});
             synchronize(policy_few{});
-          }
-
-          if (!comminfo.mock_communication) {
-            detail::MPI::Isend( m_sends[i].buffer(), m_sends[i].nbytes(),
-                               m_sends[i].partner_rank(), m_sends[i].tag(),
-                               comminfo.cart.comm, &m_send_requests[i] );
+            if (!comminfo.mock_communication) {
+              m_sends[i].Isend(policy_few{}, comminfo.cart.comm, &m_send_requests[i]);
+            }
           }
         }
       } break;
@@ -589,9 +677,7 @@ struct Comm
               if (queryEvent(policy_many{}, m_many_events[post_many_send])) {
 
                 if (!comminfo.mock_communication) {
-                  detail::MPI::Isend( m_sends[post_many_send].buffer(), m_sends[post_many_send].nbytes(),
-                                      m_sends[post_many_send].partner_rank(), m_sends[post_many_send].tag(),
-                                      comminfo.cart.comm, &m_send_requests[post_many_send] );
+                  m_sends[post_many_send].Isend(policy_many{}, comminfo.cart.comm, &m_send_requests[post_many_send]);
                 }
 
                 ++post_many_send;
@@ -612,9 +698,7 @@ struct Comm
               if (queryEvent(policy_few{}, m_few_events[post_few_send])) {
 
                 if (!comminfo.mock_communication) {
-                  detail::MPI::Isend( m_sends[post_few_send].buffer(), m_sends[post_few_send].nbytes(),
-                                      m_sends[post_few_send].partner_rank(), m_sends[post_few_send].tag(),
-                                      comminfo.cart.comm, &m_send_requests[post_few_send] );
+                  m_sends[post_few_send].Isend(policy_few{}, comminfo.cart.comm, &m_send_requests[post_few_send]);
                 }
 
                 ++post_few_send;
@@ -657,9 +741,7 @@ struct Comm
               if (m_sends[i].have_many()) {
 
                 if (!comminfo.mock_communication) {
-                  detail::MPI::Isend( m_sends[i].buffer(), m_sends[i].nbytes(),
-                                      m_sends[i].partner_rank(), m_sends[i].tag(),
-                                      comminfo.cart.comm, &m_send_requests[i] );
+                  m_sends[i].Isend(policy_many{}, comminfo.cart.comm, &m_send_requests[i]);
                 }
               }
             }
@@ -677,9 +759,7 @@ struct Comm
               synchronize(policy_few{});
 
               if (!comminfo.mock_communication) {
-                detail::MPI::Isend( m_sends[i].buffer(), m_sends[i].nbytes(),
-                                    m_sends[i].partner_rank(), m_sends[i].tag(),
-                                    comminfo.cart.comm, &m_send_requests[i] );
+                m_sends[i].Isend(policy_few{}, comminfo.cart.comm, &m_send_requests[i]);
               }
             }
           }
@@ -733,9 +813,7 @@ struct Comm
                 if (queryEvent(policy_many{}, m_many_events[post_many_send])) {
 
                   if (!comminfo.mock_communication) {
-                    detail::MPI::Isend( m_sends[post_many_send].buffer(), m_sends[post_many_send].nbytes(),
-                                        m_sends[post_many_send].partner_rank(), m_sends[post_many_send].tag(),
-                                        comminfo.cart.comm, &m_send_requests[post_many_send] );
+                    m_sends[post_many_send].Isend(policy_many{}, comminfo.cart.comm, &m_send_requests[post_many_send]);
                   }
 
                   ++post_many_send;
@@ -782,9 +860,7 @@ struct Comm
                 if (queryEvent(policy_many{}, m_many_events[post_many_send])) {
 
                   if (!comminfo.mock_communication) {
-                    detail::MPI::Isend( m_sends[post_many_send].buffer(), m_sends[post_many_send].nbytes(),
-                                        m_sends[post_many_send].partner_rank(), m_sends[post_many_send].tag(),
-                                        comminfo.cart.comm, &m_send_requests[post_many_send] );
+                    m_sends[post_many_send].Isend(policy_many{}, comminfo.cart.comm, &m_send_requests[post_many_send]);
                   }
 
                   ++post_many_send;
@@ -807,9 +883,7 @@ struct Comm
                 if (queryEvent(policy_few{}, m_few_events[post_few_send])) {
 
                   if (!comminfo.mock_communication) {
-                    detail::MPI::Isend( m_sends[post_few_send].buffer(), m_sends[post_few_send].nbytes(),
-                                        m_sends[post_few_send].partner_rank(), m_sends[post_few_send].tag(),
-                                        comminfo.cart.comm, &m_send_requests[post_few_send] );
+                    m_sends[post_few_send].Isend(policy_few{}, comminfo.cart.comm, &m_send_requests[post_few_send]);
                   }
 
                   ++post_few_send;
@@ -842,9 +916,7 @@ struct Comm
               if (queryEvent(policy_many{}, m_many_events[post_many_send])) {
 
                 if (!comminfo.mock_communication) {
-                  detail::MPI::Isend( m_sends[post_many_send].buffer(), m_sends[post_many_send].nbytes(),
-                                      m_sends[post_many_send].partner_rank(), m_sends[post_many_send].tag(),
-                                      comminfo.cart.comm, &m_send_requests[post_many_send] );
+                  m_sends[post_many_send].Isend(policy_many{}, comminfo.cart.comm, &m_send_requests[post_many_send]);
                 }
 
                 ++post_many_send;
@@ -866,9 +938,7 @@ struct Comm
               if (queryEvent(policy_few{}, m_few_events[post_few_send])) {
 
                 if (!comminfo.mock_communication) {
-                  detail::MPI::Isend( m_sends[post_few_send].buffer(), m_sends[post_few_send].nbytes(),
-                                      m_sends[post_few_send].partner_rank(), m_sends[post_few_send].tag(),
-                                      comminfo.cart.comm, &m_send_requests[post_few_send] );
+                  m_sends[post_few_send].Isend(policy_few{}, comminfo.cart.comm, &m_send_requests[post_few_send]);
                 }
 
                 ++post_few_send;
@@ -915,9 +985,11 @@ struct Comm
         for (IdxT i = 0; i < num_sends; ++i) {
 
           if (!comminfo.mock_communication) {
-            detail::MPI::Isend( m_sends[i].buffer(), m_sends[i].nbytes(),
-                               m_sends[i].partner_rank(), m_sends[i].tag(),
-                               comminfo.cart.comm, &m_send_requests[i] );
+            if (m_sends[i].have_many()) {
+              m_sends[i].Isend(policy_many{}, comminfo.cart.comm, &m_send_requests[i]);
+            } else {
+              m_sends[i].Isend(policy_few{}, comminfo.cart.comm, &m_send_requests[i]);
+            }
           }
         }
       } break;
@@ -993,9 +1065,7 @@ struct Comm
               if (queryEvent(policy_many{}, m_many_events[post_many_send])) {
 
                 if (!comminfo.mock_communication) {
-                  detail::MPI::Isend( m_sends[post_many_send].buffer(), m_sends[post_many_send].nbytes(),
-                                      m_sends[post_many_send].partner_rank(), m_sends[post_many_send].tag(),
-                                      comminfo.cart.comm, &m_send_requests[post_many_send] );
+                  m_sends[post_many_send].Isend(policy_many{}, comminfo.cart.comm, &m_send_requests[post_many_send]);
                 }
 
                 ++post_many_send;
@@ -1016,9 +1086,7 @@ struct Comm
               if (queryEvent(policy_few{}, m_few_events[post_few_send])) {
 
                 if (!comminfo.mock_communication) {
-                  detail::MPI::Isend( m_sends[post_few_send].buffer(), m_sends[post_few_send].nbytes(),
-                                      m_sends[post_few_send].partner_rank(), m_sends[post_few_send].tag(),
-                                      comminfo.cart.comm, &m_send_requests[post_few_send] );
+                  m_sends[post_few_send].Isend(policy_few{}, comminfo.cart.comm, &m_send_requests[post_few_send]);
                 }
 
                 ++post_few_send;

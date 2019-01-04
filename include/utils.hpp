@@ -161,6 +161,38 @@ inline int Cart_rank(MPI_Comm cartcomm, const int* coords)
   return rank;
 }
 
+inline MPI_Datatype Type_create_indexed_block(int count, int blocklength, const int displacements[], MPI_Datatype old_type)
+{
+  MPI_Datatype mpi_type;
+  int ret = MPI_Type_create_indexed_block(count, blocklength, displacements, old_type, &mpi_type);
+  // FPRINTF(stdout, "MPI_Type_create_indexed_block rank(w%i) count(%i) blocklength(%i) displacements(%p)\n", Comm_rank(MPI_COMM_WORLD), count, blocklength, displacements);
+  assert(ret == MPI_SUCCESS);
+  return mpi_type;
+}
+
+inline MPI_Datatype Type_create_subarray(int ndims, const int sizes[], const int subsizes[], const int starts[], int order, MPI_Datatype old_type)
+{
+  MPI_Datatype mpi_type;
+  int ret = MPI_Type_create_subarray(ndims, sizes, subsizes, starts, order, old_type, &mpi_type);
+  // FPRINTF(stdout, "MPI_Type_create_subarray rank(w%i) ndims(%i) sizes(%i %i %i) subsizes(%i %i %i) starts(%i %i %i) order(%i)\n", Comm_rank(MPI_COMM_WORLD), ndims, sizes[0], sizes[1], sizes[2], subsizes[0], subsizes[1], subsizes[2], starts[0], starts[1], starts[2], order);
+  assert(ret == MPI_SUCCESS);
+  return mpi_type;
+}
+
+inline void Type_commit(MPI_Datatype* mpi_type)
+{
+  int ret = MPI_Type_commit(mpi_type);
+  // FPRINTF(stdout, "MPI_Type_commit rank(w%i)\n", Comm_rank(MPI_COMM_WORLD));
+  assert(ret == MPI_SUCCESS);
+}
+
+inline void Type_free(MPI_Datatype* mpi_type)
+{
+  int ret = MPI_Type_free(mpi_type);
+  // FPRINTF(stdout, "MPI_Type_free rank(w%i)\n", Comm_rank(MPI_COMM_WORLD));
+  assert(ret == MPI_SUCCESS);
+}
+
 inline void Barrier(MPI_Comm comm)
 {
   // FPRINTF(stdout, "MPI_Barrier rank(w%i)\n", Comm_rank(MPI_COMM_WORLD));
@@ -168,17 +200,17 @@ inline void Barrier(MPI_Comm comm)
   assert(ret == MPI_SUCCESS);
 }
 
-inline void Irecv(void *buf, int nbytes, int src, int tag, MPI_Comm comm, MPI_Request *request)
+inline void Irecv(void *buf, int count, MPI_Datatype mpi_type, int src, int tag, MPI_Comm comm, MPI_Request *request)
 {
-  // FPRINTF(stdout, "MPI_Irecv rank(w%i) %p[%i] src(%i) tag(%i)\n", Comm_rank(MPI_COMM_WORLD), buf, nbytes, src, tag);
-  int ret = MPI_Irecv(buf, nbytes, MPI_BYTE, src, tag, comm, request);
+  // FPRINTF(stdout, "MPI_Irecv rank(w%i) %p[%i] src(%i) tag(%i)\n", Comm_rank(MPI_COMM_WORLD), buf, count, src, tag);
+  int ret = MPI_Irecv(buf, count, mpi_type, src, tag, comm, request);
   assert(ret == MPI_SUCCESS);
 }
 
-inline void Isend(const void *buf, int nbytes, int dest, int tag, MPI_Comm comm, MPI_Request *request)
+inline void Isend(const void *buf, int count, MPI_Datatype mpi_type, int dest, int tag, MPI_Comm comm, MPI_Request *request)
 {
-  // FPRINTF(stdout, "MPI_Isend rank(w%i) %p[%i] dst(%i) tag(%i)\n", Comm_rank(MPI_COMM_WORLD), buf, nbytes, dest, tag);
-  int ret = MPI_Isend(buf, nbytes, MPI_BYTE, dest, tag, comm, request);
+  // FPRINTF(stdout, "MPI_Isend rank(w%i) %p[%i] dst(%i) tag(%i)\n", Comm_rank(MPI_COMM_WORLD), buf, count, dest, tag);
+  int ret = MPI_Isend(buf, count, mpi_type, dest, tag, comm, request);
   assert(ret == MPI_SUCCESS);
 }
 

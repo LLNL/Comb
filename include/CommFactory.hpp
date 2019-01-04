@@ -392,6 +392,7 @@ private:
       IdxT num_items = msginfo.items.size();
       bool have_many = ((total_size + num_items - 1) / num_items) >= comm.comminfo.cutoff;
 
+      // add a new message to the message list
       msg_list.emplace_back(msginfo.partner_rank, msginfo.msg_tag, have_many);
       typename comm_type::message_type& msg = msg_list.back();
 
@@ -401,15 +402,27 @@ private:
         Box3d const& msg_box = msginfo_items_iter->box;
 
         IdxT len = msg_box.size();
-        LidxT* indices = (LidxT*)msg_data->aloc.allocate(sizeof(LidxT)*len);
+        LidxT* indices = nullptr;
+        MPI_Datatype mpi_type = MPI_DATATYPE_NULL;
         if (have_many) {
-          msg_box.set_indices(typename comm_type::policy_many{}, indices);
+          if (std::is_same<typename comm_type::policy_many, mpi_type_pol>::value) {
+            mpi_type = msg_box.get_type_subarray();
+          } else {
+            indices = (LidxT*)msg_data->aloc.allocate(sizeof(LidxT)*len);
+            msg_box.set_indices(typename comm_type::policy_many{}, indices);
+          }
         } else {
-          msg_box.set_indices(typename comm_type::policy_few{}, indices);
+          if (std::is_same<typename comm_type::policy_few, mpi_type_pol>::value) {
+            mpi_type = msg_box.get_type_subarray();
+          } else {
+            indices = (LidxT*)msg_data->aloc.allocate(sizeof(LidxT)*len);
+            msg_box.set_indices(typename comm_type::policy_few{}, indices);
+          }
         }
 
+        // add an item to the message
         // give ownership of indices to the msg
-        msg.add(msg_data->data(), indices, msg_data->aloc, len);
+        msg.add(msg_data->data(), indices, msg_data->aloc, len, mpi_type);
       }
     };
 

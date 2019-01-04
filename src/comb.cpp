@@ -136,7 +136,7 @@ namespace detail {
 } // namespace detail
 
 template < typename pol_loop, typename pol_many, typename pol_few >
-void do_cycles(CommInfo& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles, Allocator& aloc_mesh, Allocator& aloc_many, Allocator& aloc_few, Timer& tm, Timer& tm_total)
+void do_cycles(CommInfo const& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles, Allocator& aloc_mesh, Allocator& aloc_many, Allocator& aloc_few, Timer& tm, Timer& tm_total)
 {
     tm_total.clear();
     tm.clear();
@@ -145,14 +145,9 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles,
     char test_name[1024] = ""; snprintf(test_name, 1024, "Mesh %s %s %s", pol_loop::get_name(), aloc_mesh.name(), rname);
     FPRINTF(stdout, "Starting test %s\n", test_name);
 
-    char comm_name[MPI_MAX_OBJECT_NAME] = "";
-    snprintf(comm_name, MPI_MAX_OBJECT_NAME, "COMB_MPI_CART_COMM");
-
     Range r0(test_name, Range::orange);
 
-    Comm<pol_many, pol_few> comm(comm_info, aloc_many, aloc_few);
-
-    comm.comminfo.set_name(comm_name);
+    Comm<pol_many, pol_few> comm(comm_info, aloc_mesh, aloc_many, aloc_few);
 
     comm.comminfo.barrier();
 
