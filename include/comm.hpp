@@ -254,6 +254,8 @@ struct Message
   int m_msg_tag;
   DataT* m_buf;
   IdxT m_size;
+  IdxT m_max_nbytes;
+  IdxT m_nbytes;
   bool m_have_many;
 
   struct list_item_type
@@ -263,8 +265,11 @@ struct Message
     Allocator& aloc;
     IdxT size;
     MPI_Datatype mpi_type;
-    list_item_type(DataT* data_, LidxT* indices_, Allocator& aloc_, IdxT size_, MPI_Datatype mpi_type_)
-     : data(data_), indices(indices_), aloc(aloc_), size(size_), mpi_type(mpi_type_)
+    IdxT mpi_pack_max_nbytes;
+    list_item_type(DataT* data_, LidxT* indices_, Allocator& aloc_, IdxT size_,
+                   MPI_Datatype mpi_type_, IdxT mpi_pack_max_nbytes_)
+     : data(data_), indices(indices_), aloc(aloc_), size(size_),
+       mpi_type(mpi_type_), mpi_pack_max_nbytes(mpi_pack_max_nbytes_)
     { }
   };
 
@@ -274,7 +279,8 @@ struct Message
     : m_partner_rank(partner_rank)
     , m_msg_tag(tag)
     , m_buf(nullptr)
-    , m_size(0)
+    , m_max_nbytes(0)
+    , m_nbytes(0)
     , m_have_many(have_many)
   {
 
@@ -300,9 +306,14 @@ struct Message
     return m_size;
   }
 
+  IdxT max_nbytes() const
+  {
+    return m_max_nbytes;
+  }
+
   IdxT nbytes() const
   {
-    return sizeof(DataT)*m_size;
+    return m_nbytes;
   }
 
   bool have_many() const
@@ -310,17 +321,21 @@ struct Message
     return m_have_many;
   }
 
-  void add(DataT* data, LidxT* indices, Allocator& aloc, IdxT size, MPI_Datatype mpi_type)
+  void add(DataT* data, LidxT* indices, Allocator& aloc, IdxT size, MPI_Datatype mpi_type, IdxT mpi_pack_max_nbytes)
   {
-    items.emplace_back(data, indices, aloc, size, mpi_type);
+    items.emplace_back(data, indices, aloc, size, mpi_type, mpi_pack_max_nbytes);
     if (items.back().mpi_type != MPI_DATATYPE_NULL) {
-      detail::MPI::Type_commit(&items.back().mpi_type);
+      m_max_nbytes += mpi_pack_max_nbytes;
+      m_nbytes += mpi_pack_max_nbytes;
+    } else {
+      m_max_nbytes += sizeof(DataT)*size;
+      m_nbytes += sizeof(DataT)*size;
     }
     m_size += size;
   }
 
   template < typename policy >
-  void pack(policy const& pol)
+  void pack(policy const& pol, MPI_Comm)
   {
     DataT* buf = m_buf;
     assert(buf != nullptr);
@@ -335,13 +350,29 @@ struct Message
     }
   }
 
-  void pack(mpi_type_pol const&)
+  void pack(mpi_type_pol const&, MPI_Comm comm)
   {
-    // TODO: implement if necessary
+    if (items.size() == 1) {
+      m_nbytes = sizeof(DataT)*items.front().size;
+    } else {
+      DataT* buf = m_buf;
+      assert(buf != nullptr);
+      IdxT buf_max_nbytes = max_nbytes();
+      int pos = 0;
+      auto end = std::end(items);
+      for (auto i = std::begin(items); i != end; ++i) {
+        DataT const* src = i->data;
+        MPI_Datatype mpi_type = i->mpi_type;
+        // FPRINTF(stdout, "%p pack %p[%i] = %p\n", this, buf, pos, src);
+        detail::MPI::Pack(src, 1, mpi_type, buf, buf_max_nbytes, &pos, comm);
+      }
+      // set nbytes to actual value
+      m_nbytes = pos;
+    }
   }
 
   template < typename policy >
-  void unpack(policy const& pol)
+  void unpack(policy const& pol, MPI_Comm)
   {
     DataT const* buf = m_buf;
     assert(buf != nullptr);
@@ -356,9 +387,23 @@ struct Message
     }
   }
 
-  void unpack(mpi_type_pol const&)
+  void unpack(mpi_type_pol const&, MPI_Comm comm)
   {
-    // TODO: implement if necessary
+    if (items.size() == 1) {
+      // nothing to do
+    } else {
+      DataT const* buf = m_buf;
+      assert(buf != nullptr);
+      IdxT buf_max_nbytes = max_nbytes();
+      int pos = 0;
+      auto end = std::end(items);
+      for (auto i = std::begin(items); i != end; ++i) {
+        DataT* dst = i->data;
+        MPI_Datatype mpi_type = i->mpi_type;
+        // FPRINTF(stdout, "%p unpack %p = %p[%i]\n", this, dst, buf, pos);
+        detail::MPI::Unpack(buf, buf_max_nbytes, &pos, dst, 1, mpi_type, comm);
+      }
+    }
   }
 
   template < typename policy >
@@ -370,15 +415,14 @@ struct Message
 
   void Isend(mpi_type_pol const&, MPI_Comm comm, MPI_Request* request)
   {
-    // TODO: implement general version
-    assert(items.size() == 1);
-
-    auto end = std::end(items);
-    for (auto i = std::begin(items); i != end; ++i) {
-      DataT const* src = i->data;
-      MPI_Datatype mpi_type = i->mpi_type;
+    if (items.size() == 1) {
+      DataT const* src = items.front().data;
+      MPI_Datatype mpi_type = items.front().mpi_type;
       // FPRINTF(stdout, "%p Isend %p to %i tag %i\n", this, src, partner_rank(), tag());
       detail::MPI::Isend(src, 1, mpi_type, partner_rank(), tag(), comm, request);
+    } else {
+      // FPRINTF(stdout, "%p Isend %p nbytes %i to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
+      detail::MPI::Isend(buffer(), nbytes(), MPI_PACKED, partner_rank(), tag(), comm, request);
     }
   }
 
@@ -391,26 +435,38 @@ struct Message
 
   void Irecv(mpi_type_pol const&, MPI_Comm comm, MPI_Request* request)
   {
-    // TODO: implement general version
-    assert(items.size() == 1);
-
-    auto end = std::end(items);
-    for (auto i = std::begin(items); i != end; ++i) {
-      DataT* dst = i->data;
-      MPI_Datatype mpi_type = i->mpi_type;
+    if (items.size() == 1) {
+      DataT* dst = items.front().data;
+      MPI_Datatype mpi_type = items.front().mpi_type;
       // FPRINTF(stdout, "%p Irecv %p to %i tag %i\n", this, dst, partner_rank(), tag());
       detail::MPI::Irecv(dst, 1, mpi_type, partner_rank(), tag(), comm, request);
+    } else {
+      // FPRINTF(stdout, "%p Irecv %p maxnbytes %i to %i tag %i\n", this, dst, max_nbytes(), partner_rank(), tag());
+      detail::MPI::Irecv(buffer(), max_nbytes(), MPI_PACKED, partner_rank(), tag(), comm, request);
     }
   }
 
-  void allocate(Allocator& buf_aloc)
+  template < typename policy >
+  void allocate(policy const&, Allocator& buf_aloc)
   {
     if (m_buf == nullptr) {
       m_buf = (DataT*)buf_aloc.allocate(nbytes());
     }
   }
 
-  void deallocate(Allocator& buf_aloc)
+  void allocate(mpi_type_pol const&, Allocator& buf_aloc)
+  {
+    if (m_buf == nullptr) {
+      if (items.size() == 1) {
+        // no buffer needed
+      } else {
+        m_buf = (DataT*)buf_aloc.allocate(max_nbytes());
+      }
+    }
+  }
+
+  template < typename policy >
+  void deallocate(policy const&, Allocator& buf_aloc)
   {
     if (m_buf != nullptr) {
       buf_aloc.deallocate(m_buf);
@@ -507,12 +563,12 @@ struct Comm
         for (IdxT i = 0; i < num_recvs; ++i) {
 
           if (m_recvs[i].have_many()) {
-            m_recvs[i].allocate(many_aloc);
+            m_recvs[i].allocate(policy_many{}, many_aloc);
             if (!comminfo.mock_communication) {
               m_recvs[i].Irecv(policy_many{}, comminfo.cart.comm, &m_recv_requests[i]);
             }
           } else {
-            m_recvs[i].allocate(few_aloc);
+            m_recvs[i].allocate(policy_few{}, few_aloc);
             if (!comminfo.mock_communication) {
               m_recvs[i].Irecv(policy_few{}, comminfo.cart.comm, &m_recv_requests[i]);
             }
@@ -526,12 +582,12 @@ struct Comm
         for (IdxT i = 0; i < num_recvs; ++i) {
 
           if (m_recvs[i].have_many()) {
-            m_recvs[i].allocate(many_aloc);
+            m_recvs[i].allocate(policy_many{}, many_aloc);
             if (!comminfo.mock_communication) {
               m_recvs[i].Irecv(policy_many{}, comminfo.cart.comm, &m_recv_requests[i]);
             }
           } else {
-            m_recvs[i].allocate(few_aloc);
+            m_recvs[i].allocate(policy_few{}, few_aloc);
             if (!comminfo.mock_communication) {
               m_recvs[i].Irecv(policy_few{}, comminfo.cart.comm, &m_recv_requests[i]);
             }
@@ -545,9 +601,9 @@ struct Comm
         for (IdxT i = 0; i < num_recvs; ++i) {
 
           if (m_recvs[i].have_many()) {
-            m_recvs[i].allocate(many_aloc);
+            m_recvs[i].allocate(policy_many{}, many_aloc);
           } else {
-            m_recvs[i].allocate(few_aloc);
+            m_recvs[i].allocate(policy_few{}, few_aloc);
           }
         }
         for (IdxT i = 0; i < num_recvs; ++i) {
@@ -585,15 +641,15 @@ struct Comm
         for (IdxT i = 0; i < num_sends; ++i) {
 
           if (m_sends[i].have_many()) {
-            m_sends[i].allocate(many_aloc);
-            m_sends[i].pack(policy_many{});
+            m_sends[i].allocate(policy_many{}, many_aloc);
+            m_sends[i].pack(policy_many{}, comminfo.cart.comm);
             synchronize(policy_many{});
             if (!comminfo.mock_communication) {
               m_sends[i].Isend(policy_many{}, comminfo.cart.comm, &m_send_requests[i]);
             }
           } else {
-            m_sends[i].allocate(few_aloc);
-            m_sends[i].pack(policy_few{});
+            m_sends[i].allocate(policy_few{}, few_aloc);
+            m_sends[i].pack(policy_few{}, comminfo.cart.comm);
             synchronize(policy_few{});
             if (!comminfo.mock_communication) {
               m_sends[i].Isend(policy_few{}, comminfo.cart.comm, &m_send_requests[i]);
@@ -611,10 +667,10 @@ struct Comm
         for (IdxT i = 0; i < num_sends; ++i) {
 
           if (m_sends[i].have_many()) {
-            m_sends[i].allocate(many_aloc);
+            m_sends[i].allocate(policy_many{}, many_aloc);
             have_many = true;
           } else {
-            m_sends[i].allocate(few_aloc);
+            m_sends[i].allocate(policy_few{}, few_aloc);
             have_few = true;
           }
         }
@@ -639,10 +695,10 @@ struct Comm
           if (pack_send < num_sends) {
 
             if (m_sends[pack_send].have_many()) {
-              m_sends[pack_send].pack(policy_many{});
+              m_sends[pack_send].pack(policy_many{}, comminfo.cart.comm);
               recordEvent(policy_many{}, m_many_events[pack_send]);
             } else {
-              m_sends[pack_send].pack(policy_few{});
+              m_sends[pack_send].pack(policy_few{}, comminfo.cart.comm);
               recordEvent(policy_few{}, m_few_events[pack_send]);
             }
 
@@ -726,8 +782,8 @@ struct Comm
           for (IdxT i = 0; i < num_sends; ++i) {
 
             if (m_sends[i].have_many()) {
-              m_sends[i].allocate(many_aloc);
-              m_sends[i].pack(policy_many{});
+              m_sends[i].allocate(policy_many{}, many_aloc);
+              m_sends[i].pack(policy_many{}, comminfo.cart.comm);
               found_many = true;
             }
           }
@@ -753,8 +809,8 @@ struct Comm
           for (IdxT i = 0; i < num_sends; ++i) {
 
             if (!m_sends[i].have_many()) {
-              m_sends[i].allocate(few_aloc);
-              m_sends[i].pack(policy_few{});
+              m_sends[i].allocate(policy_few{}, few_aloc);
+              m_sends[i].pack(policy_few{}, comminfo.cart.comm);
 
               synchronize(policy_few{});
 
@@ -776,10 +832,10 @@ struct Comm
         for (IdxT i = 0; i < num_sends; ++i) {
 
           if (m_sends[i].have_many()) {
-            m_sends[i].allocate(many_aloc);
+            m_sends[i].allocate(policy_many{}, many_aloc);
             have_many = true;
           } else {
-            m_sends[i].allocate(few_aloc);
+            m_sends[i].allocate(policy_few{}, few_aloc);
             have_few = true;
           }
         }
@@ -797,7 +853,7 @@ struct Comm
 
             if (m_sends[pack_many_send].have_many()) {
 
-              m_sends[pack_many_send].pack(policy_many{});
+              m_sends[pack_many_send].pack(policy_many{}, comminfo.cart.comm);
 
               recordEvent(policy_many{}, m_many_events[pack_many_send]);
 
@@ -844,7 +900,7 @@ struct Comm
 
             if (!m_sends[pack_few_send].have_many()) {
 
-              m_sends[pack_few_send].pack(policy_few{});
+              m_sends[pack_few_send].pack(policy_few{}, comminfo.cart.comm);
 
               recordEvent(policy_few{}, m_few_events[pack_few_send]);
 
@@ -964,12 +1020,12 @@ struct Comm
         for (IdxT i = 0; i < num_sends; ++i) {
 
           if (m_sends[i].have_many()) {
-            m_sends[i].allocate(many_aloc);
-            m_sends[i].pack(policy_many{});
+            m_sends[i].allocate(policy_many{}, many_aloc);
+            m_sends[i].pack(policy_many{}, comminfo.cart.comm);
             have_many = true;
           } else {
-            m_sends[i].allocate(few_aloc);
-            m_sends[i].pack(policy_few{});
+            m_sends[i].allocate(policy_few{}, few_aloc);
+            m_sends[i].pack(policy_few{}, comminfo.cart.comm);
             have_few = true;
           }
         }
@@ -1003,10 +1059,10 @@ struct Comm
         for (IdxT i = 0; i < num_sends; ++i) {
 
           if (m_sends[i].have_many()) {
-            m_sends[i].allocate(many_aloc);
+            m_sends[i].allocate(policy_many{}, many_aloc);
             have_many = true;
           } else {
-            m_sends[i].allocate(few_aloc);
+            m_sends[i].allocate(policy_few{}, few_aloc);
             have_few = true;
           }
         }
@@ -1028,10 +1084,10 @@ struct Comm
 
           // pack and record events
           if (m_sends[pack_send].have_many()) {
-            m_sends[pack_send].pack(policy_many{});
+            m_sends[pack_send].pack(policy_many{}, comminfo.cart.comm);
             recordEvent(policy_many{}, m_many_events[pack_send]);
           } else {
-            m_sends[pack_send].pack(policy_few{});
+            m_sends[pack_send].pack(policy_few{}, comminfo.cart.comm);
             recordEvent(policy_few{}, m_few_events[pack_send]);
           }
 
@@ -1159,12 +1215,12 @@ struct Comm
           }
 
           if (m_recvs[idx].have_many()) {
-            m_recvs[idx].unpack(policy_many{});
-            m_recvs[idx].deallocate(many_aloc);
+            m_recvs[idx].unpack(policy_many{}, comminfo.cart.comm);
+            m_recvs[idx].deallocate(policy_many{}, many_aloc);
             batch_launch(policy_many{});
           } else {
-            m_recvs[idx].unpack(policy_few{});
-            m_recvs[idx].deallocate(few_aloc);
+            m_recvs[idx].unpack(policy_few{}, comminfo.cart.comm);
+            m_recvs[idx].deallocate(policy_few{}, few_aloc);
             batch_launch(policy_few{});
           }
 
@@ -1235,8 +1291,8 @@ struct Comm
 
             if (m_recvs[indices[i]].have_many()) {
 
-              m_recvs[indices[i]].unpack(policy_many{});
-              m_recvs[indices[i]].deallocate(many_aloc);
+              m_recvs[indices[i]].unpack(policy_many{}, comminfo.cart.comm);
+              m_recvs[indices[i]].deallocate(policy_many{}, many_aloc);
 
               inner_have_many = true;
 
@@ -1252,8 +1308,8 @@ struct Comm
 
             if (!m_recvs[indices[i]].have_many()) {
 
-              m_recvs[indices[i]].unpack(policy_few{});
-              m_recvs[indices[i]].deallocate(few_aloc);
+              m_recvs[indices[i]].unpack(policy_few{}, comminfo.cart.comm);
+              m_recvs[indices[i]].deallocate(policy_few{}, few_aloc);
 
               inner_have_few = true;
 
@@ -1309,12 +1365,12 @@ struct Comm
         while (num_done < num_recvs) {
 
           if (m_recvs[num_done].have_many()) {
-            m_recvs[num_done].unpack(policy_many{});
-            m_recvs[num_done].deallocate(many_aloc);
+            m_recvs[num_done].unpack(policy_many{}, comminfo.cart.comm);
+            m_recvs[num_done].deallocate(policy_many{}, many_aloc);
             have_many = true;
           } else {
-            m_recvs[num_done].unpack(policy_few{});
-            m_recvs[num_done].deallocate(few_aloc);
+            m_recvs[num_done].unpack(policy_few{}, comminfo.cart.comm);
+            m_recvs[num_done].deallocate(policy_few{}, few_aloc);
             have_few = true;
           }
 
@@ -1384,9 +1440,9 @@ struct Comm
           }
 
           if (m_sends[idx].have_many()) {
-            m_sends[idx].deallocate(many_aloc);
+            m_sends[idx].deallocate(policy_many{}, many_aloc);
           } else {
-            m_sends[idx].deallocate(few_aloc);
+            m_sends[idx].deallocate(policy_few{}, few_aloc);
           }
 
           num_done += 1;
@@ -1421,9 +1477,9 @@ struct Comm
 
             IdxT idx = indices[i];
             if (m_sends[idx].have_many()) {
-              m_sends[idx].deallocate(many_aloc);
+              m_sends[idx].deallocate(policy_many{}, many_aloc);
             } else {
-              m_sends[idx].deallocate(few_aloc);
+              m_sends[idx].deallocate(policy_few{}, few_aloc);
             }
 
             num_done += 1;
@@ -1451,9 +1507,9 @@ struct Comm
 
           IdxT idx = num_done;
           if (m_sends[idx].have_many()) {
-            m_sends[idx].deallocate(many_aloc);
+            m_sends[idx].deallocate(policy_many{}, many_aloc);
           } else {
-            m_sends[idx].deallocate(few_aloc);
+            m_sends[idx].deallocate(policy_few{}, few_aloc);
           }
 
           num_done += 1;

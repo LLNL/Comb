@@ -383,6 +383,26 @@ private:
     }
   }
 
+  template < typename policy >
+  void populate_msg_info(policy const& pol, MPI_Comm comm, MeshData const* msg_data, Box3d const& msg_box,
+                         LidxT*& indices, IdxT& len,
+                         MPI_Datatype& mpi_type, IdxT& mpi_pack_nbytes) const
+  {
+    len = msg_box.size();
+    indices = (LidxT*)msg_data->aloc.allocate(sizeof(LidxT)*len);
+    msg_box.set_indices(pol, indices);
+  }
+
+  void populate_msg_info(mpi_type_pol const&, MPI_Comm comm, MeshData const* msg_data, Box3d const& msg_box,
+                         LidxT*& indices, IdxT& len,
+                         MPI_Datatype& mpi_type, IdxT& mpi_pack_nbytes) const
+  {
+    len = msg_box.size();
+    mpi_type = msg_box.get_type_subarray();
+    detail::MPI::Type_commit(&mpi_type);
+    mpi_pack_nbytes = detail::MPI::Pack_size(1, mpi_type, comm);
+  }
+
   template < typename comm_type, typename msg_list_type >
   void populate_comm(comm_type& comm, msg_list_type& msg_list, msg_info_map_type& msg_info_map) const
   {
@@ -401,28 +421,19 @@ private:
         MeshData const* msg_data = msginfo_items_iter->data;
         Box3d const& msg_box = msginfo_items_iter->box;
 
-        IdxT len = msg_box.size();
         LidxT* indices = nullptr;
+        IdxT len = 0;
         MPI_Datatype mpi_type = MPI_DATATYPE_NULL;
+        IdxT mpi_pack_nbytes = 0;
         if (have_many) {
-          if (std::is_same<typename comm_type::policy_many, mpi_type_pol>::value) {
-            mpi_type = msg_box.get_type_subarray();
-          } else {
-            indices = (LidxT*)msg_data->aloc.allocate(sizeof(LidxT)*len);
-            msg_box.set_indices(typename comm_type::policy_many{}, indices);
-          }
+          populate_msg_info(typename comm_type::policy_many{}, comm.comminfo.cart.comm, msg_data, msg_box, indices, len, mpi_type, mpi_pack_nbytes);
         } else {
-          if (std::is_same<typename comm_type::policy_few, mpi_type_pol>::value) {
-            mpi_type = msg_box.get_type_subarray();
-          } else {
-            indices = (LidxT*)msg_data->aloc.allocate(sizeof(LidxT)*len);
-            msg_box.set_indices(typename comm_type::policy_few{}, indices);
-          }
+          populate_msg_info(typename comm_type::policy_few{}, comm.comminfo.cart.comm, msg_data, msg_box, indices, len, mpi_type, mpi_pack_nbytes);
         }
 
         // add an item to the message
         // give ownership of indices to the msg
-        msg.add(msg_data->data(), indices, msg_data->aloc, len, mpi_type);
+        msg.add(msg_data->data(), indices, msg_data->aloc, len, mpi_type, mpi_pack_nbytes);
       }
     };
 

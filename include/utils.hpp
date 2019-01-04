@@ -161,7 +161,7 @@ inline int Cart_rank(MPI_Comm cartcomm, const int* coords)
   return rank;
 }
 
-inline MPI_Datatype Type_create_indexed_block(int count, int blocklength, const int displacements[], MPI_Datatype old_type)
+inline MPI_Datatype Type_create_indexed_block(int count, int blocklength, const int *displacements, MPI_Datatype old_type)
 {
   MPI_Datatype mpi_type;
   int ret = MPI_Type_create_indexed_block(count, blocklength, displacements, old_type, &mpi_type);
@@ -170,7 +170,7 @@ inline MPI_Datatype Type_create_indexed_block(int count, int blocklength, const 
   return mpi_type;
 }
 
-inline MPI_Datatype Type_create_subarray(int ndims, const int sizes[], const int subsizes[], const int starts[], int order, MPI_Datatype old_type)
+inline MPI_Datatype Type_create_subarray(int ndims, const int *sizes, const int *subsizes, const int *starts, int order, MPI_Datatype old_type)
 {
   MPI_Datatype mpi_type;
   int ret = MPI_Type_create_subarray(ndims, sizes, subsizes, starts, order, old_type, &mpi_type);
@@ -197,6 +197,31 @@ inline void Barrier(MPI_Comm comm)
 {
   // FPRINTF(stdout, "MPI_Barrier rank(w%i)\n", Comm_rank(MPI_COMM_WORLD));
   int ret = MPI_Barrier(comm);
+  assert(ret == MPI_SUCCESS);
+}
+
+inline int Pack_size(int incount, MPI_Datatype mpi_type, MPI_Comm comm)
+{
+  int size;
+  int ret = MPI_Pack_size(incount, mpi_type, comm, &size);
+  // FPRINTF(stdout, "MPI_Pack_size rank(w%i) incount(%i) size (%i)\n", Comm_rank(MPI_COMM_WORLD), buf, incount, size);
+  assert(ret == MPI_SUCCESS);
+  return size;
+}
+
+inline void Pack(const void* inbuf, int incount, MPI_Datatype mpi_type, void* outbuf, int outsize, int* position, MPI_Comm comm)
+{
+  // int inposition = *position;
+  int ret = MPI_Pack(inbuf, incount, mpi_type, outbuf, outsize, position, comm);
+  // FPRINTF(stdout, "MPI_Pack rank(w%i) %p[%i] = %p[%i] position(%i -> %i)\n", Comm_rank(MPI_COMM_WORLD), outbuf, outsize, inbuf, incount, inposition, *position);
+  assert(ret == MPI_SUCCESS);
+}
+
+inline void Unpack(const void* inbuf, int insize, int* position, void* outbuf, int outcount, MPI_Datatype mpi_type, MPI_Comm comm)
+{
+  // int inposition = *position;
+  int ret = MPI_Unpack(inbuf, insize, position, outbuf, outcount, mpi_type, comm);
+  // FPRINTF(stdout, "MPI_Unpack rank(w%i) %p[%i] = %p[%i] position(%i -> %i)\n", Comm_rank(MPI_COMM_WORLD), outbuf, outcount, inbuf, insize, inposition, *position);
   assert(ret == MPI_SUCCESS);
 }
 

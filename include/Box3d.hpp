@@ -252,7 +252,9 @@ struct Box3d
 
   MPI_Datatype get_type_subarray() const
   {
-    return detail::MPI::Type_create_subarray(3, info.len, sizes, min, MPI_ORDER_FORTRAN, MPI_DOUBLE);
+    MPI_Datatype mpi_type = detail::MPI::Type_create_subarray(3, info.len, sizes, min, MPI_ORDER_FORTRAN, MPI_DOUBLE);
+    detail::MPI::Type_commit(&mpi_type);
+    return mpi_type;
   }
 
   template < typename policy >
