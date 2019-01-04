@@ -975,6 +975,7 @@ int main(int argc, char** argv)
     }
   }
 
+  NullAllocator null_alloc;
   HostAllocator host_alloc;
 #ifdef COMB_ENABLE_CUDA
   HostPinnedAllocator hostpinned_alloc;
@@ -985,6 +986,8 @@ int main(int argc, char** argv)
   ManagedDevicePreferredAllocator managed_device_preferred_alloc;
   ManagedDevicePreferredHostAccessedAllocator managed_device_preferred_host_accessed_alloc;
 #endif
+
+  COMB::ignore_unused(null_alloc);
 
   Timer tm(2*6*ncycles);
   Timer tm_total(1024);

@@ -132,6 +132,23 @@ struct Allocator
   virtual void deallocate(void*) = 0;
 };
 
+struct NullAllocator : Allocator
+{
+  virtual const char* name() { return "Null"; }
+  virtual void* allocate(size_t nbytes)
+  {
+    COMB::ignore_unused(nbytes);
+    void* ptr = nullptr;
+    // FPRINTF(stdout, "allocated %p nbytes %zu\n", ptr, nbytes);
+    return ptr;
+  }
+  virtual void deallocate(void* ptr)
+  {
+    // FPRINTF(stdout, "deallocating %p\n", ptr);
+    assert(ptr == nullptr);
+  }
+};
+
 struct HostAllocator : Allocator
 {
   virtual const char* name() { return "Host"; }
