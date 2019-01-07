@@ -208,6 +208,9 @@ void do_cycles(CommInfo const& comm_info, MeshInfo& info, IdxT num_vars, IdxT nc
       IdxT iperiodic = info.global.periodic[0];
       IdxT jperiodic = info.global.periodic[1];
       IdxT kperiodic = info.global.periodic[2];
+      IdxT ighost_width = info.ghost_widths[0];
+      IdxT jghost_width = info.ghost_widths[1];
+      IdxT kghost_width = info.ghost_widths[2];
       IdxT ijlen = info.stride[2];
       IdxT ijlen_global = ilen_global * jlen_global;
 
@@ -218,7 +221,7 @@ void do_cycles(CommInfo const& comm_info, MeshInfo& info, IdxT num_vars, IdxT nc
       for (IdxT i = 0; i < num_vars; ++i) {
 
         DataT* data = vars[i].data();
-        IdxT var_i = i;
+        IdxT var_i = i + 1;
 
         for_all_3d(pol_loop{}, 0, klen,
                                0, jlen,
@@ -243,20 +246,35 @@ void do_cycles(CommInfo const& comm_info, MeshInfo& info, IdxT num_vars, IdxT nc
           }
           IdxT zone_global = iglobal + jglobal * ilen_global + kglobal * ijlen_global;
           DataT expected, found, next;
-          if (k >= kmin && k < kmax &&
-              j >= jmin && j < jmax &&
-              i >= imin && i < imax) {
+          int branchid = -1;
+          if (k >= kmin+kghost_width && k < kmax-kghost_width &&
+              j >= jmin+jghost_width && j < jmax-jghost_width &&
+              i >= imin+ighost_width && i < imax-ighost_width) {
+            // interior non-communicated zones
+            expected = -1.0; found = data[zone]; next =-(zone_global+var_i);
+            branchid = 0;
+          } else if (k >= kmin && k < kmax &&
+                     j >= jmin && j < jmax &&
+                     i >= imin && i < imax) {
+            // interior communicated zones
             expected = -1.0; found = data[zone]; next = zone_global + var_i;
+            branchid = 1;
           } else if (iglobal < 0 || iglobal >= ilen_global ||
                      jglobal < 0 || jglobal >= jlen_global ||
                      kglobal < 0 || kglobal >= klen_global) {
-            expected = -1.0; found = data[zone]; next =-(zone_global+var_i);
+            // out of global bounds exterior zones, some may be owned others not
+            // some may be communicated if at least one dimension is periodic
+            // and another is non-periodic
+            expected = -1.0; found = data[zone]; next = zone_global + var_i;
+            branchid = 2;
           } else {
+            // in global bounds exterior zones
             expected = -1.0; found = data[zone]; next =-(zone_global+var_i);
+            branchid = 3;
           }
           if (!mock_communication) {
             if (found != expected) {
-              FPRINTF(stdout, "%p zone %i(%i %i %i) = %f expected %f next %f\n", data, zone, i, j, k, found, expected, next);
+              FPRINTF(stdout, "%p %i zone %i(%i %i %i) g%i(%i %i %i) = %f expected %f next %f\n", data, branchid, zone, i, j, k, zone_global, iglobal, jglobal, kglobal, found, expected, next);
             }
             // FPRINTF(stdout, "%p[%i] = %f\n", data, zone, 1.0);
             assert(found == expected);
@@ -282,58 +300,55 @@ void do_cycles(CommInfo const& comm_info, MeshInfo& info, IdxT num_vars, IdxT nc
       // tm.stop();
       r2.stop();
 
+      // for (IdxT i = 0; i < num_vars; ++i) {
 
-      for (IdxT i = 0; i < num_vars; ++i) {
+      //   DataT* data = vars[i].data();
+      //   IdxT var_i = i + 1;
 
-        DataT* data = vars[i].data();
-        IdxT var_i = i;
+      //   for_all_3d(pol_loop{}, 0, klen,
+      //                          0, jlen,
+      //                          0, ilen,
+      //                          [=] COMB_HOST COMB_DEVICE (IdxT k, IdxT j, IdxT i, IdxT idx) {
+      //     COMB::ignore_unused(idx);
+      //     IdxT zone = i + j * ilen + k * ijlen;
+      //     IdxT iglobal = i + iglobal_offset;
+      //     if (iperiodic) {
+      //       iglobal = iglobal % ilen_global;
+      //       if (iglobal < 0) iglobal += ilen_global;
+      //     }
+      //     IdxT jglobal = j + jglobal_offset;
+      //     if (jperiodic) {
+      //       jglobal = jglobal % jlen_global;
+      //       if (jglobal < 0) jglobal += jlen_global;
+      //     }
+      //     IdxT kglobal = k + kglobal_offset;
+      //     if (kperiodic) {
+      //       kglobal = kglobal % klen_global;
+      //       if (kglobal < 0) kglobal += klen_global;
+      //     }
+      //     IdxT zone_global = iglobal + jglobal * ilen_global + kglobal * ijlen_global;
+      //     DataT expected, found, next;
+      //     int branchid = -1;
+      //     if (k >= kmin+kghost_width && k < kmax-kghost_width &&
+      //         j >= jmin+jghost_width && j < jmax-jghost_width &&
+      //         i >= imin+ighost_width && i < imax-ighost_width) {
+      //       // interior non-communicated zones should not have changed value
+      //       expected =-(zone_global+var_i); found = data[zone]; next = -1.0;
+      //       branchid = 0;
+      //       if (!mock_communication) {
+      //         if (found != expected) {
+      //           FPRINTF(stdout, "%p %i zone %i(%i %i %i) g%i(%i %i %i) = %f expected %f next %f\n", data, branchid, zone, i, j, k, zone_global, iglobal, jglobal, kglobal, found, expected, next);
+      //         }
+      //         // FPRINTF(stdout, "%p[%i] = %f\n", data, zone, 1.0);
+      //         assert(found == expected);
+      //       }
+      //       data[zone] = next;
+      //     }
+      //     // other zones may be participating in communication, do not access
+      //   });
+      // }
 
-        for_all_3d(pol_loop{}, 0, klen,
-                               0, jlen,
-                               0, ilen,
-                               [=] COMB_HOST COMB_DEVICE (IdxT k, IdxT j, IdxT i, IdxT idx) {
-          COMB::ignore_unused(idx);
-          IdxT zone = i + j * ilen + k * ijlen;
-          IdxT iglobal = i + iglobal_offset;
-          if (iperiodic) {
-            iglobal = iglobal % ilen_global;
-            if (iglobal < 0) iglobal += ilen_global;
-          }
-          IdxT jglobal = j + jglobal_offset;
-          if (jperiodic) {
-            jglobal = jglobal % jlen_global;
-            if (jglobal < 0) jglobal += jlen_global;
-          }
-          IdxT kglobal = k + kglobal_offset;
-          if (kperiodic) {
-            kglobal = kglobal % klen_global;
-            if (kglobal < 0) kglobal += klen_global;
-          }
-          IdxT zone_global = iglobal + jglobal * ilen_global + kglobal * ijlen_global;
-          DataT expected, found, next;
-          if (k >= kmin && k < kmax &&
-              j >= jmin && j < jmax &&
-              i >= imin && i < imax) {
-            expected = zone_global + var_i; found = data[zone]; next = -1.0;
-          } else if (iglobal < 0 || iglobal >= ilen_global ||
-                     jglobal < 0 || jglobal >= jlen_global ||
-                     kglobal < 0 || kglobal >= klen_global) {
-            expected =-(zone_global+var_i); found = data[zone]; next = -zone_global - var_i;
-          } else {
-            expected =-(zone_global+var_i); found = data[zone]; next = 1.0;
-          }
-          if (!mock_communication) {
-            if (found != expected) {
-              FPRINTF(stdout, "%p zone %i(%i %i %i) = %f expected %f next %f\n", data, zone, i, j, k, found, expected, next);
-            }
-            // FPRINTF(stdout, "%p[%i] = %f\n", data, zone, 1.0);
-            assert(found == expected);
-          }
-          data[zone] = next;
-        });
-      }
-
-      synchronize(pol_loop{});
+      // synchronize(pol_loop{});
 
 
       r2.start("wait-recv", Range::pink);
@@ -354,7 +369,7 @@ void do_cycles(CommInfo const& comm_info, MeshInfo& info, IdxT num_vars, IdxT nc
       for (IdxT i = 0; i < num_vars; ++i) {
 
         DataT* data = vars[i].data();
-        IdxT var_i = i;
+        IdxT var_i = i + 1;
 
         for_all_3d(pol_loop{}, 0, klen,
                                0, jlen,
@@ -379,20 +394,35 @@ void do_cycles(CommInfo const& comm_info, MeshInfo& info, IdxT num_vars, IdxT nc
           }
           IdxT zone_global = iglobal + jglobal * ilen_global + kglobal * ijlen_global;
           DataT expected, found, next;
-          if (k >= kmin && k < kmax &&
-              j >= jmin && j < jmax &&
-              i >= imin && i < imax) {
-            expected = -1.0;                found = data[zone]; next = 1.0;
+          int branchid = -1;
+          if (k >= kmin+kghost_width && k < kmax-kghost_width &&
+              j >= jmin+jghost_width && j < jmax-jghost_width &&
+              i >= imin+ighost_width && i < imax-ighost_width) {
+            // interior non-communicated zones should not have changed value
+            expected =-(zone_global+var_i); found = data[zone]; next = 1.0;
+            branchid = 0;
+          } else if (k >= kmin && k < kmax &&
+                     j >= jmin && j < jmax &&
+                     i >= imin && i < imax) {
+            // interior communicated zones should not have changed value
+            expected = zone_global + var_i; found = data[zone]; next = 1.0;
+            branchid = 1;
           } else if (iglobal < 0 || iglobal >= ilen_global ||
                      jglobal < 0 || jglobal >= jlen_global ||
                      kglobal < 0 || kglobal >= klen_global) {
-            expected =-(zone_global+var_i); found = data[zone]; next = -1.0;
-          } else {
+            // out of global bounds exterior zones should not have changed value
+            // some may have been communicated, but values should be the same
             expected = zone_global + var_i; found = data[zone]; next = -1.0;
+            branchid = 2;
+          } else {
+            // in global bounds exterior zones should have changed value
+            // should now be populated with data from another rank
+            expected = zone_global + var_i; found = data[zone]; next = -1.0;
+            branchid = 3;
           }
           if (!mock_communication) {
             if (found != expected) {
-              FPRINTF(stdout, "%p zone %i(%i %i %i) = %f expected %f next %f\n", data, zone, i, j, k, found, expected, next);
+              FPRINTF(stdout, "%p %i zone %i(%i %i %i) g%i(%i %i %i) = %f expected %f next %f\n", data, branchid, zone, i, j, k, zone_global, iglobal, jglobal, kglobal, found, expected, next);
             }
             // FPRINTF(stdout, "%p[%i] = %f\n", data, zone, 1.0);
             assert(found == expected);
