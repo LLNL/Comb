@@ -42,7 +42,7 @@ PROC_NAME_VAR="%q{${RANK_VAR}}"
 # add the nodename to the process identifier if available
 if [[ ! "x" == "x$NODE_VAR" ]]; then
 	PROC_NAME="${PROC_NAME}_${NODE}"
-	PROC_NAME_VAR="{PROC_NAME_VAR}_(%q{${NODE_VAR}})"
+	PROC_NAME_VAR="${PROC_NAME_VAR}_%q{${NODE_VAR}}"
 fi
 
 # use args and rank to make file name

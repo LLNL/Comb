@@ -82,25 +82,24 @@ GPU 0 visible 0
 OMP num threads 4
 OMP thread map 0 1 2 3
 Do mock communication
-Cart coords    3    3    2
+Cart coords         3        3        2
 Message policy cutoff 200
 Post Recv using wait_any method
 Post Send using wait_any method
 Wait Recv using wait_any method
 Wait Send using wait_all method
-Num cycles  100
-Num cycles  100
-Num vars    3
-ghost_width 1
-size           400      400      400
-divisions        4        4        4
-periodic         1        1        1
+Num cycles        100
+Num vars            3
+ghost_widths        1        1        1
+sizes             400      400      400
+divisions           4        4        4
+periodic            1        1        1
 division map
-map              0        0        0
-map            100      100      100
-map            200      200      200
-map            300      300      300
-map            400      400      400
+map                 0        0        0
+map               100      100      100
+map               200      200      200
+map               300      300      300
+map               400      400      400
 Starting up memory pools
 Host: num 1 sum 0.003041537 s min 0.003041537 s max 0.003041537 s
 HostPinned: num 1 sum 0.014320877 s min 0.014320877 s max 0.014320877 s

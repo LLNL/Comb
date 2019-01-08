@@ -1,7 +1,4 @@
-tmp*
-test*
+/build_*
+/install_*
 *.swp
-*.o
-comb
-comb_g
 *~

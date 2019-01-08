@@ -10,12 +10,14 @@ ARGS_UNDERSCORE="$(echo $ARGS_UNDERSCORE | cut -c -192)"
 # attempt to find the environment variable with the mpi rank of this process
 if [[ ! "x" == "x$JSM_NAMESPACE_RANK" ]]; then
    RANK=${JSM_NAMESPACE_RANK}
+elif [[ ! "x" == "x$SLURM_PROCID" ]]; then
+   RANK=${SLURM_PROCID}
 elif [[ ! "x" == "x$OMPI_COMM_WORLD_RANK" ]]; then
    RANK=${OMPI_COMM_WORLD_RANK}
 elif [[ ! "x" == "x$MPIRUN_RANK" ]]; then
    RANK=${MPIRUN_RANK}
 else
-   echo "Could not find mpirank" 1>&2
+   echo "sep_out.bash Could not find mpirank" 1>&2
    exit 1
 fi
 
