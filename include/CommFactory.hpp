@@ -388,6 +388,7 @@ private:
                          LidxT*& indices, IdxT& len,
                          MPI_Datatype& mpi_type, IdxT& mpi_pack_nbytes) const
   {
+    COMB::ignore_unused(comm, mpi_type, mpi_pack_nbytes);
     len = msg_box.size();
     indices = (LidxT*)msg_data->aloc.allocate(sizeof(LidxT)*len);
     msg_box.set_indices(pol, indices);
@@ -397,6 +398,7 @@ private:
                          LidxT*& indices, IdxT& len,
                          MPI_Datatype& mpi_type, IdxT& mpi_pack_nbytes) const
   {
+    COMB::ignore_unused(msg_data, indices);
     len = msg_box.size();
     mpi_type = msg_box.get_type_subarray();
     detail::MPI::Type_commit(&mpi_type);
