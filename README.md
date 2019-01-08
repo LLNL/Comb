@@ -1,4 +1,4 @@
-# Comb v0.1.0
+# Comb v0.1.1
 
 Comb is a communication performance benchmarking tool. It is used to determine performance tradeoffs in implementing communication patterns on high performance computing (HPC) platforms. At its core comb runs combinations of communication patterns with execution patterns, and memory spaces in order to find efficient combinations. The current set of capabilities Comb provides includes:
   - Configurable structured mesh halo exchange communication.
@@ -33,6 +33,10 @@ You can also create your own script and host-config provided you have a C++ comp
 Minimal documentation is available.
 
 Comb runs every combination of execution pattern, and memory space enabled. Each rank prints its results to stdout. The [sep_out.bash](./scripts/sep_out.bash) script may be used to simplify data collection by piping the output of each rank into a different file. The [combine_output.lua](./scripts/combine_output.lua) lua script may be used to simplify data aggregation from multiple files.
+
+Comb uses a variety of manual packing/unpacking execution techniques such as sequential, openmp, and cuda. Comb also uses MPI_Pack/MPI_Unpack with MPI derived datatypes for packing/unpacking. (Note: tests using cuda managed memory and MPI datatypes are disabled as they sometimes produce incorrect results)
+
+Comb creates a different MPI communicator for each test. This communicator is assigned a generic name unless MPI datatypes are used for packing and unpacking. When MPI datatypes are used the name of the memory allocator is appended to the communicator name.
 
 ### Configure Options
 
