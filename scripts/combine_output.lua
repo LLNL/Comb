@@ -12,7 +12,12 @@ function read_test(input)
          test.name = line
       else
          -- read test data
-         local start, stop, part_name, part_num, part_sum, part_min, part_max = string.find(input[i], "^([^%s]-): num (%d+) sum ([^%s]+) s min ([^%s]+) s max ([^%s]+) s")
+         local start, stop, part_name, part_num, part_sum, part_min, part_max = string.find(input[i], "^([^%s:]+):%s+num (%d+) sum (%S+) s min (%S+) s max (%S+) s")
+
+         if start == nil then
+            print(string.format("Unable to parse test string '%s'\n", input[i]))
+            assert(nil)
+         end
 
          local part = {
                ["name"]=part_name,
@@ -136,7 +141,7 @@ function do_read(infiles, outfiles)
    for _, infile in ipairs(infiles) do
       infile.handle = assert(io.open(infile.name, "r"))
 
-      local outfile_name = string.gsub(infile.name, "^(.-)_%d+$", "%1_combined")
+      local outfile_name = string.gsub(infile.name, "^(.-[_%.])%d+$", "%1combined")
       if (outfiles[outfile_name] == nil) then
          outfiles[outfile_name] = {
                ["name"]=outfile_name,
