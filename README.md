@@ -97,9 +97,11 @@ The [run_tests.bash](./scripts/run_tests.bash) is an example script that allocat
     ln -s path/to/comb/build/bin/comb .
     ln -s path/to/comb/scripts/* .
     ./run_tests.bash 1 focused_tests.bash
+    lua combine_output.lua sepout*
 
 The [scale_tests.bash](./scripts/scale_tests.bash) script used with run_tests.bash which shows the options available and how the code may be run with multiple sets of arguments with mpi.
 The [focused_tests.bash](./scripts/focused_tests.bash) script used with run_tests.bash which shows the options available and how the code may be run with one set of arguments with mpi.
+The [combine_output.lua](./scripts/combine_output.lua) lua script used to get average, min, max stats from output files. Use with one set of tests at a time, for example the output files for the wait_any and wait_any mock runs should be done together, and the wait_some and wait_some mock runs should be done together, but should not be run together.
 
 
 ## Related Software
