@@ -3,6 +3,12 @@
 procs_per_side=$1
 let procs=procs_per_side*procs_per_side*procs_per_side
 
+test_script=$2
+if [ ! -f  "$test_script" ]]; then
+   echo "tests script $test_script not found"
+   exit 1
+fi
+
 # Choose a command to get nodes
 if [[ ! "x" == "x$SYS_TYPE" ]]; then
    if [[ "x$SYS_TYPE" =~ xblueos.*_p9 ]]; then
@@ -41,7 +47,7 @@ else
 
 fi
 
-run_tests="scale_tests.bash $nodes $procs $procs_per_side"
+run_tests="$test_script $nodes $procs $procs_per_side"
 
 full_test="${get_nodes} ${run_tests}"
 
