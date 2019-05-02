@@ -90,15 +90,16 @@ The runtime options change the properties of the grid and its decomposition, as 
 
 #### Example Script
 
-The [run_scale_tests.bash](./scripts/run_scale_tests.bash) is an example script that allocates resources and runs the code in a variety of configurations via the scale_tests.bash script. The run_scale_tests.bash script takes a single argument, the number of processes per side used to split the grid into an N x N x N decomposition.
+The [run_tests.bash](./scripts/run_tests.bash) is an example script that allocates resources and uses a script such as [focused_tests.bash](./scripts/focused_tests.bash) to run the code in a variety of configurations. The run_tests.bash script takes two arguments, the number of processes per side used to split the grid into an N x N x N decomposition, and the tests script.
 
     mkdir 1_1_1
     cd 1_1_1
     ln -s path/to/comb/build/bin/comb .
     ln -s path/to/comb/scripts/* .
-    ./run_scale_tests.bash 1
+    ./run_tests.bash 1 focused_tests.bash
 
-The [scale_tests.bash](./scripts/scale_tests.bash) script used run_scale_tests.bash which shows the options available and how the code may be run with mpi.
+The [scale_tests.bash](./scripts/scale_tests.bash) script used with run_tests.bash which shows the options available and how the code may be run with multiple sets of arguments with mpi.
+The [focused_tests.bash](./scripts/focused_tests.bash) script used with run_tests.bash which shows the options available and how the code may be run with one set of arguments with mpi.
 
 
 ## Related Software
