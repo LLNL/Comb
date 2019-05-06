@@ -135,15 +135,79 @@ namespace detail {
 
 } // namespace detail
 
+void print_timer(CommInfo& comm_info, Timer& tm, const char* prefix = "") {
+
+  auto res = tm.getStats();
+
+  int max_name_len = 0;
+
+  for (auto& stat : res) {
+    max_name_len = std::max(max_name_len, (int)stat.name.size());
+  }
+
+  double* sums = new double[res.size()];
+  double* mins = new double[res.size()];
+  double* maxs = new double[res.size()];
+  long  * nums = new long  [res.size()];
+
+  for (int i = 0; i < res.size(); ++i) {
+    sums[i] = res[i].sum;
+    mins[i] = res[i].min;
+    maxs[i] = res[i].max;
+    nums[i] = res[i].num;
+  }
+
+  double* final_sums = nullptr;
+  double* final_mins = nullptr;
+  double* final_maxs = nullptr;
+  long  * final_nums = nullptr;
+  if (comm_info.rank == 0) {
+    final_sums = new double[res.size()];
+    final_mins = new double[res.size()];
+    final_maxs = new double[res.size()];
+    final_nums = new long  [res.size()];
+  }
+
+  MPI_Reduce(sums, final_sums, res.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(mins, final_mins, res.size(), MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
+  MPI_Reduce(maxs, final_maxs, res.size(), MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+  MPI_Reduce(nums, final_nums, res.size(), MPI_LONG,   MPI_SUM, 0, MPI_COMM_WORLD);
+
+  if (comm_info.rank == 0) {
+
+    for (int i = 0; i < res.size(); ++i) {
+      int padding = max_name_len - res[i].name.size();
+      comm_info.print(FileGroup::summary, "%s%s:%*s num %ld sum %.9f s min %.9f s max %.9f s\n",
+                             prefix, res[i].name.c_str(), padding, "", final_nums[i], final_sums[i], final_mins[i], final_maxs[i]);
+    }
+
+    delete[] final_sums;
+    delete[] final_mins;
+    delete[] final_maxs;
+    delete[] final_nums;
+  }
+
+  for (int i = 0; i < res.size(); ++i) {
+    int padding = max_name_len - res[i].name.size();
+    comm_info.print(FileGroup::proc, "%s%s:%*s num %ld sum %.9f s min %.9f s max %.9f s\n",
+                        prefix, res[i].name.c_str(), padding, "", nums[i], sums[i], mins[i], maxs[i]);
+  }
+
+  delete[] sums;
+  delete[] mins;
+  delete[] maxs;
+  delete[] nums;
+}
+
 template < typename pol_loop, typename pol_many, typename pol_few >
-void do_cycles(CommInfo const& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles, Allocator& aloc_mesh, Allocator& aloc_many, Allocator& aloc_few, Timer& tm, Timer& tm_total)
+void do_cycles(CommInfo& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles, Allocator& aloc_mesh, Allocator& aloc_many, Allocator& aloc_few, Timer& tm, Timer& tm_total)
 {
     tm_total.clear();
     tm.clear();
 
     char rname[1024] = ""; snprintf(rname, 1024, "Buffers %s %s %s %s", pol_many::get_name(), aloc_many.name(), pol_few::get_name(), aloc_few.name());
     char test_name[1024] = ""; snprintf(test_name, 1024, "Mesh %s %s %s", pol_loop::get_name(), aloc_mesh.name(), rname);
-    FPRINTF(stdout, "Starting test %s\n", test_name);
+    comm_info.print(FileGroup::all, "Starting test %s\n", test_name);
 
     Range r0(test_name, Range::orange);
 
@@ -558,19 +622,19 @@ void do_cycles(CommInfo const& comm_info, MeshInfo& info, IdxT num_vars, IdxT nc
 
     r1.stop();
 
-    tm.print();
-    tm_total.print();
+    print_timer(comm.comminfo, tm);
+    print_timer(comm.comminfo, tm_total);
 
     tm.clear();
     tm_total.clear();
 }
 
-template < typename pol_type >
-void do_warmup(pol_type const& pol, Allocator& aloc, Timer& tm,  IdxT num_vars, IdxT len)
+template < typename pol >
+void do_warmup(Allocator& aloc, Timer& tm,  IdxT num_vars, IdxT len)
 {
   tm.clear();
 
-  char test_name[1024] = ""; snprintf(test_name, 1024, "warmup %s %s", pol_type::get_name(), aloc.name());
+  char test_name[1024] = ""; snprintf(test_name, 1024, "warmup %s %s", pol::get_name(), aloc.name());
   Range r(test_name, Range::green);
 
   DataT** vars = new DataT*[num_vars];
@@ -583,20 +647,20 @@ void do_warmup(pol_type const& pol, Allocator& aloc, Timer& tm,  IdxT num_vars, 
 
     DataT* data = vars[i];
 
-    for_all(pol, 0, len, detail::set_n1{data});
+    for_all(pol{}, 0, len, detail::set_n1{data});
   }
 
-  synchronize(pol);
+  synchronize(pol{});
 
 }
 
-template < typename pol_type >
-void do_copy(pol_type const& pol, Allocator& src_aloc, Allocator& dst_aloc, Timer& tm, IdxT num_vars, IdxT len, IdxT nrepeats)
+template < typename pol >
+void do_copy(CommInfo& comminfo, Allocator& src_aloc, Allocator& dst_aloc, Timer& tm, IdxT num_vars, IdxT len, IdxT nrepeats)
 {
   tm.clear();
 
-  char test_name[1024] = ""; snprintf(test_name, 1024, "memcpy %s dst %s src %s", pol_type::get_name(), dst_aloc.name(), src_aloc.name());
-  FPRINTF(stdout, "Starting test %s\n", test_name);
+  char test_name[1024] = ""; snprintf(test_name, 1024, "memcpy %s dst %s src %s", pol::get_name(), dst_aloc.name(), src_aloc.name());
+  comminfo.print(FileGroup::all, "Starting test %s\n", test_name);
 
   Range r(test_name, Range::green);
 
@@ -610,35 +674,35 @@ void do_copy(pol_type const& pol, Allocator& src_aloc, Allocator& dst_aloc, Time
 
   // setup
   for (IdxT i = 0; i < num_vars; ++i) {
-    for_all(pol, 0, len, detail::set_n1{dst[i]});
-    for_all(pol, 0, len, detail::set_0{src[i]});
-    for_all(pol, 0, len, detail::set_copy{dst[i], src[i]});
+    for_all(pol{}, 0, len, detail::set_n1{dst[i]});
+    for_all(pol{}, 0, len, detail::set_0{src[i]});
+    for_all(pol{}, 0, len, detail::set_copy{dst[i], src[i]});
   }
 
-  synchronize(pol);
+  synchronize(pol{});
 
   char sub_test_name[1024] = ""; snprintf(sub_test_name, 1024, "copy_sync-%d-%d-%zu", num_vars, len, sizeof(DataT));
 
   for (IdxT rep = 0; rep < nrepeats; ++rep) {
 
     for (IdxT i = 0; i < num_vars; ++i) {
-      for_all(pol, 0, len, detail::set_copy{src[i], dst[i]});
+      for_all(pol{}, 0, len, detail::set_copy{src[i], dst[i]});
     }
 
-    synchronize(pol);
+    synchronize(pol{});
 
     tm.start(sub_test_name);
 
     for (IdxT i = 0; i < num_vars; ++i) {
-      for_all(pol, 0, len, detail::set_copy{dst[i], src[i]});
+      for_all(pol{}, 0, len, detail::set_copy{dst[i], src[i]});
     }
 
-    synchronize(pol);
+    synchronize(pol{});
 
     tm.stop();
   }
 
-  tm.print();
+  print_timer(comminfo, tm);
   tm.clear();
 
   for (IdxT i = 0; i < num_vars; ++i) {
@@ -655,26 +719,29 @@ int main(int argc, char** argv)
   int required = MPI_THREAD_FUNNELED; // MPI_THREAD_SINGLE, MPI_THREAD_FUNNELED, MPI_THREAD_SERIALIZED, MPI_THREAD_MULTIPLE
   int provided = detail::MPI::Init_thread(&argc, &argv, required);
 
+  comb_setup_files(detail::MPI::Comm_rank(MPI_COMM_WORLD));
+
   { // begin region MPI communication via comminfo
   CommInfo comminfo;
 
   if (required != provided) {
-    comminfo.abort_master("Didn't receive MPI thread support required %i provided %i.\n", required, provided);
+    comminfo.print(FileGroup::err_master, "Didn't receive MPI thread support required %i provided %i.\n", required, provided);
+    comminfo.abort();
   }
 
-  comminfo.print_any("Started rank %i of %i\n", comminfo.rank, comminfo.size);
+  comminfo.print(FileGroup::all, "Started rank %i of %i\n", comminfo.rank, comminfo.size);
 
   {
     char host[256];
     gethostname(host, 256);
 
-    comminfo.print_any("Node %s\n", host);
+    comminfo.print(FileGroup::all, "Node %s\n", host);
   }
 
-  comminfo.print_any("Compiler %s\n", COMB_SERIALIZE(COMB_COMPILER));
+  comminfo.print(FileGroup::all, "Compiler %s\n", COMB_SERIALIZE(COMB_COMPILER));
 
 #ifdef COMB_ENABLE_CUDA
-  comminfo.print_any("Cuda compiler %s\n", COMB_SERIALIZE(COMB_CUDA_COMPILER));
+  comminfo.print(FileGroup::all, "Cuda compiler %s\n", COMB_SERIALIZE(COMB_CUDA_COMPILER));
 
   {
     const char* visible_devices = nullptr;
@@ -686,7 +753,7 @@ int main(int argc, char** argv)
     int device = -1;
     cudaCheck(cudaGetDevice(&device));
 
-    comminfo.print_any("GPU %i visible %s\n", device, visible_devices);
+    comminfo.print(FileGroup::all, "GPU %i visible %s\n", device, visible_devices);
   }
 
   cudaCheck(cudaDeviceSynchronize());
@@ -721,10 +788,10 @@ int main(int argc, char** argv)
               if (ret == 1) {
                 comminfo.cutoff = read_cutoff;
               } else {
-                comminfo.warn_master("Invalid argument to sub-option, ignoring %s %s %s.\n", argv[i-2], argv[i-1], argv[i]);
+                comminfo.print(FileGroup::err_master, "Invalid argument to sub-option, ignoring %s %s %s.\n", argv[i-2], argv[i-1], argv[i]);
               }
             } else {
-              comminfo.warn_master("No argument to sub-option, ignoring %s %s.\n", argv[i-1], argv[i]);
+              comminfo.print(FileGroup::err_master, "No argument to sub-option, ignoring %s %s.\n", argv[i-1], argv[i]);
             }
           } else if ( strcmp(argv[i], "post_recv") == 0
                    || strcmp(argv[i], "post_send") == 0
@@ -755,16 +822,16 @@ int main(int argc, char** argv)
               } else if (strcmp(argv[i], "test_all") == 0) {
                 *method = CommInfo::method::testall;
               } else {
-                comminfo.warn_master("Invalid argument to sub-option, ignoring %s %s %s.\n", argv[i-2], argv[i-1], argv[i]);
+                comminfo.print(FileGroup::err_master, "Invalid argument to sub-option, ignoring %s %s %s.\n", argv[i-2], argv[i-1], argv[i]);
               }
             } else {
-              comminfo.warn_master("No argument to sub-option, ignoring %s %s.\n", argv[i-1], argv[i]);
+              comminfo.print(FileGroup::err_master, "No argument to sub-option, ignoring %s %s.\n", argv[i-1], argv[i]);
             }
           } else {
-            comminfo.warn_master("Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
+            comminfo.print(FileGroup::err_master, "Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
           }
         } else {
-          comminfo.warn_master("No argument to option, ignoring %s.\n", argv[i]);
+          comminfo.print(FileGroup::err_master, "No argument to option, ignoring %s.\n", argv[i]);
         }
       } else if (strcmp(&argv[i][1], "ghost") == 0) {
         if (i+1 < argc && argv[i+1][0] != '-') {
@@ -779,10 +846,10 @@ int main(int argc, char** argv)
             ghost_widths[1] = read_ghost_widths[1];
             ghost_widths[2] = read_ghost_widths[2];
           } else {
-            comminfo.warn_master("Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
+            comminfo.print(FileGroup::err_master, "Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
           }
         } else {
-          comminfo.warn_master("No argument to option, ignoring %s.\n", argv[i]);
+          comminfo.print(FileGroup::err_master, "No argument to option, ignoring %s.\n", argv[i]);
         }
       } else if (strcmp(&argv[i][1], "vars") == 0) {
         if (i+1 < argc && argv[i+1][0] != '-') {
@@ -791,10 +858,10 @@ int main(int argc, char** argv)
           if (ret == 1) {
             num_vars = read_num_vars;
           } else {
-            comminfo.warn_master("Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
+            comminfo.print(FileGroup::err_master, "Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
           }
         } else {
-          comminfo.warn_master("No argument to option, ignoring %s.\n", argv[i]);
+          comminfo.print(FileGroup::err_master, "No argument to option, ignoring %s.\n", argv[i]);
         }
       } else if (strcmp(&argv[i][1], "cycles") == 0) {
         if (i+1 < argc && argv[i+1][0] != '-') {
@@ -803,10 +870,10 @@ int main(int argc, char** argv)
           if (ret == 1) {
             ncycles = read_ncycles;
           } else {
-            comminfo.warn_master("Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
+            comminfo.print(FileGroup::err_master, "Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
           }
         } else {
-          comminfo.warn_master("No argument to option, ignoring %s.\n", argv[i]);
+          comminfo.print(FileGroup::err_master, "No argument to option, ignoring %s.\n", argv[i]);
         }
       } else if (strcmp(&argv[i][1], "periodic") == 0) {
         if (i+1 < argc && argv[i+1][0] != '-') {
@@ -821,10 +888,10 @@ int main(int argc, char** argv)
             periodic[1] = read_periodic[1] ? 1 : 0;
             periodic[2] = read_periodic[2] ? 1 : 0;
           } else {
-            comminfo.warn_master("Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
+            comminfo.print(FileGroup::err_master, "Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
           }
         } else {
-          comminfo.warn_master("No argument to option, ignoring %s.\n", argv[i]);
+          comminfo.print(FileGroup::err_master, "No argument to option, ignoring %s.\n", argv[i]);
         }
       } else if (strcmp(&argv[i][1], "divide") == 0) {
         if (i+1 < argc && argv[i+1][0] != '-') {
@@ -839,10 +906,10 @@ int main(int argc, char** argv)
             divisions[1] = read_divisions[1];
             divisions[2] = read_divisions[2];
           } else {
-            comminfo.warn_master("Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
+            comminfo.print(FileGroup::err_master, "Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
           }
         } else {
-          comminfo.warn_master("No argument to option, ignoring %s.\n", argv[i]);
+          comminfo.print(FileGroup::err_master, "No argument to option, ignoring %s.\n", argv[i]);
         }
       } else if (strcmp(&argv[i][1], "omp_threads") == 0) {
         if (i+1 < argc && argv[i+1][0] != '-') {
@@ -856,16 +923,16 @@ int main(int argc, char** argv)
 #ifdef COMB_ENABLE_OPENMP
             omp_threads = read_omp_threads;
 #else
-            comminfo.warn_master("Not built with openmp, ignoring %s %s.\n", argv[i-1], argv[i]);
+            comminfo.print(FileGroup::err_master, "Not built with openmp, ignoring %s %s.\n", argv[i-1], argv[i]);
 #endif
           } else {
-            comminfo.warn_master("Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
+            comminfo.print(FileGroup::err_master, "Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
           }
         } else {
-          comminfo.warn_master("No argument to option, ignoring %s.\n", argv[i]);
+          comminfo.print(FileGroup::err_master, "No argument to option, ignoring %s.\n", argv[i]);
         }
       } else {
-        comminfo.warn_master("Unknown option, ignoring %s.\n", argv[i]);
+        comminfo.print(FileGroup::err_master, "Unknown option, ignoring %s.\n", argv[i]);
       }
     } else if (std::isdigit(argv[i][0]) && s < 1) {
       long read_sizes[3] {sizes[0], sizes[1], sizes[2]};
@@ -881,23 +948,27 @@ int main(int argc, char** argv)
         sizes[1] = read_sizes[1];
         sizes[2] = read_sizes[2];
       } else {
-        comminfo.warn_master("Invalid argument to sizes, ignoring %s.\n", argv[i]);
+        comminfo.print(FileGroup::err_master, "Invalid argument to sizes, ignoring %s.\n", argv[i]);
       }
     } else {
-      comminfo.warn_master("Invalid argument, ignoring %s.\n", argv[i]);
+      comminfo.print(FileGroup::err_master, "Invalid argument, ignoring %s.\n", argv[i]);
     }
   }
 
   if (ncycles <= 0) {
-    comminfo.abort_master("Invalid cycles argument.\n");
+    comminfo.print(FileGroup::err_master, "Invalid cycles argument.\n");
+    comminfo.abort();
   } else if (num_vars <= 0) {
-    comminfo.abort_master("Invalid vars argument.\n");
+    comminfo.print(FileGroup::err_master, "Invalid vars argument.\n");
+    comminfo.abort();
   } else if ( (ghost_widths[0] <  0 || ghost_widths[1] <  0 || ghost_widths[2] <  0)
            || (ghost_widths[0] == 0 && ghost_widths[1] == 0 && ghost_widths[2] == 0) ) {
-    comminfo.abort_master("Invalid ghost widths.\n");
+    comminfo.print(FileGroup::err_master, "Invalid ghost widths.\n");
+    comminfo.abort();
   } else if ( (divisions[0] != 0 || divisions[1] != 0 || divisions[2] != 0)
            && (comminfo.size != divisions[0] * divisions[1] * divisions[2]) ) {
-    comminfo.abort_master("Invalid mesh divisions\n");
+    comminfo.print(FileGroup::err_master, "Invalid mesh divisions\n");
+    comminfo.abort();
   }
 
 #ifdef COMB_ENABLE_OPENMP
@@ -916,7 +987,7 @@ int main(int argc, char** argv)
     }
 
     long print_omp_threads = omp_threads;
-    comminfo.print_any("OMP num threads %5li\n", print_omp_threads);
+    comminfo.print(FileGroup::all, "OMP num threads %5li\n", print_omp_threads);
 
 #ifdef PRINT_THREAD_MAP
     {
@@ -931,13 +1002,13 @@ int main(int argc, char** argv)
 
       int i = 0;
       if (i < omp_threads) {
-        comminfo.print_any("OMP thread map %6i", thread_cpu_id[i]);
+        comminfo.print(FileGroup::all, "OMP thread map %6i", thread_cpu_id[i]);
         for (++i; i < omp_threads; ++i) {
-          comminfo.print_any(" %8i", thread_cpu_id[i]);
+          comminfo.print(FileGroup::all, " %8i", thread_cpu_id[i]);
         }
       }
 
-      comminfo.print_any("\n");
+      comminfo.print(FileGroup::all, "\n");
 
       delete[] thread_cpu_id;
 
@@ -965,43 +1036,43 @@ int main(int argc, char** argv)
     long print_divisions[3]    = {comminfo.cart.divisions[0], comminfo.cart.divisions[1], comminfo.cart.divisions[2]};
     long print_periodic[3]     = {comminfo.cart.periodic[0],  comminfo.cart.periodic[1],  comminfo.cart.periodic[2] };
 
-    comminfo.print_any("Do %s communication\n",         comminfo.mock_communication ? "mock" : "real"                      );
-    comminfo.print_any("Cart coords  %8li %8li %8li\n", print_coords[0],       print_coords[1],       print_coords[2]      );
-    comminfo.print_any("Message policy cutoff %li\n",   print_cutoff                                                       );
-    comminfo.print_any("Post Recv using %s method\n",   CommInfo::method_str(comminfo.post_recv_method)                    );
-    comminfo.print_any("Post Send using %s method\n",   CommInfo::method_str(comminfo.post_send_method)                    );
-    comminfo.print_any("Wait Recv using %s method\n",   CommInfo::method_str(comminfo.wait_recv_method)                    );
-    comminfo.print_any("Wait Send using %s method\n",   CommInfo::method_str(comminfo.wait_send_method)                    );
-    comminfo.print_any("Num cycles   %8li\n",           print_ncycles                                                      );
-    comminfo.print_any("Num vars     %8li\n",           print_num_vars                                                     );
-    comminfo.print_any("ghost_widths %8li %8li %8li\n", print_ghost_widths[0], print_ghost_widths[1], print_ghost_widths[2]);
-    comminfo.print_any("sizes        %8li %8li %8li\n", print_sizes[0],        print_sizes[1],        print_sizes[2]       );
-    comminfo.print_any("divisions    %8li %8li %8li\n", print_divisions[0],    print_divisions[1],    print_divisions[2]   );
-    comminfo.print_any("periodic     %8li %8li %8li\n", print_periodic[0],     print_periodic[1],     print_periodic[2]    );
-    comminfo.print_any("division map\n");
+    comminfo.print(FileGroup::all, "Do %s communication\n",         comminfo.mock_communication ? "mock" : "real"                      );
+    comminfo.print(FileGroup::all, "Cart coords  %8li %8li %8li\n", print_coords[0],       print_coords[1],       print_coords[2]      );
+    comminfo.print(FileGroup::all, "Message policy cutoff %li\n",   print_cutoff                                                       );
+    comminfo.print(FileGroup::all, "Post Recv using %s method\n",   CommInfo::method_str(comminfo.post_recv_method)                    );
+    comminfo.print(FileGroup::all, "Post Send using %s method\n",   CommInfo::method_str(comminfo.post_send_method)                    );
+    comminfo.print(FileGroup::all, "Wait Recv using %s method\n",   CommInfo::method_str(comminfo.wait_recv_method)                    );
+    comminfo.print(FileGroup::all, "Wait Send using %s method\n",   CommInfo::method_str(comminfo.wait_send_method)                    );
+    comminfo.print(FileGroup::all, "Num cycles   %8li\n",           print_ncycles                                                      );
+    comminfo.print(FileGroup::all, "Num vars     %8li\n",           print_num_vars                                                     );
+    comminfo.print(FileGroup::all, "ghost_widths %8li %8li %8li\n", print_ghost_widths[0], print_ghost_widths[1], print_ghost_widths[2]);
+    comminfo.print(FileGroup::all, "sizes        %8li %8li %8li\n", print_sizes[0],        print_sizes[1],        print_sizes[2]       );
+    comminfo.print(FileGroup::all, "divisions    %8li %8li %8li\n", print_divisions[0],    print_divisions[1],    print_divisions[2]   );
+    comminfo.print(FileGroup::all, "periodic     %8li %8li %8li\n", print_periodic[0],     print_periodic[1],     print_periodic[2]    );
+    comminfo.print(FileGroup::all, "division map\n");
     // print division map
     IdxT max_cuts = std::max(std::max(comminfo.cart.divisions[0], comminfo.cart.divisions[1]), comminfo.cart.divisions[2]);
     for (IdxT ci = 0; ci <= max_cuts; ++ci) {
-      comminfo.print_any("map         ");
+      comminfo.print(FileGroup::all, "map         ");
       if (ci <= comminfo.cart.divisions[0]) {
         long print_division_coord = ci * (sizes[0] / comminfo.cart.divisions[0]) + std::min(ci, sizes[0] % comminfo.cart.divisions[0]);
-        comminfo.print_any(" %8li", print_division_coord);
+        comminfo.print(FileGroup::all, " %8li", print_division_coord);
       } else {
-        comminfo.print_any(" %8s", "");
+        comminfo.print(FileGroup::all, " %8s", "");
       }
       if (ci <= comminfo.cart.divisions[1]) {
         long print_division_coord = ci * (sizes[1] / comminfo.cart.divisions[1]) + std::min(ci, sizes[1] % comminfo.cart.divisions[1]);
-        comminfo.print_any(" %8li", print_division_coord);
+        comminfo.print(FileGroup::all, " %8li", print_division_coord);
       } else {
-        comminfo.print_any(" %8s", "");
+        comminfo.print(FileGroup::all, " %8s", "");
       }
       if (ci <= comminfo.cart.divisions[2]) {
         long print_division_coord = ci * (sizes[2] / comminfo.cart.divisions[2]) + std::min(ci, sizes[2] % comminfo.cart.divisions[2]);
-        comminfo.print_any(" %8li", print_division_coord);
+        comminfo.print(FileGroup::all, " %8li", print_division_coord);
       } else {
-        comminfo.print_any(" %8s", "");
+        comminfo.print(FileGroup::all, " %8s", "");
       }
-      comminfo.print_any("\n");
+      comminfo.print(FileGroup::all, "\n");
     }
   }
 
@@ -1024,34 +1095,34 @@ int main(int argc, char** argv)
 
   // warm-up memory pools
   {
-    do_warmup(seq_pol{}, host_alloc, tm, num_vars+1, info.totallen);
+    do_warmup<seq_pol>(host_alloc, tm, num_vars+1, info.totallen);
 
 #ifdef COMB_ENABLE_OPENMP
-    do_warmup(omp_pol{}, host_alloc, tm, num_vars+1, info.totallen);
+    do_warmup<omp_pol>(host_alloc, tm, num_vars+1, info.totallen);
 #endif
 
 #ifdef COMB_ENABLE_CUDA
-    do_warmup(seq_pol{}, hostpinned_alloc, tm, num_vars+1, info.totallen);
+    do_warmup<seq_pol>(hostpinned_alloc, tm, num_vars+1, info.totallen);
 
-    do_warmup(cuda_pol{}, device_alloc, tm, num_vars+1, info.totallen);
+    do_warmup<cuda_pol>(device_alloc, tm, num_vars+1, info.totallen);
 
-    do_warmup(seq_pol{},  managed_alloc, tm, num_vars+1, info.totallen);
-    do_warmup(cuda_pol{}, managed_alloc, tm, num_vars+1, info.totallen);
+    do_warmup<seq_pol>( managed_alloc, tm, num_vars+1, info.totallen);
+    do_warmup<cuda_pol>(managed_alloc, tm, num_vars+1, info.totallen);
 
-    do_warmup(seq_pol{},        managed_host_preferred_alloc, tm, num_vars+1, info.totallen);
-    do_warmup(cuda_batch_pol{}, managed_host_preferred_alloc, tm, num_vars+1, info.totallen);
+    do_warmup<seq_pol>(       managed_host_preferred_alloc, tm, num_vars+1, info.totallen);
+    do_warmup<cuda_batch_pol>(managed_host_preferred_alloc, tm, num_vars+1, info.totallen);
 
-    do_warmup(seq_pol{},             managed_host_preferred_device_accessed_alloc, tm, num_vars+1, info.totallen);
-    do_warmup(cuda_persistent_pol{}, managed_host_preferred_device_accessed_alloc, tm, num_vars+1, info.totallen);
+    do_warmup<seq_pol>(            managed_host_preferred_device_accessed_alloc, tm, num_vars+1, info.totallen);
+    do_warmup<cuda_persistent_pol>(managed_host_preferred_device_accessed_alloc, tm, num_vars+1, info.totallen);
 
     {
       SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
-      do_warmup(seq_pol{},        managed_device_preferred_alloc, tm, num_vars+1, info.totallen);
-      do_warmup(cuda_batch_pol{}, managed_device_preferred_alloc, tm, num_vars+1, info.totallen);
+      do_warmup<seq_pol>(       managed_device_preferred_alloc, tm, num_vars+1, info.totallen);
+      do_warmup<cuda_batch_pol>(managed_device_preferred_alloc, tm, num_vars+1, info.totallen);
 
-      do_warmup(seq_pol{},             managed_device_preferred_host_accessed_alloc, tm, num_vars+1, info.totallen);
-      do_warmup(cuda_persistent_pol{}, managed_device_preferred_host_accessed_alloc, tm, num_vars+1, info.totallen);
+      do_warmup<seq_pol>(            managed_device_preferred_host_accessed_alloc, tm, num_vars+1, info.totallen);
+      do_warmup<cuda_persistent_pol>(managed_device_preferred_host_accessed_alloc, tm, num_vars+1, info.totallen);
     }
 #endif
 
@@ -1062,25 +1133,25 @@ int main(int argc, char** argv)
     char name[1024] = ""; snprintf(name, 1024, "set_vars %s", host_alloc.name());
     Range r0(name, Range::green);
 
-    do_copy(seq_pol{},               host_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
+    do_copy<seq_pol>(comminfo, host_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
 
 #ifdef COMB_ENABLE_OPENMP
-    do_copy(omp_pol{},               host_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
+    do_copy<omp_pol>(comminfo, host_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
 #endif
 
 #ifdef COMB_ENABLE_CUDA
-    // do_copy(cuda_pol{},              host_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
+    // do_copy<cuda_pol>(comminfo, host_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
 
-    // do_copy(cuda_batch_pol{},        host_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
+    // do_copy<cuda_batch_pol>(comminfo, host_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
 
-    // do_copy(cuda_persistent_pol{},   host_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
+    // do_copy<cuda_persistent_pol>(comminfo, host_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
 
     {
       SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
-      // do_copy(cuda_batch_pol{},      host_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
+      // do_copy<cuda_batch_pol>(comminfo, host_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
 
-      // do_copy(cuda_persistent_pol{}, host_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
+      // do_copy<cuda_persistent_pol>(comminfo, host_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
     }
 #endif
   }
@@ -1090,24 +1161,24 @@ int main(int argc, char** argv)
     char name[1024] = ""; snprintf(name, 1024, "set_vars %s", hostpinned_alloc.name());
     Range r0(name, Range::green);
 
-    do_copy(seq_pol{},               hostpinned_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
+    do_copy<seq_pol>(comminfo, hostpinned_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
 
 #ifdef COMB_ENABLE_OPENMP
-    do_copy(omp_pol{},               hostpinned_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
+    do_copy<omp_pol>(comminfo, hostpinned_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
 #endif
 
-    do_copy(cuda_pol{},              hostpinned_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+    do_copy<cuda_pol>(comminfo, hostpinned_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
 
-    do_copy(cuda_batch_pol{},        hostpinned_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+    do_copy<cuda_batch_pol>(comminfo, hostpinned_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
 
-    do_copy(cuda_persistent_pol{},   hostpinned_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+    do_copy<cuda_persistent_pol>(comminfo, hostpinned_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
 
     {
       SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
-      do_copy(cuda_batch_pol{},      hostpinned_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+      do_copy<cuda_batch_pol>(comminfo, hostpinned_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
 
-      do_copy(cuda_persistent_pol{}, hostpinned_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+      do_copy<cuda_persistent_pol>(comminfo, hostpinned_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
     }
   }
 
@@ -1115,24 +1186,24 @@ int main(int argc, char** argv)
     char name[1024] = ""; snprintf(name, 1024, "set_vars %s", device_alloc.name());
     Range r0(name, Range::green);
 
-    // do_copy(seq_pol{},               device_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
+    // do_copy<seq_pol>(comminfo, device_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
 
 #ifdef COMB_ENABLE_OPENMP
-    // do_copy(omp_pol{},               device_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
+    // do_copy<omp_pol>(comminfo, device_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
 #endif
 
-    do_copy(cuda_pol{},              device_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+    do_copy<cuda_pol>(comminfo, device_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
 
-    do_copy(cuda_batch_pol{},        device_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+    do_copy<cuda_batch_pol>(comminfo, device_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
 
-    do_copy(cuda_persistent_pol{},   device_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+    do_copy<cuda_persistent_pol>(comminfo, device_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
 
     {
       SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
-      do_copy(cuda_batch_pol{},      device_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+      do_copy<cuda_batch_pol>(comminfo, device_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
 
-      do_copy(cuda_persistent_pol{}, device_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+      do_copy<cuda_persistent_pol>(comminfo, device_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
     }
   }
 
@@ -1140,24 +1211,24 @@ int main(int argc, char** argv)
     char name[1024] = ""; snprintf(name, 1024, "set_vars %s", managed_alloc.name());
     Range r0(name, Range::green);
 
-    do_copy(seq_pol{},               managed_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
+    do_copy<seq_pol>(comminfo, managed_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
 
 #ifdef COMB_ENABLE_OPENMP
-    do_copy(omp_pol{},               managed_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
+    do_copy<omp_pol>(comminfo, managed_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
 #endif
 
-    do_copy(cuda_pol{},              managed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+    do_copy<cuda_pol>(comminfo, managed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
 
-    do_copy(cuda_batch_pol{},        managed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+    do_copy<cuda_batch_pol>(comminfo, managed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
 
-    do_copy(cuda_persistent_pol{},   managed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+    do_copy<cuda_persistent_pol>(comminfo, managed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
 
     {
       SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
-      do_copy(cuda_batch_pol{},      managed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+      do_copy<cuda_batch_pol>(comminfo, managed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
 
-      do_copy(cuda_persistent_pol{}, managed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+      do_copy<cuda_persistent_pol>(comminfo, managed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
     }
   }
 
@@ -1165,24 +1236,24 @@ int main(int argc, char** argv)
     char name[1024] = ""; snprintf(name, 1024, "set_vars %s", managed_host_preferred_alloc.name());
     Range r0(name, Range::green);
 
-    do_copy(seq_pol{},               managed_host_preferred_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
+    do_copy<seq_pol>(comminfo, managed_host_preferred_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
 
 #ifdef COMB_ENABLE_OPENMP
-    do_copy(omp_pol{},               managed_host_preferred_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
+    do_copy<omp_pol>(comminfo, managed_host_preferred_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
 #endif
 
-    do_copy(cuda_pol{},              managed_host_preferred_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+    do_copy<cuda_pol>(comminfo, managed_host_preferred_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
 
-    do_copy(cuda_batch_pol{},        managed_host_preferred_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+    do_copy<cuda_batch_pol>(comminfo, managed_host_preferred_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
 
-    do_copy(cuda_persistent_pol{},   managed_host_preferred_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+    do_copy<cuda_persistent_pol>(comminfo, managed_host_preferred_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
 
     {
       SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
-      do_copy(cuda_batch_pol{},      managed_host_preferred_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+      do_copy<cuda_batch_pol>(comminfo, managed_host_preferred_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
 
-      do_copy(cuda_persistent_pol{}, managed_host_preferred_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+      do_copy<cuda_persistent_pol>(comminfo, managed_host_preferred_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
     }
   }
 
@@ -1190,24 +1261,24 @@ int main(int argc, char** argv)
     char name[1024] = ""; snprintf(name, 1024, "set_vars %s", managed_host_preferred_device_accessed_alloc.name());
     Range r0(name, Range::green);
 
-    do_copy(seq_pol{},               managed_host_preferred_device_accessed_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
+    do_copy<seq_pol>(comminfo, managed_host_preferred_device_accessed_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
 
 #ifdef COMB_ENABLE_OPENMP
-    do_copy(omp_pol{},               managed_host_preferred_device_accessed_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
+    do_copy<omp_pol>(comminfo, managed_host_preferred_device_accessed_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
 #endif
 
-    do_copy(cuda_pol{},              managed_host_preferred_device_accessed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+    do_copy<cuda_pol>(comminfo, managed_host_preferred_device_accessed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
 
-    do_copy(cuda_batch_pol{},        managed_host_preferred_device_accessed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+    do_copy<cuda_batch_pol>(comminfo, managed_host_preferred_device_accessed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
 
-    do_copy(cuda_persistent_pol{},   managed_host_preferred_device_accessed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+    do_copy<cuda_persistent_pol>(comminfo, managed_host_preferred_device_accessed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
 
     {
       SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
-      do_copy(cuda_batch_pol{},      managed_host_preferred_device_accessed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+      do_copy<cuda_batch_pol>(comminfo, managed_host_preferred_device_accessed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
 
-      do_copy(cuda_persistent_pol{}, managed_host_preferred_device_accessed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+      do_copy<cuda_persistent_pol>(comminfo, managed_host_preferred_device_accessed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
     }
   }
 
@@ -1215,24 +1286,24 @@ int main(int argc, char** argv)
     char name[1024] = ""; snprintf(name, 1024, "set_vars %s", managed_device_preferred_alloc.name());
     Range r0(name, Range::green);
 
-    do_copy(seq_pol{},               managed_device_preferred_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
+    do_copy<seq_pol>(comminfo, managed_device_preferred_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
 
 #ifdef COMB_ENABLE_OPENMP
-    do_copy(omp_pol{},               managed_device_preferred_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
+    do_copy<omp_pol>(comminfo, managed_device_preferred_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
 #endif
 
-    do_copy(cuda_pol{},              managed_device_preferred_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+    do_copy<cuda_pol>(comminfo, managed_device_preferred_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
 
-    do_copy(cuda_batch_pol{},        managed_device_preferred_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+    do_copy<cuda_batch_pol>(comminfo, managed_device_preferred_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
 
-    do_copy(cuda_persistent_pol{},   managed_device_preferred_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+    do_copy<cuda_persistent_pol>(comminfo, managed_device_preferred_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
 
     {
       SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
-      do_copy(cuda_batch_pol{},      managed_device_preferred_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+      do_copy<cuda_batch_pol>(comminfo, managed_device_preferred_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
 
-      do_copy(cuda_persistent_pol{}, managed_device_preferred_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+      do_copy<cuda_persistent_pol>(comminfo, managed_device_preferred_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
     }
   }
 
@@ -1240,24 +1311,24 @@ int main(int argc, char** argv)
     char name[1024] = ""; snprintf(name, 1024, "set_vars %s", managed_device_preferred_host_accessed_alloc.name());
     Range r0(name, Range::green);
 
-    do_copy(seq_pol{},               managed_device_preferred_host_accessed_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
+    do_copy<seq_pol>(comminfo, managed_device_preferred_host_accessed_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
 
 #ifdef COMB_ENABLE_OPENMP
-    do_copy(omp_pol{},               managed_device_preferred_host_accessed_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
+    do_copy<omp_pol>(comminfo, managed_device_preferred_host_accessed_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
 #endif
 
-    do_copy(cuda_pol{},              managed_device_preferred_host_accessed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+    do_copy<cuda_pol>(comminfo, managed_device_preferred_host_accessed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
 
-    do_copy(cuda_batch_pol{},        managed_device_preferred_host_accessed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+    do_copy<cuda_batch_pol>(comminfo, managed_device_preferred_host_accessed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
 
-    do_copy(cuda_persistent_pol{},   managed_device_preferred_host_accessed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+    do_copy<cuda_persistent_pol>(comminfo, managed_device_preferred_host_accessed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
 
     {
       SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
-      do_copy(cuda_batch_pol{},      managed_device_preferred_host_accessed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+      do_copy<cuda_batch_pol>(comminfo, managed_device_preferred_host_accessed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
 
-      do_copy(cuda_persistent_pol{}, managed_device_preferred_host_accessed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+      do_copy<cuda_persistent_pol>(comminfo, managed_device_preferred_host_accessed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
     }
   }
 #endif // COMB_ENABLE_CUDA
@@ -1742,6 +1813,8 @@ int main(int argc, char** argv)
 #endif // COMB_ENABLE_CUDA
 
   } // end region MPI communication via comminfo
+
+  comb_teardown_files();
 
   detail::MPI::Finalize();
   return 0;

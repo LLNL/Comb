@@ -70,7 +70,8 @@ set(comb_sources
   src/comb.cpp
   src/MultiBuffer.cpp
   src/batch_launch.cpp
-  src/persistent_launch.cpp)
+  src/persistent_launch.cpp
+  src/comm.cpp)
 
 set(comb_depends )
 

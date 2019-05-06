@@ -200,6 +200,20 @@ inline void Barrier(MPI_Comm comm)
   assert(ret == MPI_SUCCESS);
 }
 
+inline void Bcast(void* buf, int count, MPI_Datatype mpi_type, int root, MPI_Comm comm)
+{
+  // FPRINTF(stdout, "MPI_Bcast rank(w%i)\n", Comm_rank(MPI_COMM_WORLD));
+  int ret = MPI_Bcast(buf, count, mpi_type, root, comm);
+  assert(ret == MPI_SUCCESS);
+}
+
+inline void Reduce(const void* inbuf, void* outbuf, int count, MPI_Datatype mpi_type, MPI_Op op, int root, MPI_Comm comm)
+{
+  // FPRINTF(stdout, "MPI_Reduce rank(w%i)\n", Comm_rank(MPI_COMM_WORLD));
+  int ret = MPI_Reduce(inbuf, outbuf, count, mpi_type, op, root, comm);
+  assert(ret == MPI_SUCCESS);
+}
+
 inline int Pack_size(int incount, MPI_Datatype mpi_type, MPI_Comm comm)
 {
   int size;

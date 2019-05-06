@@ -42,6 +42,14 @@ struct Timer {
     type tp;
   };
 
+  struct Stats {
+    std::string name;
+    double sum;
+    double min;
+    double max;
+    long   num;
+  };
+
   TimePoint* times;
   const char** names;
   IdxT idx;
@@ -83,49 +91,71 @@ struct Timer {
     }
   }
 
+  std::vector<std::pair<std::string, double>> get_times()
+  {
+    std::vector<std::pair<std::string, double>> items;
 
-  void print(const char* prefix = "") {
-    // gather bsic per name statistics in first seen order
-    struct stats {
-      std::string name;
-      double sum;
-      double min;
-      double max;
-      long   num;
-    };
-    int max_name_len = 0;
-    std::vector<std::string> name_order;
-    using map_type = std::unordered_map<std::string, stats>;
-    map_type name_map;
-
-    for (IdxT i = 1; i < idx; ++i) {
+    for (int i = 1; i < idx; ++i) {
       if (names[i-1] != nullptr) {
+
         std::string name{names[i-1]};
-        int name_len = name.size();
-        if (name_len > max_name_len) {
-          max_name_len = name_len;
-        }
-        double time_s = std::chrono::duration<double>(times[i].tp - times[i-1].tp).count();
-        auto item = name_map.find(name);
-        if (item == name_map.end()) {
-          auto ins = name_map.insert(map_type::value_type{name, stats{name, time_s, time_s, time_s, 1}});
-          assert(ins.second);
-          item = ins.first;
-          name_order.emplace_back(name);
-        } else {
-          item->second.sum += time_s;
-          item->second.min = std::min(item->second.min, time_s);
-          item->second.max = std::max(item->second.max, time_s);
-          item->second.num += 1;
-        }
+        double time = std::chrono::duration<double>(times[i].tp - times[i-1].tp).count();
+
+        items.emplace_back(std::pair<std::string, double>{name, time});
       }
     }
+
+    return items;
+  }
+
+  std::vector<Stats> getStats(const char* prefix = "") {
+    // gather basic per name statistics in first seen order
+    std::vector<std::string> name_order;
+    using map_type = std::unordered_map<std::string, Stats>;
+    map_type name_map;
+
+    for (auto& time : get_times()) {
+      std::string& name{time.first};
+      double time_s = time.second;
+      auto item = name_map.find(name);
+      if (item == name_map.end()) {
+        auto ins = name_map.insert(map_type::value_type{name, Stats{name, time_s, time_s, time_s, 1}});
+        assert(ins.second);
+        item = ins.first;
+        name_order.emplace_back(name);
+      } else {
+        item->second.sum += time_s;
+        item->second.min = std::min(item->second.min, time_s);
+        item->second.max = std::max(item->second.max, time_s);
+        item->second.num += 1;
+      }
+    }
+
+    std::vector<Stats> res;
 
     for (size_t i = 0; i < name_order.size(); ++i) {
       auto item = name_map.find(name_order[i]);
       assert(item != name_map.end());
-      int padding = max_name_len - item->second.name.size();
-      FPRINTF(stdout, "%s%s:%*s num %ld sum %.9f s min %.9f s max %.9f s\n", prefix, item->second.name.c_str(), padding, "", item->second.num, item->second.sum, item->second.min, item->second.max);
+      res.emplace_back(item->second);
+    }
+
+    return res;
+  }
+
+  void print(const char* prefix = "") {
+
+    std::vector<Stats> res = getStats();
+
+    int max_name_len = 0;
+
+    for (auto& stat : res) {
+      max_name_len = std::max(max_name_len, (int)stat.name.size());
+    }
+
+    for (auto& stat : res) {
+      int padding = max_name_len - stat.name.size();
+      FPRINTF(stdout, "%s%s:%*s num %ld sum %.9f s min %.9f s max %.9f s\n",
+                    prefix, stat.name.c_str(), padding, "", stat.num, stat.sum, stat.min, stat.max);
     }
   }
 

@@ -34,6 +34,25 @@
 #include "for_all.hpp"
 #include "utils.hpp"
 
+
+enum struct FileGroup
+{ out_any    // stdout, any proc
+, out_master // stdout, master only
+, err_any    // stderr, any proc
+, err_master // stderr, master only
+, proc       // per process file, any proc
+, summary    // per run summary file, master only
+, all        // out_master, proc, summary
+};
+
+extern FILE* comb_out_file;
+extern FILE* comb_err_file;
+extern FILE* comb_proc_file;
+extern FILE* comb_summary_file;
+
+extern void comb_setup_files(int rank);
+extern void comb_teardown_files();
+
 struct CartRank
 {
   int rank;
@@ -186,60 +205,45 @@ struct CommInfo
     }
   }
 
-  void print_any(const char* fmt, ...)
+  void print(FileGroup fg, const char* fmt, ...)
   {
-    va_list args;
-    va_start(args, fmt);
-    vfprintf(stdout, fmt, args);
-    va_end(args);
-  }
+    va_list args1;
+    va_start(args1, fmt);
 
-  void print_master(const char* fmt, ...)
-  {
-    if (rank == 0) {
-      va_list args;
-      va_start(args, fmt);
-      vfprintf(stdout, fmt, args);
-      va_end(args);
+    va_list args2;
+    va_copy(args2, args1);
+
+    int len = vsnprintf(nullptr, 0, fmt, args1);
+    va_end(args1);
+
+    char* msg = (char*)malloc(len+1);
+    vsnprintf(msg, len+1, fmt, args2);
+    va_end(args2);
+
+    // print to out file
+    if ( fg == FileGroup::out_any ||
+         ((fg == FileGroup::out_master || fg == FileGroup::all) && rank == 0) ) {
+      fprintf(comb_out_file, "%s", msg);
     }
-  }
 
-  void warn_any(const char* fmt, ...)
-  {
-    va_list args;
-    va_start(args, fmt);
-    vfprintf(stderr, fmt, args);
-    va_end(args);
-  }
-
-  void warn_master(const char* fmt, ...)
-  {
-    if (rank == 0) {
-      va_list args;
-      va_start(args, fmt);
-      vfprintf(stderr, fmt, args);
-      va_end(args);
+    // print to err file
+    if ( fg == FileGroup::err_any ||
+         (fg == FileGroup::err_master && rank == 0) ) {
+      fprintf(comb_err_file, "%s", msg);
     }
-  }
 
-  void abort_any(const char* fmt, ...)
-  {
-    va_list args;
-    va_start(args, fmt);
-    vfprintf(stderr, fmt, args);
-    va_end(args);
-    abort();
-  }
-
-  void abort_master(const char* fmt, ...)
-  {
-    if (rank == 0) {
-      va_list args;
-      va_start(args, fmt);
-      vfprintf(stderr, fmt, args);
-      va_end(args);
+    // print to proc file
+    if ( fg == FileGroup::proc ||
+         fg == FileGroup::all ) {
+      fprintf(comb_proc_file, "%s", msg);
     }
-    abort();
+
+    // print to summary file
+    if ( (fg == FileGroup::summary || fg == FileGroup::all) && rank == 0 ) {
+      fprintf(comb_summary_file, "%s", msg);
+    }
+
+    free(msg);
   }
 
   void abort()
