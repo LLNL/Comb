@@ -108,7 +108,7 @@ struct Timer {
     return items;
   }
 
-  std::vector<Stats> getStats(const char* prefix = "") {
+  std::vector<Stats> getStats() {
     // gather basic per name statistics in first seen order
     std::vector<std::string> name_order;
     using map_type = std::unordered_map<std::string, Stats>;
