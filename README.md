@@ -107,42 +107,47 @@ Comb outputs Comb\_(number)\_summary and Comb\_(number)\_proc(number) files. The
 The files contain the argument and code setup information and the results of multiple tests. The results for each test follow a line started with "Starting test" and the name of the test.
 
 The first set of tests are memory copy tests with names of the following form.
-  Starting test memcpy (execution policy) dst (destination memory space) src (source memory space)"
-  copy_sync-(number of variables)-(elements per variable)-(bytes per element): num (number of repeats) sum (time) s min (time) s max (time) s
+
+    Starting test memcpy (execution policy) dst (destination memory space) src (source memory space)"
+    copy_sync-(number of variables)-(elements per variable)-(bytes per element): num (number of repeats) sum (time) s min (time) s max (time) s
 Example:
-  Starting test memcpy seq dst Host src Host
-  copy_sync-3-1061208-8: num 200 sum 0.123456789 s min 0.123456789 s max 0.123456789 s
+
+    Starting test memcpy seq dst Host src Host
+    copy_sync-3-1061208-8: num 200 sum 0.123456789 s min 0.123456789 s max 0.123456789 s
 This is a test in which memory is copied via sequential cpu execution to one host memory buffer from another host memory buffer.
 The test involves one measurement.
-  copy_sync-3-1061208-8 Copying 3 buffers of 1061208 elements of size 8.
+
+    copy_sync-3-1061208-8 Copying 3 buffers of 1061208 elements of size 8.
 
 The second set of tests are the message passing tests with names of the following form.
-  Mesh (physics execution policy) (mesh memory space) Buffers (large message execution policy) (large message memory space) (small message execution policy) (small message memory space)
-  (test phase): num (number of repeats) sum (time) s min (time) s max (time) s
-  ...
+
+    Mesh (physics execution policy) (mesh memory space) Buffers (large message execution policy) (large message memory space) (small message execution policy) (small message memory space)
+    (test phase): num (number of repeats) sum (time) s min (time) s max (time) s
+    ...
 Example
-  Mesh seq Host Buffers seq Host seq Host
-  pre-comm:  num 200 sum 0.123456789 s min 0.123456789 s max 0.123456789 s
-  post-recv: num 200 sum 0.123456789 s min 0.123456789 s max 0.123456789 s
-  post-send: num 200 sum 0.123456789 s min 0.123456789 s max 0.123456789 s
-  wait-recv: num 200 sum 0.123456789 s min 0.123456789 s max 0.123456789 s
-  wait-send: num 200 sum 0.123456789 s min 0.123456789 s max 0.123456789 s
-  post-comm: num 200 sum 0.123456789 s min 0.123456789 s max 0.123456789 s
-  start-up:   num 8 sum 0.123456789 s min 0.123456789 s max 0.123456789 s
-  test-comm:  num 8 sum 0.123456789 s min 0.123456789 s max 0.123456789 s
-  bench-comm: num 8 sum 0.123456789 s min 0.123456789 s max 0.123456789 s
+
+    Mesh seq Host Buffers seq Host seq Host
+    pre-comm:  num 200 sum 0.123456789 s min 0.123456789 s max 0.123456789 s
+    post-recv: num 200 sum 0.123456789 s min 0.123456789 s max 0.123456789 s
+    post-send: num 200 sum 0.123456789 s min 0.123456789 s max 0.123456789 s
+    wait-recv: num 200 sum 0.123456789 s min 0.123456789 s max 0.123456789 s
+    wait-send: num 200 sum 0.123456789 s min 0.123456789 s max 0.123456789 s
+    post-comm: num 200 sum 0.123456789 s min 0.123456789 s max 0.123456789 s
+    start-up:   num 8 sum 0.123456789 s min 0.123456789 s max 0.123456789 s
+    test-comm:  num 8 sum 0.123456789 s min 0.123456789 s max 0.123456789 s
+    bench-comm: num 8 sum 0.123456789 s min 0.123456789 s max 0.123456789 s
 This is a test in which a mesh is updated via physics running via sequential cpu execution and is allocated in host memory. The buffers used with MPI for large messages are packed/unpacked via sequential cpu execution and allocated in host memory and the buffers used with MPI for small messages are packed/unpacked via sequential cpu execution and allocated in host memory.
 This test involves multiple measurements, the first six time individual parts of the physics cycle and communication.
-  pre-comm "Physics" before point-to-point communication, in this case setting memory to initial values.
-  post-recv Allocating MPI receive buffers and calling MPI_Irecv.
-  post-send Allocating MPI send buffers, packing buffers, and calling MPI_Isend.
-  wait-recv Waiting to receive MPI messages, unpacking MPI buffers, and freeing MPI receive buffers
-  wait-send Waiting for MPI send messages to complete and freeing MPI send buffers.
-  post-comm "Physics" after point-to-point communication, in this case resetting memory to initial values.
+  - pre-comm "Physics" before point-to-point communication, in this case setting memory to initial values.
+  - post-recv Allocating MPI receive buffers and calling MPI_Irecv.
+  - post-send Allocating MPI send buffers, packing buffers, and calling MPI_Isend.
+  - wait-recv Waiting to receive MPI messages, unpacking MPI buffers, and freeing MPI receive buffers
+  - wait-send Waiting for MPI send messages to complete and freeing MPI send buffers.
+  - post-comm "Physics" after point-to-point communication, in this case resetting memory to initial values.
 The final three measure problem setup, correctness testing, and total benchmark time.
-  start-up Setting up mesh and point-to-point communication.
-  test-comm Testing correctness of point-to-point communication.
-  bench-comm Running benchmark, starts after an initial MPI_Barrier and ends after a final MPI_Barrier.
+  - start-up Setting up mesh and point-to-point communication.
+  - test-comm Testing correctness of point-to-point communication.
+  - bench-comm Running benchmark, starts after an initial MPI_Barrier and ends after a final MPI_Barrier.
 
 ##### Execution Policies
 
