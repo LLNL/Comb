@@ -4,7 +4,7 @@ procs_per_side=$1
 let procs=procs_per_side*procs_per_side*procs_per_side
 
 test_script=$2
-if [ ! -f  "$test_script" ]]; then
+if [ ! -f  "$test_script" ]; then
    echo "tests script $test_script not found"
    exit 1
 fi
