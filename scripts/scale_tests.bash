@@ -61,6 +61,10 @@ comb_args="${comb_args} -cycles 100"
 comb_args="${comb_args} -comm cutoff 250"
 # set the number of omp threads per process
 comb_args="${comb_args} -omp_threads 10"
+# disable seq execution tests
+comb_args="${comb_args} -exec enable all"
+# disable host memory tests
+comb_args="${comb_args} -memory enable all"
 
 # set up arguments for a variety of communication methods
 wait_all_method="-comm post_recv wait_all -comm post_send wait_all -comm wait_recv wait_all -comm wait_send wait_all"

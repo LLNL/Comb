@@ -63,6 +63,14 @@ comb_args="${comb_args} -cycles 25" # 100
 comb_args="${comb_args} -comm cutoff 250"
 # set the number of omp threads per process
 comb_args="${comb_args} -omp_threads 10"
+# disable seq execution tests
+comb_args="${comb_args} -exec disable seq"
+# enable cuda execution tests
+comb_args="${comb_args} -exec enable cuda"
+# disable host memory tests
+comb_args="${comb_args} -memory disable host"
+# enable cuda managed memory tests
+comb_args="${comb_args} -memory enable cuda_managed"
 
 # set up arguments for communication method
 wait_any_method="-comm post_recv wait_any -comm post_send wait_any -comm wait_recv wait_any -comm wait_send wait_all"

@@ -87,6 +87,27 @@ The runtime options change the properties of the grid and its decomposition, as 
           -   __test_all__ Wait for all sends to complete by polling (MPI_Testall)
   -   __\-cycles *\#*__ Number of times the communication pattern is tested
   -   __\-omp_threads *\#*__ Number of openmp threads requested
+  -   __\-exec *option*__ Execution options
+      -   __enable|disable *option*__ Enable or disable specific execution patterns
+          -   __all__ all execution patterns
+          -   __seq__ sequential CPU execution pattern
+          -   __omp__ openmp threaded CPU execution pattern
+          -   __cuda__ cuda GPU execution pattern
+          -   __cuda_batch__ cuda GPU batched kernel execution pattern
+          -   __cuda_batch_fewgs__ cuda GPU batched kernel with few grid synchronizations execution pattern
+          -   __cuda_persistent__ cuda GPU persistent kernel execution pattern
+          -   __cuda_persistent_fewgs__ cuda GPU persistent kernel with few grid synchronizations execution pattern
+  -   __\-memory *option*__ Memory space options
+      -   __enable|disable *option*__ Enable or disable specific memory spaces for mesh allocations
+          -   __all__ all memory spaces
+          -   __host__ host CPU memory space
+          -   __cuda_pinned__ cuda pinned memory space
+          -   __cuda_device__ cuda device memory space
+          -   __cuda_managed__ cuda managed memory space
+          -   __cuda_managed_host_preferred__ cuda managed with host preferred advice memory space
+          -   __cuda_managed_host_preferred_device_accessed__ cuda managed with host preferred and device accessed advice memory space
+          -   __cuda_managed_device_preferred__ cuda managed with device preferred advice memory space
+          -   __cuda_managed_device_preferred_host_accessed__ cuda managed with device preferred and host accessed advice memory space
 
 ### Example Script
 
