@@ -60,31 +60,35 @@ namespace detail {
 
 namespace cuda {
 
-inline int get_device() {
-  static int d = -1;
-  if (d == -1) {
-    cudaCheck(cudaGetDevice(&d));
-  }
+inline int get_device_impl() {
+  int d = -1;
+  cudaCheck(cudaGetDevice(&d));
   return d;
 }
 
+inline int get_device() {
+  static int d = get_device_impl();
+  return d;
+}
+
+inline cudaDeviceProp get_properties_impl() {
+  cudaDeviceProp p;
+  cudaCheck(cudaGetDeviceProperties(&p, get_device()));
+  return p;
+}
+
+inline cudaDeviceProp get_properties() {
+  static cudaDeviceProp p = get_properties_impl();
+  return p;
+}
+
 inline int get_num_sm() {
-   static int num_sm = -1;
-   if (num_sm == -1) {
-      cudaCheck(cudaDeviceGetAttribute(&num_sm, cudaDevAttrMultiProcessorCount, get_device()));
-   }
+   static int num_sm = get_properties().multiProcessorCount;
    return num_sm;
 }
 
-
 inline int get_arch() {
-   static int cuda_arch = -1;
-   if (cuda_arch == -1) {
-      int major, minor;
-      cudaCheck(cudaDeviceGetAttribute(&major, cudaDevAttrComputeCapabilityMajor, get_device()));
-      cudaCheck(cudaDeviceGetAttribute(&minor, cudaDevAttrComputeCapabilityMinor, get_device()));
-      cuda_arch = 100*major + 10*minor;
-   }
+   static int cuda_arch = 100*get_properties().major + 10*get_properties().minor;
    return cuda_arch;
 }
 
