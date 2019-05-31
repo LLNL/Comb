@@ -759,7 +759,12 @@ int main(int argc, char** argv)
   cudaCheck(cudaDeviceSynchronize());
 #endif
 
+
   // read command line arguments
+#ifdef COMB_ENABLE_CUDA
+  bool cuda_aware_mpi = false;
+#endif
+
 #ifdef COMB_ENABLE_OPENMP
   int omp_threads = -1;
 #endif
@@ -1042,6 +1047,12 @@ int main(int argc, char** argv)
         } else {
           comminfo.print(FileGroup::err_master, "No argument to option, ignoring %s.\n", argv[i]);
         }
+      } else if (strcmp(&argv[i][1], "cuda_aware_mpi") == 0) {
+#ifdef COMB_ENABLE_CUDA
+        cuda_aware_mpi = true;
+#else
+        comminfo.print(FileGroup::err_master, "Not built with cuda, ignoring %s.\n", argv[i]);
+#endif
       } else {
         comminfo.print(FileGroup::err_master, "Unknown option, ignoring %s.\n", argv[i]);
       }
@@ -1682,16 +1693,18 @@ int main(int argc, char** argv)
         do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
     }
 
-    // if (exec_seq && exec_mpi_type && exec_mpi_type)
-      // do_cycles<seq_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
+    if (cuda_aware_mpi) {
+      // if (exec_seq && exec_mpi_type && exec_mpi_type)
+        // do_cycles<seq_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
 
 #ifdef COMB_ENABLE_OPENMP
-    // if (exec_omp && exec_mpi_type && exec_mpi_type)
-      // do_cycles<omp_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
+      // if (exec_omp && exec_mpi_type && exec_mpi_type)
+        // do_cycles<omp_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
 #endif
 
-    // if (exec_cuda && exec_mpi_type && exec_mpi_type)
-      // do_cycles<cuda_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
+      if (exec_cuda && exec_mpi_type && exec_mpi_type)
+        do_cycles<cuda_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
+    }
   }
 
   // managed allocated
@@ -1761,17 +1774,18 @@ int main(int argc, char** argv)
         do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
     }
 
-    // TODO: figure out why these crash sometimes
-    // if (exec_seq && exec_mpi_type && exec_mpi_type)
-      // do_cycles<seq_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
+    if (cuda_aware_mpi) {
+      if (exec_seq && exec_mpi_type && exec_mpi_type)
+        do_cycles<seq_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
 
 #ifdef COMB_ENABLE_OPENMP
-    // if (exec_omp && exec_mpi_type && exec_mpi_type)
-      // do_cycles<omp_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
+      if (exec_omp && exec_mpi_type && exec_mpi_type)
+        do_cycles<omp_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
 #endif
 
-    // if (exec_cuda && exec_mpi_type && exec_mpi_type)
-      // do_cycles<cuda_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
+      if (exec_cuda && exec_mpi_type && exec_mpi_type)
+        do_cycles<cuda_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
+    }
   }
 
   // managed host preferred allocated
@@ -1841,16 +1855,18 @@ int main(int argc, char** argv)
         do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
     }
 
-    if (exec_seq && exec_mpi_type && exec_mpi_type)
-      do_cycles<seq_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
+    if (cuda_aware_mpi) {
+      if (exec_seq && exec_mpi_type && exec_mpi_type)
+        do_cycles<seq_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
 
 #ifdef COMB_ENABLE_OPENMP
-    if (exec_omp && exec_mpi_type && exec_mpi_type)
-      do_cycles<omp_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
+      if (exec_omp && exec_mpi_type && exec_mpi_type)
+        do_cycles<omp_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
 #endif
 
-    if (exec_cuda && exec_mpi_type && exec_mpi_type)
-      do_cycles<cuda_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
+      if (exec_cuda && exec_mpi_type && exec_mpi_type)
+        do_cycles<cuda_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
+    }
   }
 
   // managed host preferred device accessed allocated
@@ -1920,16 +1936,18 @@ int main(int argc, char** argv)
         do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
     }
 
-    if (exec_seq && exec_mpi_type && exec_mpi_type)
-      do_cycles<seq_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
+    if (cuda_aware_mpi) {
+      if (exec_seq && exec_mpi_type && exec_mpi_type)
+        do_cycles<seq_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
 
 #ifdef COMB_ENABLE_OPENMP
-    if (exec_omp && exec_mpi_type && exec_mpi_type)
-      do_cycles<omp_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
+      if (exec_omp && exec_mpi_type && exec_mpi_type)
+        do_cycles<omp_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
 #endif
 
-    if (exec_cuda && exec_mpi_type && exec_mpi_type)
-      do_cycles<cuda_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
+      if (exec_cuda && exec_mpi_type && exec_mpi_type)
+        do_cycles<cuda_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
+    }
   }
 
   // managed device preferred allocated
@@ -1999,16 +2017,18 @@ int main(int argc, char** argv)
         do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
     }
 
-    if (exec_seq && exec_mpi_type && exec_mpi_type)
-      do_cycles<seq_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
+    if (cuda_aware_mpi) {
+      if (exec_seq && exec_mpi_type && exec_mpi_type)
+        do_cycles<seq_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
 
 #ifdef COMB_ENABLE_OPENMP
-    if (exec_omp && exec_mpi_type && exec_mpi_type)
-      do_cycles<omp_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
+      if (exec_omp && exec_mpi_type && exec_mpi_type)
+        do_cycles<omp_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
 #endif
 
-    if (exec_cuda && exec_mpi_type && exec_mpi_type)
-      do_cycles<cuda_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
+      if (exec_cuda && exec_mpi_type && exec_mpi_type)
+        do_cycles<cuda_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
+    }
   }
 
   // managed device preferred host accessed allocated
@@ -2078,16 +2098,18 @@ int main(int argc, char** argv)
         do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
     }
 
-    if (exec_seq && exec_mpi_type && exec_mpi_type)
-      do_cycles<seq_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
+    if (cuda_aware_mpi) {
+      if (exec_seq && exec_mpi_type && exec_mpi_type)
+        do_cycles<seq_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
 
 #ifdef COMB_ENABLE_OPENMP
-    if (exec_omp && exec_mpi_type && exec_mpi_type)
-      do_cycles<omp_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
+      if (exec_omp && exec_mpi_type && exec_mpi_type)
+        do_cycles<omp_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
 #endif
 
-    if (exec_cuda && exec_mpi_type && exec_mpi_type)
-      do_cycles<cuda_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
+      if (exec_cuda && exec_mpi_type && exec_mpi_type)
+        do_cycles<cuda_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
+    }
   }
 #endif // COMB_ENABLE_CUDA
 
