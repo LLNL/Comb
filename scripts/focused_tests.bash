@@ -66,6 +66,8 @@ comb_args="${comb_args} -cycles 25" # 100
 comb_args="${comb_args} -comm cutoff 250"
 # set the number of omp threads per process
 comb_args="${comb_args} -omp_threads 10"
+# enable tests passing cuda device or managed memory to mpi
+# comb_args="${comb_args} -cuda_aware_mpi"
 # disable seq execution tests
 comb_args="${comb_args} -exec disable seq"
 # enable cuda execution tests
