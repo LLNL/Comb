@@ -82,14 +82,30 @@ inline cudaDeviceProp get_properties() {
   return p;
 }
 
+inline int get_host_accessible_from_device() {
+  static int accessible =
+#if defined(CUDART_VERSION) && CUDART_VERSION >= 9000
+    get_properties().pageableMemoryAccess;
+#else
+    false;
+#endif
+  return accessible;
+}
+
+inline int get_device_accessible_from_host() {
+  static int accessible =
+    false;
+  return accessible;
+}
+
 inline int get_num_sm() {
-   static int num_sm = get_properties().multiProcessorCount;
-   return num_sm;
+  static int num_sm = get_properties().multiProcessorCount;
+  return num_sm;
 }
 
 inline int get_arch() {
-   static int cuda_arch = 100*get_properties().major + 10*get_properties().minor;
-   return cuda_arch;
+  static int cuda_arch = 100*get_properties().major + 10*get_properties().minor;
+  return cuda_arch;
 }
 
 } // namespace cuda
