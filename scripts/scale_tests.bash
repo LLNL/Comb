@@ -68,6 +68,12 @@ comb_args="${comb_args} -omp_threads 10"
 comb_args="${comb_args} -cuda_aware_mpi"
 # enable all execution tests
 comb_args="${comb_args} -exec enable all"
+# disable cuda batch execution tests
+comb_args="${comb_args} -exec disable cuda_batch"
+comb_args="${comb_args} -exec disable cuda_batch_fewgs"
+# disable cuda persistent execution tests
+comb_args="${comb_args} -exec disable cuda_persistent"
+comb_args="${comb_args} -exec disable cuda_persistent_fewgs"
 # disable host memory tests
 comb_args="${comb_args} -memory enable all"
 
