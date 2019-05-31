@@ -782,6 +782,7 @@ int main(int argc, char** argv)
   bool exec_cuda_persistent = false;
   bool exec_cuda_batch_fewgs = false;
   bool exec_cuda_persistent_fewgs = false;
+  bool exec_cuda_graph = false;
   bool exec_mpi_type = false;
   bool memory_host = true;
   bool memory_cuda_pinned = false;
@@ -893,6 +894,7 @@ int main(int argc, char** argv)
               exec_cuda_persistent = (bool)enabledisable;
               exec_cuda_batch_fewgs = (bool)enabledisable;
               exec_cuda_persistent_fewgs = (bool)enabledisable;
+              exec_cuda_graph = (bool)enabledisable;
               exec_mpi_type = (bool)enabledisable;
             } else if (strcmp(argv[i], "seq") == 0) {
               exec_seq = (bool)enabledisable;
@@ -909,6 +911,8 @@ int main(int argc, char** argv)
               exec_cuda_batch_fewgs = (bool)enabledisable;
             } else if (strcmp(argv[i], "cuda_persistent_fewgs") == 0) {
               exec_cuda_persistent_fewgs = (bool)enabledisable;
+            } else if (strcmp(argv[i], "cuda_graph") == 0) {
+              exec_cuda_graph = (bool)enabledisable;
             } else if (strcmp(argv[i], "mpi_type") == 0) {
               exec_mpi_type = (bool)enabledisable;
             } else {
@@ -1246,6 +1250,10 @@ int main(int argc, char** argv)
       do_warmup<seq_pol>(            managed_device_preferred_host_accessed_alloc, tm, num_vars+1, info.totallen);
       do_warmup<cuda_persistent_pol>(managed_device_preferred_host_accessed_alloc, tm, num_vars+1, info.totallen);
     }
+
+#ifdef COMB_ENABLE_CUDA_GRAPH
+    do_warmup<cuda_graph_pol>(device_alloc, tm, num_vars+1, info.totallen);
+#endif
 #endif
 
   }
@@ -1278,6 +1286,9 @@ int main(int argc, char** argv)
         if (exec_cuda_persistent_fewgs) do_copy<cuda_persistent_pol>(comminfo, host_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
       }
 
+#ifdef COMB_ENABLE_CUDA_GRAPH
+      if (exec_cuda_graph) do_copy<cuda_graph_pol>(comminfo, host_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
+#endif
     }
 #endif
   }
@@ -1306,6 +1317,10 @@ int main(int argc, char** argv)
 
       if (exec_cuda_persistent_fewgs) do_copy<cuda_persistent_pol>(comminfo, hostpinned_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
     }
+
+#ifdef COMB_ENABLE_CUDA_GRAPH
+    if (exec_cuda_graph) do_copy<cuda_graph_pol>(comminfo, hostpinned_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+#endif
   }
 
   if (memory_cuda_device) {
@@ -1333,6 +1348,10 @@ int main(int argc, char** argv)
 
       if (exec_cuda_persistent_fewgs) do_copy<cuda_persistent_pol>(comminfo, device_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
     }
+
+#ifdef COMB_ENABLE_CUDA_GRAPH
+    if (exec_cuda_graph) do_copy<cuda_graph_pol>(comminfo, device_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+#endif
   }
 
   if (memory_cuda_managed) {
@@ -1358,6 +1377,10 @@ int main(int argc, char** argv)
 
       if (exec_cuda_persistent_fewgs) do_copy<cuda_persistent_pol>(comminfo, managed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
     }
+
+#ifdef COMB_ENABLE_CUDA_GRAPH
+    if (exec_cuda_graph) do_copy<cuda_graph_pol>(comminfo, managed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+#endif
   }
 
   if (memory_cuda_managed_host_preferred) {
@@ -1383,6 +1406,10 @@ int main(int argc, char** argv)
 
       if (exec_cuda_persistent_fewgs) do_copy<cuda_persistent_pol>(comminfo, managed_host_preferred_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
     }
+
+#ifdef COMB_ENABLE_CUDA_GRAPH
+    if (exec_cuda_graph) do_copy<cuda_graph_pol>(comminfo, managed_host_preferred_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+#endif
   }
 
   if (memory_cuda_managed_host_preferred_device_accessed) {
@@ -1408,6 +1435,10 @@ int main(int argc, char** argv)
 
       if (exec_cuda_persistent_fewgs) do_copy<cuda_persistent_pol>(comminfo, managed_host_preferred_device_accessed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
     }
+
+#ifdef COMB_ENABLE_CUDA_GRAPH
+    if (exec_cuda_graph) do_copy<cuda_graph_pol>(comminfo, managed_host_preferred_device_accessed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+#endif
   }
 
   if (memory_cuda_managed_device_preferred) {
@@ -1433,6 +1464,10 @@ int main(int argc, char** argv)
 
       if (exec_cuda_persistent_fewgs) do_copy<cuda_persistent_pol>(comminfo, managed_device_preferred_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
     }
+
+#ifdef COMB_ENABLE_CUDA_GRAPH
+    if (exec_cuda_graph) do_copy<cuda_graph_pol>(comminfo, managed_device_preferred_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+#endif
   }
 
   if (memory_cuda_managed_device_preferred_host_accessed) {
@@ -1458,6 +1493,10 @@ int main(int argc, char** argv)
 
       if (exec_cuda_persistent_fewgs) do_copy<cuda_persistent_pol>(comminfo, managed_device_preferred_host_accessed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
     }
+
+#ifdef COMB_ENABLE_CUDA_GRAPH
+    if (exec_cuda_graph) do_copy<cuda_graph_pol>(comminfo, managed_device_preferred_host_accessed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
+#endif
   }
 #endif // COMB_ENABLE_CUDA
 
@@ -1529,6 +1568,14 @@ int main(int argc, char** argv)
         if (exec_cuda && exec_cuda_persistent_fewgs && exec_cuda_persistent_fewgs)
           do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
       }
+
+#ifdef COMB_ENABLE_CUDA_GRAPH
+      if (exec_cuda && exec_cuda_graph && exec_seq)
+        do_cycles<cuda_pol, cuda_graph_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+
+      if (exec_cuda && exec_cuda_graph && exec_cuda_graph)
+        do_cycles<cuda_pol, cuda_graph_pol, cuda_graph_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+#endif
     }
 #endif
 
@@ -1615,6 +1662,14 @@ int main(int argc, char** argv)
       if (exec_cuda && exec_cuda_persistent_fewgs && exec_cuda_persistent_fewgs)
         do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
     }
+
+#ifdef COMB_ENABLE_CUDA_GRAPH
+    if (exec_cuda && exec_cuda_graph && exec_seq)
+      do_cycles<cuda_pol, cuda_graph_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
+
+    if (exec_cuda && exec_cuda_graph && exec_cuda_graph)
+      do_cycles<cuda_pol, cuda_graph_pol, cuda_graph_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
+#endif
 
     if (exec_seq && exec_mpi_type && exec_mpi_type)
       do_cycles<seq_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
@@ -1705,6 +1760,16 @@ int main(int argc, char** argv)
         do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
     }
 
+#ifdef COMB_ENABLE_CUDA_GRAPH
+    if (detail::cuda::get_device_accessible_from_host()) {
+      if (exec_cuda && exec_cuda_graph && exec_seq)
+        do_cycles<cuda_pol, cuda_graph_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
+    }
+
+    if (exec_cuda && exec_cuda_graph && exec_cuda_graph)
+      do_cycles<cuda_pol, cuda_graph_pol, cuda_graph_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
+#endif
+
     if (cuda_aware_mpi) {
       if (detail::cuda::get_device_accessible_from_host()) {
         if (exec_seq && exec_mpi_type && exec_mpi_type)
@@ -1790,6 +1855,14 @@ int main(int argc, char** argv)
         do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
     }
 
+#ifdef COMB_ENABLE_CUDA_GRAPH
+    if (exec_cuda && exec_cuda_graph && exec_seq)
+      do_cycles<cuda_pol, cuda_graph_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
+
+    if (exec_cuda && exec_cuda_graph && exec_cuda_graph)
+      do_cycles<cuda_pol, cuda_graph_pol, cuda_graph_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
+#endif
+
     if (cuda_aware_mpi) {
       if (exec_seq && exec_mpi_type && exec_mpi_type)
         do_cycles<seq_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
@@ -1870,6 +1943,14 @@ int main(int argc, char** argv)
       if (exec_cuda && exec_cuda_persistent_fewgs && exec_cuda_persistent_fewgs)
         do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
     }
+
+#ifdef COMB_ENABLE_CUDA_GRAPH
+    if (exec_cuda && exec_cuda_graph && exec_seq)
+      do_cycles<cuda_pol, cuda_graph_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
+
+    if (exec_cuda && exec_cuda_graph && exec_cuda_graph)
+      do_cycles<cuda_pol, cuda_graph_pol, cuda_graph_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
+#endif
 
     if (cuda_aware_mpi) {
       if (exec_seq && exec_mpi_type && exec_mpi_type)
@@ -1952,6 +2033,14 @@ int main(int argc, char** argv)
         do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
     }
 
+#ifdef COMB_ENABLE_CUDA_GRAPH
+    if (exec_cuda && exec_cuda_graph && exec_seq)
+      do_cycles<cuda_pol, cuda_graph_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
+
+    if (exec_cuda && exec_cuda_graph && exec_cuda_graph)
+      do_cycles<cuda_pol, cuda_graph_pol, cuda_graph_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
+#endif
+
     if (cuda_aware_mpi) {
       if (exec_seq && exec_mpi_type && exec_mpi_type)
         do_cycles<seq_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
@@ -2033,6 +2122,14 @@ int main(int argc, char** argv)
         do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
     }
 
+#ifdef COMB_ENABLE_CUDA_GRAPH
+    if (exec_cuda && exec_cuda_graph && exec_seq)
+      do_cycles<cuda_pol, cuda_graph_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
+
+    if (exec_cuda && exec_cuda_graph && exec_cuda_graph)
+      do_cycles<cuda_pol, cuda_graph_pol, cuda_graph_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
+#endif
+
     if (cuda_aware_mpi) {
       if (exec_seq && exec_mpi_type && exec_mpi_type)
         do_cycles<seq_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
@@ -2113,6 +2210,14 @@ int main(int argc, char** argv)
       if (exec_cuda && exec_cuda_persistent_fewgs && exec_cuda_persistent_fewgs)
         do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
     }
+
+#ifdef COMB_ENABLE_CUDA_GRAPH
+    if (exec_cuda && exec_cuda_graph && exec_seq)
+      do_cycles<cuda_pol, cuda_graph_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
+
+    if (exec_cuda && exec_cuda_graph && exec_cuda_graph)
+      do_cycles<cuda_pol, cuda_graph_pol, cuda_graph_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
+#endif
 
     if (cuda_aware_mpi) {
       if (exec_seq && exec_mpi_type && exec_mpi_type)
