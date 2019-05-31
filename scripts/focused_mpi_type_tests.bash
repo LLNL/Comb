@@ -9,6 +9,9 @@ if [[ ! "x" == "x$SYS_TYPE" ]]; then
    if [[ "x$SYS_TYPE" =~ xblueos.*_p9 ]]; then
       # Command used to run mpi on sierra systems
       run_mpi="lrun -N$nodes -p$procs"
+      # add arguments to turn on cuda aware mpi (optionally disable gpu direct)
+      run_mpi="${run_mpi} --smpiargs \"-gpu\""
+      # run_mpi="${run_mpi} --smpiargs \"-gpu -disable_gdr\""
    elif [[ "x$SYS_TYPE" =~ xblueos.* ]]; then
       # Command used to run mpi on EA systems
       run_mpi="mpirun -np $procs /usr/tcetmp/bin/mpibind"
@@ -69,6 +72,8 @@ comb_args="${comb_args} -cuda_aware_mpi"
 comb_args="${comb_args} -exec disable seq"
 # enable cuda execution tests
 comb_args="${comb_args} -exec enable cuda"
+# enable cuda execution tests
+comb_args="${comb_args} -exec enable mpi_type"
 # disable host memory tests
 comb_args="${comb_args} -memory disable host"
 # enable cuda managed memory tests
