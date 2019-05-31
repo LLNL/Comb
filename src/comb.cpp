@@ -1251,18 +1251,22 @@ int main(int argc, char** argv)
 #endif
 
 #ifdef COMB_ENABLE_CUDA
-    // if (exec_cuda) do_copy<cuda_pol>(comminfo, host_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
+    if (detail::cuda::get_properties().pageableMemoryAccess) {
 
-    // if (exec_cuda_batch) do_copy<cuda_batch_pol>(comminfo, host_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
+      if (exec_cuda) do_copy<cuda_pol>(comminfo, host_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
 
-    // if (exec_cuda_persistent) do_copy<cuda_persistent_pol>(comminfo, host_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
+      if (exec_cuda_batch) do_copy<cuda_batch_pol>(comminfo, host_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
 
-    {
-      SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
+      if (exec_cuda_persistent) do_copy<cuda_persistent_pol>(comminfo, host_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
 
-      // if (exec_cuda_batch_fewgs) do_copy<cuda_batch_pol>(comminfo, host_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
+      {
+        SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
-      // if (exec_cuda_persistent_fewgs) do_copy<cuda_persistent_pol>(comminfo, host_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
+        if (exec_cuda_batch_fewgs) do_copy<cuda_batch_pol>(comminfo, host_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
+
+        if (exec_cuda_persistent_fewgs) do_copy<cuda_persistent_pol>(comminfo, host_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
+      }
+
     }
 #endif
   }
@@ -1466,50 +1470,52 @@ int main(int argc, char** argv)
 #endif
 
 #ifdef COMB_ENABLE_CUDA
-    // if (exec_cuda && exec_seq && exec_seq)
-      // do_cycles<cuda_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+    if (detail::cuda::get_properties().pageableMemoryAccess) {
+      if (exec_cuda && exec_seq && exec_seq)
+        do_cycles<cuda_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
 
 #ifdef COMB_ENABLE_OPENMP
-    // if (exec_cuda && exec_omp && exec_seq)
-      // do_cycles<cuda_pol, omp_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+      if (exec_cuda && exec_omp && exec_seq)
+        do_cycles<cuda_pol, omp_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
 
-    // if (exec_cuda && exec_omp && exec_omp)
-      // do_cycles<cuda_pol, omp_pol, omp_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+      if (exec_cuda && exec_omp && exec_omp)
+        do_cycles<cuda_pol, omp_pol, omp_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
 #endif
 
-    // if (exec_cuda && exec_cuda && exec_seq)
-      // do_cycles<cuda_pol, cuda_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+      if (exec_cuda && exec_cuda && exec_seq)
+        do_cycles<cuda_pol, cuda_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
 
-    // if (exec_cuda && exec_cuda && exec_cuda)
-      // do_cycles<cuda_pol, cuda_pol, cuda_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+      if (exec_cuda && exec_cuda && exec_cuda)
+        do_cycles<cuda_pol, cuda_pol, cuda_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
 
-    {
-      // if (exec_cuda && exec_cuda_batch && exec_seq)
-        // do_cycles<cuda_pol, cuda_batch_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+      {
+        if (exec_cuda && exec_cuda_batch && exec_seq)
+          do_cycles<cuda_pol, cuda_batch_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
 
-      // if (exec_cuda && exec_cuda_batch && exec_cuda_batch)
-        // do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+        if (exec_cuda && exec_cuda_batch && exec_cuda_batch)
+          do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
 
-      // if (exec_cuda && exec_cuda_persistent && exec_seq)
-        // do_cycles<cuda_pol, cuda_persistent_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+        if (exec_cuda && exec_cuda_persistent && exec_seq)
+          do_cycles<cuda_pol, cuda_persistent_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
 
-      // if (exec_cuda && exec_cuda_persistent && exec_cuda_persistent)
-        // do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+        if (exec_cuda && exec_cuda_persistent && exec_cuda_persistent)
+          do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
 
 
-      SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
+        SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
-      // if (exec_cuda && exec_cuda_batch_fewgs && exec_seq)
-        // do_cycles<cuda_pol, cuda_batch_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+        if (exec_cuda && exec_cuda_batch_fewgs && exec_seq)
+          do_cycles<cuda_pol, cuda_batch_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
 
-      // if (exec_cuda && exec_cuda_batch_fewgs && exec_cuda_batch_fewgs)
-        // do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+        if (exec_cuda && exec_cuda_batch_fewgs && exec_cuda_batch_fewgs)
+          do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
 
-      // if (exec_cuda && exec_cuda_persistent_fewgs && exec_seq)
-        // do_cycles<cuda_pol, cuda_persistent_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+        if (exec_cuda && exec_cuda_persistent_fewgs && exec_seq)
+          do_cycles<cuda_pol, cuda_persistent_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
 
-      // if (exec_cuda && exec_cuda_persistent_fewgs && exec_cuda_persistent_fewgs)
-        // do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+        if (exec_cuda && exec_cuda_persistent_fewgs && exec_cuda_persistent_fewgs)
+          do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
+      }
     }
 #endif
 
@@ -1522,8 +1528,10 @@ int main(int argc, char** argv)
 #endif
 
 #ifdef COMB_ENABLE_CUDA
-    // if (exec_cuda && exec_mpi_type && exec_mpi_type)
-      // do_cycles<cuda_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
+    if (detail::cuda::get_properties().pageableMemoryAccess) {
+      if (exec_cuda && exec_mpi_type && exec_mpi_type)
+        do_cycles<cuda_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
+    }
 #endif
   }
 
@@ -1607,7 +1615,7 @@ int main(int argc, char** argv)
       do_cycles<cuda_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
   }
 
-  // device allocated
+  // device allocated (not accessible on the host)
   if (memory_cuda_device) {
     Allocator& mesh_aloc = device_alloc;
 
