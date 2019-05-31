@@ -108,6 +108,7 @@ The runtime options change the properties of the grid and its decomposition, as 
           -   __cuda_managed_host_preferred_device_accessed__ cuda managed with host preferred and device accessed advice memory space
           -   __cuda_managed_device_preferred__ cuda managed with device preferred advice memory space
           -   __cuda_managed_device_preferred_host_accessed__ cuda managed with device preferred and host accessed advice memory space
+  -   __\-cuda_aware_mpi__ Assert that you are using a cuda aware mpi implementation and enable tests that pass cuda device or managed memory to MPI
 
 ### Example Script
 
