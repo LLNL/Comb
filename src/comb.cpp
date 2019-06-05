@@ -885,70 +885,73 @@ int main(int argc, char** argv)
       } else if (strcmp(&argv[i][1], "exec") == 0) {
         if (i+1 < argc && argv[i+1][0] != '-') {
           ++i;
-          int enabledisable = -1;
-          if (strcmp(argv[i], "enable") == 0) {
-            enabledisable = 1;
-          } else if (strcmp(argv[i], "disable") == 0) {
-            enabledisable = 0;
-          }
-          if (enabledisable == -1) {
-            comminfo.print(FileGroup::err_master, "Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
-          } else if (i+1 < argc && argv[i+1][0] != '-') {
-            ++i;
-            if (strcmp(argv[i], "all") == 0) {
-              exec_seq = (bool)enabledisable;
-#ifdef COMB_ENABLE_OPENMP
-              exec_omp = (bool)enabledisable;
-#endif
-#ifdef COMB_ENABLE_CUDA
-              exec_cuda = (bool)enabledisable;
-              exec_cuda_batch = (bool)enabledisable;
-              exec_cuda_persistent = (bool)enabledisable;
-              exec_cuda_batch_fewgs = (bool)enabledisable;
-              exec_cuda_persistent_fewgs = (bool)enabledisable;
-#endif
-#ifdef COMB_ENABLE_CUDA_GRAPH
-              exec_cuda_graph = (bool)enabledisable;
-#endif
-              exec_mpi_type = (bool)enabledisable;
-            } else if (strcmp(argv[i], "seq") == 0) {
-              exec_seq = (bool)enabledisable;
-            } else if (strcmp(argv[i], "omp") == 0 ||
-                       strcmp(argv[i], "openmp") == 0) {
-#ifdef COMB_ENABLE_OPENMP
-              exec_omp = (bool)enabledisable;
-#endif
-            } else if (strcmp(argv[i], "cuda") == 0) {
-#ifdef COMB_ENABLE_CUDA
-              exec_cuda = (bool)enabledisable;
-#endif
-            } else if (strcmp(argv[i], "cuda_batch") == 0) {
-#ifdef COMB_ENABLE_CUDA
-              exec_cuda_batch = (bool)enabledisable;
-#endif
-            } else if (strcmp(argv[i], "cuda_persistent") == 0) {
-#ifdef COMB_ENABLE_CUDA
-              exec_cuda_persistent = (bool)enabledisable;
-#endif
-            } else if (strcmp(argv[i], "cuda_batch_fewgs") == 0) {
-#ifdef COMB_ENABLE_CUDA
-              exec_cuda_batch_fewgs = (bool)enabledisable;
-#endif
-            } else if (strcmp(argv[i], "cuda_persistent_fewgs") == 0) {
-#ifdef COMB_ENABLE_CUDA
-              exec_cuda_persistent_fewgs = (bool)enabledisable;
-#endif
-            } else if (strcmp(argv[i], "cuda_graph") == 0) {
-#ifdef COMB_ENABLE_CUDA_GRAPH
-              exec_cuda_graph = (bool)enabledisable;
-#endif
-            } else if (strcmp(argv[i], "mpi_type") == 0) {
-              exec_mpi_type = (bool)enabledisable;
+          if ( strcmp(argv[i], "enable") == 0
+            || strcmp(argv[i], "disable") == 0 ) {
+            bool enabledisable = false;
+            if (strcmp(argv[i], "enable") == 0) {
+              enabledisable = true;
+            } else if (strcmp(argv[i], "disable") == 0) {
+              enabledisable = false;
+            }
+            if (i+1 < argc && argv[i+1][0] != '-') {
+              ++i;
+              if (strcmp(argv[i], "all") == 0) {
+                exec_seq = enabledisable;
+  #ifdef COMB_ENABLE_OPENMP
+                exec_omp = enabledisable;
+  #endif
+  #ifdef COMB_ENABLE_CUDA
+                exec_cuda = enabledisable;
+                exec_cuda_batch = enabledisable;
+                exec_cuda_persistent = enabledisable;
+                exec_cuda_batch_fewgs = enabledisable;
+                exec_cuda_persistent_fewgs = enabledisable;
+  #endif
+  #ifdef COMB_ENABLE_CUDA_GRAPH
+                exec_cuda_graph = enabledisable;
+  #endif
+                exec_mpi_type = enabledisable;
+              } else if (strcmp(argv[i], "seq") == 0) {
+                exec_seq = enabledisable;
+              } else if (strcmp(argv[i], "omp") == 0 ||
+                         strcmp(argv[i], "openmp") == 0) {
+  #ifdef COMB_ENABLE_OPENMP
+                exec_omp = enabledisable;
+  #endif
+              } else if (strcmp(argv[i], "cuda") == 0) {
+  #ifdef COMB_ENABLE_CUDA
+                exec_cuda = enabledisable;
+  #endif
+              } else if (strcmp(argv[i], "cuda_batch") == 0) {
+  #ifdef COMB_ENABLE_CUDA
+                exec_cuda_batch = enabledisable;
+  #endif
+              } else if (strcmp(argv[i], "cuda_persistent") == 0) {
+  #ifdef COMB_ENABLE_CUDA
+                exec_cuda_persistent = enabledisable;
+  #endif
+              } else if (strcmp(argv[i], "cuda_batch_fewgs") == 0) {
+  #ifdef COMB_ENABLE_CUDA
+                exec_cuda_batch_fewgs = enabledisable;
+  #endif
+              } else if (strcmp(argv[i], "cuda_persistent_fewgs") == 0) {
+  #ifdef COMB_ENABLE_CUDA
+                exec_cuda_persistent_fewgs = enabledisable;
+  #endif
+              } else if (strcmp(argv[i], "cuda_graph") == 0) {
+  #ifdef COMB_ENABLE_CUDA_GRAPH
+                exec_cuda_graph = enabledisable;
+  #endif
+              } else if (strcmp(argv[i], "mpi_type") == 0) {
+                exec_mpi_type = enabledisable;
+              } else {
+                comminfo.print(FileGroup::err_master, "Invalid argument to sub-option, ignoring %s %s %s.\n", argv[i-2], argv[i-1], argv[i]);
+              }
             } else {
-              comminfo.print(FileGroup::err_master, "Invalid argument to sub-option, ignoring %s %s %s.\n", argv[i-2], argv[i-1], argv[i]);
+              comminfo.print(FileGroup::err_master, "No argument to sub-option, ignoring %s %s.\n", argv[i-1], argv[i]);
             }
           } else {
-            comminfo.print(FileGroup::err_master, "No argument to sub-option, ignoring %s %s.\n", argv[i-1], argv[i]);
+            comminfo.print(FileGroup::err_master, "Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
           }
         } else {
           comminfo.print(FileGroup::err_master, "No argument to option, ignoring %s.\n", argv[i]);
@@ -956,62 +959,65 @@ int main(int argc, char** argv)
       } else if (strcmp(&argv[i][1], "memory") == 0) {
         if (i+1 < argc && argv[i+1][0] != '-') {
           ++i;
-          int enabledisable = -1;
-          if (strcmp(argv[i], "enable") == 0) {
-            enabledisable = 1;
-          } else if (strcmp(argv[i], "disable") == 0) {
-            enabledisable = 0;
-          }
-          if (enabledisable == -1) {
-            comminfo.print(FileGroup::err_master, "Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
-          } else if (i+1 < argc && argv[i+1][0] != '-') {
-            ++i;
-            if (strcmp(argv[i], "all") == 0) {
-              memory_host = (bool)enabledisable;
-#ifdef COMB_ENABLE_CUDA
-              memory_cuda_pinned = (bool)enabledisable;
-              memory_cuda_device = (bool)enabledisable;
-              memory_cuda_managed = (bool)enabledisable;
-              memory_cuda_managed_host_preferred = (bool)enabledisable;
-              memory_cuda_managed_host_preferred_device_accessed = (bool)enabledisable;
-              memory_cuda_managed_device_preferred = (bool)enabledisable;
-              memory_cuda_managed_device_preferred_host_accessed = (bool)enabledisable;
-#endif
-            } else if (strcmp(argv[i], "host") == 0) {
-              memory_host = (bool)enabledisable;
-            } else if (strcmp(argv[i], "cuda_pinned") == 0) {
-#ifdef COMB_ENABLE_CUDA
-              memory_cuda_pinned = (bool)enabledisable;
-#endif
-            } else if (strcmp(argv[i], "cuda_device") == 0) {
-#ifdef COMB_ENABLE_CUDA
-              memory_cuda_device = (bool)enabledisable;
-#endif
-            } else if (strcmp(argv[i], "cuda_managed") == 0) {
-#ifdef COMB_ENABLE_CUDA
-              memory_cuda_managed = (bool)enabledisable;
-#endif
-            } else if (strcmp(argv[i], "cuda_managed_host_preferred") == 0) {
-#ifdef COMB_ENABLE_CUDA
-              memory_cuda_managed_host_preferred = (bool)enabledisable;
-#endif
-            } else if (strcmp(argv[i], "cuda_managed_host_preferred_device_accessed") == 0) {
-#ifdef COMB_ENABLE_CUDA
-              memory_cuda_managed_host_preferred_device_accessed = (bool)enabledisable;
-#endif
-            } else if (strcmp(argv[i], "cuda_managed_device_preferred") == 0) {
-#ifdef COMB_ENABLE_CUDA
-              memory_cuda_managed_device_preferred = (bool)enabledisable;
-#endif
-            } else if (strcmp(argv[i], "cuda_managed_device_preferred_host_accessed") == 0) {
-#ifdef COMB_ENABLE_CUDA
-              memory_cuda_managed_device_preferred_host_accessed = (bool)enabledisable;
-#endif
+          if ( strcmp(argv[i], "enable") == 0
+            || strcmp(argv[i], "disable") == 0 ) {
+            bool enabledisable = false;
+            if (strcmp(argv[i], "enable") == 0) {
+              enabledisable = true;
+            } else if (strcmp(argv[i], "disable") == 0) {
+              enabledisable = false;
+            }
+            if (i+1 < argc && argv[i+1][0] != '-') {
+              ++i;
+              if (strcmp(argv[i], "all") == 0) {
+                memory_host = enabledisable;
+  #ifdef COMB_ENABLE_CUDA
+                memory_cuda_pinned = enabledisable;
+                memory_cuda_device = enabledisable;
+                memory_cuda_managed = enabledisable;
+                memory_cuda_managed_host_preferred = enabledisable;
+                memory_cuda_managed_host_preferred_device_accessed = enabledisable;
+                memory_cuda_managed_device_preferred = enabledisable;
+                memory_cuda_managed_device_preferred_host_accessed = enabledisable;
+  #endif
+              } else if (strcmp(argv[i], "host") == 0) {
+                memory_host = enabledisable;
+              } else if (strcmp(argv[i], "cuda_pinned") == 0) {
+  #ifdef COMB_ENABLE_CUDA
+                memory_cuda_pinned = enabledisable;
+  #endif
+              } else if (strcmp(argv[i], "cuda_device") == 0) {
+  #ifdef COMB_ENABLE_CUDA
+                memory_cuda_device = enabledisable;
+  #endif
+              } else if (strcmp(argv[i], "cuda_managed") == 0) {
+  #ifdef COMB_ENABLE_CUDA
+                memory_cuda_managed = enabledisable;
+  #endif
+              } else if (strcmp(argv[i], "cuda_managed_host_preferred") == 0) {
+  #ifdef COMB_ENABLE_CUDA
+                memory_cuda_managed_host_preferred = enabledisable;
+  #endif
+              } else if (strcmp(argv[i], "cuda_managed_host_preferred_device_accessed") == 0) {
+  #ifdef COMB_ENABLE_CUDA
+                memory_cuda_managed_host_preferred_device_accessed = enabledisable;
+  #endif
+              } else if (strcmp(argv[i], "cuda_managed_device_preferred") == 0) {
+  #ifdef COMB_ENABLE_CUDA
+                memory_cuda_managed_device_preferred = enabledisable;
+  #endif
+              } else if (strcmp(argv[i], "cuda_managed_device_preferred_host_accessed") == 0) {
+  #ifdef COMB_ENABLE_CUDA
+                memory_cuda_managed_device_preferred_host_accessed = enabledisable;
+  #endif
+              } else {
+                comminfo.print(FileGroup::err_master, "Invalid argument to sub-option, ignoring %s %s %s.\n", argv[i-2], argv[i-1], argv[i]);
+              }
             } else {
-              comminfo.print(FileGroup::err_master, "Invalid argument to sub-option, ignoring %s %s %s.\n", argv[i-2], argv[i-1], argv[i]);
+              comminfo.print(FileGroup::err_master, "No argument to sub-option, ignoring %s %s.\n", argv[i-1], argv[i]);
             }
           } else {
-            comminfo.print(FileGroup::err_master, "No argument to sub-option, ignoring %s %s.\n", argv[i-1], argv[i]);
+            comminfo.print(FileGroup::err_master, "Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
           }
         } else {
           comminfo.print(FileGroup::err_master, "No argument to option, ignoring %s.\n", argv[i]);
