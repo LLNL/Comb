@@ -761,10 +761,6 @@ int main(int argc, char** argv)
 
 
   // read command line arguments
-#ifdef COMB_ENABLE_CUDA
-  bool cuda_aware_mpi = false;
-#endif
-
 #ifdef COMB_ENABLE_OPENMP
   int omp_threads = -1;
 #endif
@@ -1086,7 +1082,7 @@ int main(int argc, char** argv)
         }
       } else if (strcmp(&argv[i][1], "cuda_aware_mpi") == 0) {
 #ifdef COMB_ENABLE_CUDA
-        cuda_aware_mpi = true;
+        exec_avail.cuda_aware_mpi = true;
 #else
         comminfo.print(FileGroup::err_master, "Not built with cuda, ignoring %s.\n", argv[i]);
 #endif
@@ -1797,7 +1793,7 @@ int main(int argc, char** argv)
       do_cycles<cuda_pol, cuda_graph_pol, cuda_graph_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, alloc.hostpinned, alloc.hostpinned, tm, tm_total);
 #endif
 
-    if (cuda_aware_mpi) {
+    if (exec_avail.cuda_aware_mpi) {
       if (detail::cuda::get_device_accessible_from_host()) {
         if (exec_avail.seq && exec_avail.mpi_type && exec_avail.mpi_type)
           do_cycles<seq_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
@@ -1890,7 +1886,7 @@ int main(int argc, char** argv)
       do_cycles<cuda_pol, cuda_graph_pol, cuda_graph_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, alloc.hostpinned, alloc.hostpinned, tm, tm_total);
 #endif
 
-    if (cuda_aware_mpi) {
+    if (exec_avail.cuda_aware_mpi) {
       if (exec_avail.seq && exec_avail.mpi_type && exec_avail.mpi_type)
         do_cycles<seq_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
 
@@ -1979,7 +1975,7 @@ int main(int argc, char** argv)
       do_cycles<cuda_pol, cuda_graph_pol, cuda_graph_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, alloc.hostpinned, alloc.hostpinned, tm, tm_total);
 #endif
 
-    if (cuda_aware_mpi) {
+    if (exec_avail.cuda_aware_mpi) {
       if (exec_avail.seq && exec_avail.mpi_type && exec_avail.mpi_type)
         do_cycles<seq_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
 
@@ -2068,7 +2064,7 @@ int main(int argc, char** argv)
       do_cycles<cuda_pol, cuda_graph_pol, cuda_graph_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, alloc.hostpinned, alloc.hostpinned, tm, tm_total);
 #endif
 
-    if (cuda_aware_mpi) {
+    if (exec_avail.cuda_aware_mpi) {
       if (exec_avail.seq && exec_avail.mpi_type && exec_avail.mpi_type)
         do_cycles<seq_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
 
@@ -2157,7 +2153,7 @@ int main(int argc, char** argv)
       do_cycles<cuda_pol, cuda_graph_pol, cuda_graph_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, alloc.hostpinned, alloc.hostpinned, tm, tm_total);
 #endif
 
-    if (cuda_aware_mpi) {
+    if (exec_avail.cuda_aware_mpi) {
       if (exec_avail.seq && exec_avail.mpi_type && exec_avail.mpi_type)
         do_cycles<seq_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
 
@@ -2246,7 +2242,7 @@ int main(int argc, char** argv)
       do_cycles<cuda_pol, cuda_graph_pol, cuda_graph_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, alloc.hostpinned, alloc.hostpinned, tm, tm_total);
 #endif
 
-    if (cuda_aware_mpi) {
+    if (exec_avail.cuda_aware_mpi) {
       if (exec_avail.seq && exec_avail.mpi_type && exec_avail.mpi_type)
         do_cycles<seq_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
 

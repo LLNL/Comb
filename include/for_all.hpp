@@ -198,6 +198,8 @@ struct ExecutorsAvailable
   bool cuda_persistent_fewgs = false;
   bool cuda_graph = false;
   bool mpi_type = false;
+  // special flag to enable tests that pass device buffers to MPI
+  bool cuda_aware_mpi = false;
 };
 
 #endif // _FOR_ALL_HPP
