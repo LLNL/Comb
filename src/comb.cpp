@@ -763,7 +763,6 @@ int main(int argc, char** argv)
   // read command line arguments
 #ifdef COMB_ENABLE_CUDA
   bool cuda_aware_mpi = false;
-  bool cuda_host_accessible_from_device = false;
 #endif
 
 #ifdef COMB_ENABLE_OPENMP
@@ -1093,7 +1092,7 @@ int main(int argc, char** argv)
 #endif
       } else if (strcmp(&argv[i][1], "cuda_host_accessible_from_device") == 0) {
 #ifdef COMB_ENABLE_CUDA
-        cuda_host_accessible_from_device = true;
+        memory_avail.cuda_host_accessible_from_device = detail::cuda::get_host_accessible_from_device();
 #else
         comminfo.print(FileGroup::err_master, "Not built with cuda, ignoring %s.\n", argv[i]);
 #endif
@@ -1298,7 +1297,7 @@ int main(int argc, char** argv)
 #endif
 
 #ifdef COMB_ENABLE_CUDA
-    if (detail::cuda::get_host_accessible_from_device() && cuda_host_accessible_from_device) {
+    if (memory_avail.cuda_host_accessible_from_device) {
 
       if (exec_avail.cuda) do_copy<cuda_pol>(comminfo, alloc.host, alloc.host, tm, num_vars, info.totallen, ncycles);
 
@@ -1550,7 +1549,7 @@ int main(int argc, char** argv)
 #endif
 
 #ifdef COMB_ENABLE_CUDA
-    if (detail::cuda::get_host_accessible_from_device() && cuda_host_accessible_from_device) {
+    if (memory_avail.cuda_host_accessible_from_device) {
       if (exec_avail.cuda && exec_avail.seq && exec_avail.seq)
         do_cycles<cuda_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, alloc.host, alloc.host, tm, tm_total);
 
@@ -1616,7 +1615,7 @@ int main(int argc, char** argv)
 #endif
 
 #ifdef COMB_ENABLE_CUDA
-    if (detail::cuda::get_host_accessible_from_device() && cuda_host_accessible_from_device) {
+    if (memory_avail.cuda_host_accessible_from_device) {
       if (exec_avail.cuda && exec_avail.mpi_type && exec_avail.mpi_type)
         do_cycles<cuda_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
     }

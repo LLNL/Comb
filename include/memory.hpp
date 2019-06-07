@@ -298,6 +298,8 @@ struct AllocatorsAvailable
   bool managed_host_preferred_device_accessed = false;
   bool managed_device_preferred = false;
   bool managed_device_preferred_host_accessed = false;
+  // special flag to enable tests that access host pageable memory from the device
+  bool cuda_host_accessible_from_device = false;
 };
 
 } // namespace COMB
