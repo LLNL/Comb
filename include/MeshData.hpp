@@ -23,11 +23,11 @@
 
 struct MeshData
 {
-  Allocator& aloc;
+  COMB::Allocator& aloc;
   MeshInfo const& info;
   DataT* ptr;
 
-  MeshData(MeshInfo const& meshinfo, Allocator& aloc_)
+  MeshData(MeshInfo const& meshinfo, COMB::Allocator& aloc_)
     : aloc(aloc_)
     , info(meshinfo)
     , ptr(nullptr)

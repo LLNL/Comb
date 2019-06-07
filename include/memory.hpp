@@ -23,7 +23,11 @@
 
 #include "basic_mempool.hpp"
 
-#include "cuda_utils.hpp"
+#include "utils_cuda.hpp"
+
+namespace COMB {
+
+namespace detail {
 
 template < typename alloc >
 using mempool = RAJA::basic_mempool::MemPool<alloc>;
@@ -125,14 +129,9 @@ using mempool = RAJA::basic_mempool::MemPool<alloc>;
   };
 #endif
 
-struct Allocator
-{
-  virtual const char* name() = 0;
-  virtual void* allocate(size_t) = 0;
-  virtual void deallocate(void*) = 0;
-};
+} // end detail
 
-struct NullAllocator : Allocator
+struct Allocator
 {
   virtual const char* name() { return "Null"; }
   virtual void* allocate(size_t nbytes)
@@ -151,119 +150,145 @@ struct NullAllocator : Allocator
 
 struct HostAllocator : Allocator
 {
-  virtual const char* name() { return "Host"; }
-  virtual void* allocate(size_t nbytes)
+  const char* name() override { return "Host"; }
+  void* allocate(size_t nbytes) override
   {
     void* ptr = malloc(nbytes);
     // FPRINTF(stdout, "allocated %p nbytes %zu\n", ptr, nbytes);
     return ptr;
   }
-  virtual void deallocate(void* ptr)
+  void deallocate(void* ptr) override
   {
     // FPRINTF(stdout, "deallocating %p\n", ptr);
     free(ptr);
   }
 };
 
-#ifdef COMB_ENABLE_CUDA
 struct HostPinnedAllocator : Allocator
 {
-  virtual const char* name() { return "HostPinned"; }
-  virtual void* allocate(size_t nbytes)
+#ifdef COMB_ENABLE_CUDA
+  const char* name() override { return "HostPinned"; }
+  void* allocate(size_t nbytes) override
   {
-    void* ptr = mempool<cuda_host_pinned_allocator>::getInstance().malloc<char>(nbytes);
+    void* ptr = detail::mempool<detail::cuda_host_pinned_allocator>::getInstance().malloc<char>(nbytes);
     return ptr;
   }
-  virtual void deallocate(void* ptr)
+  void deallocate(void* ptr) override
   {
-    mempool<cuda_host_pinned_allocator>::getInstance().free(ptr);
+    detail::mempool<detail::cuda_host_pinned_allocator>::getInstance().free(ptr);
   }
+#endif
 };
 
 struct DeviceAllocator : Allocator
 {
-  virtual const char* name() { return "Device"; }
-  virtual void* allocate(size_t nbytes)
+#ifdef COMB_ENABLE_CUDA
+  const char* name() override { return "Device"; }
+  void* allocate(size_t nbytes) override
   {
-    void* ptr = mempool<cuda_device_allocator>::getInstance().malloc<char>(nbytes);
+    void* ptr = detail::mempool<detail::cuda_device_allocator>::getInstance().malloc<char>(nbytes);
     return ptr;
   }
-  virtual void deallocate(void* ptr)
+  void deallocate(void* ptr) override
   {
-    mempool<cuda_device_allocator>::getInstance().free(ptr);
+    detail::mempool<detail::cuda_device_allocator>::getInstance().free(ptr);
   }
+#endif
 };
 
 struct ManagedAllocator : Allocator
 {
-  virtual const char* name() { return "Managed"; }
-  virtual void* allocate(size_t nbytes)
+#ifdef COMB_ENABLE_CUDA
+  const char* name() override { return "Managed"; }
+  void* allocate(size_t nbytes) override
   {
-    void* ptr = mempool<cuda_managed_allocator>::getInstance().malloc<char>(nbytes);
+    void* ptr = detail::mempool<detail::cuda_managed_allocator>::getInstance().malloc<char>(nbytes);
     return ptr;
   }
-  virtual void deallocate(void* ptr)
+  void deallocate(void* ptr) override
   {
-    mempool<cuda_managed_allocator>::getInstance().free(ptr);
+    detail::mempool<detail::cuda_managed_allocator>::getInstance().free(ptr);
   }
+#endif
 };
 
 struct ManagedHostPreferredAllocator : Allocator
 {
-  virtual const char* name() { return "ManagedHostPreferred"; }
-  virtual void* allocate(size_t nbytes)
+#ifdef COMB_ENABLE_CUDA
+  const char* name() override { return "ManagedHostPreferred"; }
+  void* allocate(size_t nbytes) override
   {
-    void* ptr = mempool<cuda_managed_host_preferred_allocator>::getInstance().malloc<char>(nbytes);
+    void* ptr = detail::mempool<detail::cuda_managed_host_preferred_allocator>::getInstance().malloc<char>(nbytes);
     return ptr;
   }
-  virtual void deallocate(void* ptr)
+  void deallocate(void* ptr) override
   {
-    mempool<cuda_managed_host_preferred_allocator>::getInstance().free(ptr);
+    detail::mempool<detail::cuda_managed_host_preferred_allocator>::getInstance().free(ptr);
   }
+#endif
 };
 
 struct ManagedHostPreferredDeviceAccessedAllocator : Allocator
 {
-  virtual const char* name() { return "ManagedHostPreferredDeviceAccessed"; }
-  virtual void* allocate(size_t nbytes)
+#ifdef COMB_ENABLE_CUDA
+  const char* name() override { return "ManagedHostPreferredDeviceAccessed"; }
+  void* allocate(size_t nbytes) override
   {
-    void* ptr = mempool<cuda_managed_host_preferred_device_accessed_allocator>::getInstance().malloc<char>(nbytes);
+    void* ptr = detail::mempool<detail::cuda_managed_host_preferred_device_accessed_allocator>::getInstance().malloc<char>(nbytes);
     return ptr;
   }
-  virtual void deallocate(void* ptr)
+  void deallocate(void* ptr) override
   {
-    mempool<cuda_managed_host_preferred_device_accessed_allocator>::getInstance().free(ptr);
+    detail::mempool<detail::cuda_managed_host_preferred_device_accessed_allocator>::getInstance().free(ptr);
   }
+#endif
 };
 
 struct ManagedDevicePreferredAllocator : Allocator
 {
-  virtual const char* name() { return "ManagedDevicePreferred"; }
-  virtual void* allocate(size_t nbytes)
+#ifdef COMB_ENABLE_CUDA
+  const char* name() override { return "ManagedDevicePreferred"; }
+  void* allocate(size_t nbytes) override
   {
-    void* ptr = mempool<cuda_managed_device_preferred_allocator>::getInstance().malloc<char>(nbytes);
+    void* ptr = detail::mempool<detail::cuda_managed_device_preferred_allocator>::getInstance().malloc<char>(nbytes);
     return ptr;
   }
-  virtual void deallocate(void* ptr)
+  void deallocate(void* ptr) override
   {
-    mempool<cuda_managed_device_preferred_allocator>::getInstance().free(ptr);
+    detail::mempool<detail::cuda_managed_device_preferred_allocator>::getInstance().free(ptr);
   }
+#endif
 };
 
 struct ManagedDevicePreferredHostAccessedAllocator : Allocator
 {
-  virtual const char* name() { return "ManagedDevicePreferredHostAccessed"; }
-  virtual void* allocate(size_t nbytes)
+#ifdef COMB_ENABLE_CUDA
+  const char* name() override { return "ManagedDevicePreferredHostAccessed"; }
+  void* allocate(size_t nbytes) override
   {
-    void* ptr = mempool<cuda_managed_device_preferred_host_accessed_allocator>::getInstance().malloc<char>(nbytes);
+    void* ptr = detail::mempool<detail::cuda_managed_device_preferred_host_accessed_allocator>::getInstance().malloc<char>(nbytes);
     return ptr;
   }
-  virtual void deallocate(void* ptr)
+  void deallocate(void* ptr) override
   {
-    mempool<cuda_managed_device_preferred_host_accessed_allocator>::getInstance().free(ptr);
+    detail::mempool<detail::cuda_managed_device_preferred_host_accessed_allocator>::getInstance().free(ptr);
   }
-};
 #endif
+};
+
+struct Allocators
+{
+  HostAllocator host;
+  HostPinnedAllocator hostpinned;
+  DeviceAllocator device;
+  ManagedAllocator managed;
+  ManagedHostPreferredAllocator managed_host_preferred;
+  ManagedHostPreferredDeviceAccessedAllocator managed_host_preferred_device_accessed;
+  ManagedDevicePreferredAllocator managed_device_preferred;
+  ManagedDevicePreferredHostAccessedAllocator managed_device_preferred_host_accessed;
+};
+
+} // namespace COMB
 
 #endif // _MEMORY_HPP
 

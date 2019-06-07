@@ -266,11 +266,11 @@ struct Message
   {
     DataT* data;
     LidxT* indices;
-    Allocator& aloc;
+    COMB::Allocator& aloc;
     IdxT size;
     MPI_Datatype mpi_type;
     IdxT mpi_pack_max_nbytes;
-    list_item_type(DataT* data_, LidxT* indices_, Allocator& aloc_, IdxT size_,
+    list_item_type(DataT* data_, LidxT* indices_, COMB::Allocator& aloc_, IdxT size_,
                    MPI_Datatype mpi_type_, IdxT mpi_pack_max_nbytes_)
      : data(data_), indices(indices_), aloc(aloc_), size(size_),
        mpi_type(mpi_type_), mpi_pack_max_nbytes(mpi_pack_max_nbytes_)
@@ -325,7 +325,7 @@ struct Message
     return m_have_many;
   }
 
-  void add(DataT* data, LidxT* indices, Allocator& aloc, IdxT size, MPI_Datatype mpi_type, IdxT mpi_pack_max_nbytes)
+  void add(DataT* data, LidxT* indices, COMB::Allocator& aloc, IdxT size, MPI_Datatype mpi_type, IdxT mpi_pack_max_nbytes)
   {
     items.emplace_back(data, indices, aloc, size, mpi_type, mpi_pack_max_nbytes);
     if (items.back().mpi_type != MPI_DATATYPE_NULL) {
@@ -451,14 +451,14 @@ struct Message
   }
 
   template < typename policy >
-  void allocate(policy const&, Allocator& buf_aloc)
+  void allocate(policy const&, COMB::Allocator& buf_aloc)
   {
     if (m_buf == nullptr) {
       m_buf = (DataT*)buf_aloc.allocate(nbytes());
     }
   }
 
-  void allocate(mpi_type_pol const&, Allocator& buf_aloc)
+  void allocate(mpi_type_pol const&, COMB::Allocator& buf_aloc)
   {
     if (m_buf == nullptr) {
       if (items.size() == 1) {
@@ -470,7 +470,7 @@ struct Message
   }
 
   template < typename policy >
-  void deallocate(policy const&, Allocator& buf_aloc)
+  void deallocate(policy const&, COMB::Allocator& buf_aloc)
   {
     if (m_buf != nullptr) {
       buf_aloc.deallocate(m_buf);
@@ -511,9 +511,9 @@ struct Comm
   static_assert(pol_many_is_mpi_type == pol_few_is_mpi_type,
       "pol_many and pol_few must both be mpi_type_pol if either is mpi_type_pol");
 
-  Allocator& mesh_aloc;
-  Allocator& many_aloc;
-  Allocator& few_aloc;
+  COMB::Allocator& mesh_aloc;
+  COMB::Allocator& many_aloc;
+  COMB::Allocator& few_aloc;
 
   CommInfo comminfo;
 
@@ -527,16 +527,12 @@ struct Comm
   std::vector<typename policy_many::event_type> m_many_events;
   std::vector<typename policy_few::event_type> m_few_events;
 
-  Comm(CommInfo const& comminfo_, Allocator& mesh_aloc_, Allocator& many_aloc_, Allocator& few_aloc_)
+  Comm(CommInfo const& comminfo_, COMB::Allocator& mesh_aloc_, COMB::Allocator& many_aloc_, COMB::Allocator& few_aloc_)
     : mesh_aloc(mesh_aloc_)
     , many_aloc(many_aloc_)
     , few_aloc(few_aloc_)
     , comminfo(comminfo_)
   {
-    // check allocators are consistent with policies
-    // assert((pol_many_is_mpi_type == (strcmp(many_aloc.name(), "Null") == 0)) && "Must use NullAllocator with mpi_type_pol");
-    // assert((pol_few_is_mpi_type  == (strcmp(few_aloc.name(),  "Null") == 0)) && "Must use NullAllocator with mpi_type_pol");
-
     // set name of communicator
     // include name of memory space if using mpi datatypes for pack/unpack
     char comm_name[MPI_MAX_OBJECT_NAME] = "";
