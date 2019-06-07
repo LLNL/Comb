@@ -288,6 +288,18 @@ struct Allocators
   ManagedDevicePreferredHostAccessedAllocator managed_device_preferred_host_accessed;
 };
 
+struct AllocatorsAvailable
+{
+  bool host = false;
+  bool hostpinned = false;
+  bool device = false;
+  bool managed = false;
+  bool managed_host_preferred = false;
+  bool managed_host_preferred_device_accessed = false;
+  bool managed_device_preferred = false;
+  bool managed_device_preferred_host_accessed = false;
+};
+
 } // namespace COMB
 
 #endif // _MEMORY_HPP

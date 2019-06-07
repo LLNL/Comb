@@ -791,16 +791,10 @@ int main(int argc, char** argv)
   bool exec_cuda_graph = false;
 #endif
   bool exec_mpi_type = false;
-  bool memory_host = true;
-#ifdef COMB_ENABLE_CUDA
-  bool memory_cuda_pinned = false;
-  bool memory_cuda_device = false;
-  bool memory_cuda_managed = false;
-  bool memory_cuda_managed_host_preferred = false;
-  bool memory_cuda_managed_host_preferred_device_accessed = false;
-  bool memory_cuda_managed_device_preferred = false;
-  bool memory_cuda_managed_device_preferred_host_accessed = false;
-#endif
+
+  // stores whether each memory type is available for use
+  COMB::AllocatorsAvailable memory_avail;
+  memory_avail.host = true;
 
   IdxT i = 1;
   IdxT s = 0;
@@ -970,45 +964,45 @@ int main(int argc, char** argv)
             if (i+1 < argc && argv[i+1][0] != '-') {
               ++i;
               if (strcmp(argv[i], "all") == 0) {
-                memory_host = enabledisable;
+                memory_avail.host = enabledisable;
   #ifdef COMB_ENABLE_CUDA
-                memory_cuda_pinned = enabledisable;
-                memory_cuda_device = enabledisable;
-                memory_cuda_managed = enabledisable;
-                memory_cuda_managed_host_preferred = enabledisable;
-                memory_cuda_managed_host_preferred_device_accessed = enabledisable;
-                memory_cuda_managed_device_preferred = enabledisable;
-                memory_cuda_managed_device_preferred_host_accessed = enabledisable;
+                memory_avail.cuda_pinned = enabledisable;
+                memory_avail.cuda_device = enabledisable;
+                memory_avail.cuda_managed = enabledisable;
+                memory_avail.cuda_managed_host_preferred = enabledisable;
+                memory_avail.cuda_managed_host_preferred_device_accessed = enabledisable;
+                memory_avail.cuda_managed_device_preferred = enabledisable;
+                memory_avail.cuda_managed_device_preferred_host_accessed = enabledisable;
   #endif
               } else if (strcmp(argv[i], "host") == 0) {
-                memory_host = enabledisable;
+                memory_avail.host = enabledisable;
               } else if (strcmp(argv[i], "cuda_pinned") == 0) {
   #ifdef COMB_ENABLE_CUDA
-                memory_cuda_pinned = enabledisable;
+                memory_avail.cuda_pinned = enabledisable;
   #endif
               } else if (strcmp(argv[i], "cuda_device") == 0) {
   #ifdef COMB_ENABLE_CUDA
-                memory_cuda_device = enabledisable;
+                memory_avail.cuda_device = enabledisable;
   #endif
               } else if (strcmp(argv[i], "cuda_managed") == 0) {
   #ifdef COMB_ENABLE_CUDA
-                memory_cuda_managed = enabledisable;
+                memory_avail.cuda_managed = enabledisable;
   #endif
               } else if (strcmp(argv[i], "cuda_managed_host_preferred") == 0) {
   #ifdef COMB_ENABLE_CUDA
-                memory_cuda_managed_host_preferred = enabledisable;
+                memory_avail.cuda_managed_host_preferred = enabledisable;
   #endif
               } else if (strcmp(argv[i], "cuda_managed_host_preferred_device_accessed") == 0) {
   #ifdef COMB_ENABLE_CUDA
-                memory_cuda_managed_host_preferred_device_accessed = enabledisable;
+                memory_avail.cuda_managed_host_preferred_device_accessed = enabledisable;
   #endif
               } else if (strcmp(argv[i], "cuda_managed_device_preferred") == 0) {
   #ifdef COMB_ENABLE_CUDA
-                memory_cuda_managed_device_preferred = enabledisable;
+                memory_avail.cuda_managed_device_preferred = enabledisable;
   #endif
               } else if (strcmp(argv[i], "cuda_managed_device_preferred_host_accessed") == 0) {
   #ifdef COMB_ENABLE_CUDA
-                memory_cuda_managed_device_preferred_host_accessed = enabledisable;
+                memory_avail.cuda_managed_device_preferred_host_accessed = enabledisable;
   #endif
               } else {
                 comminfo.print(FileGroup::err_master, "Invalid argument to sub-option, ignoring %s %s %s.\n", argv[i-2], argv[i-1], argv[i]);
@@ -1304,7 +1298,7 @@ int main(int argc, char** argv)
   }
 
   // host memory
-  if (memory_host) {
+  if (memory_avail.host) {
     char name[1024] = ""; snprintf(name, 1024, "set_vars %s", alloc.host.name());
     Range r0(name, Range::green);
 
@@ -1339,7 +1333,7 @@ int main(int argc, char** argv)
   }
 
 #ifdef COMB_ENABLE_CUDA
-  if (memory_cuda_pinned) {
+  if (memory_avail.cuda_pinned) {
     char name[1024] = ""; snprintf(name, 1024, "set_vars %s", alloc.hostpinned.name());
     Range r0(name, Range::green);
 
@@ -1368,7 +1362,7 @@ int main(int argc, char** argv)
 #endif
   }
 
-  if (memory_cuda_device) {
+  if (memory_avail.cuda_device) {
     char name[1024] = ""; snprintf(name, 1024, "set_vars %s", alloc.device.name());
     Range r0(name, Range::green);
 
@@ -1399,7 +1393,7 @@ int main(int argc, char** argv)
 #endif
   }
 
-  if (memory_cuda_managed) {
+  if (memory_avail.cuda_managed) {
     char name[1024] = ""; snprintf(name, 1024, "set_vars %s", alloc.managed.name());
     Range r0(name, Range::green);
 
@@ -1428,7 +1422,7 @@ int main(int argc, char** argv)
 #endif
   }
 
-  if (memory_cuda_managed_host_preferred) {
+  if (memory_avail.cuda_managed_host_preferred) {
     char name[1024] = ""; snprintf(name, 1024, "set_vars %s", alloc.managed_host_preferred.name());
     Range r0(name, Range::green);
 
@@ -1457,7 +1451,7 @@ int main(int argc, char** argv)
 #endif
   }
 
-  if (memory_cuda_managed_host_preferred_device_accessed) {
+  if (memory_avail.cuda_managed_host_preferred_device_accessed) {
     char name[1024] = ""; snprintf(name, 1024, "set_vars %s", alloc.managed_host_preferred_device_accessed.name());
     Range r0(name, Range::green);
 
@@ -1486,7 +1480,7 @@ int main(int argc, char** argv)
 #endif
   }
 
-  if (memory_cuda_managed_device_preferred) {
+  if (memory_avail.cuda_managed_device_preferred) {
     char name[1024] = ""; snprintf(name, 1024, "set_vars %s", alloc.managed_device_preferred.name());
     Range r0(name, Range::green);
 
@@ -1515,7 +1509,7 @@ int main(int argc, char** argv)
 #endif
   }
 
-  if (memory_cuda_managed_device_preferred_host_accessed) {
+  if (memory_avail.cuda_managed_device_preferred_host_accessed) {
     char name[1024] = ""; snprintf(name, 1024, "set_vars %s", alloc.managed_device_preferred_host_accessed.name());
     Range r0(name, Range::green);
 
@@ -1546,7 +1540,7 @@ int main(int argc, char** argv)
 #endif // COMB_ENABLE_CUDA
 
   // host allocated
-  if (memory_host) {
+  if (memory_avail.host) {
     COMB::Allocator& mesh_aloc = alloc.host;
 
     char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.name());
@@ -1642,7 +1636,7 @@ int main(int argc, char** argv)
 
 #ifdef COMB_ENABLE_CUDA
   // host pinned allocated
-  if (memory_cuda_pinned) {
+  if (memory_avail.cuda_pinned) {
     COMB::Allocator& mesh_aloc = alloc.hostpinned;
 
     char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.name());
@@ -1729,7 +1723,7 @@ int main(int argc, char** argv)
   }
 
   // device allocated
-  if (memory_cuda_device) {
+  if (memory_avail.cuda_device) {
     COMB::Allocator& mesh_aloc = alloc.device;
 
     char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.name());
@@ -1834,7 +1828,7 @@ int main(int argc, char** argv)
   }
 
   // managed allocated
-  if (memory_cuda_managed) {
+  if (memory_avail.cuda_managed) {
     COMB::Allocator& mesh_aloc = alloc.managed;
 
     char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.name());
@@ -1923,7 +1917,7 @@ int main(int argc, char** argv)
   }
 
   // managed host preferred allocated
-  if (memory_cuda_managed_host_preferred) {
+  if (memory_avail.cuda_managed_host_preferred) {
     COMB::Allocator& mesh_aloc = alloc.managed_host_preferred;
 
     char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.name());
@@ -2012,7 +2006,7 @@ int main(int argc, char** argv)
   }
 
   // managed host preferred device accessed allocated
-  if (memory_cuda_managed_host_preferred_device_accessed) {
+  if (memory_avail.cuda_managed_host_preferred_device_accessed) {
     COMB::Allocator& mesh_aloc = alloc.managed_host_preferred_device_accessed;
 
     char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.name());
@@ -2101,7 +2095,7 @@ int main(int argc, char** argv)
   }
 
   // managed device preferred allocated
-  if (memory_cuda_managed_device_preferred) {
+  if (memory_avail.cuda_managed_device_preferred) {
     COMB::Allocator& mesh_aloc = alloc.managed_device_preferred;
 
     char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.name());
@@ -2190,7 +2184,7 @@ int main(int argc, char** argv)
   }
 
   // managed device preferred host accessed allocated
-  if (memory_cuda_managed_device_preferred_host_accessed) {
+  if (memory_avail.cuda_managed_device_preferred_host_accessed) {
     COMB::Allocator& mesh_aloc = alloc.managed_device_preferred_host_accessed;
 
     char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.name());
