@@ -135,11 +135,17 @@ extern void test_copy(CommInfo& comminfo,
                       COMB::ExecutorsAvailable& exec_avail,
                       Timer& tm, IdxT num_vars, IdxT len, IdxT nrepeats);
 
-extern void test_cycles(CommInfo& comminfo, MeshInfo& info,
+extern void test_cycles_mock(CommInfo& comminfo, MeshInfo& info,
                              COMB::Allocators& alloc,
                              COMB::AllocatorsAvailable& memory_avail,
                              COMB::ExecutorsAvailable& exec_avail,
                              IdxT num_vars, IdxT ncycles, Timer& tm, Timer& tm_total);
+
+extern void test_cycles_mpi(CommInfo& comminfo, MeshInfo& info,
+                            COMB::Allocators& alloc,
+                            COMB::AllocatorsAvailable& memory_avail,
+                            COMB::ExecutorsAvailable& exec_avail,
+                            IdxT num_vars, IdxT ncycles, Timer& tm, Timer& tm_total);
 
 
 } // namespace COMB

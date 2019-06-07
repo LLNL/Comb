@@ -88,6 +88,11 @@ int main(int argc, char** argv)
   IdxT num_vars = 1;
   IdxT ncycles = 5;
 
+  // stores whether each comm policy is available for use
+  CommunicatorsAvailable comm_avail;
+  comm_avail.mock = true;
+  comm_avail.mpi = true;
+
   // stores whether each exec policy is available for use
   ExecutorsAvailable exec_avail;
   exec_avail.seq = true;
@@ -104,9 +109,7 @@ int main(int argc, char** argv)
       if (strcmp(&argv[i][1], "comm") == 0) {
         if (i+1 < argc && argv[i+1][0] != '-') {
           ++i;
-          if (strcmp(argv[i], "mock") == 0) {
-            comminfo.mock_communication = true;
-          } else if (strcmp(argv[i], "cutoff") == 0) {
+          if (strcmp(argv[i], "cutoff") == 0) {
             if (i+1 < argc && argv[i+1][0] != '-') {
               long read_cutoff = comminfo.cutoff;
               int ret = sscanf(argv[++i], "%ld", &read_cutoff);
@@ -146,6 +149,29 @@ int main(int argc, char** argv)
                 *method = CommInfo::method::testsome;
               } else if (strcmp(argv[i], "test_all") == 0) {
                 *method = CommInfo::method::testall;
+              } else {
+                comminfo.print(FileGroup::err_master, "Invalid argument to sub-option, ignoring %s %s %s.\n", argv[i-2], argv[i-1], argv[i]);
+              }
+            } else {
+              comminfo.print(FileGroup::err_master, "No argument to sub-option, ignoring %s %s.\n", argv[i-1], argv[i]);
+            }
+          } else if ( strcmp(argv[i], "enable") == 0
+                   || strcmp(argv[i], "disable") == 0 ) {
+            bool enabledisable = false;
+            if (strcmp(argv[i], "enable") == 0) {
+              enabledisable = true;
+            } else if (strcmp(argv[i], "disable") == 0) {
+              enabledisable = false;
+            }
+            if (i+1 < argc && argv[i+1][0] != '-') {
+              ++i;
+              if (strcmp(argv[i], "all") == 0) {
+                comm_avail.mock = enabledisable;
+                comm_avail.mpi = enabledisable;
+              } else if (strcmp(argv[i], "mock") == 0) {
+                comm_avail.mock = enabledisable;
+              } else if (strcmp(argv[i], "mpi") == 0) {
+                comm_avail.mpi = enabledisable;
               } else {
                 comminfo.print(FileGroup::err_master, "Invalid argument to sub-option, ignoring %s %s %s.\n", argv[i-2], argv[i-1], argv[i]);
               }
@@ -513,7 +539,6 @@ int main(int argc, char** argv)
     long print_divisions[3]    = {comminfo.cart.divisions[0], comminfo.cart.divisions[1], comminfo.cart.divisions[2]};
     long print_periodic[3]     = {comminfo.cart.periodic[0],  comminfo.cart.periodic[1],  comminfo.cart.periodic[2] };
 
-    comminfo.print(FileGroup::all, "Do %s communication\n",         comminfo.mock_communication ? "mock" : "real"                      );
     comminfo.print(FileGroup::all, "Cart coords  %8li %8li %8li\n", print_coords[0],       print_coords[1],       print_coords[2]      );
     comminfo.print(FileGroup::all, "Message policy cutoff %li\n",   print_cutoff                                                       );
     comminfo.print(FileGroup::all, "Post Recv using %s method\n",   CommInfo::method_str(comminfo.post_recv_method)                    );
@@ -563,7 +588,11 @@ int main(int argc, char** argv)
 
   COMB::test_copy(comminfo, alloc, memory_avail, exec_avail, tm, num_vars, info.totallen, ncycles);
 
-  COMB::test_cycles(comminfo, info, alloc, memory_avail, exec_avail, num_vars, ncycles, tm, tm_total);
+  if (comm_avail.mock)
+    COMB::test_cycles_mock(comminfo, info, alloc, memory_avail, exec_avail, num_vars, ncycles, tm, tm_total);
+
+  if (comm_avail.mpi)
+    COMB::test_cycles_mpi(comminfo, info, alloc, memory_avail, exec_avail, num_vars, ncycles, tm, tm_total);
 
   } // end region MPI communication via comminfo
 

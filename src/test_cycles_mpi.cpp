@@ -19,12 +19,13 @@
 
 namespace COMB {
 
-void test_cycles(CommInfo& comminfo, MeshInfo& info,
+void test_cycles_mpi(CommInfo& comminfo, MeshInfo& info,
                      COMB::Allocators& alloc,
                      COMB::AllocatorsAvailable& memory_avail,
                      COMB::ExecutorsAvailable& exec_avail,
                      IdxT num_vars, IdxT ncycles, Timer& tm, Timer& tm_total)
 {
+  using policy_comm = mpi_pol;
 
   // host allocated
   if (memory_avail.host) {

@@ -143,8 +143,6 @@ struct CommInfo
 
   CartComm cart;
 
-  bool mock_communication;
-
   IdxT cutoff;
 
   enum struct method : IdxT
@@ -178,7 +176,6 @@ struct CommInfo
     : rank(-1)
     , size(0)
     , cart()
-    , mock_communication(false)
     , cutoff(200)
     , post_send_method(method::waitall)
     , post_recv_method(method::waitall)
@@ -252,8 +249,11 @@ struct CommInfo
   }
 };
 
+template < typename policy_comm_ >
 struct Message
 {
+  using policy_comm = policy_comm_;
+
   int m_partner_rank;
   int m_msg_tag;
   DataT* m_buf;
@@ -339,7 +339,7 @@ struct Message
   }
 
   template < typename policy >
-  void pack(policy const& pol, MPI_Comm)
+  void pack(policy const& pol, typename policy_comm::communicator_type)
   {
     DataT* buf = m_buf;
     assert(buf != nullptr);
@@ -354,7 +354,7 @@ struct Message
     }
   }
 
-  void pack(mpi_type_pol const&, MPI_Comm comm)
+  void pack(mpi_type_pol const&, typename policy_comm::communicator_type comm)
   {
     if (items.size() == 1) {
       m_nbytes = sizeof(DataT)*items.front().size;
@@ -376,7 +376,7 @@ struct Message
   }
 
   template < typename policy >
-  void unpack(policy const& pol, MPI_Comm)
+  void unpack(policy const& pol, typename policy_comm::communicator_type)
   {
     DataT const* buf = m_buf;
     assert(buf != nullptr);
@@ -391,7 +391,7 @@ struct Message
     }
   }
 
-  void unpack(mpi_type_pol const&, MPI_Comm comm)
+  void unpack(mpi_type_pol const&, typename policy_comm::communicator_type comm)
   {
     if (items.size() == 1) {
       // nothing to do
@@ -411,42 +411,42 @@ struct Message
   }
 
   template < typename policy >
-  void Isend(policy const&, MPI_Comm comm, MPI_Request* request)
+  void Isend(policy const&, typename policy_comm::communicator_type comm, typename policy_comm::send_request_type* request)
   {
     // FPRINTF(stdout, "%p Isend %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
-    detail::MPI::Isend(buffer(), nbytes(), MPI_BYTE, partner_rank(), tag(), comm, request);
+    start_send(policy_comm{}, buffer(), nbytes(), MPI_BYTE, partner_rank(), tag(), comm, request);
   }
 
-  void Isend(mpi_type_pol const&, MPI_Comm comm, MPI_Request* request)
+  void Isend(mpi_type_pol const&, typename policy_comm::communicator_type comm, typename policy_comm::send_request_type* request)
   {
     if (items.size() == 1) {
       DataT const* src = items.front().data;
       MPI_Datatype mpi_type = items.front().mpi_type;
       // FPRINTF(stdout, "%p Isend %p to %i tag %i\n", this, src, partner_rank(), tag());
-      detail::MPI::Isend(src, 1, mpi_type, partner_rank(), tag(), comm, request);
+      start_send(policy_comm{}, src, 1, mpi_type, partner_rank(), tag(), comm, request);
     } else {
       // FPRINTF(stdout, "%p Isend %p nbytes %i to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
-      detail::MPI::Isend(buffer(), nbytes(), MPI_PACKED, partner_rank(), tag(), comm, request);
+      start_send(policy_comm{}, buffer(), nbytes(), MPI_PACKED, partner_rank(), tag(), comm, request);
     }
   }
 
   template < typename policy >
-  void Irecv(policy const&, MPI_Comm comm, MPI_Request* request)
+  void Irecv(policy const&, typename policy_comm::communicator_type comm, typename policy_comm::recv_request_type* request)
   {
     // FPRINTF(stdout, "%p Irecv %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
-    detail::MPI::Irecv(buffer(), nbytes(), MPI_BYTE, partner_rank(), tag(), comm, request);
+    start_recv(policy_comm{}, buffer(), nbytes(), MPI_BYTE, partner_rank(), tag(), comm, request);
   }
 
-  void Irecv(mpi_type_pol const&, MPI_Comm comm, MPI_Request* request)
+  void Irecv(mpi_type_pol const&, typename policy_comm::communicator_type comm, typename policy_comm::recv_request_type* request)
   {
     if (items.size() == 1) {
       DataT* dst = items.front().data;
       MPI_Datatype mpi_type = items.front().mpi_type;
       // FPRINTF(stdout, "%p Irecv %p to %i tag %i\n", this, dst, partner_rank(), tag());
-      detail::MPI::Irecv(dst, 1, mpi_type, partner_rank(), tag(), comm, request);
+      start_recv(policy_comm{}, dst, 1, mpi_type, partner_rank(), tag(), comm, request);
     } else {
       // FPRINTF(stdout, "%p Irecv %p maxnbytes %i to %i tag %i\n", this, dst, max_nbytes(), partner_rank(), tag());
-      detail::MPI::Irecv(buffer(), max_nbytes(), MPI_PACKED, partner_rank(), tag(), comm, request);
+      start_recv(policy_comm{}, buffer(), max_nbytes(), MPI_PACKED, partner_rank(), tag(), comm, request);
     }
   }
 
@@ -497,11 +497,12 @@ struct Message
   }
 };
 
-template < typename policy_many_, typename policy_few_ >
+template < typename policy_many_, typename policy_few_, typename policy_comm_ >
 struct Comm
 {
   using policy_many = policy_many_;
   using policy_few  = policy_few_;
+  using policy_comm  = policy_comm_;
 
   static constexpr bool pol_many_is_mpi_type = std::is_same<policy_many, mpi_type_pol>::value;
   static constexpr bool pol_few_is_mpi_type  = std::is_same<policy_few,  mpi_type_pol>::value;
@@ -517,12 +518,12 @@ struct Comm
 
   CommInfo comminfo;
 
-  using message_type = Message;
+  using message_type = Message<policy_comm>;
   std::vector<message_type> m_sends;
   std::vector<message_type> m_recvs;
 
-  std::vector<MPI_Request> m_send_requests;
-  std::vector<MPI_Request> m_recv_requests;
+  std::vector<typename policy_comm::send_request_type> m_send_requests;
+  std::vector<typename policy_comm::recv_request_type> m_recv_requests;
 
   std::vector<typename policy_many::event_type> m_many_events;
   std::vector<typename policy_few::event_type> m_few_events;
@@ -548,12 +549,16 @@ struct Comm
     }
   }
 
+  bool mock_communication() const
+  {
+    return std::is_same<policy_comm, mock_pol>::value;
+  }
 
   void postRecv()
   {
     //FPRINTF(stdout, "posting receives\n");
 
-    m_recv_requests.resize(m_recvs.size(), MPI_REQUEST_NULL);
+    m_recv_requests.resize(m_recvs.size(), policy_comm::recv_request_null());
 
     switch (comminfo.post_recv_method) {
       case CommInfo::method::waitany:
@@ -564,14 +569,10 @@ struct Comm
 
           if (m_recvs[i].have_many()) {
             m_recvs[i].allocate(policy_many{}, many_aloc);
-            if (!comminfo.mock_communication) {
-              m_recvs[i].Irecv(policy_many{}, comminfo.cart.comm, &m_recv_requests[i]);
-            }
+            m_recvs[i].Irecv(policy_many{}, comminfo.cart.comm, &m_recv_requests[i]);
           } else {
             m_recvs[i].allocate(policy_few{}, few_aloc);
-            if (!comminfo.mock_communication) {
-              m_recvs[i].Irecv(policy_few{}, comminfo.cart.comm, &m_recv_requests[i]);
-            }
+            m_recvs[i].Irecv(policy_few{}, comminfo.cart.comm, &m_recv_requests[i]);
           }
         }
       } break;
@@ -583,14 +584,10 @@ struct Comm
 
           if (m_recvs[i].have_many()) {
             m_recvs[i].allocate(policy_many{}, many_aloc);
-            if (!comminfo.mock_communication) {
-              m_recvs[i].Irecv(policy_many{}, comminfo.cart.comm, &m_recv_requests[i]);
-            }
+            m_recvs[i].Irecv(policy_many{}, comminfo.cart.comm, &m_recv_requests[i]);
           } else {
             m_recvs[i].allocate(policy_few{}, few_aloc);
-            if (!comminfo.mock_communication) {
-              m_recvs[i].Irecv(policy_few{}, comminfo.cart.comm, &m_recv_requests[i]);
-            }
+            m_recvs[i].Irecv(policy_few{}, comminfo.cart.comm, &m_recv_requests[i]);
           }
         }
       } break;
@@ -609,13 +606,9 @@ struct Comm
         for (IdxT i = 0; i < num_recvs; ++i) {
 
           if (m_recvs[i].have_many()) {
-            if (!comminfo.mock_communication) {
-              m_recvs[i].Irecv(policy_many{}, comminfo.cart.comm, &m_recv_requests[i]);
-            }
+            m_recvs[i].Irecv(policy_many{}, comminfo.cart.comm, &m_recv_requests[i]);
           } else {
-            if (!comminfo.mock_communication) {
-              m_recvs[i].Irecv(policy_few{}, comminfo.cart.comm, &m_recv_requests[i]);
-            }
+            m_recvs[i].Irecv(policy_few{}, comminfo.cart.comm, &m_recv_requests[i]);
           }
         }
       } break;
@@ -632,7 +625,7 @@ struct Comm
   {
     //FPRINTF(stdout, "posting sends\n");
 
-    m_send_requests.resize(m_recvs.size(), MPI_REQUEST_NULL);
+    m_send_requests.resize(m_sends.size(), policy_comm::send_request_null());
 
     switch (comminfo.post_send_method) {
       case CommInfo::method::waitany:
@@ -644,16 +637,12 @@ struct Comm
             m_sends[i].allocate(policy_many{}, many_aloc);
             m_sends[i].pack(policy_many{}, comminfo.cart.comm);
             synchronize(policy_many{});
-            if (!comminfo.mock_communication) {
-              m_sends[i].Isend(policy_many{}, comminfo.cart.comm, &m_send_requests[i]);
-            }
+            m_sends[i].Isend(policy_many{}, comminfo.cart.comm, &m_send_requests[i]);
           } else {
             m_sends[i].allocate(policy_few{}, few_aloc);
             m_sends[i].pack(policy_few{}, comminfo.cart.comm);
             synchronize(policy_few{});
-            if (!comminfo.mock_communication) {
-              m_sends[i].Isend(policy_few{}, comminfo.cart.comm, &m_send_requests[i]);
-            }
+            m_sends[i].Isend(policy_few{}, comminfo.cart.comm, &m_send_requests[i]);
           }
         }
       } break;
@@ -732,9 +721,7 @@ struct Comm
 
               if (queryEvent(policy_many{}, m_many_events[post_many_send])) {
 
-                if (!comminfo.mock_communication) {
-                  m_sends[post_many_send].Isend(policy_many{}, comminfo.cart.comm, &m_send_requests[post_many_send]);
-                }
+                m_sends[post_many_send].Isend(policy_many{}, comminfo.cart.comm, &m_send_requests[post_many_send]);
 
                 ++post_many_send;
 
@@ -753,9 +740,7 @@ struct Comm
 
               if (queryEvent(policy_few{}, m_few_events[post_few_send])) {
 
-                if (!comminfo.mock_communication) {
-                  m_sends[post_few_send].Isend(policy_few{}, comminfo.cart.comm, &m_send_requests[post_few_send]);
-                }
+                m_sends[post_few_send].Isend(policy_few{}, comminfo.cart.comm, &m_send_requests[post_few_send]);
 
                 ++post_few_send;
 
@@ -796,9 +781,7 @@ struct Comm
 
               if (m_sends[i].have_many()) {
 
-                if (!comminfo.mock_communication) {
-                  m_sends[i].Isend(policy_many{}, comminfo.cart.comm, &m_send_requests[i]);
-                }
+                m_sends[i].Isend(policy_many{}, comminfo.cart.comm, &m_send_requests[i]);
               }
             }
           }
@@ -814,9 +797,7 @@ struct Comm
 
               synchronize(policy_few{});
 
-              if (!comminfo.mock_communication) {
-                m_sends[i].Isend(policy_few{}, comminfo.cart.comm, &m_send_requests[i]);
-              }
+              m_sends[i].Isend(policy_few{}, comminfo.cart.comm, &m_send_requests[i]);
             }
           }
         }
@@ -868,9 +849,7 @@ struct Comm
 
                 if (queryEvent(policy_many{}, m_many_events[post_many_send])) {
 
-                  if (!comminfo.mock_communication) {
-                    m_sends[post_many_send].Isend(policy_many{}, comminfo.cart.comm, &m_send_requests[post_many_send]);
-                  }
+                  m_sends[post_many_send].Isend(policy_many{}, comminfo.cart.comm, &m_send_requests[post_many_send]);
 
                   ++post_many_send;
 
@@ -915,9 +894,7 @@ struct Comm
 
                 if (queryEvent(policy_many{}, m_many_events[post_many_send])) {
 
-                  if (!comminfo.mock_communication) {
-                    m_sends[post_many_send].Isend(policy_many{}, comminfo.cart.comm, &m_send_requests[post_many_send]);
-                  }
+                  m_sends[post_many_send].Isend(policy_many{}, comminfo.cart.comm, &m_send_requests[post_many_send]);
 
                   ++post_many_send;
 
@@ -938,9 +915,7 @@ struct Comm
 
                 if (queryEvent(policy_few{}, m_few_events[post_few_send])) {
 
-                  if (!comminfo.mock_communication) {
-                    m_sends[post_few_send].Isend(policy_few{}, comminfo.cart.comm, &m_send_requests[post_few_send]);
-                  }
+                  m_sends[post_few_send].Isend(policy_few{}, comminfo.cart.comm, &m_send_requests[post_few_send]);
 
                   ++post_few_send;
 
@@ -971,9 +946,7 @@ struct Comm
 
               if (queryEvent(policy_many{}, m_many_events[post_many_send])) {
 
-                if (!comminfo.mock_communication) {
-                  m_sends[post_many_send].Isend(policy_many{}, comminfo.cart.comm, &m_send_requests[post_many_send]);
-                }
+                m_sends[post_many_send].Isend(policy_many{}, comminfo.cart.comm, &m_send_requests[post_many_send]);
 
                 ++post_many_send;
 
@@ -993,9 +966,7 @@ struct Comm
 
               if (queryEvent(policy_few{}, m_few_events[post_few_send])) {
 
-                if (!comminfo.mock_communication) {
-                  m_sends[post_few_send].Isend(policy_few{}, comminfo.cart.comm, &m_send_requests[post_few_send]);
-                }
+                m_sends[post_few_send].Isend(policy_few{}, comminfo.cart.comm, &m_send_requests[post_few_send]);
 
                 ++post_few_send;
 
@@ -1040,12 +1011,10 @@ struct Comm
 
         for (IdxT i = 0; i < num_sends; ++i) {
 
-          if (!comminfo.mock_communication) {
-            if (m_sends[i].have_many()) {
-              m_sends[i].Isend(policy_many{}, comminfo.cart.comm, &m_send_requests[i]);
-            } else {
-              m_sends[i].Isend(policy_few{}, comminfo.cart.comm, &m_send_requests[i]);
-            }
+          if (m_sends[i].have_many()) {
+            m_sends[i].Isend(policy_many{}, comminfo.cart.comm, &m_send_requests[i]);
+          } else {
+            m_sends[i].Isend(policy_few{}, comminfo.cart.comm, &m_send_requests[i]);
           }
         }
       } break;
@@ -1120,9 +1089,7 @@ struct Comm
 
               if (queryEvent(policy_many{}, m_many_events[post_many_send])) {
 
-                if (!comminfo.mock_communication) {
-                  m_sends[post_many_send].Isend(policy_many{}, comminfo.cart.comm, &m_send_requests[post_many_send]);
-                }
+                m_sends[post_many_send].Isend(policy_many{}, comminfo.cart.comm, &m_send_requests[post_many_send]);
 
                 ++post_many_send;
 
@@ -1141,9 +1108,7 @@ struct Comm
 
               if (queryEvent(policy_few{}, m_few_events[post_few_send])) {
 
-                if (!comminfo.mock_communication) {
-                  m_sends[post_few_send].Isend(policy_few{}, comminfo.cart.comm, &m_send_requests[post_few_send]);
-                }
+                m_sends[post_few_send].Isend(policy_few{}, comminfo.cart.comm, &m_send_requests[post_few_send]);
 
                 ++post_few_send;
 
@@ -1197,20 +1162,18 @@ struct Comm
           persistent_launch(policy_few{});
         }
 
-        MPI_Status status;
+        typename policy_comm::recv_status_type status = policy_comm::recv_status_null();
 
         IdxT num_done = 0;
         while (num_done < num_recvs) {
 
           IdxT idx = num_done;
-          if (!comminfo.mock_communication) {
-            if (comminfo.wait_recv_method == CommInfo::method::waitany) {
-              idx = detail::MPI::Waitany( num_recvs, &m_recv_requests[0], &status);
-            } else {
-              idx = -1;
-              while(idx < 0 || idx >= num_recvs) {
-                idx = detail::MPI::Testany( num_recvs, &m_recv_requests[0], &status);
-              }
+          if (comminfo.wait_recv_method == CommInfo::method::waitany) {
+            idx = wait_recv_any(policy_comm{}, num_recvs, &m_recv_requests[0], &status);
+          } else {
+            idx = -1;
+            while(idx < 0 || idx >= num_recvs) {
+              idx = test_recv_any(policy_comm{}, num_recvs, &m_recv_requests[0], &status);
             }
           }
 
@@ -1265,29 +1228,23 @@ struct Comm
           persistent_launch(policy_few{});
         }
 
-        std::vector<MPI_Status> recv_statuses(m_recv_requests.size());
+        std::vector<typename policy_comm::recv_status_type> recv_statuses(m_recv_requests.size(), policy_comm::recv_status_null());
         std::vector<int> indices(m_recv_requests.size(), -1);
 
         IdxT num_done = 0;
         while (num_done < num_recvs) {
 
-          IdxT num = num_recvs;
-          if (!comminfo.mock_communication) {
-            if (comminfo.wait_recv_method == CommInfo::method::waitsome) {
-              num = detail::MPI::Waitsome( num_recvs, &m_recv_requests[0], &indices[0], &recv_statuses[0]);
-            } else {
-              while( 0 == (num = detail::MPI::Testsome( num_recvs, &m_recv_requests[0], &indices[0], &recv_statuses[0])) );
-            }
+          IdxT num_recvd = num_recvs;
+          if (comminfo.wait_recv_method == CommInfo::method::waitsome) {
+            num_recvd = wait_recv_some(policy_comm{}, num_recvs, &m_recv_requests[0], &indices[0], &recv_statuses[0]);
           } else {
-            for (IdxT i = 0; i < num; ++i) {
-              indices[i] = num_done + i;
-            }
+            while( 0 == (num_recvd = test_recv_some(policy_comm{}, num_recvs, &m_recv_requests[0], &indices[0], &recv_statuses[0])) );
           }
 
           bool inner_have_many = false;
           bool inner_have_few = false;
 
-          for (IdxT i = 0; i < num; ++i) {
+          for (IdxT i = 0; i < num_recvd; ++i) {
 
             if (m_recvs[indices[i]].have_many()) {
 
@@ -1304,7 +1261,7 @@ struct Comm
             batch_launch(policy_many{});
           }
 
-          for (IdxT i = 0; i < num; ++i) {
+          for (IdxT i = 0; i < num_recvd; ++i) {
 
             if (!m_recvs[indices[i]].have_many()) {
 
@@ -1351,14 +1308,12 @@ struct Comm
           persistent_launch(policy_few{});
         }
 
-        std::vector<MPI_Status> recv_statuses(m_recv_requests.size());
+        std::vector<typename policy_comm::recv_status_type> recv_statuses(m_recv_requests.size(), policy_comm::recv_status_null());
 
-        if (!comminfo.mock_communication) {
-          if (comminfo.wait_recv_method == CommInfo::method::waitall) {
-            detail::MPI::Waitall( num_recvs, &m_recv_requests[0], &recv_statuses[0]);
-          } else {
-            while (!detail::MPI::Testall( num_recvs, &m_recv_requests[0], &recv_statuses[0]));
-          }
+        if (comminfo.wait_recv_method == CommInfo::method::waitall) {
+          wait_recv_all(policy_comm{}, num_recvs, &m_recv_requests[0], &recv_statuses[0]);
+        } else {
+          while (!test_recv_all(policy_comm{}, num_recvs, &m_recv_requests[0], &recv_statuses[0]));
         }
 
         IdxT num_done = 0;
@@ -1423,19 +1378,17 @@ struct Comm
         IdxT num_sends = m_sends.size();
         IdxT num_done = 0;
 
-        MPI_Status status;
+        typename policy_comm::send_status_type status = policy_comm::send_status_null();
 
         while (num_done < num_sends) {
 
           IdxT idx = num_done;
-          if (!comminfo.mock_communication) {
-            if (comminfo.wait_send_method == CommInfo::method::waitany) {
-              idx = detail::MPI::Waitany( num_sends, &m_send_requests[0], &status);
-            } else {
-              idx = -1;
-              while(idx < 0 || idx >= num_sends) {
-                idx = detail::MPI::Testany( num_sends, &m_send_requests[0], &status);
-              }
+          if (comminfo.wait_send_method == CommInfo::method::waitany) {
+            idx = wait_send_any(policy_comm{}, num_sends, &m_send_requests[0], &status);
+          } else {
+            idx = -1;
+            while(idx < 0 || idx >= num_sends) {
+              idx = test_send_any(policy_comm{}, num_sends, &m_send_requests[0], &status);
             }
           }
 
@@ -1455,25 +1408,19 @@ struct Comm
         IdxT num_sends = m_sends.size();
         IdxT num_done = 0;
 
-        std::vector<MPI_Status> send_statuses(m_send_requests.size());
+        std::vector<typename policy_comm::send_status_type> send_statuses(m_send_requests.size(), policy_comm::send_status_null());
         std::vector<int> indices(m_send_requests.size(), -1);
 
         while (num_done < num_sends) {
 
-          IdxT num = num_sends;
-          if (!comminfo.mock_communication) {
-            if (comminfo.wait_send_method == CommInfo::method::waitsome) {
-              num = detail::MPI::Waitsome( num_sends, &m_send_requests[0], &indices[0], &send_statuses[0]);
-            } else {
-              num = detail::MPI::Testsome( num_sends, &m_send_requests[0], &indices[0], &send_statuses[0]);
-            }
+          IdxT num_sent = num_sends;
+          if (comminfo.wait_send_method == CommInfo::method::waitsome) {
+            num_sent = wait_send_some(policy_comm{}, num_sends, &m_send_requests[0], &indices[0], &send_statuses[0]);
           } else {
-            for (IdxT i = 0; i < num; ++i) {
-              indices[i] = num_done + i;
-            }
+            num_sent = test_send_some(policy_comm{}, num_sends, &m_send_requests[0], &indices[0], &send_statuses[0]);
           }
 
-          for (IdxT i = 0; i < num; ++i) {
+          for (IdxT i = 0; i < num_sent; ++i) {
 
             IdxT idx = indices[i];
             if (m_sends[idx].have_many()) {
@@ -1493,14 +1440,12 @@ struct Comm
         IdxT num_sends = m_sends.size();
         IdxT num_done = 0;
 
-        std::vector<MPI_Status> send_statuses(m_send_requests.size());
+        std::vector<typename policy_comm::send_status_type> send_statuses(m_send_requests.size(), policy_comm::send_status_null());
 
-        if (!comminfo.mock_communication) {
-          if (comminfo.wait_send_method == CommInfo::method::waitall) {
-            detail::MPI::Waitall( num_sends, &m_send_requests[0], &send_statuses[0]);
-          } else {
-            while(!detail::MPI::Testall( num_sends, &m_send_requests[0], &send_statuses[0]));
-          }
+        if (comminfo.wait_send_method == CommInfo::method::waitall) {
+          wait_send_all(policy_comm{}, num_sends, &m_send_requests[0], &send_statuses[0]);
+        } else {
+          while(!test_send_all(policy_comm{}, num_sends, &m_send_requests[0], &send_statuses[0]));
         }
 
         while (num_done < num_sends) {
@@ -1541,6 +1486,12 @@ struct Comm
       msg.destroy();
     }
   }
+};
+
+struct CommunicatorsAvailable
+{
+  bool mock = false;
+  bool mpi = false;
 };
 
 #endif // _COMM_HPP

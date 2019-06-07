@@ -20,7 +20,7 @@
 
 namespace COMB {
 
-template < typename pol_loop, typename pol_many, typename pol_few >
+template < typename pol_loop, typename pol_many, typename pol_few, typename pol_comm >
 void do_cycles(CommInfo& comm_info, MeshInfo& info,
                IdxT num_vars, IdxT ncycles,
                COMB::Allocator& aloc_mesh,
@@ -30,13 +30,14 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info,
     tm_total.clear();
     tm.clear();
 
+    char mpiname[1024] = ""; snprintf(mpiname, 1024, "MPI %s", pol_comm::get_name());
     char rname[1024] = ""; snprintf(rname, 1024, "Buffers %s %s %s %s", pol_many::get_name(), aloc_many.name(), pol_few::get_name(), aloc_few.name());
-    char test_name[1024] = ""; snprintf(test_name, 1024, "Mesh %s %s %s %s", pol_loop::get_name(), aloc_mesh.name(), rname);
+    char test_name[1024] = ""; snprintf(test_name, 1024, "Mesh %s %s %s %s", pol_loop::get_name(), aloc_mesh.name(), rname, mpiname);
     comm_info.print(FileGroup::all, "Starting test %s\n", test_name);
 
     Range r0(test_name, Range::orange);
 
-    Comm<pol_many, pol_few> comm(comm_info, aloc_mesh, aloc_many, aloc_few);
+    Comm<pol_many, pol_few, pol_comm> comm(comm_info, aloc_mesh, aloc_many, aloc_few);
 
     comm.comminfo.barrier();
 
