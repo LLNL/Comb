@@ -187,4 +187,17 @@ struct adapter_3d {
 #include "pol_cuda_graph.hpp"
 #include "pol_mpi_type.hpp"
 
+struct ExecutorsAvailable
+{
+  bool seq = false;
+  bool omp = false;
+  bool cuda = false;
+  bool cuda_batch = false;
+  bool cuda_batch_fewgs = false;
+  bool cuda_persistent = false;
+  bool cuda_persistent_fewgs = false;
+  bool cuda_graph = false;
+  bool mpi_type = false;
+};
+
 #endif // _FOR_ALL_HPP
