@@ -19,6 +19,8 @@
 
 #include "persistent_launch.hpp"
 
+#include "utils_cuda.hpp"
+
 #include <cooperative_groups.h>
 
 namespace cuda {
@@ -53,7 +55,7 @@ void launch(::detail::MultiBuffer& mb, cudaStream_t stream)
       int blocksize = 1024;
       // TODO decide blocksize in a smart way
 
-      int num_blocks = ::detail::cuda::get_num_sm();
+      int num_blocks = ::COMB::detail::cuda::get_num_sm();
 
       void* func = NULL;
       void* args[] = { (void*)&device_buffer };

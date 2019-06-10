@@ -26,11 +26,13 @@
 #include <cuda.h>
 // #include <mpi.h>
 
+namespace COMB {
+
 #define IS_DEVICE_LAMBDA(kernel_typetype) \
         __nv_is_extended_device_lambda_closure_type(kernel_type) || \
         __nv_is_extended_host_device_lambda_closure_type(kernel_type)
 
-#define cudaCheck(...) cudaCheckError(#__VA_ARGS__, __VA_ARGS__, __FILE__, __LINE__)
+#define cudaCheck(...) ::COMB::cudaCheckError(#__VA_ARGS__, __VA_ARGS__, __FILE__, __LINE__)
 
 inline void cudaCheckError(const char* str, cudaError_t code, const char* file, int line)
 {
@@ -41,7 +43,7 @@ inline void cudaCheckError(const char* str, cudaError_t code, const char* file, 
   }
 }
 
-#define cudaCheckReady(...) cudaCheckReadyError(#__VA_ARGS__, __VA_ARGS__, __FILE__, __LINE__)
+#define cudaCheckReady(...) ::COMB::cudaCheckReadyError(#__VA_ARGS__, __VA_ARGS__, __FILE__, __LINE__)
 
 inline bool cudaCheckReadyError(const char* str, cudaError_t code, const char* file, int line)
 {
@@ -111,6 +113,8 @@ inline int get_arch() {
 } // namespace cuda
 
 } // namespace detail
+
+} // namespace COMB
 
 #endif
 

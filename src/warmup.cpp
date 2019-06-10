@@ -45,39 +45,39 @@ void do_warmup(COMB::Allocator& aloc, Timer& tm, IdxT num_vars, IdxT len)
 void warmup(COMB::Allocators& alloc, Timer& tm, IdxT num_vars, IdxT len)
 {
   // warm-up memory pools
-  do_warmup<seq_pol>(alloc.host, tm, num_vars+1, info.totallen);
+  do_warmup<seq_pol>(alloc.host, tm, num_vars, len);
 
 #ifdef COMB_ENABLE_OPENMP
-  do_warmup<omp_pol>(alloc.host, tm, num_vars+1, info.totallen);
+  do_warmup<omp_pol>(alloc.host, tm, num_vars, len);
 #endif
 
 #ifdef COMB_ENABLE_CUDA
-  do_warmup<seq_pol>(alloc.hostpinned, tm, num_vars+1, info.totallen);
+  do_warmup<seq_pol>(alloc.hostpinned, tm, num_vars, len);
 
-  do_warmup<cuda_pol>(alloc.device, tm, num_vars+1, info.totallen);
+  do_warmup<cuda_pol>(alloc.device, tm, num_vars, len);
 
-  do_warmup<seq_pol>( alloc.managed, tm, num_vars+1, info.totallen);
-  do_warmup<cuda_pol>(alloc.managed, tm, num_vars+1, info.totallen);
+  do_warmup<seq_pol>( alloc.managed, tm, num_vars, len);
+  do_warmup<cuda_pol>(alloc.managed, tm, num_vars, len);
 
-  do_warmup<seq_pol>(       alloc.managed_host_preferred, tm, num_vars+1, info.totallen);
-  do_warmup<cuda_batch_pol>(alloc.managed_host_preferred, tm, num_vars+1, info.totallen);
+  do_warmup<seq_pol>(       alloc.managed_host_preferred, tm, num_vars, len);
+  do_warmup<cuda_batch_pol>(alloc.managed_host_preferred, tm, num_vars, len);
 
-  do_warmup<seq_pol>(            alloc.managed_host_preferred_device_accessed, tm, num_vars+1, info.totallen);
-  do_warmup<cuda_persistent_pol>(alloc.managed_host_preferred_device_accessed, tm, num_vars+1, info.totallen);
+  do_warmup<seq_pol>(            alloc.managed_host_preferred_device_accessed, tm, num_vars, len);
+  do_warmup<cuda_persistent_pol>(alloc.managed_host_preferred_device_accessed, tm, num_vars, len);
 
   {
     SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
-    do_warmup<seq_pol>(       alloc.managed_device_preferred, tm, num_vars+1, info.totallen);
-    do_warmup<cuda_batch_pol>(alloc.managed_device_preferred, tm, num_vars+1, info.totallen);
+    do_warmup<seq_pol>(       alloc.managed_device_preferred, tm, num_vars, len);
+    do_warmup<cuda_batch_pol>(alloc.managed_device_preferred, tm, num_vars, len);
 
-    do_warmup<seq_pol>(            alloc.managed_device_preferred_host_accessed, tm, num_vars+1, info.totallen);
-    do_warmup<cuda_persistent_pol>(alloc.managed_device_preferred_host_accessed, tm, num_vars+1, info.totallen);
+    do_warmup<seq_pol>(            alloc.managed_device_preferred_host_accessed, tm, num_vars, len);
+    do_warmup<cuda_persistent_pol>(alloc.managed_device_preferred_host_accessed, tm, num_vars, len);
   }
 #endif
 
 #ifdef COMB_ENABLE_CUDA_GRAPH
-  do_warmup<cuda_graph_pol>(alloc.device, tm, num_vars+1, info.totallen);
+  do_warmup<cuda_graph_pol>(alloc.device, tm, num_vars, len);
 #endif
 }
 

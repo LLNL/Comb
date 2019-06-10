@@ -19,6 +19,8 @@
 
 #include "batch_launch.hpp"
 
+#include "utils_cuda.hpp"
+
 #include <cooperative_groups.h>
 
 namespace cuda {
@@ -51,8 +53,8 @@ void launch(::detail::MultiBuffer& mb, cudaStream_t stream)
       // TODO decide blocksize in a smart way
 
       int num_blocks = (getMaxN()+(blocksize-1))/blocksize;
-      if (num_blocks > ::detail::cuda::get_num_sm()) {
-         num_blocks = ::detail::cuda::get_num_sm();
+      if (num_blocks > ::COMB::detail::cuda::get_num_sm()) {
+         num_blocks = ::COMB::detail::cuda::get_num_sm();
       }
 
       void* func = NULL;

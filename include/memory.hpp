@@ -95,7 +95,7 @@ using mempool = RAJA::basic_mempool::MemPool<alloc>;
       void* ptr = nullptr;
       cudaCheck(cudaMallocManaged(&ptr, nbytes));
       cudaCheck(cudaMemAdvise(ptr, nbytes, cudaMemAdviseSetPreferredLocation, cudaCpuDeviceId));
-      cudaCheck(cudaMemAdvise(ptr, nbytes, cudaMemAdviseSetAccessedBy, detail::cuda::get_device()));
+      cudaCheck(cudaMemAdvise(ptr, nbytes, cudaMemAdviseSetAccessedBy, cuda::get_device()));
       return ptr;
     }
     void free(void* ptr) {
@@ -107,7 +107,7 @@ using mempool = RAJA::basic_mempool::MemPool<alloc>;
     void* malloc(size_t nbytes) {
       void* ptr = nullptr;
       cudaCheck(cudaMallocManaged(&ptr, nbytes));
-      cudaCheck(cudaMemAdvise(ptr, nbytes, cudaMemAdviseSetPreferredLocation, detail::cuda::get_device()));
+      cudaCheck(cudaMemAdvise(ptr, nbytes, cudaMemAdviseSetPreferredLocation, cuda::get_device()));
       return ptr;
     }
     void free(void* ptr) {
@@ -119,7 +119,7 @@ using mempool = RAJA::basic_mempool::MemPool<alloc>;
     void* malloc(size_t nbytes) {
       void* ptr = nullptr;
       cudaCheck(cudaMallocManaged(&ptr, nbytes));
-      cudaCheck(cudaMemAdvise(ptr, nbytes, cudaMemAdviseSetPreferredLocation, detail::cuda::get_device()));
+      cudaCheck(cudaMemAdvise(ptr, nbytes, cudaMemAdviseSetPreferredLocation, cuda::get_device()));
       cudaCheck(cudaMemAdvise(ptr, nbytes, cudaMemAdviseSetAccessedBy, cudaCpuDeviceId));
       return ptr;
     }
@@ -291,15 +291,17 @@ struct Allocators
 struct AllocatorsAvailable
 {
   bool host = false;
-  bool hostpinned = false;
-  bool device = false;
-  bool managed = false;
-  bool managed_host_preferred = false;
-  bool managed_host_preferred_device_accessed = false;
-  bool managed_device_preferred = false;
-  bool managed_device_preferred_host_accessed = false;
+  bool cuda_hostpinned = false;
+  bool cuda_device = false;
+  bool cuda_managed = false;
+  bool cuda_managed_host_preferred = false;
+  bool cuda_managed_host_preferred_device_accessed = false;
+  bool cuda_managed_device_preferred = false;
+  bool cuda_managed_device_preferred_host_accessed = false;
   // special flag to enable tests that access host pageable memory from the device
   bool cuda_host_accessible_from_device = false;
+  // special flag to enable tests that access device memory from the host
+  bool cuda_device_accessible_from_host = false;
 };
 
 } // namespace COMB

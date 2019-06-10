@@ -19,6 +19,8 @@
 
 #include "MultiBuffer.hpp"
 
+#include "utils_cuda.hpp"
+
 namespace detail {
 
 MultiBuffer::MultiBuffer()
@@ -28,10 +30,10 @@ MultiBuffer::MultiBuffer()
   , m_buffer(nullptr)
 {
   cudaCheck(cudaMallocManaged(&m_buffer, total_capacity, cudaMemAttachGlobal));
-  cudaCheck(cudaMemAdvise(m_buffer, total_capacity, cudaMemAdviseSetPreferredLocation, ::detail::cuda::get_device()));
+  cudaCheck(cudaMemAdvise(m_buffer, total_capacity, cudaMemAdviseSetPreferredLocation, ::COMB::detail::cuda::get_device()));
   cudaCheck(cudaMemAdvise(m_buffer, total_capacity, cudaMemAdviseSetAccessedBy, cudaCpuDeviceId));
   cudaCheck(cudaMemPrefetchAsync(m_buffer, total_capacity, cudaCpuDeviceId, cudaStream_t{0}));
-  cudaCheck(cudaMemPrefetchAsync(m_buffer, total_capacity, ::detail::cuda::get_device(), cudaStream_t{0}));
+  cudaCheck(cudaMemPrefetchAsync(m_buffer, total_capacity, ::COMB::detail::cuda::get_device(), cudaStream_t{0}));
 
 
   size_t num_info = total_capacity / buffer_capacity;

@@ -15,6 +15,8 @@
 
 #include "comb.hpp"
 
+namespace COMB {
+
 template < typename pol >
 void do_copy(CommInfo& comminfo, COMB::Allocator& src_aloc, COMB::Allocator& dst_aloc, Timer& tm, IdxT num_vars, IdxT len, IdxT nrepeats)
 {
@@ -86,63 +88,63 @@ void test_copy(CommInfo& comminfo,
     char name[1024] = ""; snprintf(name, 1024, "set_vars %s", alloc.host.name());
     Range r0(name, Range::green);
 
-    if (exec_avail.seq) do_copy<seq_pol>(comminfo, alloc.host, alloc.host, tm, num_vars, len, ncycles);
+    if (exec_avail.seq) do_copy<seq_pol>(comminfo, alloc.host, alloc.host, tm, num_vars, len, nrepeats);
 
 #ifdef COMB_ENABLE_OPENMP
-    if (exec_avail.omp) do_copy<omp_pol>(comminfo, alloc.host, alloc.host, tm, num_vars, len, ncycles);
+    if (exec_avail.omp) do_copy<omp_pol>(comminfo, alloc.host, alloc.host, tm, num_vars, len, nrepeats);
 #endif
 
 #ifdef COMB_ENABLE_CUDA
     if (memory_avail.cuda_host_accessible_from_device) {
 
-      if (exec_avail.cuda) do_copy<cuda_pol>(comminfo, alloc.host, alloc.host, tm, num_vars, len, ncycles);
+      if (exec_avail.cuda) do_copy<cuda_pol>(comminfo, alloc.host, alloc.host, tm, num_vars, len, nrepeats);
 
-      if (exec_avail.cuda_batch) do_copy<cuda_batch_pol>(comminfo, alloc.host, alloc.host, tm, num_vars, len, ncycles);
+      if (exec_avail.cuda_batch) do_copy<cuda_batch_pol>(comminfo, alloc.host, alloc.host, tm, num_vars, len, nrepeats);
 
-      if (exec_avail.cuda_persistent) do_copy<cuda_persistent_pol>(comminfo, alloc.host, alloc.host, tm, num_vars, len, ncycles);
+      if (exec_avail.cuda_persistent) do_copy<cuda_persistent_pol>(comminfo, alloc.host, alloc.host, tm, num_vars, len, nrepeats);
 
       {
         SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
-        if (exec_avail.cuda_batch_fewgs) do_copy<cuda_batch_pol>(comminfo, alloc.host, alloc.host, tm, num_vars, len, ncycles);
+        if (exec_avail.cuda_batch_fewgs) do_copy<cuda_batch_pol>(comminfo, alloc.host, alloc.host, tm, num_vars, len, nrepeats);
 
-        if (exec_avail.cuda_persistent_fewgs) do_copy<cuda_persistent_pol>(comminfo, alloc.host, alloc.host, tm, num_vars, len, ncycles);
+        if (exec_avail.cuda_persistent_fewgs) do_copy<cuda_persistent_pol>(comminfo, alloc.host, alloc.host, tm, num_vars, len, nrepeats);
       }
 
 #ifdef COMB_ENABLE_CUDA_GRAPH
-      if (exec_avail.cuda_graph) do_copy<cuda_graph_pol>(comminfo, alloc.host, alloc.host, tm, num_vars, len, ncycles);
+      if (exec_avail.cuda_graph) do_copy<cuda_graph_pol>(comminfo, alloc.host, alloc.host, tm, num_vars, len, nrepeats);
 #endif
     }
 #endif
   }
 
 #ifdef COMB_ENABLE_CUDA
-  if (memory_avail.cuda_pinned) {
+  if (memory_avail.cuda_hostpinned) {
     char name[1024] = ""; snprintf(name, 1024, "set_vars %s", alloc.hostpinned.name());
     Range r0(name, Range::green);
 
-    if (exec_avail.seq) do_copy<seq_pol>(comminfo, alloc.hostpinned, alloc.host, tm, num_vars, len, ncycles);
+    if (exec_avail.seq) do_copy<seq_pol>(comminfo, alloc.hostpinned, alloc.host, tm, num_vars, len, nrepeats);
 
 #ifdef COMB_ENABLE_OPENMP
-    if (exec_avail.omp) do_copy<omp_pol>(comminfo, alloc.hostpinned, alloc.host, tm, num_vars, len, ncycles);
+    if (exec_avail.omp) do_copy<omp_pol>(comminfo, alloc.hostpinned, alloc.host, tm, num_vars, len, nrepeats);
 #endif
 
-    if (exec_avail.cuda) do_copy<cuda_pol>(comminfo, alloc.hostpinned, alloc.hostpinned, tm, num_vars, len, ncycles);
+    if (exec_avail.cuda) do_copy<cuda_pol>(comminfo, alloc.hostpinned, alloc.hostpinned, tm, num_vars, len, nrepeats);
 
-    if (exec_avail.cuda_batch) do_copy<cuda_batch_pol>(comminfo, alloc.hostpinned, alloc.hostpinned, tm, num_vars, len, ncycles);
+    if (exec_avail.cuda_batch) do_copy<cuda_batch_pol>(comminfo, alloc.hostpinned, alloc.hostpinned, tm, num_vars, len, nrepeats);
 
-    if (exec_avail.cuda_persistent) do_copy<cuda_persistent_pol>(comminfo, alloc.hostpinned, alloc.hostpinned, tm, num_vars, len, ncycles);
+    if (exec_avail.cuda_persistent) do_copy<cuda_persistent_pol>(comminfo, alloc.hostpinned, alloc.hostpinned, tm, num_vars, len, nrepeats);
 
     {
       SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
-      if (exec_avail.cuda_batch_fewgs) do_copy<cuda_batch_pol>(comminfo, alloc.hostpinned, alloc.hostpinned, tm, num_vars, len, ncycles);
+      if (exec_avail.cuda_batch_fewgs) do_copy<cuda_batch_pol>(comminfo, alloc.hostpinned, alloc.hostpinned, tm, num_vars, len, nrepeats);
 
-      if (exec_avail.cuda_persistent_fewgs) do_copy<cuda_persistent_pol>(comminfo, alloc.hostpinned, alloc.hostpinned, tm, num_vars, len, ncycles);
+      if (exec_avail.cuda_persistent_fewgs) do_copy<cuda_persistent_pol>(comminfo, alloc.hostpinned, alloc.hostpinned, tm, num_vars, len, nrepeats);
     }
 
 #ifdef COMB_ENABLE_CUDA_GRAPH
-    if (exec_avail.cuda_graph) do_copy<cuda_graph_pol>(comminfo, alloc.hostpinned, alloc.hostpinned, tm, num_vars, len, ncycles);
+    if (exec_avail.cuda_graph) do_copy<cuda_graph_pol>(comminfo, alloc.hostpinned, alloc.hostpinned, tm, num_vars, len, nrepeats);
 #endif
   }
 
@@ -150,30 +152,30 @@ void test_copy(CommInfo& comminfo,
     char name[1024] = ""; snprintf(name, 1024, "set_vars %s", alloc.device.name());
     Range r0(name, Range::green);
 
-    if (detail::cuda::get_device_accessible_from_host()) {
-      if (exec_avail.seq) do_copy<seq_pol>(comminfo, alloc.device, alloc.host, tm, num_vars, len, ncycles);
+    if (memory_avail.cuda_device_accessible_from_host) {
+      if (exec_avail.seq) do_copy<seq_pol>(comminfo, alloc.device, alloc.host, tm, num_vars, len, nrepeats);
 
 #ifdef COMB_ENABLE_OPENMP
-      if (exec_avail.omp) do_copy<omp_pol>(comminfo, alloc.device, alloc.host, tm, num_vars, len, ncycles);
+      if (exec_avail.omp) do_copy<omp_pol>(comminfo, alloc.device, alloc.host, tm, num_vars, len, nrepeats);
 #endif
     }
 
-    if (exec_avail.cuda) do_copy<cuda_pol>(comminfo, alloc.device, alloc.hostpinned, tm, num_vars, len, ncycles);
+    if (exec_avail.cuda) do_copy<cuda_pol>(comminfo, alloc.device, alloc.hostpinned, tm, num_vars, len, nrepeats);
 
-    if (exec_avail.cuda_batch) do_copy<cuda_batch_pol>(comminfo, alloc.device, alloc.hostpinned, tm, num_vars, len, ncycles);
+    if (exec_avail.cuda_batch) do_copy<cuda_batch_pol>(comminfo, alloc.device, alloc.hostpinned, tm, num_vars, len, nrepeats);
 
-    if (exec_avail.cuda_persistent) do_copy<cuda_persistent_pol>(comminfo, alloc.device, alloc.hostpinned, tm, num_vars, len, ncycles);
+    if (exec_avail.cuda_persistent) do_copy<cuda_persistent_pol>(comminfo, alloc.device, alloc.hostpinned, tm, num_vars, len, nrepeats);
 
     {
       SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
-      if (exec_avail.cuda_batch_fewgs) do_copy<cuda_batch_pol>(comminfo, alloc.device, alloc.hostpinned, tm, num_vars, len, ncycles);
+      if (exec_avail.cuda_batch_fewgs) do_copy<cuda_batch_pol>(comminfo, alloc.device, alloc.hostpinned, tm, num_vars, len, nrepeats);
 
-      if (exec_avail.cuda_persistent_fewgs) do_copy<cuda_persistent_pol>(comminfo, alloc.device, alloc.hostpinned, tm, num_vars, len, ncycles);
+      if (exec_avail.cuda_persistent_fewgs) do_copy<cuda_persistent_pol>(comminfo, alloc.device, alloc.hostpinned, tm, num_vars, len, nrepeats);
     }
 
 #ifdef COMB_ENABLE_CUDA_GRAPH
-    if (exec_avail.cuda_graph) do_copy<cuda_graph_pol>(comminfo, alloc.device, alloc.hostpinned, tm, num_vars, len, ncycles);
+    if (exec_avail.cuda_graph) do_copy<cuda_graph_pol>(comminfo, alloc.device, alloc.hostpinned, tm, num_vars, len, nrepeats);
 #endif
   }
 
@@ -181,28 +183,28 @@ void test_copy(CommInfo& comminfo,
     char name[1024] = ""; snprintf(name, 1024, "set_vars %s", alloc.managed.name());
     Range r0(name, Range::green);
 
-    if (exec_avail.seq) do_copy<seq_pol>(comminfo, alloc.managed, alloc.host, tm, num_vars, len, ncycles);
+    if (exec_avail.seq) do_copy<seq_pol>(comminfo, alloc.managed, alloc.host, tm, num_vars, len, nrepeats);
 
 #ifdef COMB_ENABLE_OPENMP
-    if (exec_avail.omp) do_copy<omp_pol>(comminfo, alloc.managed, alloc.host, tm, num_vars, len, ncycles);
+    if (exec_avail.omp) do_copy<omp_pol>(comminfo, alloc.managed, alloc.host, tm, num_vars, len, nrepeats);
 #endif
 
-    if (exec_avail.cuda) do_copy<cuda_pol>(comminfo, alloc.managed, alloc.hostpinned, tm, num_vars, len, ncycles);
+    if (exec_avail.cuda) do_copy<cuda_pol>(comminfo, alloc.managed, alloc.hostpinned, tm, num_vars, len, nrepeats);
 
-    if (exec_avail.cuda_batch) do_copy<cuda_batch_pol>(comminfo, alloc.managed, alloc.hostpinned, tm, num_vars, len, ncycles);
+    if (exec_avail.cuda_batch) do_copy<cuda_batch_pol>(comminfo, alloc.managed, alloc.hostpinned, tm, num_vars, len, nrepeats);
 
-    if (exec_avail.cuda_persistent) do_copy<cuda_persistent_pol>(comminfo, alloc.managed, alloc.hostpinned, tm, num_vars, len, ncycles);
+    if (exec_avail.cuda_persistent) do_copy<cuda_persistent_pol>(comminfo, alloc.managed, alloc.hostpinned, tm, num_vars, len, nrepeats);
 
     {
       SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
-      if (exec_avail.cuda_batch_fewgs) do_copy<cuda_batch_pol>(comminfo, alloc.managed, alloc.hostpinned, tm, num_vars, len, ncycles);
+      if (exec_avail.cuda_batch_fewgs) do_copy<cuda_batch_pol>(comminfo, alloc.managed, alloc.hostpinned, tm, num_vars, len, nrepeats);
 
-      if (exec_avail.cuda_persistent_fewgs) do_copy<cuda_persistent_pol>(comminfo, alloc.managed, alloc.hostpinned, tm, num_vars, len, ncycles);
+      if (exec_avail.cuda_persistent_fewgs) do_copy<cuda_persistent_pol>(comminfo, alloc.managed, alloc.hostpinned, tm, num_vars, len, nrepeats);
     }
 
 #ifdef COMB_ENABLE_CUDA_GRAPH
-    if (exec_avail.cuda_graph) do_copy<cuda_graph_pol>(comminfo, alloc.managed, alloc.hostpinned, tm, num_vars, len, ncycles);
+    if (exec_avail.cuda_graph) do_copy<cuda_graph_pol>(comminfo, alloc.managed, alloc.hostpinned, tm, num_vars, len, nrepeats);
 #endif
   }
 
@@ -210,28 +212,28 @@ void test_copy(CommInfo& comminfo,
     char name[1024] = ""; snprintf(name, 1024, "set_vars %s", alloc.managed_host_preferred.name());
     Range r0(name, Range::green);
 
-    if (exec_avail.seq) do_copy<seq_pol>(comminfo, alloc.managed_host_preferred, alloc.host, tm, num_vars, len, ncycles);
+    if (exec_avail.seq) do_copy<seq_pol>(comminfo, alloc.managed_host_preferred, alloc.host, tm, num_vars, len, nrepeats);
 
 #ifdef COMB_ENABLE_OPENMP
-    if (exec_avail.omp) do_copy<omp_pol>(comminfo, alloc.managed_host_preferred, alloc.host, tm, num_vars, len, ncycles);
+    if (exec_avail.omp) do_copy<omp_pol>(comminfo, alloc.managed_host_preferred, alloc.host, tm, num_vars, len, nrepeats);
 #endif
 
-    if (exec_avail.cuda) do_copy<cuda_pol>(comminfo, alloc.managed_host_preferred, alloc.hostpinned, tm, num_vars, len, ncycles);
+    if (exec_avail.cuda) do_copy<cuda_pol>(comminfo, alloc.managed_host_preferred, alloc.hostpinned, tm, num_vars, len, nrepeats);
 
-    if (exec_avail.cuda_batch) do_copy<cuda_batch_pol>(comminfo, alloc.managed_host_preferred, alloc.hostpinned, tm, num_vars, len, ncycles);
+    if (exec_avail.cuda_batch) do_copy<cuda_batch_pol>(comminfo, alloc.managed_host_preferred, alloc.hostpinned, tm, num_vars, len, nrepeats);
 
-    if (exec_avail.cuda_persistent) do_copy<cuda_persistent_pol>(comminfo, alloc.managed_host_preferred, alloc.hostpinned, tm, num_vars, len, ncycles);
+    if (exec_avail.cuda_persistent) do_copy<cuda_persistent_pol>(comminfo, alloc.managed_host_preferred, alloc.hostpinned, tm, num_vars, len, nrepeats);
 
     {
       SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
-      if (exec_avail.cuda_batch_fewgs) do_copy<cuda_batch_pol>(comminfo, alloc.managed_host_preferred, alloc.hostpinned, tm, num_vars, len, ncycles);
+      if (exec_avail.cuda_batch_fewgs) do_copy<cuda_batch_pol>(comminfo, alloc.managed_host_preferred, alloc.hostpinned, tm, num_vars, len, nrepeats);
 
-      if (exec_avail.cuda_persistent_fewgs) do_copy<cuda_persistent_pol>(comminfo, alloc.managed_host_preferred, alloc.hostpinned, tm, num_vars, len, ncycles);
+      if (exec_avail.cuda_persistent_fewgs) do_copy<cuda_persistent_pol>(comminfo, alloc.managed_host_preferred, alloc.hostpinned, tm, num_vars, len, nrepeats);
     }
 
 #ifdef COMB_ENABLE_CUDA_GRAPH
-    if (exec_avail.cuda_graph) do_copy<cuda_graph_pol>(comminfo, alloc.managed_host_preferred, alloc.hostpinned, tm, num_vars, len, ncycles);
+    if (exec_avail.cuda_graph) do_copy<cuda_graph_pol>(comminfo, alloc.managed_host_preferred, alloc.hostpinned, tm, num_vars, len, nrepeats);
 #endif
   }
 
@@ -239,28 +241,28 @@ void test_copy(CommInfo& comminfo,
     char name[1024] = ""; snprintf(name, 1024, "set_vars %s", alloc.managed_host_preferred_device_accessed.name());
     Range r0(name, Range::green);
 
-    if (exec_avail.seq) do_copy<seq_pol>(comminfo, alloc.managed_host_preferred_device_accessed, alloc.host, tm, num_vars, len, ncycles);
+    if (exec_avail.seq) do_copy<seq_pol>(comminfo, alloc.managed_host_preferred_device_accessed, alloc.host, tm, num_vars, len, nrepeats);
 
 #ifdef COMB_ENABLE_OPENMP
-    if (exec_avail.omp) do_copy<omp_pol>(comminfo, alloc.managed_host_preferred_device_accessed, alloc.host, tm, num_vars, len, ncycles);
+    if (exec_avail.omp) do_copy<omp_pol>(comminfo, alloc.managed_host_preferred_device_accessed, alloc.host, tm, num_vars, len, nrepeats);
 #endif
 
-    if (exec_avail.cuda) do_copy<cuda_pol>(comminfo, alloc.managed_host_preferred_device_accessed, alloc.hostpinned, tm, num_vars, len, ncycles);
+    if (exec_avail.cuda) do_copy<cuda_pol>(comminfo, alloc.managed_host_preferred_device_accessed, alloc.hostpinned, tm, num_vars, len, nrepeats);
 
-    if (exec_avail.cuda_batch) do_copy<cuda_batch_pol>(comminfo, alloc.managed_host_preferred_device_accessed, alloc.hostpinned, tm, num_vars, len, ncycles);
+    if (exec_avail.cuda_batch) do_copy<cuda_batch_pol>(comminfo, alloc.managed_host_preferred_device_accessed, alloc.hostpinned, tm, num_vars, len, nrepeats);
 
-    if (exec_avail.cuda_persistent) do_copy<cuda_persistent_pol>(comminfo, alloc.managed_host_preferred_device_accessed, alloc.hostpinned, tm, num_vars, len, ncycles);
+    if (exec_avail.cuda_persistent) do_copy<cuda_persistent_pol>(comminfo, alloc.managed_host_preferred_device_accessed, alloc.hostpinned, tm, num_vars, len, nrepeats);
 
     {
       SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
-      if (exec_avail.cuda_batch_fewgs) do_copy<cuda_batch_pol>(comminfo, alloc.managed_host_preferred_device_accessed, alloc.hostpinned, tm, num_vars, len, ncycles);
+      if (exec_avail.cuda_batch_fewgs) do_copy<cuda_batch_pol>(comminfo, alloc.managed_host_preferred_device_accessed, alloc.hostpinned, tm, num_vars, len, nrepeats);
 
-      if (exec_avail.cuda_persistent_fewgs) do_copy<cuda_persistent_pol>(comminfo, alloc.managed_host_preferred_device_accessed, alloc.hostpinned, tm, num_vars, len, ncycles);
+      if (exec_avail.cuda_persistent_fewgs) do_copy<cuda_persistent_pol>(comminfo, alloc.managed_host_preferred_device_accessed, alloc.hostpinned, tm, num_vars, len, nrepeats);
     }
 
 #ifdef COMB_ENABLE_CUDA_GRAPH
-    if (exec_avail.cuda_graph) do_copy<cuda_graph_pol>(comminfo, alloc.managed_host_preferred_device_accessed, alloc.hostpinned, tm, num_vars, len, ncycles);
+    if (exec_avail.cuda_graph) do_copy<cuda_graph_pol>(comminfo, alloc.managed_host_preferred_device_accessed, alloc.hostpinned, tm, num_vars, len, nrepeats);
 #endif
   }
 
@@ -268,28 +270,28 @@ void test_copy(CommInfo& comminfo,
     char name[1024] = ""; snprintf(name, 1024, "set_vars %s", alloc.managed_device_preferred.name());
     Range r0(name, Range::green);
 
-    if (exec_avail.seq) do_copy<seq_pol>(comminfo, alloc.managed_device_preferred, alloc.host, tm, num_vars, len, ncycles);
+    if (exec_avail.seq) do_copy<seq_pol>(comminfo, alloc.managed_device_preferred, alloc.host, tm, num_vars, len, nrepeats);
 
 #ifdef COMB_ENABLE_OPENMP
-    if (exec_avail.omp) do_copy<omp_pol>(comminfo, alloc.managed_device_preferred, alloc.host, tm, num_vars, len, ncycles);
+    if (exec_avail.omp) do_copy<omp_pol>(comminfo, alloc.managed_device_preferred, alloc.host, tm, num_vars, len, nrepeats);
 #endif
 
-    if (exec_avail.cuda) do_copy<cuda_pol>(comminfo, alloc.managed_device_preferred, alloc.hostpinned, tm, num_vars, len, ncycles);
+    if (exec_avail.cuda) do_copy<cuda_pol>(comminfo, alloc.managed_device_preferred, alloc.hostpinned, tm, num_vars, len, nrepeats);
 
-    if (exec_avail.cuda_batch) do_copy<cuda_batch_pol>(comminfo, alloc.managed_device_preferred, alloc.hostpinned, tm, num_vars, len, ncycles);
+    if (exec_avail.cuda_batch) do_copy<cuda_batch_pol>(comminfo, alloc.managed_device_preferred, alloc.hostpinned, tm, num_vars, len, nrepeats);
 
-    if (exec_avail.cuda_persistent) do_copy<cuda_persistent_pol>(comminfo, alloc.managed_device_preferred, alloc.hostpinned, tm, num_vars, len, ncycles);
+    if (exec_avail.cuda_persistent) do_copy<cuda_persistent_pol>(comminfo, alloc.managed_device_preferred, alloc.hostpinned, tm, num_vars, len, nrepeats);
 
     {
       SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
-      if (exec_avail.cuda_batch_fewgs) do_copy<cuda_batch_pol>(comminfo, alloc.managed_device_preferred, alloc.hostpinned, tm, num_vars, len, ncycles);
+      if (exec_avail.cuda_batch_fewgs) do_copy<cuda_batch_pol>(comminfo, alloc.managed_device_preferred, alloc.hostpinned, tm, num_vars, len, nrepeats);
 
-      if (exec_avail.cuda_persistent_fewgs) do_copy<cuda_persistent_pol>(comminfo, alloc.managed_device_preferred, alloc.hostpinned, tm, num_vars, len, ncycles);
+      if (exec_avail.cuda_persistent_fewgs) do_copy<cuda_persistent_pol>(comminfo, alloc.managed_device_preferred, alloc.hostpinned, tm, num_vars, len, nrepeats);
     }
 
 #ifdef COMB_ENABLE_CUDA_GRAPH
-    if (exec_avail.cuda_graph) do_copy<cuda_graph_pol>(comminfo, alloc.managed_device_preferred, alloc.hostpinned, tm, num_vars, len, ncycles);
+    if (exec_avail.cuda_graph) do_copy<cuda_graph_pol>(comminfo, alloc.managed_device_preferred, alloc.hostpinned, tm, num_vars, len, nrepeats);
 #endif
   }
 
@@ -297,28 +299,28 @@ void test_copy(CommInfo& comminfo,
     char name[1024] = ""; snprintf(name, 1024, "set_vars %s", alloc.managed_device_preferred_host_accessed.name());
     Range r0(name, Range::green);
 
-    if (exec_avail.seq) do_copy<seq_pol>(comminfo, alloc.managed_device_preferred_host_accessed, alloc.host, tm, num_vars, len, ncycles);
+    if (exec_avail.seq) do_copy<seq_pol>(comminfo, alloc.managed_device_preferred_host_accessed, alloc.host, tm, num_vars, len, nrepeats);
 
 #ifdef COMB_ENABLE_OPENMP
-    if (exec_avail.omp) do_copy<omp_pol>(comminfo, alloc.managed_device_preferred_host_accessed, alloc.host, tm, num_vars, len, ncycles);
+    if (exec_avail.omp) do_copy<omp_pol>(comminfo, alloc.managed_device_preferred_host_accessed, alloc.host, tm, num_vars, len, nrepeats);
 #endif
 
-    if (exec_avail.cuda) do_copy<cuda_pol>(comminfo, alloc.managed_device_preferred_host_accessed, alloc.hostpinned, tm, num_vars, len, ncycles);
+    if (exec_avail.cuda) do_copy<cuda_pol>(comminfo, alloc.managed_device_preferred_host_accessed, alloc.hostpinned, tm, num_vars, len, nrepeats);
 
-    if (exec_avail.cuda_batch) do_copy<cuda_batch_pol>(comminfo, alloc.managed_device_preferred_host_accessed, alloc.hostpinned, tm, num_vars, len, ncycles);
+    if (exec_avail.cuda_batch) do_copy<cuda_batch_pol>(comminfo, alloc.managed_device_preferred_host_accessed, alloc.hostpinned, tm, num_vars, len, nrepeats);
 
-    if (exec_avail.cuda_persistent) do_copy<cuda_persistent_pol>(comminfo, alloc.managed_device_preferred_host_accessed, alloc.hostpinned, tm, num_vars, len, ncycles);
+    if (exec_avail.cuda_persistent) do_copy<cuda_persistent_pol>(comminfo, alloc.managed_device_preferred_host_accessed, alloc.hostpinned, tm, num_vars, len, nrepeats);
 
     {
       SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
-      if (exec_avail.cuda_batch_fewgs) do_copy<cuda_batch_pol>(comminfo, alloc.managed_device_preferred_host_accessed, alloc.hostpinned, tm, num_vars, len, ncycles);
+      if (exec_avail.cuda_batch_fewgs) do_copy<cuda_batch_pol>(comminfo, alloc.managed_device_preferred_host_accessed, alloc.hostpinned, tm, num_vars, len, nrepeats);
 
-      if (exec_avail.cuda_persistent_fewgs) do_copy<cuda_persistent_pol>(comminfo, alloc.managed_device_preferred_host_accessed, alloc.hostpinned, tm, num_vars, len, ncycles);
+      if (exec_avail.cuda_persistent_fewgs) do_copy<cuda_persistent_pol>(comminfo, alloc.managed_device_preferred_host_accessed, alloc.hostpinned, tm, num_vars, len, nrepeats);
     }
 
 #ifdef COMB_ENABLE_CUDA_GRAPH
-    if (exec_avail.cuda_graph) do_copy<cuda_graph_pol>(comminfo, alloc.managed_device_preferred_host_accessed, alloc.hostpinned, tm, num_vars, len, ncycles);
+    if (exec_avail.cuda_graph) do_copy<cuda_graph_pol>(comminfo, alloc.managed_device_preferred_host_accessed, alloc.hostpinned, tm, num_vars, len, nrepeats);
 #endif
   }
 #endif // COMB_ENABLE_CUDA

@@ -17,6 +17,7 @@
 #define _DO_CYCLES_HPP
 
 #include "comb.hpp"
+#include "CommFactory.hpp"
 
 namespace COMB {
 

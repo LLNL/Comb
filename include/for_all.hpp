@@ -187,6 +187,8 @@ struct adapter_3d {
 #include "pol_cuda_graph.hpp"
 #include "pol_mpi_type.hpp"
 
+namespace COMB {
+
 struct ExecutorsAvailable
 {
   bool seq = false;
@@ -201,5 +203,7 @@ struct ExecutorsAvailable
   // special flag to enable tests that pass device buffers to MPI
   bool cuda_aware_mpi = false;
 };
+
+} // namespace COMB
 
 #endif // _FOR_ALL_HPP

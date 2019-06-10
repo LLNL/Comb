@@ -89,12 +89,12 @@ int main(int argc, char** argv)
   IdxT ncycles = 5;
 
   // stores whether each comm policy is available for use
-  CommunicatorsAvailable comm_avail;
+  COMB::CommunicatorsAvailable comm_avail;
   comm_avail.mock = true;
   comm_avail.mpi = true;
 
   // stores whether each exec policy is available for use
-  ExecutorsAvailable exec_avail;
+  COMB::ExecutorsAvailable exec_avail;
   exec_avail.seq = true;
 
   // stores whether each memory type is available for use
@@ -292,7 +292,7 @@ int main(int argc, char** argv)
               if (strcmp(argv[i], "all") == 0) {
                 memory_avail.host = enabledisable;
   #ifdef COMB_ENABLE_CUDA
-                memory_avail.cuda_pinned = enabledisable;
+                memory_avail.cuda_hostpinned = enabledisable;
                 memory_avail.cuda_device = enabledisable;
                 memory_avail.cuda_managed = enabledisable;
                 memory_avail.cuda_managed_host_preferred = enabledisable;
@@ -302,9 +302,9 @@ int main(int argc, char** argv)
   #endif
               } else if (strcmp(argv[i], "host") == 0) {
                 memory_avail.host = enabledisable;
-              } else if (strcmp(argv[i], "cuda_pinned") == 0) {
+              } else if (strcmp(argv[i], "cuda_hostpinned") == 0) {
   #ifdef COMB_ENABLE_CUDA
-                memory_avail.cuda_pinned = enabledisable;
+                memory_avail.cuda_hostpinned = enabledisable;
   #endif
               } else if (strcmp(argv[i], "cuda_device") == 0) {
   #ifdef COMB_ENABLE_CUDA
@@ -430,7 +430,7 @@ int main(int argc, char** argv)
 #endif
       } else if (strcmp(&argv[i][1], "cuda_host_accessible_from_device") == 0) {
 #ifdef COMB_ENABLE_CUDA
-        memory_avail.cuda_host_accessible_from_device = detail::cuda::get_host_accessible_from_device();
+        memory_avail.cuda_host_accessible_from_device = COMB::detail::cuda::get_host_accessible_from_device();
 #else
         comminfo.print(FileGroup::err_master, "Not built with cuda, ignoring %s.\n", argv[i]);
 #endif
