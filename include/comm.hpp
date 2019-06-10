@@ -225,23 +225,27 @@ struct CommInfo
     if ( fg == FileGroup::out_any ||
          ((fg == FileGroup::out_master || fg == FileGroup::all) && rank == 0) ) {
       fprintf(comb_out_file, "%s", msg);
+      fflush(comb_out_file);
     }
 
     // print to err file
     if ( fg == FileGroup::err_any ||
          (fg == FileGroup::err_master && rank == 0) ) {
       fprintf(comb_err_file, "%s", msg);
+      fflush(comb_err_file);
     }
 
     // print to proc file
     if ( fg == FileGroup::proc ||
          fg == FileGroup::all ) {
       fprintf(comb_proc_file, "%s", msg);
+      fflush(comb_proc_file);
     }
 
     // print to summary file
     if ( (fg == FileGroup::summary || fg == FileGroup::all) && rank == 0 ) {
       fprintf(comb_summary_file, "%s", msg);
+        fflush(comb_summary_file);
     }
 
     free(msg);
