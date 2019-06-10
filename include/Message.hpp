@@ -26,11 +26,13 @@
 #include "for_all.hpp"
 #include "utils.hpp"
 
-template < typename policy_comm_ >
-struct Message
-{
-  using policy_comm = policy_comm_;
+#include "comm_pol_mock.hpp"
+#include "comm_pol_mpi.hpp"
 
+namespace detail {
+
+struct MessageBase
+{
   int m_partner_rank;
   int m_msg_tag;
   DataT* m_buf;
@@ -56,7 +58,7 @@ struct Message
 
   std::list<list_item_type> items;
 
-  Message(int partner_rank, int tag, bool have_many)
+  MessageBase(int partner_rank, int tag, bool have_many)
     : m_partner_rank(partner_rank)
     , m_msg_tag(tag)
     , m_buf(nullptr)
@@ -114,6 +116,41 @@ struct Message
     }
     m_size += size;
   }
+
+  void destroy()
+  {
+    auto end = std::end(items);
+    for (auto i = std::begin(items); i != end; ++i) {
+      if (i->indices) {
+        i->aloc.deallocate(i->indices); i->indices = nullptr;
+      }
+      if (i->mpi_type != MPI_DATATYPE_NULL) {
+        detail::MPI::Type_free(&i->mpi_type); i->mpi_type = MPI_DATATYPE_NULL;
+      }
+    }
+    items.clear();
+  }
+
+  ~MessageBase()
+  {
+  }
+};
+
+} // namespace detail
+
+
+template < typename policy_comm_ >
+struct Message;
+
+template < >
+struct Message<mpi_pol> : detail::MessageBase
+{
+  using policy_comm = mpi_pol;
+
+  using base = detail::MessageBase;
+
+  // use the base class constructor
+  using base::base;
 
   template < typename policy >
   void pack(policy const& pol, typename policy_comm::communicator_type)
@@ -200,7 +237,7 @@ struct Message
       DataT const* src = items.front().data;
       MPI_Datatype mpi_type = items.front().mpi_type;
       // FPRINTF(stdout, "%p Isend %p to %i tag %i\n", this, src, partner_rank(), tag());
-      start_send(policy_comm{}, src, 1, mpi_type, partner_rank(), tag(), comm, request);
+      start_send(policy_comm{}, (void*)src, 1, mpi_type, partner_rank(), tag(), comm, request);
     } else {
       // FPRINTF(stdout, "%p Isend %p nbytes %i to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
       start_send(policy_comm{}, buffer(), nbytes(), MPI_PACKED, partner_rank(), tag(), comm, request);
@@ -255,18 +292,156 @@ struct Message
     }
   }
 
-  void destroy()
+  ~Message()
   {
+  }
+};
+
+
+template < >
+struct Message<mock_pol> : detail::MessageBase
+{
+  using policy_comm = mock_pol;
+
+  using base = detail::MessageBase;
+
+  // use the base class constructor
+  using base::base;
+
+  template < typename policy >
+  void pack(policy const& pol, typename policy_comm::communicator_type)
+  {
+    DataT* buf = m_buf;
+    assert(buf != nullptr);
     auto end = std::end(items);
     for (auto i = std::begin(items); i != end; ++i) {
-      if (i->indices) {
-        i->aloc.deallocate(i->indices); i->indices = nullptr;
+      IdxT len = i->size;
+      buf += len;
+    }
+  }
+
+  void pack(mpi_type_pol const&, typename policy_comm::communicator_type comm)
+  {
+    if (items.size() == 1) {
+      m_nbytes = sizeof(DataT)*items.front().size;
+    } else {
+      DataT* buf = m_buf;
+      assert(buf != nullptr);
+      IdxT buf_max_nbytes = max_nbytes();
+      int pos = 0;
+      auto end = std::end(items);
+      for (auto i = std::begin(items); i != end; ++i) {
+        DataT const* src = i->data;
+        MPI_Datatype mpi_type = i->mpi_type;
+        // FPRINTF(stdout, "%p pack %p[%i] = %p\n", this, buf, pos, src);
+        detail::MPI::Pack(src, 1, mpi_type, buf, buf_max_nbytes, &pos, /*comm*/ MPI_COMM_WORLD);
       }
-      if (i->mpi_type != MPI_DATATYPE_NULL) {
-        detail::MPI::Type_free(&i->mpi_type); i->mpi_type = MPI_DATATYPE_NULL;
+      // set nbytes to actual value
+      m_nbytes = pos;
+    }
+  }
+
+  template < typename policy >
+  void unpack(policy const& pol, typename policy_comm::communicator_type)
+  {
+    DataT const* buf = m_buf;
+    assert(buf != nullptr);
+    auto end = std::end(items);
+    for (auto i = std::begin(items); i != end; ++i) {
+      DataT* dst = i->data;
+      LidxT const* indices = i->indices;
+      IdxT len = i->size;
+      // FPRINTF(stdout, "%p unpack %p[%p] = %p len %d\n", this, dst, indices, buf, len);
+      for_all(pol, 0, len, make_copy_idxr_idxr(buf, detail::indexer_idx{}, dst, detail::indexer_list_idx{indices}));
+      buf += len;
+    }
+  }
+
+  void unpack(mpi_type_pol const&, typename policy_comm::communicator_type comm)
+  {
+    if (items.size() == 1) {
+      // nothing to do
+    } else {
+      DataT const* buf = m_buf;
+      assert(buf != nullptr);
+      IdxT buf_max_nbytes = max_nbytes();
+      int pos = 0;
+      auto end = std::end(items);
+      for (auto i = std::begin(items); i != end; ++i) {
+        DataT* dst = i->data;
+        MPI_Datatype mpi_type = i->mpi_type;
+        // FPRINTF(stdout, "%p unpack %p = %p[%i]\n", this, dst, buf, pos);
+        detail::MPI::Unpack(buf, buf_max_nbytes, &pos, dst, 1, mpi_type, /*comm*/ MPI_COMM_WORLD);
       }
     }
-    items.clear();
+  }
+
+  template < typename policy >
+  void Isend(policy const&, typename policy_comm::communicator_type comm, typename policy_comm::send_request_type* request)
+  {
+    // FPRINTF(stdout, "%p Isend %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
+    start_send(policy_comm{}, buffer(), nbytes(), typename policy_comm::type_type{}, partner_rank(), tag(), comm, request);
+  }
+
+  void Isend(mpi_type_pol const&, typename policy_comm::communicator_type comm, typename policy_comm::send_request_type* request)
+  {
+    if (items.size() == 1) {
+      DataT const* src = items.front().data;
+      // MPI_Datatype mpi_type = items.front().mpi_type;
+      // FPRINTF(stdout, "%p Isend %p to %i tag %i\n", this, src, partner_rank(), tag());
+      start_send(policy_comm{}, (void*)src, 1, typename policy_comm::type_type{}, partner_rank(), tag(), comm, request);
+    } else {
+      // FPRINTF(stdout, "%p Isend %p nbytes %i to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
+      start_send(policy_comm{}, buffer(), nbytes(), typename policy_comm::type_type{}, partner_rank(), tag(), comm, request);
+    }
+  }
+
+  template < typename policy >
+  void Irecv(policy const&, typename policy_comm::communicator_type comm, typename policy_comm::recv_request_type* request)
+  {
+    // FPRINTF(stdout, "%p Irecv %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
+    start_recv(policy_comm{}, buffer(), nbytes(), typename policy_comm::type_type{}, partner_rank(), tag(), comm, request);
+  }
+
+  void Irecv(mpi_type_pol const&, typename policy_comm::communicator_type comm, typename policy_comm::recv_request_type* request)
+  {
+    if (items.size() == 1) {
+      DataT* dst = items.front().data;
+      // MPI_Datatype mpi_type = items.front().mpi_type;
+      // FPRINTF(stdout, "%p Irecv %p to %i tag %i\n", this, dst, partner_rank(), tag());
+      start_recv(policy_comm{}, dst, 1, typename policy_comm::type_type{}, partner_rank(), tag(), comm, request);
+    } else {
+      // FPRINTF(stdout, "%p Irecv %p maxnbytes %i to %i tag %i\n", this, dst, max_nbytes(), partner_rank(), tag());
+      start_recv(policy_comm{}, buffer(), max_nbytes(), typename policy_comm::type_type{}, partner_rank(), tag(), comm, request);
+    }
+  }
+
+  template < typename policy >
+  void allocate(policy const&, COMB::Allocator& buf_aloc)
+  {
+    if (m_buf == nullptr) {
+      m_buf = (DataT*)buf_aloc.allocate(nbytes());
+    }
+  }
+
+  void allocate(mpi_type_pol const&, COMB::Allocator& buf_aloc)
+  {
+    if (m_buf == nullptr) {
+      if (items.size() == 1) {
+        // no buffer needed
+      } else {
+        m_buf = (DataT*)buf_aloc.allocate(max_nbytes());
+      }
+    }
+  }
+
+  template < typename policy >
+  void deallocate(policy const&, COMB::Allocator& buf_aloc)
+  {
+    if (m_buf != nullptr) {
+      buf_aloc.deallocate(m_buf);
+      m_buf = nullptr;
+    }
   }
 
   ~Message()
