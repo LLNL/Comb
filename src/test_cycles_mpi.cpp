@@ -124,7 +124,7 @@ void test_cycles_mpi(CommInfo& comminfo, MeshInfo& info,
 
 #ifdef COMB_ENABLE_CUDA
   // host pinned allocated
-  if (memory_avail.cuda_pinned) {
+  if (memory_avail.cuda_hostpinned) {
     COMB::Allocator& mesh_aloc = alloc.hostpinned;
 
     char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.name());
@@ -217,7 +217,7 @@ void test_cycles_mpi(CommInfo& comminfo, MeshInfo& info,
     char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.name());
     Range r0(name, Range::blue);
 
-    if (detail::cuda::get_device_accessible_from_host()) {
+    if (memory_avail.cuda_device_accessible_from_host) {
       if (exec_avail.seq && exec_avail.seq && exec_avail.seq)
         do_cycles<seq_pol, seq_pol, seq_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, alloc.host, alloc.host, tm, tm_total);
 
@@ -251,7 +251,7 @@ void test_cycles_mpi(CommInfo& comminfo, MeshInfo& info,
       do_cycles<cuda_pol, cuda_pol, cuda_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, alloc.hostpinned, alloc.hostpinned, tm, tm_total);
 
     {
-      if (detail::cuda::get_device_accessible_from_host()) {
+      if (memory_avail.cuda_device_accessible_from_host) {
         if (exec_avail.cuda && exec_avail.cuda_batch && exec_avail.seq)
           do_cycles<cuda_pol, cuda_batch_pol, seq_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, alloc.hostpinned, alloc.host, tm, tm_total);
       }
@@ -259,7 +259,7 @@ void test_cycles_mpi(CommInfo& comminfo, MeshInfo& info,
       if (exec_avail.cuda && exec_avail.cuda_batch && exec_avail.cuda_batch)
         do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, alloc.hostpinned, alloc.hostpinned, tm, tm_total);
 
-      if (detail::cuda::get_device_accessible_from_host()) {
+      if (memory_avail.cuda_device_accessible_from_host) {
         if (exec_avail.cuda && exec_avail.cuda_persistent && exec_avail.seq)
           do_cycles<cuda_pol, cuda_persistent_pol, seq_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, alloc.hostpinned, alloc.host, tm, tm_total);
       }
@@ -270,7 +270,7 @@ void test_cycles_mpi(CommInfo& comminfo, MeshInfo& info,
 
       SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
-      if (detail::cuda::get_device_accessible_from_host()) {
+      if (memory_avail.cuda_device_accessible_from_host) {
         if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.seq)
           do_cycles<cuda_pol, cuda_batch_pol, seq_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, alloc.hostpinned, alloc.host, tm, tm_total);
       }
@@ -278,7 +278,7 @@ void test_cycles_mpi(CommInfo& comminfo, MeshInfo& info,
       if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.cuda_batch_fewgs)
         do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, alloc.hostpinned, alloc.hostpinned, tm, tm_total);
 
-      if (detail::cuda::get_device_accessible_from_host()) {
+      if (memory_avail.cuda_device_accessible_from_host) {
         if (exec_avail.cuda && exec_avail.cuda_persistent_fewgs && exec_avail.seq)
           do_cycles<cuda_pol, cuda_persistent_pol, seq_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, alloc.hostpinned, alloc.host, tm, tm_total);
       }
@@ -288,7 +288,7 @@ void test_cycles_mpi(CommInfo& comminfo, MeshInfo& info,
     }
 
 #ifdef COMB_ENABLE_CUDA_GRAPH
-    if (detail::cuda::get_device_accessible_from_host()) {
+    if (memory_avail.cuda_device_accessible_from_host) {
       if (exec_avail.cuda && exec_avail.cuda_graph && exec_avail.seq)
         do_cycles<cuda_pol, cuda_graph_pol, seq_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, alloc.hostpinned, alloc.host, tm, tm_total);
     }
@@ -298,13 +298,13 @@ void test_cycles_mpi(CommInfo& comminfo, MeshInfo& info,
 #endif
 
     if (exec_avail.cuda_aware_mpi) {
-      if (detail::cuda::get_device_accessible_from_host()) {
+      if (memory_avail.cuda_device_accessible_from_host) {
         if (exec_avail.seq && exec_avail.mpi_type && exec_avail.mpi_type)
           do_cycles<seq_pol, mpi_type_pol, mpi_type_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
       }
 
 #ifdef COMB_ENABLE_OPENMP
-      if (detail::cuda::get_device_accessible_from_host()) {
+      if (memory_avail.cuda_device_accessible_from_host) {
         if (exec_avail.omp && exec_avail.mpi_type && exec_avail.mpi_type)
           do_cycles<omp_pol, mpi_type_pol, mpi_type_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
       }
