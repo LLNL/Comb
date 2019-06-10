@@ -106,18 +106,18 @@ void test_cycles_mock(CommInfo& comminfo, MeshInfo& info,
     }
 #endif
 
-    // if (exec_avail.seq && exec_avail.mpi_type && exec_avail.mpi_type)
-    //   do_cycles<seq_pol, mpi_type_pol, mpi_type_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
+    if (exec_avail.seq && exec_avail.mpi_type && exec_avail.mpi_type)
+      do_cycles<seq_pol, mpi_type_pol, mpi_type_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
 
 #ifdef COMB_ENABLE_OPENMP
-    // if (exec_avail.omp && exec_avail.mpi_type && exec_avail.mpi_type)
-    //   do_cycles<omp_pol, mpi_type_pol, mpi_type_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
+    if (exec_avail.omp && exec_avail.mpi_type && exec_avail.mpi_type)
+      do_cycles<omp_pol, mpi_type_pol, mpi_type_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
 #endif
 
 #ifdef COMB_ENABLE_CUDA
     if (memory_avail.cuda_host_accessible_from_device) {
-      // if (exec_avail.cuda && exec_avail.mpi_type && exec_avail.mpi_type)
-      //   do_cycles<cuda_pol, mpi_type_pol, mpi_type_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
+      if (exec_avail.cuda && exec_avail.mpi_type && exec_avail.mpi_type)
+        do_cycles<cuda_pol, mpi_type_pol, mpi_type_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
     }
 #endif
   }
@@ -198,16 +198,16 @@ void test_cycles_mock(CommInfo& comminfo, MeshInfo& info,
       do_cycles<cuda_pol, cuda_graph_pol, cuda_graph_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, alloc.hostpinned, alloc.hostpinned, tm, tm_total);
 #endif
 
-    // if (exec_avail.seq && exec_avail.mpi_type && exec_avail.mpi_type)
-    //   do_cycles<seq_pol, mpi_type_pol, mpi_type_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
+    if (exec_avail.seq && exec_avail.mpi_type && exec_avail.mpi_type)
+      do_cycles<seq_pol, mpi_type_pol, mpi_type_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
 
 #ifdef COMB_ENABLE_OPENMP
-    // if (exec_avail.omp && exec_avail.mpi_type && exec_avail.mpi_type)
-    //   do_cycles<omp_pol, mpi_type_pol, mpi_type_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
+    if (exec_avail.omp && exec_avail.mpi_type && exec_avail.mpi_type)
+      do_cycles<omp_pol, mpi_type_pol, mpi_type_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
 #endif
 
-    // if (exec_avail.cuda && exec_avail.mpi_type && exec_avail.mpi_type)
-    //   do_cycles<cuda_pol, mpi_type_pol, mpi_type_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
+    if (exec_avail.cuda && exec_avail.mpi_type && exec_avail.mpi_type)
+      do_cycles<cuda_pol, mpi_type_pol, mpi_type_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
   }
 
   // device allocated
@@ -299,19 +299,19 @@ void test_cycles_mock(CommInfo& comminfo, MeshInfo& info,
 
     if (exec_avail.cuda_aware_mpi) {
       if (memory_avail.cuda_device_accessible_from_host) {
-        // if (exec_avail.seq && exec_avail.mpi_type && exec_avail.mpi_type)
-        //   do_cycles<seq_pol, mpi_type_pol, mpi_type_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
+        if (exec_avail.seq && exec_avail.mpi_type && exec_avail.mpi_type)
+          do_cycles<seq_pol, mpi_type_pol, mpi_type_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
       }
 
 #ifdef COMB_ENABLE_OPENMP
       if (memory_avail.cuda_device_accessible_from_host) {
-        // if (exec_avail.omp && exec_avail.mpi_type && exec_avail.mpi_type)
-        //   do_cycles<omp_pol, mpi_type_pol, mpi_type_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
+        if (exec_avail.omp && exec_avail.mpi_type && exec_avail.mpi_type)
+          do_cycles<omp_pol, mpi_type_pol, mpi_type_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
       }
 #endif
 
-      // if (exec_avail.cuda && exec_avail.mpi_type && exec_avail.mpi_type)
-      //   do_cycles<cuda_pol, mpi_type_pol, mpi_type_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
+      if (exec_avail.cuda && exec_avail.mpi_type && exec_avail.mpi_type)
+        do_cycles<cuda_pol, mpi_type_pol, mpi_type_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
     }
   }
 
@@ -391,16 +391,16 @@ void test_cycles_mock(CommInfo& comminfo, MeshInfo& info,
 #endif
 
     if (exec_avail.cuda_aware_mpi) {
-      // if (exec_avail.seq && exec_avail.mpi_type && exec_avail.mpi_type)
-      //   do_cycles<seq_pol, mpi_type_pol, mpi_type_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
+      if (exec_avail.seq && exec_avail.mpi_type && exec_avail.mpi_type)
+        do_cycles<seq_pol, mpi_type_pol, mpi_type_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
 
 #ifdef COMB_ENABLE_OPENMP
-      // if (exec_avail.omp && exec_avail.mpi_type && exec_avail.mpi_type)
-      //   do_cycles<omp_pol, mpi_type_pol, mpi_type_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
+      if (exec_avail.omp && exec_avail.mpi_type && exec_avail.mpi_type)
+        do_cycles<omp_pol, mpi_type_pol, mpi_type_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
 #endif
 
-      // if (exec_avail.cuda && exec_avail.mpi_type && exec_avail.mpi_type)
-      //   do_cycles<cuda_pol, mpi_type_pol, mpi_type_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
+      if (exec_avail.cuda && exec_avail.mpi_type && exec_avail.mpi_type)
+        do_cycles<cuda_pol, mpi_type_pol, mpi_type_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
     }
   }
 
@@ -480,16 +480,16 @@ void test_cycles_mock(CommInfo& comminfo, MeshInfo& info,
 #endif
 
     if (exec_avail.cuda_aware_mpi) {
-      // if (exec_avail.seq && exec_avail.mpi_type && exec_avail.mpi_type)
-      //   do_cycles<seq_pol, mpi_type_pol, mpi_type_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
+      if (exec_avail.seq && exec_avail.mpi_type && exec_avail.mpi_type)
+        do_cycles<seq_pol, mpi_type_pol, mpi_type_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
 
 #ifdef COMB_ENABLE_OPENMP
-      // if (exec_avail.omp && exec_avail.mpi_type && exec_avail.mpi_type)
-      //   do_cycles<omp_pol, mpi_type_pol, mpi_type_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
+      if (exec_avail.omp && exec_avail.mpi_type && exec_avail.mpi_type)
+        do_cycles<omp_pol, mpi_type_pol, mpi_type_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
 #endif
 
-      // if (exec_avail.cuda && exec_avail.mpi_type && exec_avail.mpi_type)
-      //   do_cycles<cuda_pol, mpi_type_pol, mpi_type_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
+      if (exec_avail.cuda && exec_avail.mpi_type && exec_avail.mpi_type)
+        do_cycles<cuda_pol, mpi_type_pol, mpi_type_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
     }
   }
 
@@ -569,16 +569,16 @@ void test_cycles_mock(CommInfo& comminfo, MeshInfo& info,
 #endif
 
     if (exec_avail.cuda_aware_mpi) {
-      // if (exec_avail.seq && exec_avail.mpi_type && exec_avail.mpi_type)
-      //   do_cycles<seq_pol, mpi_type_pol, mpi_type_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
+      if (exec_avail.seq && exec_avail.mpi_type && exec_avail.mpi_type)
+        do_cycles<seq_pol, mpi_type_pol, mpi_type_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
 
 #ifdef COMB_ENABLE_OPENMP
-      // if (exec_avail.omp && exec_avail.mpi_type && exec_avail.mpi_type)
-      //   do_cycles<omp_pol, mpi_type_pol, mpi_type_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
+      if (exec_avail.omp && exec_avail.mpi_type && exec_avail.mpi_type)
+        do_cycles<omp_pol, mpi_type_pol, mpi_type_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
 #endif
 
-      // if (exec_avail.cuda && exec_avail.mpi_type && exec_avail.mpi_type)
-      //   do_cycles<cuda_pol, mpi_type_pol, mpi_type_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
+      if (exec_avail.cuda && exec_avail.mpi_type && exec_avail.mpi_type)
+        do_cycles<cuda_pol, mpi_type_pol, mpi_type_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
     }
   }
 
@@ -658,16 +658,16 @@ void test_cycles_mock(CommInfo& comminfo, MeshInfo& info,
 #endif
 
     if (exec_avail.cuda_aware_mpi) {
-      // if (exec_avail.seq && exec_avail.mpi_type && exec_avail.mpi_type)
-      //   do_cycles<seq_pol, mpi_type_pol, mpi_type_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
+      if (exec_avail.seq && exec_avail.mpi_type && exec_avail.mpi_type)
+        do_cycles<seq_pol, mpi_type_pol, mpi_type_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
 
 #ifdef COMB_ENABLE_OPENMP
-      // if (exec_avail.omp && exec_avail.mpi_type && exec_avail.mpi_type)
-      //   do_cycles<omp_pol, mpi_type_pol, mpi_type_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
+      if (exec_avail.omp && exec_avail.mpi_type && exec_avail.mpi_type)
+        do_cycles<omp_pol, mpi_type_pol, mpi_type_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
 #endif
 
-      // if (exec_avail.cuda && exec_avail.mpi_type && exec_avail.mpi_type)
-      //   do_cycles<cuda_pol, mpi_type_pol, mpi_type_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
+      if (exec_avail.cuda && exec_avail.mpi_type && exec_avail.mpi_type)
+        do_cycles<cuda_pol, mpi_type_pol, mpi_type_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
     }
   }
 
@@ -747,16 +747,16 @@ void test_cycles_mock(CommInfo& comminfo, MeshInfo& info,
 #endif
 
     if (exec_avail.cuda_aware_mpi) {
-      // if (exec_avail.seq && exec_avail.mpi_type && exec_avail.mpi_type)
-      //   do_cycles<seq_pol, mpi_type_pol, mpi_type_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
+      if (exec_avail.seq && exec_avail.mpi_type && exec_avail.mpi_type)
+        do_cycles<seq_pol, mpi_type_pol, mpi_type_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
 
 #ifdef COMB_ENABLE_OPENMP
-      // if (exec_avail.omp && exec_avail.mpi_type && exec_avail.mpi_type)
-      //   do_cycles<omp_pol, mpi_type_pol, mpi_type_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
+      if (exec_avail.omp && exec_avail.mpi_type && exec_avail.mpi_type)
+        do_cycles<omp_pol, mpi_type_pol, mpi_type_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
 #endif
 
-      // if (exec_avail.cuda && exec_avail.mpi_type && exec_avail.mpi_type)
-      //   do_cycles<cuda_pol, mpi_type_pol, mpi_type_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
+      if (exec_avail.cuda && exec_avail.mpi_type && exec_avail.mpi_type)
+        do_cycles<cuda_pol, mpi_type_pol, mpi_type_pol, policy_comm>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
     }
   }
 #endif // COMB_ENABLE_CUDA
