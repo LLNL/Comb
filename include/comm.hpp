@@ -1488,11 +1488,15 @@ struct Comm
   }
 };
 
+namespace COMB {
+
 struct CommunicatorsAvailable
 {
   bool mock = false;
   bool mpi = false;
 };
+
+} // namespace COMB
 
 #endif // _COMM_HPP
 
