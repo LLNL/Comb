@@ -27,6 +27,7 @@ struct mock_pol {
   // static const bool async = false;
   static const char* get_name() { return "mock"; }
   using communicator_type = int;
+  static inline communicator_type communicator_null() { return 0; }
   using send_request_type = int;
   static inline send_request_type send_request_null() { return 0; }
   using recv_request_type = int;
@@ -39,7 +40,7 @@ struct mock_pol {
 };
 
 
-void start_send(mock_pol const&,
+inline void start_send(mock_pol const&,
                 void* buffer, int size, mock_pol::type_type type,
                 int dest_rank, int tag,
                 mock_pol::communicator_type comm, mock_pol::send_request_type* request)
@@ -48,7 +49,7 @@ void start_send(mock_pol const&,
   *request = 1;
 }
 
-int wait_send_any(mock_pol const&,
+inline int wait_send_any(mock_pol const&,
                   int count, mock_pol::send_request_type* requests,
                   mock_pol::send_status_type* statuses)
 {
@@ -63,7 +64,7 @@ int wait_send_any(mock_pol const&,
   return -1;
 }
 
-int test_send_any(mock_pol const&,
+inline int test_send_any(mock_pol const&,
                   int count, mock_pol::send_request_type* requests,
                   mock_pol::send_status_type* statuses)
 {
@@ -78,7 +79,7 @@ int test_send_any(mock_pol const&,
   return -1;
 }
 
-int wait_send_some(mock_pol const&,
+inline int wait_send_some(mock_pol const&,
                    int count, mock_pol::send_request_type* requests,
                    int* indices, mock_pol::send_status_type* statuses)
 {
@@ -94,7 +95,7 @@ int wait_send_some(mock_pol const&,
   return done;
 }
 
-int test_send_some(mock_pol const&,
+inline int test_send_some(mock_pol const&,
                    int count, mock_pol::send_request_type* requests,
                    int* indices, mock_pol::send_status_type* statuses)
 {
@@ -110,7 +111,7 @@ int test_send_some(mock_pol const&,
   return done;
 }
 
-void wait_send_all(mock_pol const&,
+inline void wait_send_all(mock_pol const&,
                    int count, mock_pol::send_request_type* requests,
                    mock_pol::send_status_type* statuses)
 {
@@ -123,7 +124,7 @@ void wait_send_all(mock_pol const&,
   }
 }
 
-void test_send_all(mock_pol const&,
+inline void test_send_all(mock_pol const&,
                    int count, mock_pol::send_request_type* requests,
                    mock_pol::send_status_type* statuses)
 {
@@ -137,7 +138,7 @@ void test_send_all(mock_pol const&,
 }
 
 
-void start_recv(mock_pol const&,
+inline void start_recv(mock_pol const&,
                 void* buffer, int size, mock_pol::type_type type,
                 int src_rank, int tag,
                 mock_pol::communicator_type comm, mock_pol::send_request_type* request)
@@ -146,7 +147,7 @@ void start_recv(mock_pol const&,
   *request = 1;
 }
 
-int wait_recv_any(mock_pol const&,
+inline int wait_recv_any(mock_pol const&,
                   int count, mock_pol::recv_request_type* requests,
                   mock_pol::recv_status_type* statuses)
 {
@@ -161,7 +162,7 @@ int wait_recv_any(mock_pol const&,
   return -1;
 }
 
-int test_recv_any(mock_pol const&,
+inline int test_recv_any(mock_pol const&,
                   int count, mock_pol::recv_request_type* requests,
                   mock_pol::recv_status_type* statuses)
 {
@@ -176,7 +177,7 @@ int test_recv_any(mock_pol const&,
   return -1;
 }
 
-int wait_recv_some(mock_pol const&,
+inline int wait_recv_some(mock_pol const&,
                    int count, mock_pol::recv_request_type* requests,
                    int* indices, mock_pol::recv_status_type* statuses)
 {
@@ -192,7 +193,7 @@ int wait_recv_some(mock_pol const&,
   return done;
 }
 
-int test_recv_some(mock_pol const&,
+inline int test_recv_some(mock_pol const&,
                    int count, mock_pol::recv_request_type* requests,
                    int* indices, mock_pol::recv_status_type* statuses)
 {
@@ -208,7 +209,7 @@ int test_recv_some(mock_pol const&,
   return done;
 }
 
-void wait_recv_all(mock_pol const&,
+inline void wait_recv_all(mock_pol const&,
                    int count, mock_pol::recv_request_type* requests,
                    mock_pol::recv_status_type* statuses)
 {
@@ -221,7 +222,7 @@ void wait_recv_all(mock_pol const&,
   }
 }
 
-void test_recv_all(mock_pol const&,
+inline void test_recv_all(mock_pol const&,
                    int count, mock_pol::recv_request_type* requests,
                    mock_pol::recv_status_type* statuses)
 {
