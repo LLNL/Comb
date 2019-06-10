@@ -80,6 +80,10 @@ comb_args="${comb_args} -memory disable host"
 comb_args="${comb_args} -memory enable cuda_device"
 # enable cuda managed memory tests
 comb_args="${comb_args} -memory enable cuda_managed"
+# enable mock communication tests
+comb_args="${comb_args} -comm enable mock"
+# enable mpi communication tests
+comb_args="${comb_args} -comm enable mpi"
 
 # set up arguments for communication method
 wait_any_method="-comm post_recv wait_any -comm post_send wait_any -comm wait_recv wait_any -comm wait_send wait_all"
@@ -94,10 +98,6 @@ for comm_method in "${wait_any_method}"; do
    # Run a test with this comm method
    echo "${run_test_base} ${comm_method} ${comb_args}"
    ${run_test_base} ${comm_method} ${comb_args}
-
-   # Run a mock communication test with this comm method
-   echo "${run_test_base} ${comm_method} -comm mock ${comb_args} "
-   ${run_test_base} ${comm_method} -comm mock ${comb_args}
 
 done
 

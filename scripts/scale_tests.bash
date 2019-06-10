@@ -70,6 +70,10 @@ comb_args="${comb_args} -cuda_aware_mpi"
 comb_args="${comb_args} -exec enable all"
 # disable host memory tests
 comb_args="${comb_args} -memory enable all"
+# enable mock communication tests
+comb_args="${comb_args} -comm enable mock"
+# enable mpi communication tests
+comb_args="${comb_args} -comm enable mpi"
 
 # set up arguments for a variety of communication methods
 wait_all_method="-comm post_recv wait_all -comm post_send wait_all -comm wait_recv wait_all -comm wait_send wait_all"
@@ -90,10 +94,6 @@ for comm_method in "${wait_all_method}" "${wait_some_method}" "${wait_any_method
    # Run a test with this comm method
    echo "${run_test_base} ${comm_method} ${comb_args}"
    ${run_test_base} ${comm_method} ${comb_args}
-
-   # Run a mock communication test with this comm method
-   echo "${run_test_base} ${comm_method} -comm mock ${comb_args} "
-   ${run_test_base} ${comm_method} -comm mock ${comb_args}
 
 done
 
