@@ -500,6 +500,17 @@ struct Message
   }
 };
 
+template < typename policy_comm >
+inline typename policy_comm::communicator_type get_communicator(policy_comm const&, CommInfo const& comminfo)
+{
+  return policy_comm::communicator_null();
+}
+
+inline typename mpi_pol::communicator_type get_communicator(mpi_pol const&, CommInfo const& comminfo)
+{
+  return comminfo.cart.comm;
+}
+
 template < typename policy_many_, typename policy_few_, typename policy_comm_ >
 struct Comm
 {
