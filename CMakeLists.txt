@@ -71,7 +71,12 @@ set(comb_sources
   src/MultiBuffer.cpp
   src/batch_launch.cpp
   src/persistent_launch.cpp
-  src/comm.cpp)
+  src/comm.cpp
+  src/print_timer.cpp
+  src/warmup.cpp
+  src/test_copy.cpp
+  src/test_cycles_mock.cpp
+  src/test_cycles_mpi.cpp)
 
 set(comb_depends )
 
