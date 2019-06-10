@@ -315,7 +315,11 @@ struct Message<mock_pol> : detail::MessageBase
     assert(buf != nullptr);
     auto end = std::end(items);
     for (auto i = std::begin(items); i != end; ++i) {
+      DataT const* src = i->data;
+      LidxT const* indices = i->indices;
       IdxT len = i->size;
+      // FPRINTF(stdout, "%p pack %p = %p[%p] len %d\n", this, buf, src, indices, len);
+      for_all(pol, 0, len, make_copy_idxr_idxr(src, detail::indexer_list_idx{indices}, buf, detail::indexer_idx{}));
       buf += len;
     }
   }
