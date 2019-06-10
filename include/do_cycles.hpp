@@ -31,9 +31,9 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info,
     tm_total.clear();
     tm.clear();
 
-    char mpiname[1024] = ""; snprintf(mpiname, 1024, "MPI %s", pol_comm::get_name());
+    char commname[1024] = ""; snprintf(commname, 1024, "Comm %s", pol_comm::get_name());
     char rname[1024] = ""; snprintf(rname, 1024, "Buffers %s %s %s %s", pol_many::get_name(), aloc_many.name(), pol_few::get_name(), aloc_few.name());
-    char test_name[1024] = ""; snprintf(test_name, 1024, "Mesh %s %s %s %s", pol_loop::get_name(), aloc_mesh.name(), rname, mpiname);
+    char test_name[1024] = ""; snprintf(test_name, 1024, "Mesh %s %s %s %s", pol_loop::get_name(), aloc_mesh.name(), rname, commname);
     comm_info.print(FileGroup::all, "Starting test %s\n", test_name);
 
     Range r0(test_name, Range::orange);
