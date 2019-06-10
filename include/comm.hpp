@@ -34,6 +34,9 @@
 #include "for_all.hpp"
 #include "utils.hpp"
 
+#include "comm_pol_mock.hpp"
+#include "comm_pol_mpi.hpp"
+
 
 enum struct FileGroup
 { out_any    // stdout, any proc
