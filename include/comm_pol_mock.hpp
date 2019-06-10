@@ -124,7 +124,7 @@ inline void wait_send_all(mock_pol const&,
   }
 }
 
-inline void test_send_all(mock_pol const&,
+inline bool test_send_all(mock_pol const&,
                    int count, mock_pol::send_request_type* requests,
                    mock_pol::send_status_type* statuses)
 {
@@ -135,6 +135,7 @@ inline void test_send_all(mock_pol const&,
       statuses[i] = 1;
     }
   }
+  return true;
 }
 
 
@@ -222,7 +223,7 @@ inline void wait_recv_all(mock_pol const&,
   }
 }
 
-inline void test_recv_all(mock_pol const&,
+inline bool test_recv_all(mock_pol const&,
                    int count, mock_pol::recv_request_type* requests,
                    mock_pol::recv_status_type* statuses)
 {
@@ -233,6 +234,7 @@ inline void test_recv_all(mock_pol const&,
       statuses[i] = 1;
     }
   }
+  return true;
 }
 
 
