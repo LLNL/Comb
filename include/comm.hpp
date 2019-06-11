@@ -298,13 +298,13 @@ struct Comm
 
   using message_type = Message<policy_comm>;
   std::vector<message_type> m_sends;
-  std::vector<message_type> m_recvs;
-
   std::vector<typename policy_comm::send_request_type> m_send_requests;
-  std::vector<typename policy_comm::recv_request_type> m_recv_requests;
 
-  std::vector<typename policy_many::event_type> m_many_events;
-  std::vector<typename policy_few::event_type> m_few_events;
+  std::vector<typename policy_many::event_type> m_send_events_many;
+  std::vector<typename policy_few::event_type>  m_send_events_few;
+
+  std::vector<message_type> m_recvs;
+  std::vector<typename policy_comm::recv_request_type> m_recv_requests;
 
   Comm(CommInfo const& comminfo_, COMB::Allocator& mesh_aloc_, COMB::Allocator& many_aloc_, COMB::Allocator& few_aloc_)
     : mesh_aloc(mesh_aloc_)
@@ -470,10 +470,10 @@ struct Comm
 
             if (m_sends[pack_send].have_many()) {
               m_sends[pack_send].pack(ExecContext<policy_many>{}, communicator);
-              recordEvent(ExecContext<policy_many>{}, m_many_events[pack_send]);
+              recordEvent(ExecContext<policy_many>{}, m_send_events_many[pack_send]);
             } else {
               m_sends[pack_send].pack(ExecContext<policy_few>{}, communicator);
-              recordEvent(ExecContext<policy_few>{}, m_few_events[pack_send]);
+              recordEvent(ExecContext<policy_few>{}, m_send_events_few[pack_send]);
             }
 
             ++pack_send;
@@ -504,7 +504,7 @@ struct Comm
 
             if (m_sends[post_many_send].have_many()) {
 
-              if (queryEvent(ExecContext<policy_many>{}, m_many_events[post_many_send])) {
+              if (queryEvent(ExecContext<policy_many>{}, m_send_events_many[post_many_send])) {
 
                 m_sends[post_many_send].Isend(ExecContext<policy_many>{}, communicator, &m_send_requests[post_many_send]);
 
@@ -523,7 +523,7 @@ struct Comm
 
             if (!m_sends[post_few_send].have_many()) {
 
-              if (queryEvent(ExecContext<policy_few>{}, m_few_events[post_few_send])) {
+              if (queryEvent(ExecContext<policy_few>{}, m_send_events_few[post_few_send])) {
 
                 m_sends[post_few_send].Isend(ExecContext<policy_few>{}, communicator, &m_send_requests[post_few_send]);
 
@@ -621,7 +621,7 @@ struct Comm
 
               m_sends[pack_many_send].pack(ExecContext<policy_many>{}, communicator);
 
-              recordEvent(ExecContext<policy_many>{}, m_many_events[pack_many_send]);
+              recordEvent(ExecContext<policy_many>{}, m_send_events_many[pack_many_send]);
 
             }
 
@@ -632,7 +632,7 @@ struct Comm
 
               if (m_sends[post_many_send].have_many()) {
 
-                if (queryEvent(ExecContext<policy_many>{}, m_many_events[post_many_send])) {
+                if (queryEvent(ExecContext<policy_many>{}, m_send_events_many[post_many_send])) {
 
                   m_sends[post_many_send].Isend(ExecContext<policy_many>{}, communicator, &m_send_requests[post_many_send]);
 
@@ -666,7 +666,7 @@ struct Comm
 
               m_sends[pack_few_send].pack(ExecContext<policy_few>{}, communicator);
 
-              recordEvent(ExecContext<policy_few>{}, m_few_events[pack_few_send]);
+              recordEvent(ExecContext<policy_few>{}, m_send_events_few[pack_few_send]);
 
             }
 
@@ -677,7 +677,7 @@ struct Comm
 
               if (m_sends[post_many_send].have_many()) {
 
-                if (queryEvent(ExecContext<policy_many>{}, m_many_events[post_many_send])) {
+                if (queryEvent(ExecContext<policy_many>{}, m_send_events_many[post_many_send])) {
 
                   m_sends[post_many_send].Isend(ExecContext<policy_many>{}, communicator, &m_send_requests[post_many_send]);
 
@@ -698,7 +698,7 @@ struct Comm
 
               if (!m_sends[post_few_send].have_many()) {
 
-                if (queryEvent(ExecContext<policy_few>{}, m_few_events[post_few_send])) {
+                if (queryEvent(ExecContext<policy_few>{}, m_send_events_few[post_few_send])) {
 
                   m_sends[post_few_send].Isend(ExecContext<policy_few>{}, communicator, &m_send_requests[post_few_send]);
 
@@ -729,7 +729,7 @@ struct Comm
 
             if (m_sends[post_many_send].have_many()) {
 
-              if (queryEvent(ExecContext<policy_many>{}, m_many_events[post_many_send])) {
+              if (queryEvent(ExecContext<policy_many>{}, m_send_events_many[post_many_send])) {
 
                 m_sends[post_many_send].Isend(ExecContext<policy_many>{}, communicator, &m_send_requests[post_many_send]);
 
@@ -749,7 +749,7 @@ struct Comm
 
             if (!m_sends[post_few_send].have_many()) {
 
-              if (queryEvent(ExecContext<policy_few>{}, m_few_events[post_few_send])) {
+              if (queryEvent(ExecContext<policy_few>{}, m_send_events_few[post_few_send])) {
 
                 m_sends[post_few_send].Isend(ExecContext<policy_few>{}, communicator, &m_send_requests[post_few_send]);
 
@@ -839,10 +839,10 @@ struct Comm
           // pack and record events
           if (m_sends[pack_send].have_many()) {
             m_sends[pack_send].pack(ExecContext<policy_many>{}, communicator);
-            recordEvent(ExecContext<policy_many>{}, m_many_events[pack_send]);
+            recordEvent(ExecContext<policy_many>{}, m_send_events_many[pack_send]);
           } else {
             m_sends[pack_send].pack(ExecContext<policy_few>{}, communicator);
-            recordEvent(ExecContext<policy_few>{}, m_few_events[pack_send]);
+            recordEvent(ExecContext<policy_few>{}, m_send_events_few[pack_send]);
           }
 
           ++pack_send;
@@ -872,7 +872,7 @@ struct Comm
 
             if (m_sends[post_many_send].have_many()) {
 
-              if (queryEvent(ExecContext<policy_many>{}, m_many_events[post_many_send])) {
+              if (queryEvent(ExecContext<policy_many>{}, m_send_events_many[post_many_send])) {
 
                 m_sends[post_many_send].Isend(ExecContext<policy_many>{}, communicator, &m_send_requests[post_many_send]);
 
@@ -891,7 +891,7 @@ struct Comm
 
             if (!m_sends[post_few_send].have_many()) {
 
-              if (queryEvent(ExecContext<policy_few>{}, m_few_events[post_few_send])) {
+              if (queryEvent(ExecContext<policy_few>{}, m_send_events_few[post_few_send])) {
 
                 m_sends[post_few_send].Isend(ExecContext<policy_few>{}, communicator, &m_send_requests[post_few_send]);
 
@@ -1256,13 +1256,13 @@ struct Comm
 
   ~Comm()
   {
-    size_t num_events = m_many_events.size();
+    size_t num_events = m_send_events_many.size();
     for(size_t i = 0; i != num_events; ++i) {
-      destroyEvent(ExecContext<policy_many>{}, m_many_events[i]);
+      destroyEvent(ExecContext<policy_many>{}, m_send_events_many[i]);
     }
-    num_events = m_few_events.size();
+    num_events = m_send_events_few.size();
     for(size_t i = 0; i != num_events; ++i) {
-      destroyEvent(ExecContext<policy_few>{}, m_few_events[i]);
+      destroyEvent(ExecContext<policy_few>{}, m_send_events_few[i]);
     }
     for(message_type& msg : m_sends) {
       msg.destroy();

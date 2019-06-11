@@ -345,10 +345,10 @@ struct CommFactory
     populate_comm(comm, comm.m_recvs, recv_msg_info_map);
     populate_comm(comm, comm.m_sends, send_msg_info_map);
 
-    size_t num_events = std::max(comm.m_recvs.size(), comm.m_sends.size());
+    size_t num_events = comm.m_sends.size();
     for(size_t i = 0; i != num_events; ++i) {
-      comm.m_many_events.push_back( createEvent(ExecContext<typename comm_type::policy_many>{}) );
-      comm.m_few_events.push_back( createEvent(ExecContext<typename comm_type::policy_few>{}) );
+      comm.m_send_events_many.push_back( createEvent(ExecContext<typename comm_type::policy_many>{}) );
+      comm.m_send_events_few.push_back( createEvent(ExecContext<typename comm_type::policy_few>{}) );
     }
   }
 
