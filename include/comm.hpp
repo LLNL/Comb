@@ -303,8 +303,14 @@ struct Comm
   std::vector<typename policy_many::event_type> m_send_events_many;
   std::vector<typename policy_few::event_type>  m_send_events_few;
 
+  std::vector<ExecContext<policy_many>> m_send_contexts_many;
+  std::vector<ExecContext<policy_few>>  m_send_contexts_few;
+
   std::vector<message_type> m_recvs;
   std::vector<typename policy_comm::recv_request_type> m_recv_requests;
+
+  std::vector<ExecContext<policy_many>> m_recv_contexts_many;
+  std::vector<ExecContext<policy_few>>  m_recv_contexts_few;
 
   Comm(CommInfo const& comminfo_, COMB::Allocator& mesh_aloc_, COMB::Allocator& many_aloc_, COMB::Allocator& few_aloc_)
     : mesh_aloc(mesh_aloc_)
@@ -339,7 +345,7 @@ struct Comm
     return std::is_same<policy_comm, mock_pol>::value;
   }
 
-  void postRecv()
+  void postRecv(ExecContext<policy_many> const& con_many, ExecContext<policy_few> const& con_few)
   {
     //FPRINTF(stdout, "posting receives\n");
 
@@ -353,11 +359,13 @@ struct Comm
         for (IdxT i = 0; i < num_recvs; ++i) {
 
           if (m_recvs[i].have_many()) {
-            m_recvs[i].allocate(ExecContext<policy_many>{}, many_aloc);
-            m_recvs[i].Irecv(ExecContext<policy_many>{}, communicator, &m_recv_requests[i]);
+            m_recv_contexts_many[i] = con_many;
+            m_recvs[i].allocate(m_recv_contexts_many[i], many_aloc);
+            m_recvs[i].Irecv(m_recv_contexts_many[i], communicator, &m_recv_requests[i]);
           } else {
-            m_recvs[i].allocate(ExecContext<policy_few>{}, few_aloc);
-            m_recvs[i].Irecv(ExecContext<policy_few>{}, communicator, &m_recv_requests[i]);
+            m_recv_contexts_few[i] = con_few;
+            m_recvs[i].allocate(m_recv_contexts_few[i], few_aloc);
+            m_recvs[i].Irecv(m_recv_contexts_few[i], communicator, &m_recv_requests[i]);
           }
         }
       } break;
@@ -368,11 +376,13 @@ struct Comm
         for (IdxT i = 0; i < num_recvs; ++i) {
 
           if (m_recvs[i].have_many()) {
-            m_recvs[i].allocate(ExecContext<policy_many>{}, many_aloc);
-            m_recvs[i].Irecv(ExecContext<policy_many>{}, communicator, &m_recv_requests[i]);
+            m_recv_contexts_many[i] = con_many;
+            m_recvs[i].allocate(m_recv_contexts_many[i], many_aloc);
+            m_recvs[i].Irecv(m_recv_contexts_many[i], communicator, &m_recv_requests[i]);
           } else {
-            m_recvs[i].allocate(ExecContext<policy_few>{}, few_aloc);
-            m_recvs[i].Irecv(ExecContext<policy_few>{}, communicator, &m_recv_requests[i]);
+            m_recv_contexts_few[i] = con_few;
+            m_recvs[i].allocate(m_recv_contexts_few[i], few_aloc);
+            m_recvs[i].Irecv(m_recv_contexts_few[i], communicator, &m_recv_requests[i]);
           }
         }
       } break;
@@ -383,17 +393,19 @@ struct Comm
         for (IdxT i = 0; i < num_recvs; ++i) {
 
           if (m_recvs[i].have_many()) {
-            m_recvs[i].allocate(ExecContext<policy_many>{}, many_aloc);
+            m_recv_contexts_many[i] = con_many;
+            m_recvs[i].allocate(m_recv_contexts_many[i], many_aloc);
           } else {
-            m_recvs[i].allocate(ExecContext<policy_few>{}, few_aloc);
+            m_recv_contexts_few[i] = con_few;
+            m_recvs[i].allocate(m_recv_contexts_few[i], few_aloc);
           }
         }
         for (IdxT i = 0; i < num_recvs; ++i) {
 
           if (m_recvs[i].have_many()) {
-            m_recvs[i].Irecv(ExecContext<policy_many>{}, communicator, &m_recv_requests[i]);
+            m_recvs[i].Irecv(m_recv_contexts_many[i], communicator, &m_recv_requests[i]);
           } else {
-            m_recvs[i].Irecv(ExecContext<policy_few>{}, communicator, &m_recv_requests[i]);
+            m_recvs[i].Irecv(m_recv_contexts_few[i], communicator, &m_recv_requests[i]);
           }
         }
       } break;
@@ -406,7 +418,7 @@ struct Comm
 
 
 
-  void postSend()
+  void postSend(ExecContext<policy_many> const& con_many, ExecContext<policy_few> const& con_few)
   {
     //FPRINTF(stdout, "posting sends\n");
 
@@ -419,15 +431,17 @@ struct Comm
         for (IdxT i = 0; i < num_sends; ++i) {
 
           if (m_sends[i].have_many()) {
-            m_sends[i].allocate(ExecContext<policy_many>{}, many_aloc);
-            m_sends[i].pack(ExecContext<policy_many>{}, communicator);
-            synchronize(ExecContext<policy_many>{});
-            m_sends[i].Isend(ExecContext<policy_many>{}, communicator, &m_send_requests[i]);
+            m_send_contexts_many[i] = con_many;
+            m_sends[i].allocate(m_send_contexts_many[i], many_aloc);
+            m_sends[i].pack(m_send_contexts_many[i], communicator);
+            synchronize(m_send_contexts_many[i]);
+            m_sends[i].Isend(m_send_contexts_many[i], communicator, &m_send_requests[i]);
           } else {
-            m_sends[i].allocate(ExecContext<policy_few>{}, few_aloc);
-            m_sends[i].pack(ExecContext<policy_few>{}, communicator);
-            synchronize(ExecContext<policy_few>{});
-            m_sends[i].Isend(ExecContext<policy_few>{}, communicator, &m_send_requests[i]);
+            m_send_contexts_few[i] = con_few;
+            m_sends[i].allocate(m_send_contexts_few[i], few_aloc);
+            m_sends[i].pack(m_send_contexts_few[i], communicator);
+            synchronize(m_send_contexts_few[i]);
+            m_sends[i].Isend(m_send_contexts_few[i], communicator, &m_send_requests[i]);
           }
         }
       } break;
@@ -441,21 +455,23 @@ struct Comm
         for (IdxT i = 0; i < num_sends; ++i) {
 
           if (m_sends[i].have_many()) {
-            m_sends[i].allocate(ExecContext<policy_many>{}, many_aloc);
+            m_send_contexts_many[i] = con_many;
+            m_sends[i].allocate(m_send_contexts_many[i], many_aloc);
             have_many = true;
           } else {
-            m_sends[i].allocate(ExecContext<policy_few>{}, few_aloc);
+            m_send_contexts_few[i] = con_few;
+            m_sends[i].allocate(m_send_contexts_few[i], few_aloc);
             have_few = true;
           }
         }
 
         // pack and send
         if (have_many && have_few) {
-          persistent_launch(ExecContext<policy_few>{}, ExecContext<policy_many>{});
+          persistent_launch(con_few, con_many);
         } else if (have_many) {
-          persistent_launch(ExecContext<policy_many>{});
+          persistent_launch(con_many);
         } else if (have_few) {
-          persistent_launch(ExecContext<policy_few>{});
+          persistent_launch(con_few);
         }
 
         bool post_pack_complete = false;
@@ -469,11 +485,11 @@ struct Comm
           if (pack_send < num_sends) {
 
             if (m_sends[pack_send].have_many()) {
-              m_sends[pack_send].pack(ExecContext<policy_many>{}, communicator);
-              recordEvent(ExecContext<policy_many>{}, m_send_events_many[pack_send]);
+              m_sends[pack_send].pack(m_send_contexts_many[pack_send], communicator);
+              recordEvent(m_send_contexts_many[pack_send], m_send_events_many[pack_send]);
             } else {
-              m_sends[pack_send].pack(ExecContext<policy_few>{}, communicator);
-              recordEvent(ExecContext<policy_few>{}, m_send_events_few[pack_send]);
+              m_sends[pack_send].pack(m_send_contexts_few[pack_send], communicator);
+              recordEvent(m_send_contexts_few[pack_send], m_send_events_few[pack_send]);
             }
 
             ++pack_send;
@@ -481,20 +497,20 @@ struct Comm
           } else if (!post_pack_complete) {
 
             if (have_many && have_few) {
-              batch_launch(ExecContext<policy_few>{}, ExecContext<policy_many>{});
+              batch_launch(con_few, con_many);
             } else if (have_many) {
-              batch_launch(ExecContext<policy_many>{});
+              batch_launch(con_many);
             } else if (have_few) {
-              batch_launch(ExecContext<policy_few>{});
+              batch_launch(con_few);
             }
 
             // stop persistent kernel
             if (have_many && have_few) {
-              persistent_stop(ExecContext<policy_few>{}, ExecContext<policy_many>{});
+              persistent_stop(con_few, con_many);
             } else if (have_many) {
-              persistent_stop(ExecContext<policy_many>{});
+              persistent_stop(con_many);
             } else if (have_few) {
-              persistent_stop(ExecContext<policy_few>{});
+              persistent_stop(con_few);
             }
 
             post_pack_complete = true;
@@ -504,9 +520,9 @@ struct Comm
 
             if (m_sends[post_many_send].have_many()) {
 
-              if (queryEvent(ExecContext<policy_many>{}, m_send_events_many[post_many_send])) {
+              if (queryEvent(m_send_contexts_many[post_many_send], m_send_events_many[post_many_send])) {
 
-                m_sends[post_many_send].Isend(ExecContext<policy_many>{}, communicator, &m_send_requests[post_many_send]);
+                m_sends[post_many_send].Isend(m_send_contexts_many[post_many_send], communicator, &m_send_requests[post_many_send]);
 
                 ++post_many_send;
 
@@ -523,9 +539,9 @@ struct Comm
 
             if (!m_sends[post_few_send].have_many()) {
 
-              if (queryEvent(ExecContext<policy_few>{}, m_send_events_few[post_few_send])) {
+              if (queryEvent(m_send_contexts_few[post_few_send], m_send_events_few[post_few_send])) {
 
-                m_sends[post_few_send].Isend(ExecContext<policy_few>{}, communicator, &m_send_requests[post_few_send]);
+                m_sends[post_few_send].Isend(m_send_contexts_few[post_few_send], communicator, &m_send_requests[post_few_send]);
 
                 ++post_few_send;
 
@@ -552,21 +568,22 @@ struct Comm
           for (IdxT i = 0; i < num_sends; ++i) {
 
             if (m_sends[i].have_many()) {
-              m_sends[i].allocate(ExecContext<policy_many>{}, many_aloc);
-              m_sends[i].pack(ExecContext<policy_many>{}, communicator);
+              m_send_contexts_many[i] = con_many;
+              m_sends[i].allocate(m_send_contexts_many[i], many_aloc);
+              m_sends[i].pack(m_send_contexts_many[i], communicator);
               found_many = true;
             }
           }
 
           if (found_many) {
 
-            synchronize(ExecContext<policy_many>{});
+            synchronize(con_many);
 
             for (IdxT i = 0; i < num_sends; ++i) {
 
               if (m_sends[i].have_many()) {
 
-                m_sends[i].Isend(ExecContext<policy_many>{}, communicator, &m_send_requests[i]);
+                m_sends[i].Isend(m_send_contexts_many[i], communicator, &m_send_requests[i]);
               }
             }
           }
@@ -577,12 +594,13 @@ struct Comm
           for (IdxT i = 0; i < num_sends; ++i) {
 
             if (!m_sends[i].have_many()) {
-              m_sends[i].allocate(ExecContext<policy_few>{}, few_aloc);
-              m_sends[i].pack(ExecContext<policy_few>{}, communicator);
+              m_send_contexts_few[i] = con_few;
+              m_sends[i].allocate(m_send_contexts_few[i], few_aloc);
+              m_sends[i].pack(m_send_contexts_few[i], communicator);
 
-              synchronize(ExecContext<policy_few>{});
+              synchronize(m_send_contexts_few[i]);
 
-              m_sends[i].Isend(ExecContext<policy_few>{}, communicator, &m_send_requests[i]);
+              m_sends[i].Isend(m_send_contexts_few[i], communicator, &m_send_requests[i]);
             }
           }
         }
@@ -598,10 +616,12 @@ struct Comm
         for (IdxT i = 0; i < num_sends; ++i) {
 
           if (m_sends[i].have_many()) {
-            m_sends[i].allocate(ExecContext<policy_many>{}, many_aloc);
+            m_send_contexts_many[i] = con_many;
+            m_sends[i].allocate(m_send_contexts_many[i], many_aloc);
             have_many = true;
           } else {
-            m_sends[i].allocate(ExecContext<policy_few>{}, few_aloc);
+            m_send_contexts_few[i] = con_few;
+            m_sends[i].allocate(m_send_contexts_few[i], few_aloc);
             have_few = true;
           }
         }
@@ -613,15 +633,15 @@ struct Comm
 
         if (have_many) {
 
-          persistent_launch(ExecContext<policy_many>{});
+          persistent_launch(con_many);
 
           while (pack_many_send < num_sends) {
 
             if (m_sends[pack_many_send].have_many()) {
 
-              m_sends[pack_many_send].pack(ExecContext<policy_many>{}, communicator);
+              m_sends[pack_many_send].pack(m_send_contexts_many[pack_many_send], communicator);
 
-              recordEvent(ExecContext<policy_many>{}, m_send_events_many[pack_many_send]);
+              recordEvent(m_send_contexts_many[pack_many_send], m_send_events_many[pack_many_send]);
 
             }
 
@@ -632,9 +652,9 @@ struct Comm
 
               if (m_sends[post_many_send].have_many()) {
 
-                if (queryEvent(ExecContext<policy_many>{}, m_send_events_many[post_many_send])) {
+                if (queryEvent(m_send_contexts_many[post_many_send], m_send_events_many[post_many_send])) {
 
-                  m_sends[post_many_send].Isend(ExecContext<policy_many>{}, communicator, &m_send_requests[post_many_send]);
+                  m_sends[post_many_send].Isend(m_send_contexts_many[post_many_send], communicator, &m_send_requests[post_many_send]);
 
                   ++post_many_send;
 
@@ -649,8 +669,8 @@ struct Comm
             }
           }
 
-          batch_launch(ExecContext<policy_many>{});
-          persistent_stop(ExecContext<policy_many>{});
+          batch_launch(con_many);
+          persistent_stop(con_many);
         } else {
           pack_many_send = num_sends;
           post_many_send = num_sends;
@@ -658,15 +678,15 @@ struct Comm
 
         if (have_few) {
 
-          persistent_launch(ExecContext<policy_few>{});
+          persistent_launch(con_few);
 
           while (pack_few_send < num_sends) {
 
             if (!m_sends[pack_few_send].have_many()) {
 
-              m_sends[pack_few_send].pack(ExecContext<policy_few>{}, communicator);
+              m_sends[pack_few_send].pack(m_send_contexts_few[pack_few_send], communicator);
 
-              recordEvent(ExecContext<policy_few>{}, m_send_events_few[pack_few_send]);
+              recordEvent(m_send_contexts_few[pack_few_send], m_send_events_few[pack_few_send]);
 
             }
 
@@ -677,9 +697,9 @@ struct Comm
 
               if (m_sends[post_many_send].have_many()) {
 
-                if (queryEvent(ExecContext<policy_many>{}, m_send_events_many[post_many_send])) {
+                if (queryEvent(m_send_contexts_many[post_many_send], m_send_events_many[post_many_send])) {
 
-                  m_sends[post_many_send].Isend(ExecContext<policy_many>{}, communicator, &m_send_requests[post_many_send]);
+                  m_sends[post_many_send].Isend(m_send_contexts_many[post_many_send], communicator, &m_send_requests[post_many_send]);
 
                   ++post_many_send;
 
@@ -698,9 +718,9 @@ struct Comm
 
               if (!m_sends[post_few_send].have_many()) {
 
-                if (queryEvent(ExecContext<policy_few>{}, m_send_events_few[post_few_send])) {
+                if (queryEvent(m_send_contexts_few[post_few_send], m_send_events_few[post_few_send])) {
 
-                  m_sends[post_few_send].Isend(ExecContext<policy_few>{}, communicator, &m_send_requests[post_few_send]);
+                  m_sends[post_few_send].Isend(m_send_contexts_few[post_few_send], communicator, &m_send_requests[post_few_send]);
 
                   ++post_few_send;
 
@@ -715,8 +735,8 @@ struct Comm
             }
           }
 
-          batch_launch(ExecContext<policy_few>{});
-          persistent_stop(ExecContext<policy_few>{});
+          batch_launch(con_few);
+          persistent_stop(con_few);
         } else {
           pack_few_send = num_sends;
           post_few_send = num_sends;
@@ -729,9 +749,9 @@ struct Comm
 
             if (m_sends[post_many_send].have_many()) {
 
-              if (queryEvent(ExecContext<policy_many>{}, m_send_events_many[post_many_send])) {
+              if (queryEvent(m_send_contexts_many[post_many_send], m_send_events_many[post_many_send])) {
 
-                m_sends[post_many_send].Isend(ExecContext<policy_many>{}, communicator, &m_send_requests[post_many_send]);
+                m_sends[post_many_send].Isend(m_send_contexts_many[post_many_send], communicator, &m_send_requests[post_many_send]);
 
                 ++post_many_send;
 
@@ -749,9 +769,9 @@ struct Comm
 
             if (!m_sends[post_few_send].have_many()) {
 
-              if (queryEvent(ExecContext<policy_few>{}, m_send_events_few[post_few_send])) {
+              if (queryEvent(m_send_contexts_few[post_few_send], m_send_events_few[post_few_send])) {
 
-                m_sends[post_few_send].Isend(ExecContext<policy_few>{}, communicator, &m_send_requests[post_few_send]);
+                m_sends[post_few_send].Isend(m_send_contexts_few[post_few_send], communicator, &m_send_requests[post_few_send]);
 
                 ++post_few_send;
 
@@ -776,30 +796,32 @@ struct Comm
         for (IdxT i = 0; i < num_sends; ++i) {
 
           if (m_sends[i].have_many()) {
-            m_sends[i].allocate(ExecContext<policy_many>{}, many_aloc);
-            m_sends[i].pack(ExecContext<policy_many>{}, communicator);
+            m_send_contexts_many[i] = con_many;
+            m_sends[i].allocate(m_send_contexts_many[i], many_aloc);
+            m_sends[i].pack(m_send_contexts_many[i], communicator);
             have_many = true;
           } else {
-            m_sends[i].allocate(ExecContext<policy_few>{}, few_aloc);
-            m_sends[i].pack(ExecContext<policy_few>{}, communicator);
+            m_send_contexts_few[i] = con_few;
+            m_sends[i].allocate(m_send_contexts_few[i], few_aloc);
+            m_sends[i].pack(m_send_contexts_few[i], communicator);
             have_few = true;
           }
         }
 
         if (have_many && have_few) {
-          synchronize(ExecContext<policy_few>{}, ExecContext<policy_many>{});
+          synchronize(con_few, con_many);
         } else if (have_many) {
-          synchronize(ExecContext<policy_many>{});
+          synchronize(con_many);
         } else if (have_few) {
-          synchronize(ExecContext<policy_few>{});
+          synchronize(con_few);
         }
 
         for (IdxT i = 0; i < num_sends; ++i) {
 
           if (m_sends[i].have_many()) {
-            m_sends[i].Isend(ExecContext<policy_many>{}, communicator, &m_send_requests[i]);
+            m_sends[i].Isend(m_send_contexts_many[i], communicator, &m_send_requests[i]);
           } else {
-            m_sends[i].Isend(ExecContext<policy_few>{}, communicator, &m_send_requests[i]);
+            m_sends[i].Isend(m_send_contexts_few[i], communicator, &m_send_requests[i]);
           }
         }
       } break;
@@ -813,21 +835,23 @@ struct Comm
         for (IdxT i = 0; i < num_sends; ++i) {
 
           if (m_sends[i].have_many()) {
-            m_sends[i].allocate(ExecContext<policy_many>{}, many_aloc);
+            m_send_contexts_many[i] = con_many;
+            m_sends[i].allocate(m_send_contexts_many[i], many_aloc);
             have_many = true;
           } else {
-            m_sends[i].allocate(ExecContext<policy_few>{}, few_aloc);
+            m_send_contexts_few[i] = con_few;
+            m_sends[i].allocate(m_send_contexts_few[i], few_aloc);
             have_few = true;
           }
         }
 
         // pack and send
         if (have_many && have_few) {
-          persistent_launch(ExecContext<policy_few>{}, ExecContext<policy_many>{});
+          persistent_launch(con_few, con_many);
         } else if (have_many) {
-          persistent_launch(ExecContext<policy_many>{});
+          persistent_launch(con_many);
         } else if (have_few) {
-          persistent_launch(ExecContext<policy_few>{});
+          persistent_launch(con_few);
         }
 
         IdxT pack_send = 0;
@@ -838,31 +862,31 @@ struct Comm
 
           // pack and record events
           if (m_sends[pack_send].have_many()) {
-            m_sends[pack_send].pack(ExecContext<policy_many>{}, communicator);
-            recordEvent(ExecContext<policy_many>{}, m_send_events_many[pack_send]);
+            m_sends[pack_send].pack(m_send_contexts_many[pack_send], communicator);
+            recordEvent(m_send_contexts_many[pack_send], m_send_events_many[pack_send]);
           } else {
-            m_sends[pack_send].pack(ExecContext<policy_few>{}, communicator);
-            recordEvent(ExecContext<policy_few>{}, m_send_events_few[pack_send]);
+            m_sends[pack_send].pack(m_send_contexts_few[pack_send], communicator);
+            recordEvent(m_send_contexts_few[pack_send], m_send_events_few[pack_send]);
           }
 
           ++pack_send;
         }
 
         if (have_many && have_few) {
-          batch_launch(ExecContext<policy_few>{}, ExecContext<policy_many>{});
+          batch_launch(con_few, con_many);
         } else if (have_many) {
-          batch_launch(ExecContext<policy_many>{});
+          batch_launch(con_many);
         } else if (have_few) {
-          batch_launch(ExecContext<policy_few>{});
+          batch_launch(con_few);
         }
 
         // stop persistent kernel
         if (have_many && have_few) {
-          persistent_stop(ExecContext<policy_few>{}, ExecContext<policy_many>{});
+          persistent_stop(con_few, con_many);
         } else if (have_many) {
-          persistent_stop(ExecContext<policy_many>{});
+          persistent_stop(con_many);
         } else if (have_few) {
-          persistent_stop(ExecContext<policy_few>{});
+          persistent_stop(con_few);
         }
 
         // post all sends
@@ -872,9 +896,9 @@ struct Comm
 
             if (m_sends[post_many_send].have_many()) {
 
-              if (queryEvent(ExecContext<policy_many>{}, m_send_events_many[post_many_send])) {
+              if (queryEvent(m_send_contexts_many[post_many_send], m_send_events_many[post_many_send])) {
 
-                m_sends[post_many_send].Isend(ExecContext<policy_many>{}, communicator, &m_send_requests[post_many_send]);
+                m_sends[post_many_send].Isend(m_send_contexts_many[post_many_send], communicator, &m_send_requests[post_many_send]);
 
                 ++post_many_send;
 
@@ -891,9 +915,9 @@ struct Comm
 
             if (!m_sends[post_few_send].have_many()) {
 
-              if (queryEvent(ExecContext<policy_few>{}, m_send_events_few[post_few_send])) {
+              if (queryEvent(m_send_contexts_few[post_few_send], m_send_events_few[post_few_send])) {
 
-                m_sends[post_few_send].Isend(ExecContext<policy_few>{}, communicator, &m_send_requests[post_few_send]);
+                m_sends[post_few_send].Isend(m_send_contexts_few[post_few_send], communicator, &m_send_requests[post_few_send]);
 
                 ++post_few_send;
 
@@ -918,7 +942,7 @@ struct Comm
 
 
 
-  void waitRecv()
+  void waitRecv(ExecContext<policy_many> const& con_many, ExecContext<policy_few> const& con_few)
   {
     //FPRINTF(stdout, "waiting receives\n");
 
@@ -940,11 +964,11 @@ struct Comm
         }
 
         if (have_many && have_few) {
-          persistent_launch(ExecContext<policy_few>{}, ExecContext<policy_many>{});
+          persistent_launch(con_few, con_many);
         } else if (have_many) {
-          persistent_launch(ExecContext<policy_many>{});
+          persistent_launch(con_many);
         } else if (have_few) {
-          persistent_launch(ExecContext<policy_few>{});
+          persistent_launch(con_few);
         }
 
         typename policy_comm::recv_status_type status = policy_comm::recv_status_null();
@@ -963,13 +987,15 @@ struct Comm
           }
 
           if (m_recvs[idx].have_many()) {
-            m_recvs[idx].unpack(ExecContext<policy_many>{}, communicator);
-            m_recvs[idx].deallocate(ExecContext<policy_many>{}, many_aloc);
-            batch_launch(ExecContext<policy_many>{});
+            m_recv_contexts_many[idx] = con_many;
+            m_recvs[idx].unpack(m_recv_contexts_many[idx], communicator);
+            m_recvs[idx].deallocate(m_recv_contexts_many[idx], many_aloc);
+            batch_launch(m_recv_contexts_many[idx]);
           } else {
-            m_recvs[idx].unpack(ExecContext<policy_few>{}, communicator);
-            m_recvs[idx].deallocate(ExecContext<policy_few>{}, few_aloc);
-            batch_launch(ExecContext<policy_few>{});
+            m_recv_contexts_few[idx] = con_few;
+            m_recvs[idx].unpack(m_recv_contexts_few[idx], communicator);
+            m_recvs[idx].deallocate(m_recv_contexts_few[idx], few_aloc);
+            batch_launch(m_recv_contexts_few[idx]);
           }
 
           num_done += 1;
@@ -977,19 +1003,19 @@ struct Comm
         }
 
         // if (have_many && have_few) {
-        //   batch_launch(ExecContext<policy_few>{}, ExecContext<policy_many>{});
+        //   batch_launch(m_recv_contexts_few[i], m_recv_contexts_many[i]);
         // } else if (have_many) {
-        //   batch_launch(ExecContext<policy_many>{});
+        //   batch_launch(m_recv_contexts_many[i]);
         // } else if (have_few) {
-        //   batch_launch(ExecContext<policy_few>{});
+        //   batch_launch(m_recv_contexts_few[i]);
         // }
 
         if (have_many && have_few) {
-          persistent_stop(ExecContext<policy_few>{}, ExecContext<policy_many>{});
+          persistent_stop(con_few, con_many);
         } else if (have_many) {
-          persistent_stop(ExecContext<policy_many>{});
+          persistent_stop(con_many);
         } else if (have_few) {
-          persistent_stop(ExecContext<policy_few>{});
+          persistent_stop(con_few);
         }
       } break;
       case CommInfo::method::waitsome:
@@ -1006,11 +1032,11 @@ struct Comm
         }
 
         if (have_many && have_few) {
-          persistent_launch(ExecContext<policy_few>{}, ExecContext<policy_many>{});
+          persistent_launch(con_few, con_many);
         } else if (have_many) {
-          persistent_launch(ExecContext<policy_many>{});
+          persistent_launch(con_many);
         } else if (have_few) {
-          persistent_launch(ExecContext<policy_few>{});
+          persistent_launch(con_few);
         }
 
         std::vector<typename policy_comm::recv_status_type> recv_statuses(m_recv_requests.size(), policy_comm::recv_status_null());
@@ -1033,8 +1059,9 @@ struct Comm
 
             if (m_recvs[indices[i]].have_many()) {
 
-              m_recvs[indices[i]].unpack(ExecContext<policy_many>{}, communicator);
-              m_recvs[indices[i]].deallocate(ExecContext<policy_many>{}, many_aloc);
+              m_recv_contexts_many[indices[i]] = con_many;
+              m_recvs[indices[i]].unpack(m_recv_contexts_many[indices[i]], communicator);
+              m_recvs[indices[i]].deallocate(m_recv_contexts_many[indices[i]], many_aloc);
 
               inner_have_many = true;
 
@@ -1043,15 +1070,16 @@ struct Comm
           }
 
           if (inner_have_many) {
-            batch_launch(ExecContext<policy_many>{});
+            batch_launch(con_many);
           }
 
           for (IdxT i = 0; i < num_recvd; ++i) {
 
             if (!m_recvs[indices[i]].have_many()) {
 
-              m_recvs[indices[i]].unpack(ExecContext<policy_few>{}, communicator);
-              m_recvs[indices[i]].deallocate(ExecContext<policy_few>{}, few_aloc);
+              m_recv_contexts_few[indices[i]] = con_few;
+              m_recvs[indices[i]].unpack(m_recv_contexts_few[indices[i]], communicator);
+              m_recvs[indices[i]].deallocate(m_recv_contexts_few[indices[i]], few_aloc);
 
               inner_have_few = true;
 
@@ -1060,16 +1088,16 @@ struct Comm
           }
 
           if (inner_have_few) {
-            batch_launch(ExecContext<policy_few>{});
+            batch_launch(con_few);
           }
         }
 
         if (have_many && have_few) {
-          persistent_stop(ExecContext<policy_few>{}, ExecContext<policy_many>{});
+          persistent_stop(con_few, con_many);
         } else if (have_many) {
-          persistent_stop(ExecContext<policy_many>{});
+          persistent_stop(con_many);
         } else if (have_few) {
-          persistent_stop(ExecContext<policy_few>{});
+          persistent_stop(con_few);
         }
       } break;
       case CommInfo::method::waitall:
@@ -1086,11 +1114,11 @@ struct Comm
         }
 
         if (have_many && have_few) {
-          persistent_launch(ExecContext<policy_few>{}, ExecContext<policy_many>{});
+          persistent_launch(con_few, con_many);
         } else if (have_many) {
-          persistent_launch(ExecContext<policy_many>{});
+          persistent_launch(con_many);
         } else if (have_few) {
-          persistent_launch(ExecContext<policy_few>{});
+          persistent_launch(con_few);
         }
 
         std::vector<typename policy_comm::recv_status_type> recv_statuses(m_recv_requests.size(), policy_comm::recv_status_null());
@@ -1105,12 +1133,14 @@ struct Comm
         while (num_done < num_recvs) {
 
           if (m_recvs[num_done].have_many()) {
-            m_recvs[num_done].unpack(ExecContext<policy_many>{}, communicator);
-            m_recvs[num_done].deallocate(ExecContext<policy_many>{}, many_aloc);
+            m_recv_contexts_many[num_done] = con_many;
+            m_recvs[num_done].unpack(m_recv_contexts_many[num_done], communicator);
+            m_recvs[num_done].deallocate(m_recv_contexts_many[num_done], many_aloc);
             have_many = true;
           } else {
-            m_recvs[num_done].unpack(ExecContext<policy_few>{}, communicator);
-            m_recvs[num_done].deallocate(ExecContext<policy_few>{}, few_aloc);
+            m_recv_contexts_few[num_done] = con_few;
+            m_recvs[num_done].unpack(m_recv_contexts_few[num_done], communicator);
+            m_recvs[num_done].deallocate(m_recv_contexts_few[num_done], few_aloc);
             have_few = true;
           }
 
@@ -1118,19 +1148,19 @@ struct Comm
         }
 
         if (have_many && have_few) {
-          batch_launch(ExecContext<policy_few>{}, ExecContext<policy_many>{});
+          batch_launch(con_few, con_many);
         } else if (have_many) {
-          batch_launch(ExecContext<policy_many>{});
+          batch_launch(con_many);
         } else if (have_few) {
-          batch_launch(ExecContext<policy_few>{});
+          batch_launch(con_few);
         }
 
         if (have_many && have_few) {
-          persistent_stop(ExecContext<policy_few>{}, ExecContext<policy_many>{});
+          persistent_stop(con_few, con_many);
         } else if (have_many) {
-          persistent_stop(ExecContext<policy_many>{});
+          persistent_stop(con_many);
         } else if (have_few) {
-          persistent_stop(ExecContext<policy_few>{});
+          persistent_stop(con_few);
         }
       } break;
       default:
@@ -1142,17 +1172,17 @@ struct Comm
     m_recv_requests.clear();
 
     if (have_many && have_few) {
-      synchronize(ExecContext<policy_few>{}, ExecContext<policy_many>{});
+      synchronize(con_few, con_many);
     } else if (have_many) {
-      synchronize(ExecContext<policy_many>{});
+      synchronize(con_many);
     } else if (have_few) {
-      synchronize(ExecContext<policy_few>{});
+      synchronize(con_few);
     }
   }
 
 
 
-  void waitSend()
+  void waitSend(ExecContext<policy_many> const& con_many, ExecContext<policy_few> const& con_few)
   {
     //FPRINTF(stdout, "posting sends\n");
 
@@ -1178,9 +1208,11 @@ struct Comm
           }
 
           if (m_sends[idx].have_many()) {
-            m_sends[idx].deallocate(ExecContext<policy_many>{}, many_aloc);
+            m_send_contexts_many[idx] = con_many;
+            m_sends[idx].deallocate(m_send_contexts_many[idx], many_aloc);
           } else {
-            m_sends[idx].deallocate(ExecContext<policy_few>{}, few_aloc);
+            m_send_contexts_few[idx] = con_few;
+            m_sends[idx].deallocate(m_send_contexts_few[idx], few_aloc);
           }
 
           num_done += 1;
@@ -1209,9 +1241,11 @@ struct Comm
 
             IdxT idx = indices[i];
             if (m_sends[idx].have_many()) {
-              m_sends[idx].deallocate(ExecContext<policy_many>{}, many_aloc);
+              m_send_contexts_many[idx] = con_many;
+              m_sends[idx].deallocate(m_send_contexts_many[idx], many_aloc);
             } else {
-              m_sends[idx].deallocate(ExecContext<policy_few>{}, few_aloc);
+              m_send_contexts_few[idx] = con_few;
+              m_sends[idx].deallocate(m_send_contexts_few[idx], few_aloc);
             }
 
             num_done += 1;
@@ -1237,9 +1271,11 @@ struct Comm
 
           IdxT idx = num_done;
           if (m_sends[idx].have_many()) {
-            m_sends[idx].deallocate(ExecContext<policy_many>{}, many_aloc);
+            m_send_contexts_many[idx] = con_many;
+            m_sends[idx].deallocate(m_send_contexts_many[idx], many_aloc);
           } else {
-            m_sends[idx].deallocate(ExecContext<policy_few>{}, few_aloc);
+            m_send_contexts_few[idx] = con_few;
+            m_sends[idx].deallocate(m_send_contexts_few[idx], few_aloc);
           }
 
           num_done += 1;

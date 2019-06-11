@@ -38,6 +38,10 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info,
 
     Range r0(test_name, Range::orange);
 
+    ExecContext<pol_loop> con_loop{};
+    ExecContext<pol_many> con_many{};
+    ExecContext<pol_few>  con_few{};
+
     Comm<pol_many, pol_few, pol_comm> comm(comm_info, aloc_mesh, aloc_many, aloc_few);
 
     comm.comminfo.barrier();
@@ -59,12 +63,12 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info,
         DataT* data = vars[i].data();
         IdxT totallen = info.totallen;
 
-        for_all(ExecContext<pol_loop>{}, 0, totallen,
+        for_all(con_loop, 0, totallen,
                             detail::set_n1(data));
 
         factory.add_var(vars[i]);
 
-        synchronize(ExecContext<pol_loop>{});
+        synchronize(con_loop);
       }
 
       factory.populate(comm);
@@ -114,7 +118,7 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info,
         DataT* data = vars[i].data();
         IdxT var_i = i + 1;
 
-        for_all_3d(ExecContext<pol_loop>{}, 0, klen,
+        for_all_3d(con_loop, 0, klen,
                                0, jlen,
                                0, ilen,
                                [=] COMB_HOST COMB_DEVICE (IdxT k, IdxT j, IdxT i, IdxT idx) {
@@ -174,19 +178,19 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info,
         });
       }
 
-      synchronize(ExecContext<pol_loop>{});
+      synchronize(con_loop);
 
       // tm.stop();
       r2.restart("post-recv", Range::pink);
       // tm.start("post-recv");
 
-      comm.postRecv();
+      comm.postRecv(con_many, con_few);
 
       // tm.stop();
       r2.restart("post-send", Range::pink);
       // tm.start("post-send");
 
-      comm.postSend();
+      comm.postSend(con_many, con_few);
 
       // tm.stop();
       r2.stop();
@@ -196,7 +200,7 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info,
       //   DataT* data = vars[i].data();
       //   IdxT var_i = i + 1;
 
-      //   for_all_3d(ExecContext<pol_loop>{}, 0, klen,
+      //   for_all_3d(con_loop, 0, klen,
       //                          0, jlen,
       //                          0, ilen,
       //                          [=] COMB_HOST COMB_DEVICE (IdxT k, IdxT j, IdxT i, IdxT idx) {
@@ -239,19 +243,19 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info,
       //   });
       // }
 
-      // synchronize(ExecContext<pol_loop>{});
+      // synchronize(con_loop);
 
 
       r2.start("wait-recv", Range::pink);
       // tm.start("wait-recv");
 
-      comm.waitRecv();
+      comm.waitRecv(con_many, con_few);
 
       // tm.stop();
       r2.restart("wait-send", Range::pink);
       // tm.start("wait-send");
 
-      comm.waitSend();
+      comm.waitSend(con_many, con_few);
 
       // tm.stop();
       r2.restart("post-comm", Range::red);
@@ -262,7 +266,7 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info,
         DataT* data = vars[i].data();
         IdxT var_i = i + 1;
 
-        for_all_3d(ExecContext<pol_loop>{}, 0, klen,
+        for_all_3d(con_loop, 0, klen,
                                0, jlen,
                                0, ilen,
                                [=] COMB_HOST COMB_DEVICE (IdxT k, IdxT j, IdxT i, IdxT idx) {
@@ -322,7 +326,7 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info,
         });
       }
 
-      synchronize(ExecContext<pol_loop>{});
+      synchronize(con_loop);
 
       // tm.stop();
       r2.stop();
@@ -359,25 +363,25 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info,
 
         DataT* data = vars[i].data();
 
-        for_all_3d(ExecContext<pol_loop>{}, kmin, kmax,
+        for_all_3d(con_loop, kmin, kmax,
                                jmin, jmax,
                                imin, imax,
                                detail::set_1(ilen, ijlen, data));
       }
 
-      synchronize(ExecContext<pol_loop>{});
+      synchronize(con_loop);
 
       tm.stop();
       r3.restart("post-recv", Range::pink);
       tm.start("post-recv");
 
-      comm.postRecv();
+      comm.postRecv(con_many, con_few);
 
       tm.stop();
       r3.restart("post-send", Range::pink);
       tm.start("post-send");
 
-      comm.postSend();
+      comm.postSend(con_many, con_few);
 
       tm.stop();
       r3.stop();
@@ -387,7 +391,7 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info,
 
         DataT* data = vars[i].data();
 
-        for_all_3d(ExecContext<pol_loop>{}, 0, klen,
+        for_all_3d(con_loop, 0, klen,
                                0, jlen,
                                0, ilen,
                                [=] COMB_HOST COMB_DEVICE (IdxT k, IdxT j, IdxT i, IdxT idx) {
@@ -412,13 +416,13 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info,
       r3.start("wait-recv", Range::pink);
       tm.start("wait-recv");
 
-      comm.waitRecv();
+      comm.waitRecv(con_many, con_few);
 
       tm.stop();
       r3.restart("wait-send", Range::pink);
       tm.start("wait-send");
 
-      comm.waitSend();
+      comm.waitSend(con_many, con_few);
 
       tm.stop();
       r3.restart("post-comm", Range::red);
@@ -428,13 +432,13 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info,
 
         DataT* data = vars[i].data();
 
-        for_all_3d(ExecContext<pol_loop>{}, 0, klen,
+        for_all_3d(con_loop, 0, klen,
                                0, jlen,
                                0, ilen,
                                detail::reset_1(ilen, ijlen, data, imin, jmin, kmin, imax, jmax, kmax));
       }
 
-      synchronize(ExecContext<pol_loop>{});
+      synchronize(con_loop);
 
       tm.stop();
       r3.stop();
