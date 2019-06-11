@@ -37,30 +37,30 @@ void do_copy(CommInfo& comminfo, COMB::Allocator& src_aloc, COMB::Allocator& dst
 
   // setup
   for (IdxT i = 0; i < num_vars; ++i) {
-    for_all(pol{}, 0, len, detail::set_n1{dst[i]});
-    for_all(pol{}, 0, len, detail::set_0{src[i]});
-    for_all(pol{}, 0, len, detail::set_copy{dst[i], src[i]});
+    for_all(ExecContext<pol>{}, 0, len, detail::set_n1{dst[i]});
+    for_all(ExecContext<pol>{}, 0, len, detail::set_0{src[i]});
+    for_all(ExecContext<pol>{}, 0, len, detail::set_copy{dst[i], src[i]});
   }
 
-  synchronize(pol{});
+  synchronize(ExecContext<pol>{});
 
   char sub_test_name[1024] = ""; snprintf(sub_test_name, 1024, "copy_sync-%d-%d-%zu", num_vars, len, sizeof(DataT));
 
   for (IdxT rep = 0; rep < nrepeats; ++rep) {
 
     for (IdxT i = 0; i < num_vars; ++i) {
-      for_all(pol{}, 0, len, detail::set_copy{src[i], dst[i]});
+      for_all(ExecContext<pol>{}, 0, len, detail::set_copy{src[i], dst[i]});
     }
 
-    synchronize(pol{});
+    synchronize(ExecContext<pol>{});
 
     tm.start(sub_test_name);
 
     for (IdxT i = 0; i < num_vars; ++i) {
-      for_all(pol{}, 0, len, detail::set_copy{dst[i], src[i]});
+      for_all(ExecContext<pol>{}, 0, len, detail::set_copy{dst[i], src[i]});
     }
 
-    synchronize(pol{});
+    synchronize(ExecContext<pol>{});
 
     tm.stop();
   }

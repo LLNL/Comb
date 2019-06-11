@@ -25,73 +25,84 @@ struct cuda_batch_pol {
   using event_type = detail::batch_event_type_ptr;
 };
 
-inline void synchronize(cuda_batch_pol const&)
+template < >
+struct ExecContext<cuda_batch_pol>
 {
-  cuda::batch_launch::synchronize();
+  cudaStream_t stream = 0;
+};
+
+inline bool operator==(ExecContext<cuda_batch_pol> const& lhs, ExecContext<cuda_batch_pol> const& rhs)
+{
+  return lhs.stream == rhs.stream;
 }
 
-inline void persistent_launch(cuda_batch_pol const&)
+inline void synchronize(ExecContext<cuda_batch_pol> const& con)
+{
+  cuda::batch_launch::synchronize(con.stream);
+}
+
+inline void persistent_launch(ExecContext<cuda_batch_pol> const&)
 {
 }
 
-inline void batch_launch(cuda_batch_pol const&)
+inline void batch_launch(ExecContext<cuda_batch_pol> const& con)
 {
-  cuda::batch_launch::force_launch();
+  cuda::batch_launch::force_launch(con.stream);
 }
 
-inline void persistent_stop(cuda_batch_pol const&)
+inline void persistent_stop(ExecContext<cuda_batch_pol> const&)
 {
 }
 
-inline typename cuda_batch_pol::event_type createEvent(cuda_batch_pol const&)
+inline typename cuda_batch_pol::event_type createEvent(ExecContext<cuda_batch_pol> const&)
 {
   return cuda::batch_launch::createEvent();
 }
 
-inline void recordEvent(cuda_batch_pol const&, typename cuda_batch_pol::event_type event)
+inline void recordEvent(ExecContext<cuda_batch_pol> const& con, typename cuda_batch_pol::event_type event)
 {
-  return cuda::batch_launch::recordEvent(event);
+  return cuda::batch_launch::recordEvent(event, con.stream);
 }
 
-inline bool queryEvent(cuda_batch_pol const&, typename cuda_batch_pol::event_type event)
+inline bool queryEvent(ExecContext<cuda_batch_pol> const&, typename cuda_batch_pol::event_type event)
 {
   return cuda::batch_launch::queryEvent(event);
 }
 
-inline void waitEvent(cuda_batch_pol const&, typename cuda_batch_pol::event_type event)
+inline void waitEvent(ExecContext<cuda_batch_pol> const&, typename cuda_batch_pol::event_type event)
 {
   cuda::batch_launch::waitEvent(event);
 }
 
-inline void destroyEvent(cuda_batch_pol const&, typename cuda_batch_pol::event_type event)
+inline void destroyEvent(ExecContext<cuda_batch_pol> const&, typename cuda_batch_pol::event_type event)
 {
   cuda::batch_launch::destroyEvent(event);
 }
 
 template < typename body_type >
-inline void for_all(cuda_batch_pol const& pol, IdxT begin, IdxT end, body_type&& body)
+inline void for_all(ExecContext<cuda_batch_pol> const& con, IdxT begin, IdxT end, body_type&& body)
 {
-  COMB::ignore_unused(pol);
-  cuda::batch_launch::for_all(begin, end, std::forward<body_type>(body));
-  //synchronize(pol);
+  COMB::ignore_unused(con);
+  cuda::batch_launch::for_all(begin, end, std::forward<body_type>(body), con.stream);
+  //synchronize(con);
 }
 
 template < typename body_type >
-inline void for_all_2d(cuda_batch_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, body_type&& body)
+inline void for_all_2d(ExecContext<cuda_batch_pol> const& con, IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, body_type&& body)
 {
-  COMB::ignore_unused(pol);
+  COMB::ignore_unused(con);
   IdxT len = (end0 - begin0) * (end1 - begin1);
-  cuda::batch_launch::for_all(0, len, detail::adapter_2d<typename std::remove_reference<body_type>::type>{begin0, end0, begin1, end1, std::forward<body_type>(body)});
-  //synchronize(pol);
+  cuda::batch_launch::for_all(0, len, detail::adapter_2d<typename std::remove_reference<body_type>::type>{begin0, end0, begin1, end1, std::forward<body_type>(body)}, con.stream);
+  //synchronize(con);
 }
 
 template < typename body_type >
-inline void for_all_3d(cuda_batch_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, IdxT begin2, IdxT end2, body_type&& body)
+inline void for_all_3d(ExecContext<cuda_batch_pol> const& con, IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, IdxT begin2, IdxT end2, body_type&& body)
 {
-  COMB::ignore_unused(pol);
+  COMB::ignore_unused(con);
   IdxT len = (end0 - begin0) * (end1 - begin1) * (end2 - begin2);
-  cuda::batch_launch::for_all(0, len, detail::adapter_3d<typename std::remove_reference<body_type>::type>{begin0, end0, begin1, end1, begin2, end2, std::forward<body_type>(body)});
-  //synchronize(pol);
+  cuda::batch_launch::for_all(0, len, detail::adapter_3d<typename std::remove_reference<body_type>::type>{begin0, end0, begin1, end1, begin2, end2, std::forward<body_type>(body)}, con.stream);
+  //synchronize(con);
 }
 
 #endif // COMB_ENABLE_CUDA

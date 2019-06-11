@@ -24,82 +24,94 @@ struct seq_pol {
   using event_type = int;
 };
 
+template < >
+struct ExecContext<seq_pol>
+{
+
+};
+
+inline bool operator==(ExecContext<seq_pol> const& lhs, ExecContext<seq_pol> const& rhs)
+{
+  COMB::ignore_unused(lhs, rhs);
+  return true;
+}
+
 // synchronization functions
-inline void synchronize(seq_pol const&)
+inline void synchronize(ExecContext<seq_pol> const&)
 {
 }
 
 // force start functions
-inline void persistent_launch(seq_pol const&)
+inline void persistent_launch(ExecContext<seq_pol> const&)
 {
 }
 
 // force complete functions
-inline void batch_launch(seq_pol const&)
+inline void batch_launch(ExecContext<seq_pol> const&)
 {
 }
 
 // force complete functions
-inline void persistent_stop(seq_pol const&)
+inline void persistent_stop(ExecContext<seq_pol> const&)
 {
 }
 
 // event creation functions
-inline typename seq_pol::event_type createEvent(seq_pol const&)
+inline typename seq_pol::event_type createEvent(ExecContext<seq_pol> const&)
 {
   return typename seq_pol::event_type{};
 }
 
 // event record functions
-inline void recordEvent(seq_pol const&, typename seq_pol::event_type)
+inline void recordEvent(ExecContext<seq_pol> const&, typename seq_pol::event_type)
 {
 }
 
 // event query functions
-inline bool queryEvent(seq_pol const&, typename seq_pol::event_type)
+inline bool queryEvent(ExecContext<seq_pol> const&, typename seq_pol::event_type)
 {
   return true;
 }
 
 // event wait functions
-inline void waitEvent(seq_pol const&, typename seq_pol::event_type)
+inline void waitEvent(ExecContext<seq_pol> const&, typename seq_pol::event_type)
 {
 }
 
 // event destroy functions
-inline void destroyEvent(seq_pol const&, typename seq_pol::event_type)
+inline void destroyEvent(ExecContext<seq_pol> const&, typename seq_pol::event_type)
 {
 }
 
 // for_all functions
 template < typename body_type >
-inline void for_all(seq_pol const& pol, IdxT begin, IdxT end, body_type&& body)
+inline void for_all(ExecContext<seq_pol> const& con, IdxT begin, IdxT end, body_type&& body)
 {
-  COMB::ignore_unused(pol);
+  COMB::ignore_unused(con);
   IdxT i = 0;
   for(IdxT i0 = begin; i0 < end; ++i0) {
     body(i0, i++);
   }
-  //synchronize(pol);
+  //synchronize(con);
 }
 
 template < typename body_type >
-void for_all_2d(seq_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, body_type&& body)
+void for_all_2d(ExecContext<seq_pol> const& con, IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, body_type&& body)
 {
-  COMB::ignore_unused(pol);
+  COMB::ignore_unused(con);
   IdxT i = 0;
   for(IdxT i0 = begin0; i0 < end0; ++i0) {
     for(IdxT i1 = begin1; i1 < end1; ++i1) {
       body(i0, i1, i++);
     }
   }
-  //synchronize(pol);
+  //synchronize(con);
 }
 
 template < typename body_type >
-inline void for_all_3d(seq_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, IdxT begin2, IdxT end2, body_type&& body)
+inline void for_all_3d(ExecContext<seq_pol> const& con, IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, IdxT begin2, IdxT end2, body_type&& body)
 {
-  COMB::ignore_unused(pol);
+  COMB::ignore_unused(con);
   IdxT i = 0;
   for(IdxT i0 = begin0; i0 < end0; ++i0) {
     for(IdxT i1 = begin1; i1 < end1; ++i1) {
@@ -108,7 +120,7 @@ inline void for_all_3d(seq_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1, 
       }
     }
   }
-  //synchronize(pol);
+  //synchronize(con);
 }
 
 #endif // _POL_SEQ_HPP

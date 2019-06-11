@@ -25,46 +25,57 @@ struct cuda_pol {
   using event_type = cudaEvent_t;
 };
 
-inline void synchronize(cuda_pol const&)
+template < >
+struct ExecContext<cuda_pol>
 {
-  cudaCheck(cudaDeviceSynchronize());
+  cudaStream_t stream = 0;
+};
+
+inline bool operator==(ExecContext<cuda_pol> const& lhs, ExecContext<cuda_pol> const& rhs)
+{
+  return lhs.stream == rhs.stream;
 }
 
-inline void persistent_launch(cuda_pol const&)
+inline void synchronize(ExecContext<cuda_pol> const& con)
+{
+  cudaCheck(cudaStreamSynchronize(con.stream));
+}
+
+inline void persistent_launch(ExecContext<cuda_pol> const&)
 {
 }
 
-inline void batch_launch(cuda_pol const&)
+inline void batch_launch(ExecContext<cuda_pol> const&)
 {
 }
 
-inline void persistent_stop(cuda_pol const&)
+inline void persistent_stop(ExecContext<cuda_pol> const&)
 {
 }
 
-inline typename cuda_pol::event_type createEvent(cuda_pol const&)
+inline typename cuda_pol::event_type createEvent(ExecContext<cuda_pol> const&)
 {
   cudaEvent_t event;
   cudaCheck(cudaEventCreateWithFlags(&event, cudaEventDisableTiming));
   return event;
 }
 
-inline void recordEvent(cuda_pol const&, typename cuda_pol::event_type event)
+inline void recordEvent(ExecContext<cuda_pol> const& con, typename cuda_pol::event_type event)
 {
-  cudaCheck(cudaEventRecord(event, cudaStream_t{0}));
+  cudaCheck(cudaEventRecord(event, con.stream));
 }
 
-inline bool queryEvent(cuda_pol const&, typename cuda_pol::event_type event)
+inline bool queryEvent(ExecContext<cuda_pol> const&, typename cuda_pol::event_type event)
 {
   return cudaCheckReady(cudaEventQuery(event));
 }
 
-inline void waitEvent(cuda_pol const&, typename cuda_pol::event_type event)
+inline void waitEvent(ExecContext<cuda_pol> const&, typename cuda_pol::event_type event)
 {
   cudaCheck(cudaEventSynchronize(event));
 }
 
-inline void destroyEvent(cuda_pol const&, typename cuda_pol::event_type event)
+inline void destroyEvent(ExecContext<cuda_pol> const&, typename cuda_pol::event_type event)
 {
   cudaCheck(cudaEventDestroy(event));
 }
@@ -80,9 +91,9 @@ void cuda_for_all(IdxT begin, IdxT len, body_type body)
 }
 
 template < typename body_type >
-inline void for_all(cuda_pol const& pol, IdxT begin, IdxT end, body_type&& body)
+inline void for_all(ExecContext<cuda_pol> const& con, IdxT begin, IdxT end, body_type&& body)
 {
-  COMB::ignore_unused(pol);
+  COMB::ignore_unused(con);
   using decayed_body_type = typename std::decay<body_type>::type;
 
   IdxT len = end - begin;
@@ -95,10 +106,10 @@ inline void for_all(cuda_pol const& pol, IdxT begin, IdxT end, body_type&& body)
   dim3 blockDim(threads);
   void* args[]{&begin, &len, &body};
   size_t sharedMem = 0;
-  cudaStream_t stream = 0;
+  cudaStream_t stream = con.stream;
 
   cudaCheck(cudaLaunchKernel(func, gridDim, blockDim, args, sharedMem, stream));
-  //synchronize(pol);
+  //synchronize(con);
 }
 
 template < typename body_type >
@@ -116,9 +127,9 @@ void cuda_for_all_2d(IdxT begin0, IdxT len0, IdxT begin1, IdxT len1, body_type b
 }
 
 template < typename body_type >
-inline void for_all_2d(cuda_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, body_type&& body)
+inline void for_all_2d(ExecContext<cuda_pol> const& con, IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, body_type&& body)
 {
-  COMB::ignore_unused(pol);
+  COMB::ignore_unused(con);
   using decayed_body_type = typename std::decay<body_type>::type;
 
   IdxT len0 = end0 - begin0;
@@ -134,10 +145,10 @@ inline void for_all_2d(cuda_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1,
   dim3 blockDim(threads1, threads0, 1);
   void* args[]{&begin0, &len0, &begin1, &len1, &body};
   size_t sharedMem = 0;
-  cudaStream_t stream = 0;
+  cudaStream_t stream = con.stream;
 
   cudaCheck(cudaLaunchKernel(func, gridDim, blockDim, args, sharedMem, stream));
-  //synchronize(pol);
+  //synchronize(con);
 }
 
 template < typename body_type >
@@ -158,9 +169,9 @@ void cuda_for_all_3d(IdxT begin0, IdxT len0, IdxT begin1, IdxT len1, IdxT begin2
 }
 
 template < typename body_type >
-inline void for_all_3d(cuda_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, IdxT begin2, IdxT end2, body_type&& body)
+inline void for_all_3d(ExecContext<cuda_pol> const& con, IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, IdxT begin2, IdxT end2, body_type&& body)
 {
-  COMB::ignore_unused(pol);
+  COMB::ignore_unused(con);
   using decayed_body_type = typename std::decay<body_type>::type;
 
   IdxT len0 = end0 - begin0;
@@ -180,10 +191,10 @@ inline void for_all_3d(cuda_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1,
   dim3 blockDim(threads2, threads1, threads0);
   void* args[]{&begin0, &len0, &begin1, &len1, &begin2, &len2, &len12, &body};
   size_t sharedMem = 0;
-  cudaStream_t stream = 0;
+  cudaStream_t stream = con.stream;
 
   cudaCheck(cudaLaunchKernel(func, gridDim, blockDim, args, sharedMem, stream));
-  //synchronize(pol);
+  //synchronize(con);
 }
 
 #endif // COMB_ENABLE_CUDA

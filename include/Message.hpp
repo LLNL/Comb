@@ -152,8 +152,8 @@ struct Message<mpi_pol> : detail::MessageBase
   // use the base class constructor
   using base::base;
 
-  template < typename policy >
-  void pack(policy const& pol, typename policy_comm::communicator_type)
+  template < typename context >
+  void pack(context const& con, typename policy_comm::communicator_type)
   {
     DataT* buf = m_buf;
     assert(buf != nullptr);
@@ -163,12 +163,12 @@ struct Message<mpi_pol> : detail::MessageBase
       LidxT const* indices = i->indices;
       IdxT len = i->size;
       // FPRINTF(stdout, "%p pack %p = %p[%p] len %d\n", this, buf, src, indices, len);
-      for_all(pol, 0, len, make_copy_idxr_idxr(src, detail::indexer_list_idx{indices}, buf, detail::indexer_idx{}));
+      for_all(con, 0, len, make_copy_idxr_idxr(src, detail::indexer_list_idx{indices}, buf, detail::indexer_idx{}));
       buf += len;
     }
   }
 
-  void pack(mpi_type_pol const&, typename policy_comm::communicator_type comm)
+  void pack(ExecContext<mpi_type_pol> const&, typename policy_comm::communicator_type comm)
   {
     if (items.size() == 1) {
       m_nbytes = sizeof(DataT)*items.front().size;
@@ -189,8 +189,8 @@ struct Message<mpi_pol> : detail::MessageBase
     }
   }
 
-  template < typename policy >
-  void unpack(policy const& pol, typename policy_comm::communicator_type)
+  template < typename context >
+  void unpack(context const& con, typename policy_comm::communicator_type)
   {
     DataT const* buf = m_buf;
     assert(buf != nullptr);
@@ -200,12 +200,12 @@ struct Message<mpi_pol> : detail::MessageBase
       LidxT const* indices = i->indices;
       IdxT len = i->size;
       // FPRINTF(stdout, "%p unpack %p[%p] = %p len %d\n", this, dst, indices, buf, len);
-      for_all(pol, 0, len, make_copy_idxr_idxr(buf, detail::indexer_idx{}, dst, detail::indexer_list_idx{indices}));
+      for_all(con, 0, len, make_copy_idxr_idxr(buf, detail::indexer_idx{}, dst, detail::indexer_list_idx{indices}));
       buf += len;
     }
   }
 
-  void unpack(mpi_type_pol const&, typename policy_comm::communicator_type comm)
+  void unpack(ExecContext<mpi_type_pol> const&, typename policy_comm::communicator_type comm)
   {
     if (items.size() == 1) {
       // nothing to do
@@ -224,14 +224,14 @@ struct Message<mpi_pol> : detail::MessageBase
     }
   }
 
-  template < typename policy >
-  void Isend(policy const&, typename policy_comm::communicator_type comm, typename policy_comm::send_request_type* request)
+  template < typename context >
+  void Isend(context const&, typename policy_comm::communicator_type comm, typename policy_comm::send_request_type* request)
   {
     // FPRINTF(stdout, "%p Isend %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
     start_send(policy_comm{}, buffer(), nbytes(), MPI_BYTE, partner_rank(), tag(), comm, request);
   }
 
-  void Isend(mpi_type_pol const&, typename policy_comm::communicator_type comm, typename policy_comm::send_request_type* request)
+  void Isend(ExecContext<mpi_type_pol> const&, typename policy_comm::communicator_type comm, typename policy_comm::send_request_type* request)
   {
     if (items.size() == 1) {
       DataT const* src = items.front().data;
@@ -244,14 +244,14 @@ struct Message<mpi_pol> : detail::MessageBase
     }
   }
 
-  template < typename policy >
-  void Irecv(policy const&, typename policy_comm::communicator_type comm, typename policy_comm::recv_request_type* request)
+  template < typename context >
+  void Irecv(context const&, typename policy_comm::communicator_type comm, typename policy_comm::recv_request_type* request)
   {
     // FPRINTF(stdout, "%p Irecv %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
     start_recv(policy_comm{}, buffer(), nbytes(), MPI_BYTE, partner_rank(), tag(), comm, request);
   }
 
-  void Irecv(mpi_type_pol const&, typename policy_comm::communicator_type comm, typename policy_comm::recv_request_type* request)
+  void Irecv(ExecContext<mpi_type_pol> const&, typename policy_comm::communicator_type comm, typename policy_comm::recv_request_type* request)
   {
     if (items.size() == 1) {
       DataT* dst = items.front().data;
@@ -264,15 +264,15 @@ struct Message<mpi_pol> : detail::MessageBase
     }
   }
 
-  template < typename policy >
-  void allocate(policy const&, COMB::Allocator& buf_aloc)
+  template < typename context >
+  void allocate(context const&, COMB::Allocator& buf_aloc)
   {
     if (m_buf == nullptr) {
       m_buf = (DataT*)buf_aloc.allocate(nbytes());
     }
   }
 
-  void allocate(mpi_type_pol const&, COMB::Allocator& buf_aloc)
+  void allocate(ExecContext<mpi_type_pol> const&, COMB::Allocator& buf_aloc)
   {
     if (m_buf == nullptr) {
       if (items.size() == 1) {
@@ -283,8 +283,8 @@ struct Message<mpi_pol> : detail::MessageBase
     }
   }
 
-  template < typename policy >
-  void deallocate(policy const&, COMB::Allocator& buf_aloc)
+  template < typename context >
+  void deallocate(context const&, COMB::Allocator& buf_aloc)
   {
     if (m_buf != nullptr) {
       buf_aloc.deallocate(m_buf);
@@ -308,8 +308,8 @@ struct Message<mock_pol> : detail::MessageBase
   // use the base class constructor
   using base::base;
 
-  template < typename policy >
-  void pack(policy const& pol, typename policy_comm::communicator_type)
+  template < typename context >
+  void pack(context const& con, typename policy_comm::communicator_type)
   {
     DataT* buf = m_buf;
     assert(buf != nullptr);
@@ -319,12 +319,12 @@ struct Message<mock_pol> : detail::MessageBase
       LidxT const* indices = i->indices;
       IdxT len = i->size;
       // FPRINTF(stdout, "%p pack %p = %p[%p] len %d\n", this, buf, src, indices, len);
-      for_all(pol, 0, len, make_copy_idxr_idxr(src, detail::indexer_list_idx{indices}, buf, detail::indexer_idx{}));
+      for_all(con, 0, len, make_copy_idxr_idxr(src, detail::indexer_list_idx{indices}, buf, detail::indexer_idx{}));
       buf += len;
     }
   }
 
-  void pack(mpi_type_pol const&, typename policy_comm::communicator_type comm)
+  void pack(ExecContext<mpi_type_pol> const&, typename policy_comm::communicator_type comm)
   {
     if (items.size() == 1) {
       m_nbytes = sizeof(DataT)*items.front().size;
@@ -345,8 +345,8 @@ struct Message<mock_pol> : detail::MessageBase
     }
   }
 
-  template < typename policy >
-  void unpack(policy const& pol, typename policy_comm::communicator_type)
+  template < typename context >
+  void unpack(context const& con, typename policy_comm::communicator_type)
   {
     DataT const* buf = m_buf;
     assert(buf != nullptr);
@@ -356,12 +356,12 @@ struct Message<mock_pol> : detail::MessageBase
       LidxT const* indices = i->indices;
       IdxT len = i->size;
       // FPRINTF(stdout, "%p unpack %p[%p] = %p len %d\n", this, dst, indices, buf, len);
-      for_all(pol, 0, len, make_copy_idxr_idxr(buf, detail::indexer_idx{}, dst, detail::indexer_list_idx{indices}));
+      for_all(con, 0, len, make_copy_idxr_idxr(buf, detail::indexer_idx{}, dst, detail::indexer_list_idx{indices}));
       buf += len;
     }
   }
 
-  void unpack(mpi_type_pol const&, typename policy_comm::communicator_type comm)
+  void unpack(ExecContext<mpi_type_pol> const&, typename policy_comm::communicator_type comm)
   {
     if (items.size() == 1) {
       // nothing to do
@@ -380,14 +380,14 @@ struct Message<mock_pol> : detail::MessageBase
     }
   }
 
-  template < typename policy >
-  void Isend(policy const&, typename policy_comm::communicator_type comm, typename policy_comm::send_request_type* request)
+  template < typename context >
+  void Isend(context const&, typename policy_comm::communicator_type comm, typename policy_comm::send_request_type* request)
   {
     // FPRINTF(stdout, "%p Isend %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
     start_send(policy_comm{}, buffer(), nbytes(), typename policy_comm::type_type{}, partner_rank(), tag(), comm, request);
   }
 
-  void Isend(mpi_type_pol const&, typename policy_comm::communicator_type comm, typename policy_comm::send_request_type* request)
+  void Isend(ExecContext<mpi_type_pol> const&, typename policy_comm::communicator_type comm, typename policy_comm::send_request_type* request)
   {
     if (items.size() == 1) {
       DataT const* src = items.front().data;
@@ -400,14 +400,14 @@ struct Message<mock_pol> : detail::MessageBase
     }
   }
 
-  template < typename policy >
-  void Irecv(policy const&, typename policy_comm::communicator_type comm, typename policy_comm::recv_request_type* request)
+  template < typename context >
+  void Irecv(context const&, typename policy_comm::communicator_type comm, typename policy_comm::recv_request_type* request)
   {
     // FPRINTF(stdout, "%p Irecv %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
     start_recv(policy_comm{}, buffer(), nbytes(), typename policy_comm::type_type{}, partner_rank(), tag(), comm, request);
   }
 
-  void Irecv(mpi_type_pol const&, typename policy_comm::communicator_type comm, typename policy_comm::recv_request_type* request)
+  void Irecv(ExecContext<mpi_type_pol> const&, typename policy_comm::communicator_type comm, typename policy_comm::recv_request_type* request)
   {
     if (items.size() == 1) {
       DataT* dst = items.front().data;
@@ -420,15 +420,15 @@ struct Message<mock_pol> : detail::MessageBase
     }
   }
 
-  template < typename policy >
-  void allocate(policy const&, COMB::Allocator& buf_aloc)
+  template < typename context >
+  void allocate(context const&, COMB::Allocator& buf_aloc)
   {
     if (m_buf == nullptr) {
       m_buf = (DataT*)buf_aloc.allocate(nbytes());
     }
   }
 
-  void allocate(mpi_type_pol const&, COMB::Allocator& buf_aloc)
+  void allocate(ExecContext<mpi_type_pol> const&, COMB::Allocator& buf_aloc)
   {
     if (m_buf == nullptr) {
       if (items.size() == 1) {
@@ -439,8 +439,8 @@ struct Message<mock_pol> : detail::MessageBase
     }
   }
 
-  template < typename policy >
-  void deallocate(policy const&, COMB::Allocator& buf_aloc)
+  template < typename context >
+  void deallocate(context const&, COMB::Allocator& buf_aloc)
   {
     if (m_buf != nullptr) {
       buf_aloc.deallocate(m_buf);

@@ -25,95 +25,35 @@
 
 #include "utils.hpp"
 #include "memory.hpp"
-
-namespace detail {
-
-template < typename type >
-struct Synchronizer {
-  using value_type = type;
-  value_type const& t;
-  Synchronizer(value_type const& t_) : t(t_) {}
-  void operator()() const { synchronize(t); }
-};
-
-template < typename type >
-struct PersistentLauncher {
-  using value_type = type;
-  value_type const& t;
-  PersistentLauncher(value_type const& t_) : t(t_) {}
-  void operator()() const { persistent_launch(t); }
-};
-
-template < typename type >
-struct BatchLauncher {
-  using value_type = type;
-  value_type const& t;
-  BatchLauncher(value_type const& t_) : t(t_) {}
-  void operator()() const { batch_launch(t); }
-};
-
-template < typename type >
-struct PersistentStopper {
-  using value_type = type;
-  value_type const& t;
-  PersistentStopper(value_type const& t_) : t(t_) {}
-  void operator()() const { persistent_stop(t); }
-};
-
-template < typename type, size_t repeats >
-struct ConditionalOperator {
-  ConditionalOperator(typename type::value_type const&) {}
-  void operator()() const { }
-};
-
-template < typename type >
-struct ConditionalOperator<type, 0> : type {
-  using parent = type;
-  ConditionalOperator(typename type::value_type const& t_) : parent(t_) {}
-  void operator()() const { parent::operator()(); }
-};
-
-template < typename ... types >
-struct MultiOperator;
-
-template < >
-struct MultiOperator<> {
-  void operator()() const { }
-};
-
-template < typename type0, typename ... types >
-struct MultiOperator<type0, types...> : ConditionalOperator<type0, Count<type0, types...>::value>, MultiOperator<types...> {
-  using cparent = ConditionalOperator<type0, Count<type0, types...>::value>;
-  using mparent = MultiOperator<types...>;
-  MultiOperator(typename type0::value_type const& t_, typename types::value_type const&... ts_) : cparent(t_), mparent(ts_...) {}
-  void operator()() const { cparent::operator()(); mparent::operator()(); }
-};
-
-} // namespace detail
+#include "ExecContext.hpp"
 
 // multiple argument synchronization and other functions
-template < typename policy0, typename policy1, typename... policies >
-inline void synchronize(policy0 const& p0, policy1 const& p1, policies const&...ps)
+template < typename context0, typename context1 >
+inline void synchronize(context0 const& c0, context1 const& c1)
 {
-  detail::MultiOperator<detail::Synchronizer<policy0>, detail::Synchronizer<policy1>, detail::Synchronizer<policies>...>{p0, p1, ps...}();
+  synchronize(c0);
+  if (c0 != c1) { synchronize(c1); }
 }
 
-template < typename policy0, typename policy1, typename... policies >
-inline void persistent_launch(policy0 const& p0, policy1 const& p1, policies const&...ps)
+template < typename context0, typename context1 >
+inline void persistent_launch(context0 const& c0, context1 const& c1)
 {
-  detail::MultiOperator<detail::PersistentLauncher<policy0>, detail::PersistentLauncher<policy1>, detail::PersistentLauncher<policies>...>{p0, p1, ps...}();
+  persistent_launch(c0);
+  if (c0 != c1) { persistent_launch(c1); }
 }
 
-template < typename policy0, typename policy1, typename... policies >
-inline void batch_launch(policy0 const& p0, policy1 const& p1, policies const&...ps)
+template < typename context0, typename context1 >
+inline void batch_launch(context0 const& c0, context1 const& c1)
 {
-  detail::MultiOperator<detail::BatchLauncher<policy0>, detail::BatchLauncher<policy1>, detail::BatchLauncher<policies>...>{p0, p1, ps...}();
+  batch_launch(c0);
+  if (c0 != c1) { batch_launch(c1); }
 }
 
-template < typename policy0, typename policy1, typename... policies >
-inline void persistent_stop(policy0 const& p0, policy1 const& p1, policies const&...ps)
+template < typename context0, typename context1 >
+inline void persistent_stop(context0 const& c0, context1 const& c1)
 {
-  detail::MultiOperator<detail::PersistentStopper<policy0>, detail::PersistentStopper<policy1>, detail::PersistentStopper<policies>...>{p0, p1, ps...}();
+  persistent_stop(c0);
+  if (c0 != c1) { persistent_stop(c1); }
 }
 
 namespace detail {
@@ -177,7 +117,6 @@ struct adapter_3d {
 };
 
 } // namespace detail
-
 
 #include "pol_seq.hpp"
 #include "pol_omp.hpp"

@@ -347,8 +347,8 @@ struct CommFactory
 
     size_t num_events = std::max(comm.m_recvs.size(), comm.m_sends.size());
     for(size_t i = 0; i != num_events; ++i) {
-      comm.m_many_events.push_back( createEvent(typename comm_type::policy_many{}) );
-      comm.m_few_events.push_back( createEvent(typename comm_type::policy_few{}) );
+      comm.m_many_events.push_back( createEvent(ExecContext<typename comm_type::policy_many>{}) );
+      comm.m_few_events.push_back( createEvent(ExecContext<typename comm_type::policy_few>{}) );
     }
   }
 
@@ -383,18 +383,18 @@ private:
     }
   }
 
-  template < typename policy >
-  void populate_msg_info(policy const& pol, MPI_Comm comm, MeshData const* msg_data, Box3d const& msg_box,
+  template < typename context >
+  void populate_msg_info(context const& con, MPI_Comm comm, MeshData const* msg_data, Box3d const& msg_box,
                          LidxT*& indices, IdxT& len,
                          MPI_Datatype& mpi_type, IdxT& mpi_pack_nbytes) const
   {
     COMB::ignore_unused(comm, mpi_type, mpi_pack_nbytes);
     len = msg_box.size();
     indices = (LidxT*)msg_data->aloc.allocate(sizeof(LidxT)*len);
-    msg_box.set_indices(pol, indices);
+    msg_box.set_indices(con, indices);
   }
 
-  void populate_msg_info(mpi_type_pol const&, MPI_Comm comm, MeshData const* msg_data, Box3d const& msg_box,
+  void populate_msg_info(ExecContext<mpi_type_pol> const&, MPI_Comm comm, MeshData const* msg_data, Box3d const& msg_box,
                          LidxT*& indices, IdxT& len,
                          MPI_Datatype& mpi_type, IdxT& mpi_pack_nbytes) const
   {
@@ -428,9 +428,9 @@ private:
         MPI_Datatype mpi_type = MPI_DATATYPE_NULL;
         IdxT mpi_pack_nbytes = 0;
         if (have_many) {
-          populate_msg_info(typename comm_type::policy_many{}, comm.comminfo.cart.comm, msg_data, msg_box, indices, len, mpi_type, mpi_pack_nbytes);
+          populate_msg_info(ExecContext<typename comm_type::policy_many>{}, comm.comminfo.cart.comm, msg_data, msg_box, indices, len, mpi_type, mpi_pack_nbytes);
         } else {
-          populate_msg_info(typename comm_type::policy_few{}, comm.comminfo.cart.comm, msg_data, msg_box, indices, len, mpi_type, mpi_pack_nbytes);
+          populate_msg_info(ExecContext<typename comm_type::policy_few>{}, comm.comminfo.cart.comm, msg_data, msg_box, indices, len, mpi_type, mpi_pack_nbytes);
         }
 
         // add an item to the message

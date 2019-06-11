@@ -31,69 +31,81 @@ struct omp_pol {
   using event_type = int;
 };
 
+template < >
+struct ExecContext<omp_pol>
+{
+
+};
+
+inline bool operator==(ExecContext<omp_pol> const& lhs, ExecContext<omp_pol> const& rhs)
+{
+  COMB::ignore_unused(lhs, rhs);
+  return true;
+}
+
 // synchronization functions
-inline void synchronize(omp_pol const&)
+inline void synchronize(ExecContext<omp_pol> const&)
 {
 }
 
 // force start functions
-inline void persistent_launch(omp_pol const&)
+inline void persistent_launch(ExecContext<omp_pol> const&)
 {
 }
 
 // force complete functions
-inline void batch_launch(omp_pol const&)
+inline void batch_launch(ExecContext<omp_pol> const&)
 {
 }
 // force complete functions
-inline void persistent_stop(omp_pol const&)
+inline void persistent_stop(ExecContext<omp_pol> const&)
 {
 }
 
 // event creation functions
-inline typename omp_pol::event_type createEvent(omp_pol const&)
+inline typename omp_pol::event_type createEvent(ExecContext<omp_pol> const&)
 {
   return typename omp_pol::event_type{};
 }
 
 // event record functions
-inline void recordEvent(omp_pol const&, typename omp_pol::event_type)
+inline void recordEvent(ExecContext<omp_pol> const&, typename omp_pol::event_type)
 {
 }
 
 // event query functions
-inline bool queryEvent(omp_pol const&, typename omp_pol::event_type)
+inline bool queryEvent(ExecContext<omp_pol> const&, typename omp_pol::event_type)
 {
   return true;
 }
 
 // event wait functions
-inline void waitEvent(omp_pol const&, typename omp_pol::event_type)
+inline void waitEvent(ExecContext<omp_pol> const&, typename omp_pol::event_type)
 {
 }
 
 // event destroy functions
-inline void destroyEvent(omp_pol const&, typename omp_pol::event_type)
+inline void destroyEvent(ExecContext<omp_pol> const&, typename omp_pol::event_type)
 {
 }
 
 // for_all functions
 template < typename body_type >
-inline void for_all(omp_pol const& pol, IdxT begin, IdxT end, body_type&& body)
+inline void for_all(ExecContext<omp_pol> const& con, IdxT begin, IdxT end, body_type&& body)
 {
-  COMB::ignore_unused(pol);
+  COMB::ignore_unused(con);
   const IdxT len = end - begin;
 #pragma omp parallel for
   for(IdxT i = 0; i < len; ++i) {
     body(i + begin, i);
   }
-  //synchronize(pol);
+  //synchronize(con);
 }
 
 template < typename body_type >
-inline void for_all_2d(omp_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, body_type&& body)
+inline void for_all_2d(ExecContext<omp_pol> const& con, IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, body_type&& body)
 {
-  COMB::ignore_unused(pol);
+  COMB::ignore_unused(con);
   const IdxT len0 = end0 - begin0;
   const IdxT len1 = end1 - begin1;
 
@@ -154,13 +166,13 @@ inline void for_all_2d(omp_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1, 
   }
 
 #endif
-  //synchronize(pol);
+  //synchronize(con);
 }
 
 template < typename body_type >
-inline void for_all_3d(omp_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, IdxT begin2, IdxT end2, body_type&& body)
+inline void for_all_3d(ExecContext<omp_pol> const& con, IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, IdxT begin2, IdxT end2, body_type&& body)
 {
-  COMB::ignore_unused(pol);
+  COMB::ignore_unused(con);
   const IdxT len0 = end0 - begin0;
   const IdxT len1 = end1 - begin1;
   const IdxT len2 = end2 - begin2;
@@ -236,7 +248,7 @@ inline void for_all_3d(omp_pol const& pol, IdxT begin0, IdxT end0, IdxT begin1, 
   }
 
 #endif
-  //synchronize(pol);
+  //synchronize(con);
 }
 
 #endif // COMB_ENABLE_OPENMP

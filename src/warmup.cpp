@@ -35,10 +35,10 @@ void do_warmup(COMB::Allocator& aloc, Timer& tm, IdxT num_vars, IdxT len)
 
     DataT* data = vars[i];
 
-    for_all(pol{}, 0, len, detail::set_n1{data});
+    for_all(ExecContext<pol>{}, 0, len, detail::set_n1{data});
   }
 
-  synchronize(pol{});
+  synchronize(ExecContext<pol>{});
 
 }
 
