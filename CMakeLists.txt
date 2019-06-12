@@ -71,6 +71,7 @@ set(comb_sources
   src/MultiBuffer.cpp
   src/batch_launch.cpp
   src/persistent_launch.cpp
+  src/graph_launch.cpp
   src/comm.cpp
   src/print_timer.cpp
   src/warmup.cpp
