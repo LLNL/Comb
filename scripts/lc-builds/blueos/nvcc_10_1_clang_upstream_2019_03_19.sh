@@ -28,7 +28,7 @@ cmake \
   -DENABLE_OPENMP=ON \
   -DENABLE_CUDA=ON \
   -DCUDA_ARCH=sm_60 \
-  -DCUDA_TOOLKIT_ROOT_DIR=/usr/tce/packages/cuda/cuda-10.1.105 \
+  -DCUDA_TOOLKIT_ROOT_DIR=/usr/tce/packages/cuda/cuda-10.1.168 \
   -C ../host-configs/lc-builds/blueos/nvcc_${COMPILER_SUFFIX}.cmake \
   -DCMAKE_INSTALL_PREFIX=../install_${BUILD_SUFFIX} \
   "$@" \
