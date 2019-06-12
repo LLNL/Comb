@@ -324,7 +324,7 @@ struct Message<mock_pol> : detail::MessageBase
     }
   }
 
-  void pack(ExecContext<mpi_type_pol> const&, typename policy_comm::communicator_type comm)
+  void pack(ExecContext<mpi_type_pol> const&, typename policy_comm::communicator_type /*comm*/)
   {
     if (items.size() == 1) {
       m_nbytes = sizeof(DataT)*items.front().size;
@@ -361,7 +361,7 @@ struct Message<mock_pol> : detail::MessageBase
     }
   }
 
-  void unpack(ExecContext<mpi_type_pol> const&, typename policy_comm::communicator_type comm)
+  void unpack(ExecContext<mpi_type_pol> const&, typename policy_comm::communicator_type /*comm*/)
   {
     if (items.size() == 1) {
       // nothing to do

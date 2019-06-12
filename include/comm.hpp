@@ -258,7 +258,7 @@ struct CommInfo
 };
 
 template < typename policy_comm >
-inline typename policy_comm::communicator_type get_communicator(policy_comm const&, CommInfo const& comminfo)
+inline typename policy_comm::communicator_type get_communicator(policy_comm const&, CommInfo const&)
 {
   return policy_comm::communicator_null();
 }
