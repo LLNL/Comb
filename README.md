@@ -55,8 +55,11 @@ The runtime options change the properties of the grid and its decomposition, as 
   -   __\-ghost *\#\_\#\_\#*__ The halo width or number of ghost zones in each dimension
   -   __\-vars *\#*__ The number of grid variables
   -   __\-comm *option*__ Communication options
-      -   __mock__ Do mock communication (do not make MPI calls)
       -   __cutoff *\#*__ Number of elements cutoff between large and small message packing kernels
+      -   __enable|disable *option*__ Enable or disable specific message passing execution policies
+          -   __all__ all message passing execution patterns
+          -   __mock__ mock message passing execution pattern (do not communicate)
+          -   __mpi__ mpi message passing execution pattern
       -   __post_recv *option*__ Communication post receive (MPI_Irecv) options
           -   __wait_any__ Post recvs one-by-one
           -   __wait_some__ Post recvs one-by-one
@@ -93,10 +96,12 @@ The runtime options change the properties of the grid and its decomposition, as 
           -   __seq__ sequential CPU execution pattern
           -   __omp__ openmp threaded CPU execution pattern
           -   __cuda__ cuda GPU execution pattern
+          -   __cuda_graph__ cuda GPU batched via cuda graph API execution pattern
           -   __cuda_batch__ cuda GPU batched kernel execution pattern
           -   __cuda_batch_fewgs__ cuda GPU batched kernel with few grid synchronizations execution pattern
           -   __cuda_persistent__ cuda GPU persistent kernel execution pattern
           -   __cuda_persistent_fewgs__ cuda GPU persistent kernel with few grid synchronizations execution pattern
+          -   __mpi_type__ MPI datatypes MPI implementation execution pattern
   -   __\-memory *option*__ Memory space options
       -   __enable|disable *option*__ Enable or disable specific memory spaces for mesh allocations
           -   __all__ all memory spaces
@@ -109,6 +114,7 @@ The runtime options change the properties of the grid and its decomposition, as 
           -   __cuda_managed_device_preferred__ cuda managed with device preferred advice memory space
           -   __cuda_managed_device_preferred_host_accessed__ cuda managed with device preferred and host accessed advice memory space
   -   __\-cuda_aware_mpi__ Assert that you are using a cuda aware mpi implementation and enable tests that pass cuda device or managed memory to MPI
+  -   __\-cuda_host_accessible_from_device__ Assert that your system supports pageable host memory access from the device and enable tests that access pageable host memory on the device
 
 ### Example Script
 
@@ -143,12 +149,12 @@ The test involves one measurement.
 
 The second set of tests are the message passing tests with names of the following form.
 
-    Mesh (physics execution policy) (mesh memory space) Buffers (large message execution policy) (large message memory space) (small message execution policy) (small message memory space)
+    Mesh (physics execution policy) (mesh memory space) Buffers (large message execution policy) (large message memory space) (small message execution policy) (small message memory space) Comm (message passing execution policy)
     (test phase): num (number of repeats) sum (time) s min (time) s max (time) s
     ...
 Example
 
-    Mesh seq Host Buffers seq Host seq Host
+    Mesh seq Host Buffers seq Host seq Host Comm mpi
     pre-comm:  num 200 sum 0.123456789 s min 0.123456789 s max 0.123456789 s
     post-recv: num 200 sum 0.123456789 s min 0.123456789 s max 0.123456789 s
     post-send: num 200 sum 0.123456789 s min 0.123456789 s max 0.123456789 s
@@ -158,7 +164,7 @@ Example
     start-up:   num 8 sum 0.123456789 s min 0.123456789 s max 0.123456789 s
     test-comm:  num 8 sum 0.123456789 s min 0.123456789 s max 0.123456789 s
     bench-comm: num 8 sum 0.123456789 s min 0.123456789 s max 0.123456789 s
-This is a test in which a mesh is updated via physics running via sequential cpu execution and is allocated in host memory. The buffers used with MPI for large messages are packed/unpacked via sequential cpu execution and allocated in host memory and the buffers used with MPI for small messages are packed/unpacked via sequential cpu execution and allocated in host memory.
+This is a test in which a mesh is updated with physics running via sequential cpu execution using memory allocated in host memory. The buffers used for large messages are packed/unpacked via sequential cpu execution and allocated in host memory and the buffers used with MPI for small messages are packed/unpacked via sequential cpu execution and allocated in host memory.
 This test involves multiple measurements, the first six time individual parts of the physics cycle and communication.
   - pre-comm "Physics" before point-to-point communication, in this case setting memory to initial values.
   - post-recv Allocating MPI receive buffers and calling MPI_Irecv.
