@@ -15,7 +15,7 @@
 
 #include "config.hpp"
 
-#ifdef COMB_ENABLE_CUDA
+#ifdef COMB_ENABLE_CUDA_GRAPH
 
 #include "graph_launch.hpp"
 
