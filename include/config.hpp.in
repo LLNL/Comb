@@ -47,6 +47,7 @@
 #cmakedefine COMB_ENABLE_OPENMP
 #cmakedefine COMB_ENABLE_CUDA
 #cmakedefine COMB_ENABLE_CLANG_CUDA
+#cmakedefine COMB_ENABLE_GPUMP
 
 #ifdef COMB_ENABLE_CUDA
 #if defined(CUDART_VERSION) && CUDART_VERSION >= 10000

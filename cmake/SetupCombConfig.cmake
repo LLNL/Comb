@@ -17,6 +17,7 @@
 set(COMB_ENABLE_OPENMP ${ENABLE_OPENMP})
 set(COMB_ENABLE_CUDA ${ENABLE_CUDA})
 set(COMB_ENABLE_CLANG_CUDA ${ENABLE_CLANG_CUDA})
+set(COMB_ENABLE_GPUMP ${ENABLE_GPUMP})
 
 # Configure a header file with all the variables we found.
 configure_file(${PROJECT_SOURCE_DIR}/include/config.hpp.in
