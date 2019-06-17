@@ -15,7 +15,7 @@
 ## Please also see the LICENSE file for MIT license.
 ##############################################################################
 
-COMPILER_SUFFIX=clang_upstream_2019_03_19
+COMPILER_SUFFIX=clang_upstream_2019_03_26
 BUILD_SUFFIX=lc_blueos_nvcc_10_1_${COMPILER_SUFFIX}
 
 rm -rf build_${BUILD_SUFFIX} >/dev/null
