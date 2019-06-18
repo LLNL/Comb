@@ -125,7 +125,7 @@ namespace detail {
 
 } // namespace detail
 
-extern void print_timer(CommInfo& comm_info, Timer& tm, const char* prefix = "");
+extern void print_timer(CommInfo& comminfo, Timer& tm, const char* prefix = "");
 
 extern void warmup(COMB::Allocators& alloc, Timer& tm, IdxT num_vars, IdxT len);
 
