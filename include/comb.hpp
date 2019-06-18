@@ -147,6 +147,13 @@ extern void test_cycles_mpi(CommInfo& comminfo, MeshInfo& info,
                             COMB::ExecutorsAvailable& exec_avail,
                             IdxT num_vars, IdxT ncycles, Timer& tm, Timer& tm_total);
 
+#ifdef COMB_ENABLE_GPUMP
+extern void test_cycles_gpump(CommInfo& comminfo, MeshInfo& info,
+                              COMB::Allocators& alloc,
+                              COMB::AllocatorsAvailable& memory_avail,
+                              COMB::ExecutorsAvailable& exec_avail,
+                              IdxT num_vars, IdxT ncycles, Timer& tm, Timer& tm_total);
+#endif
 
 } // namespace COMB
 

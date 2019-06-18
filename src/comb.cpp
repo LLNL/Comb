@@ -168,10 +168,17 @@ int main(int argc, char** argv)
               if (strcmp(argv[i], "all") == 0) {
                 comm_avail.mock = enabledisable;
                 comm_avail.mpi = enabledisable;
+#ifdef COMB_ENABLE_GPUMP
+                comm_avail.gpump = enabledisable;
+#endif
               } else if (strcmp(argv[i], "mock") == 0) {
                 comm_avail.mock = enabledisable;
               } else if (strcmp(argv[i], "mpi") == 0) {
                 comm_avail.mpi = enabledisable;
+              } else if (strcmp(argv[i], "gpump") == 0) {
+#ifdef COMB_ENABLE_GPUMP
+                comm_avail.gpump = enabledisable;
+#endif
               } else {
                 comminfo.print(FileGroup::err_master, "Invalid argument to sub-option, ignoring %s %s %s.\n", argv[i-2], argv[i-1], argv[i]);
               }
@@ -593,6 +600,11 @@ int main(int argc, char** argv)
 
   if (comm_avail.mpi)
     COMB::test_cycles_mpi(comminfo, info, alloc, memory_avail, exec_avail, num_vars, ncycles, tm, tm_total);
+
+#ifdef COMB_ENABLE_GPUMP
+  if (comm_avail.gpump)
+    COMB::test_cycles_gpump(comminfo, info, alloc, memory_avail, exec_avail, num_vars, ncycles, tm, tm_total);
+#endif
 
   } // end region MPI communication via comminfo
 

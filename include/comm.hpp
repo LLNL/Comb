@@ -37,6 +37,7 @@
 
 #include "comm_pol_mock.hpp"
 #include "comm_pol_mpi.hpp"
+#include "comm_pol_gpump.hpp"
 
 
 enum struct FileGroup
@@ -1315,6 +1316,7 @@ struct CommunicatorsAvailable
 {
   bool mock = false;
   bool mpi = false;
+  bool gpump = false;
 };
 
 } // namespace COMB

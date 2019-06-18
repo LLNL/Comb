@@ -28,6 +28,7 @@
 
 #include "comm_pol_mock.hpp"
 #include "comm_pol_mpi.hpp"
+#include "comm_pol_gpump.hpp"
 
 namespace detail {
 
@@ -452,6 +453,94 @@ struct Message<mock_pol> : detail::MessageBase
   {
   }
 };
+
+#ifdef COMB_ENABLE_GPUMP
+
+template < >
+struct Message<gpump_pol> : detail::MessageBase
+{
+  using policy_comm = gpump_pol;
+
+  using base = detail::MessageBase;
+
+  // use the base class constructor
+  using base::base;
+
+  template < typename context >
+  void pack(context const& con, typename policy_comm::communicator_type)
+  {
+    static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support actions with mpi_type_pol");
+    DataT* buf = m_buf;
+    assert(buf != nullptr);
+    auto end = std::end(items);
+    for (auto i = std::begin(items); i != end; ++i) {
+      DataT const* src = i->data;
+      LidxT const* indices = i->indices;
+      IdxT len = i->size;
+      // FPRINTF(stdout, "%p pack %p = %p[%p] len %d\n", this, buf, src, indices, len);
+      for_all(con, 0, len, make_copy_idxr_idxr(src, detail::indexer_list_idx{indices}, buf, detail::indexer_idx{}));
+      buf += len;
+    }
+  }
+
+  template < typename context >
+  void unpack(context const& con, typename policy_comm::communicator_type)
+  {
+    static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support actions with mpi_type_pol");
+    DataT const* buf = m_buf;
+    assert(buf != nullptr);
+    auto end = std::end(items);
+    for (auto i = std::begin(items); i != end; ++i) {
+      DataT* dst = i->data;
+      LidxT const* indices = i->indices;
+      IdxT len = i->size;
+      // FPRINTF(stdout, "%p unpack %p[%p] = %p len %d\n", this, dst, indices, buf, len);
+      for_all(con, 0, len, make_copy_idxr_idxr(buf, detail::indexer_idx{}, dst, detail::indexer_list_idx{indices}));
+      buf += len;
+    }
+  }
+
+  template < typename context >
+  void Isend(context const&, typename policy_comm::communicator_type comm, typename policy_comm::send_request_type* request)
+  {
+    static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support actions with mpi_type_pol");
+    // FPRINTF(stdout, "%p Isend %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
+    start_send(policy_comm{}, buffer(), nbytes(), MPI_BYTE, partner_rank(), tag(), comm, request);
+  }
+
+  template < typename context >
+  void Irecv(context const&, typename policy_comm::communicator_type comm, typename policy_comm::recv_request_type* request)
+  {
+    static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support actions with mpi_type_pol");
+    // FPRINTF(stdout, "%p Irecv %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
+    start_recv(policy_comm{}, buffer(), nbytes(), MPI_BYTE, partner_rank(), tag(), comm, request);
+  }
+
+  template < typename context >
+  void allocate(context const&, COMB::Allocator& buf_aloc)
+  {
+    static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support actions with mpi_type_pol");
+    if (m_buf == nullptr) {
+      m_buf = (DataT*)buf_aloc.allocate(nbytes());
+    }
+  }
+
+  template < typename context >
+  void deallocate(context const&, COMB::Allocator& buf_aloc)
+  {
+    static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support actions with mpi_type_pol");
+    if (m_buf != nullptr) {
+      buf_aloc.deallocate(m_buf);
+      m_buf = nullptr;
+    }
+  }
+
+  ~Message()
+  {
+  }
+};
+
+#endif // COMB_ENABLE_GPUMP
 
 #endif // _MESSAGE_HPP
 

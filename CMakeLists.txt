@@ -25,8 +25,9 @@ project(COMB LANGUAGES CXX VERSION ${COMB_LOADED})
 
 # Build options
 set(ENABLE_MPI ON CACHE Bool "Build MPI support")
-set(ENABLE_OPENMP ON CACHE Bool "Build OpenMP support")
-set(ENABLE_CUDA ON CACHE Bool "Build CUDA support")
+set(ENABLE_OPENMP OFF CACHE Bool "Build OpenMP support")
+set(ENABLE_CUDA OFF CACHE Bool "Build CUDA support")
+set(ENABLE_GPUMP OFF CACHE Bool "Build GPUMP support")
 
 set(COMB_CXX_STANDARD_FLAG "default" CACHE STRING "Specific c++ standard flag to use, default attempts to autodetect the highest available")
 
@@ -77,7 +78,8 @@ set(comb_sources
   src/warmup.cpp
   src/test_copy.cpp
   src/test_cycles_mock.cpp
-  src/test_cycles_mpi.cpp)
+  src/test_cycles_mpi.cpp
+  src/test_cycles_gpump.cpp)
 
 set(comb_depends )
 
@@ -91,6 +93,10 @@ endif()
 
 if (ENABLE_CUDA)
   set(comb_depends ${comb_depends} cuda nvToolsExt)
+endif()
+
+if (ENABLE_GPUMP)
+  set(comb_depends ${comb_depends} gpump)
 endif()
 
 blt_add_executable(
