@@ -28,14 +28,15 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info,
                COMB::Allocator& aloc_many, COMB::Allocator& aloc_few,
                Timer& tm, Timer& tm_total)
 {
-    tm_total.clear();
-    tm.clear();
+  tm_total.clear();
+  tm.clear();
 
-    char commname[1024] = ""; snprintf(commname, 1024, "Comm %s", pol_comm::get_name());
-    char rname[1024] = ""; snprintf(rname, 1024, "Buffers %s %s %s %s", pol_many::get_name(), aloc_many.name(), pol_few::get_name(), aloc_few.name());
-    char test_name[1024] = ""; snprintf(test_name, 1024, "Mesh %s %s %s %s", pol_loop::get_name(), aloc_mesh.name(), rname, commname);
-    comm_info.print(FileGroup::all, "Starting test %s\n", test_name);
+  char commname[1024] = ""; snprintf(commname, 1024, "Comm %s", pol_comm::get_name());
+  char rname[1024] = ""; snprintf(rname, 1024, "Buffers %s %s %s %s", pol_many::get_name(), aloc_many.name(), pol_few::get_name(), aloc_few.name());
+  char test_name[1024] = ""; snprintf(test_name, 1024, "Mesh %s %s %s %s", pol_loop::get_name(), aloc_mesh.name(), rname, commname);
+  comm_info.print(FileGroup::all, "Starting test %s\n", test_name);
 
+  {
     Range r0(test_name, Range::orange);
 
     ExecContext<pol_loop> con_loop{};
@@ -44,7 +45,7 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info,
 
     Comm<pol_many, pol_few, pol_comm> comm(comm_info, aloc_mesh, aloc_many, aloc_few);
 
-    comm.comminfo.barrier();
+    comm.barrier();
 
     tm_total.start("start-up");
 
@@ -76,7 +77,7 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info,
 
     tm_total.stop();
 
-    comm.comminfo.barrier();
+    comm.barrier();
 
     Range r1("test comm", Range::indigo);
 
@@ -332,7 +333,7 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info,
       r2.stop();
     }
 
-    comm.comminfo.barrier();
+    comm.barrier();
 
     tm_total.stop();
 
@@ -447,17 +448,19 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info,
 
     }
 
-    comm.comminfo.barrier();
+    comm.barrier();
 
     tm_total.stop();
 
     r1.stop();
 
-    print_timer(comm.comminfo, tm);
-    print_timer(comm.comminfo, tm_total);
+  }
 
-    tm.clear();
-    tm_total.clear();
+  print_timer(comm.comminfo, tm);
+  print_timer(comm.comminfo, tm_total);
+
+  tm.clear();
+  tm_total.clear();
 }
 
 } // namespace COMB

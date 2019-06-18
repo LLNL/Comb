@@ -341,9 +341,32 @@ struct Comm
     communicator = get_communicator(policy_comm{}, comminfo);
   }
 
+  ~Comm()
+  {
+    size_t num_events = m_send_events_many.size();
+    for(size_t i = 0; i != num_events; ++i) {
+      destroyEvent(ExecContext<policy_many>{}, m_send_events_many[i]);
+    }
+    num_events = m_send_events_few.size();
+    for(size_t i = 0; i != num_events; ++i) {
+      destroyEvent(ExecContext<policy_few>{}, m_send_events_few[i]);
+    }
+    for(message_type& msg : m_sends) {
+      msg.destroy();
+    }
+    for(message_type& msg : m_recvs) {
+      msg.destroy();
+    }
+  }
+
   bool mock_communication() const
   {
     return std::is_same<policy_comm, mock_pol>::value;
+  }
+
+  void barrier() const
+  {
+    comminfo.barrier();
   }
 
   void postRecv(ExecContext<policy_many> const& con_many, ExecContext<policy_few> const& con_few)
@@ -1289,24 +1312,6 @@ struct Comm
     }
 
     m_send_requests.clear();
-  }
-
-  ~Comm()
-  {
-    size_t num_events = m_send_events_many.size();
-    for(size_t i = 0; i != num_events; ++i) {
-      destroyEvent(ExecContext<policy_many>{}, m_send_events_many[i]);
-    }
-    num_events = m_send_events_few.size();
-    for(size_t i = 0; i != num_events; ++i) {
-      destroyEvent(ExecContext<policy_few>{}, m_send_events_few[i]);
-    }
-    for(message_type& msg : m_sends) {
-      msg.destroy();
-    }
-    for(message_type& msg : m_recvs) {
-      msg.destroy();
-    }
   }
 };
 
