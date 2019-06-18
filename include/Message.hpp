@@ -266,15 +266,17 @@ struct Message<mpi_pol> : detail::MessageBase
   }
 
   template < typename context >
-  void allocate(context const&, COMB::Allocator& buf_aloc)
+  void allocate(context const&, typename policy_comm::communicator_type comm, COMB::Allocator& buf_aloc)
   {
+    COMB::ignore_unused(comm);
     if (m_buf == nullptr) {
       m_buf = (DataT*)buf_aloc.allocate(nbytes());
     }
   }
 
-  void allocate(ExecContext<mpi_type_pol> const&, COMB::Allocator& buf_aloc)
+  void allocate(ExecContext<mpi_type_pol> const&, typename policy_comm::communicator_type comm, COMB::Allocator& buf_aloc)
   {
+    COMB::ignore_unused(comm);
     if (m_buf == nullptr) {
       if (items.size() == 1) {
         // no buffer needed
@@ -285,8 +287,9 @@ struct Message<mpi_pol> : detail::MessageBase
   }
 
   template < typename context >
-  void deallocate(context const&, COMB::Allocator& buf_aloc)
+  void deallocate(context const&, typename policy_comm::communicator_type comm, COMB::Allocator& buf_aloc)
   {
+    COMB::ignore_unused(comm);
     if (m_buf != nullptr) {
       buf_aloc.deallocate(m_buf);
       m_buf = nullptr;
@@ -422,15 +425,17 @@ struct Message<mock_pol> : detail::MessageBase
   }
 
   template < typename context >
-  void allocate(context const&, COMB::Allocator& buf_aloc)
+  void allocate(context const&, typename policy_comm::communicator_type comm, COMB::Allocator& buf_aloc)
   {
+    COMB::ignore_unused(comm);
     if (m_buf == nullptr) {
       m_buf = (DataT*)buf_aloc.allocate(nbytes());
     }
   }
 
-  void allocate(ExecContext<mpi_type_pol> const&, COMB::Allocator& buf_aloc)
+  void allocate(ExecContext<mpi_type_pol> const&, typename policy_comm::communicator_type comm, COMB::Allocator& buf_aloc)
   {
+    COMB::ignore_unused(comm);
     if (m_buf == nullptr) {
       if (items.size() == 1) {
         // no buffer needed
@@ -441,8 +446,9 @@ struct Message<mock_pol> : detail::MessageBase
   }
 
   template < typename context >
-  void deallocate(context const&, COMB::Allocator& buf_aloc)
+  void deallocate(context const&, typename policy_comm::communicator_type comm, COMB::Allocator& buf_aloc)
   {
+    COMB::ignore_unused(comm);
     if (m_buf != nullptr) {
       buf_aloc.deallocate(m_buf);
       m_buf = nullptr;
@@ -469,7 +475,7 @@ struct Message<gpump_pol> : detail::MessageBase
   template < typename context >
   void pack(context const& con, typename policy_comm::communicator_type)
   {
-    static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support actions with mpi_type_pol");
+    static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support mpi_type_pol");
     DataT* buf = m_buf;
     assert(buf != nullptr);
     auto end = std::end(items);
@@ -486,7 +492,7 @@ struct Message<gpump_pol> : detail::MessageBase
   template < typename context >
   void unpack(context const& con, typename policy_comm::communicator_type)
   {
-    static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support actions with mpi_type_pol");
+    static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support mpi_type_pol");
     DataT const* buf = m_buf;
     assert(buf != nullptr);
     auto end = std::end(items);
@@ -503,7 +509,7 @@ struct Message<gpump_pol> : detail::MessageBase
   template < typename context >
   void Isend(context const&, typename policy_comm::communicator_type comm, typename policy_comm::send_request_type* request)
   {
-    static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support actions with mpi_type_pol");
+    static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support mpi_type_pol");
     // FPRINTF(stdout, "%p Isend %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
     start_send(policy_comm{}, buffer(), nbytes(), MPI_BYTE, partner_rank(), tag(), comm, request);
   }
@@ -511,24 +517,24 @@ struct Message<gpump_pol> : detail::MessageBase
   template < typename context >
   void Irecv(context const&, typename policy_comm::communicator_type comm, typename policy_comm::recv_request_type* request)
   {
-    static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support actions with mpi_type_pol");
+    static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support mpi_type_pol");
     // FPRINTF(stdout, "%p Irecv %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
     start_recv(policy_comm{}, buffer(), nbytes(), MPI_BYTE, partner_rank(), tag(), comm, request);
   }
 
   template < typename context >
-  void allocate(context const&, COMB::Allocator& buf_aloc)
+  void allocate(context const&, typename policy_comm::communicator_type comm, COMB::Allocator& buf_aloc)
   {
-    static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support actions with mpi_type_pol");
+    static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support mpi_type_pol");
     if (m_buf == nullptr) {
       m_buf = (DataT*)buf_aloc.allocate(nbytes());
     }
   }
 
   template < typename context >
-  void deallocate(context const&, COMB::Allocator& buf_aloc)
+  void deallocate(context const&, typename policy_comm::communicator_type comm, COMB::Allocator& buf_aloc)
   {
-    static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support actions with mpi_type_pol");
+    static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support mpi_type_pol");
     if (m_buf != nullptr) {
       buf_aloc.deallocate(m_buf);
       m_buf = nullptr;
