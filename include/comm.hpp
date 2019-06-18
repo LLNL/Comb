@@ -258,17 +258,6 @@ struct CommInfo
   }
 };
 
-template < typename policy_comm >
-inline typename policy_comm::communicator_type get_communicator(policy_comm const&, CommInfo const&)
-{
-  return policy_comm::communicator_null();
-}
-
-inline typename mpi_pol::communicator_type get_communicator(mpi_pol const&, CommInfo const& comminfo)
-{
-  return comminfo.cart.comm;
-}
-
 template < typename policy_many_, typename policy_few_, typename policy_comm_ >
 struct Comm
 {
@@ -288,7 +277,7 @@ struct Comm
   COMB::Allocator& many_aloc;
   COMB::Allocator& few_aloc;
 
-  CommInfo comminfo;
+  CommInfo& comminfo;
 
   CommInfo::method post_recv_method;
   CommInfo::method post_send_method;
@@ -313,7 +302,7 @@ struct Comm
   std::vector<ExecContext<policy_many>> m_recv_contexts_many;
   std::vector<ExecContext<policy_few>>  m_recv_contexts_few;
 
-  Comm(CommInfo const& comminfo_, COMB::Allocator& mesh_aloc_, COMB::Allocator& many_aloc_, COMB::Allocator& few_aloc_)
+  Comm(CommInfo& comminfo_, COMB::Allocator& mesh_aloc_, COMB::Allocator& many_aloc_, COMB::Allocator& few_aloc_)
     : mesh_aloc(mesh_aloc_)
     , many_aloc(many_aloc_)
     , few_aloc(few_aloc_)
@@ -322,24 +311,8 @@ struct Comm
     , post_send_method(comminfo_.post_send_method)
     , wait_recv_method(comminfo_.wait_recv_method)
     , wait_send_method(comminfo_.wait_send_method)
-    , communicator(policy_comm::communicator_null())
-  {
-    // set name of communicator
-    // include name of memory space if using mpi datatypes for pack/unpack
-    char comm_name[MPI_MAX_OBJECT_NAME] = "";
-    snprintf(comm_name, MPI_MAX_OBJECT_NAME, "COMB_MPI_CART_COMM%s%s",
-        (use_mpi_type) ? "_"              : "",
-        (use_mpi_type) ? mesh_aloc.name() : "");
-
-    comminfo.set_name(comm_name);
-
-    // if policies are the same set cutoff to 0 (always use policy_many) to simplify algorithms
-    if (std::is_same<policy_many, policy_few>::value) {
-      comminfo.cutoff = 0;
-    }
-
-    communicator = get_communicator(policy_comm{}, comminfo);
-  }
+    , communicator(policy_comm::communicator_create(comminfo_.cart.comm))
+  { }
 
   ~Comm()
   {
@@ -357,6 +330,7 @@ struct Comm
     for(message_type& msg : m_recvs) {
       msg.destroy();
     }
+    policy_comm::communicator_destroy(communicator);
   }
 
   bool mock_communication() const
@@ -364,7 +338,7 @@ struct Comm
     return std::is_same<policy_comm, mock_pol>::value;
   }
 
-  void barrier() const
+  void barrier()
   {
     comminfo.barrier();
   }

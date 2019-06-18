@@ -28,8 +28,9 @@
 struct gpump_pol {
   // static const bool async = false;
   static const char* get_name() { return "gpump"; }
-  using communicator_type = MPI_Comm;
-  static inline communicator_type communicator_null() { return MPI_COMM_NULL; }
+  using communicator_type = struct gpump*;
+  static inline communicator_type communicator_create(MPI_Comm comm) { return gpump_init(comm); }
+  static inline void communicator_destroy(communicator_type g) { gpump_term(g); }
   using send_request_type = MPI_Request;
   static inline send_request_type send_request_null() { return MPI_REQUEST_NULL; }
   using recv_request_type = MPI_Request;

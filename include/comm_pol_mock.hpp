@@ -27,7 +27,8 @@ struct mock_pol {
   // static const bool async = false;
   static const char* get_name() { return "mock"; }
   using communicator_type = int;
-  static inline communicator_type communicator_null() { return 0; }
+  static inline communicator_type communicator_create(MPI_Comm) { return communicator_type{0}; }
+  static inline void communicator_destroy(communicator_type) { }
   using send_request_type = int;
   static inline send_request_type send_request_null() { return 0; }
   using recv_request_type = int;

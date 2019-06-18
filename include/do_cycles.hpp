@@ -43,7 +43,27 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info,
     ExecContext<pol_many> con_many{};
     ExecContext<pol_few>  con_few{};
 
-    Comm<pol_many, pol_few, pol_comm> comm(comm_info, aloc_mesh, aloc_many, aloc_few);
+    // make a copy of comminfo to duplicate the MPI communicator
+    CommInfo comminfo(comm_info);
+
+    using comm_type = Comm<pol_many, pol_few, pol_comm>;
+
+    // set name of communicator
+    // include name of memory space if using mpi datatypes for pack/unpack
+    char comm_name[MPI_MAX_OBJECT_NAME] = "";
+    snprintf(comm_name, MPI_MAX_OBJECT_NAME, "COMB_MPI_CART_COMM%s%s",
+        (comm_type::use_mpi_type) ? "_"              : "",
+        (comm_type::use_mpi_type) ? aloc_mesh.name() : "");
+
+    comminfo.set_name(comm_name);
+
+    // if policies are the same set cutoff to 0 (always use pol_many) to simplify algorithms
+    if (std::is_same<pol_many, pol_few>::value) {
+      comminfo.cutoff = 0;
+    }
+
+    // make communicator object
+    comm_type comm(comminfo, aloc_mesh, aloc_many, aloc_few);
 
     comm.barrier();
 
@@ -53,7 +73,7 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info,
     vars.reserve(num_vars);
 
     {
-      CommFactory factory(comm.comminfo);
+      CommFactory factory(comminfo);
 
       for (IdxT i = 0; i < num_vars; ++i) {
 
@@ -454,10 +474,9 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info,
 
     r1.stop();
 
+    print_timer(comminfo, tm);
+    print_timer(comminfo, tm_total);
   }
-
-  print_timer(comm.comminfo, tm);
-  print_timer(comm.comminfo, tm_total);
 
   tm.clear();
   tm_total.clear();
