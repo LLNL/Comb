@@ -27,34 +27,6 @@
 #include "memory.hpp"
 #include "ExecContext.hpp"
 
-// multiple argument synchronization and other functions
-template < typename context0, typename context1 >
-inline void synchronize(context0 const& c0, context1 const& c1)
-{
-  synchronize(c0);
-  if (c0 != c1) { synchronize(c1); }
-}
-
-template < typename context0, typename context1 >
-inline void persistent_launch(context0 const& c0, context1 const& c1)
-{
-  persistent_launch(c0);
-  if (c0 != c1) { persistent_launch(c1); }
-}
-
-template < typename context0, typename context1 >
-inline void batch_launch(context0 const& c0, context1 const& c1)
-{
-  batch_launch(c0);
-  if (c0 != c1) { batch_launch(c1); }
-}
-
-template < typename context0, typename context1 >
-inline void persistent_stop(context0 const& c0, context1 const& c1)
-{
-  persistent_stop(c0);
-  if (c0 != c1) { persistent_stop(c1); }
-}
 
 namespace detail {
 

@@ -504,7 +504,7 @@ struct Comm
 
         // pack and send
         if (have_many && have_few) {
-          persistent_launch(con_few, con_many);
+          persistent_launch(con_few); persistent_launch(con_many);
         } else if (have_many) {
           persistent_launch(con_many);
         } else if (have_few) {
@@ -534,7 +534,7 @@ struct Comm
           } else if (!post_pack_complete) {
 
             if (have_many && have_few) {
-              batch_launch(con_few, con_many);
+              batch_launch(con_few); batch_launch(con_many);
             } else if (have_many) {
               batch_launch(con_many);
             } else if (have_few) {
@@ -543,7 +543,7 @@ struct Comm
 
             // stop persistent kernel
             if (have_many && have_few) {
-              persistent_stop(con_few, con_many);
+              persistent_stop(con_few); persistent_stop(con_many);
             } else if (have_many) {
               persistent_stop(con_many);
             } else if (have_few) {
@@ -846,7 +846,7 @@ struct Comm
         }
 
         if (have_many && have_few) {
-          synchronize(con_few, con_many);
+          synchronize(con_few); synchronize(con_many);
         } else if (have_many) {
           synchronize(con_many);
         } else if (have_few) {
@@ -884,7 +884,7 @@ struct Comm
 
         // pack and send
         if (have_many && have_few) {
-          persistent_launch(con_few, con_many);
+          persistent_launch(con_few); persistent_launch(con_many);
         } else if (have_many) {
           persistent_launch(con_many);
         } else if (have_few) {
@@ -910,7 +910,7 @@ struct Comm
         }
 
         if (have_many && have_few) {
-          batch_launch(con_few, con_many);
+          batch_launch(con_few); batch_launch(con_many);
         } else if (have_many) {
           batch_launch(con_many);
         } else if (have_few) {
@@ -919,7 +919,7 @@ struct Comm
 
         // stop persistent kernel
         if (have_many && have_few) {
-          persistent_stop(con_few, con_many);
+          persistent_stop(con_few); persistent_stop(con_many);
         } else if (have_many) {
           persistent_stop(con_many);
         } else if (have_few) {
@@ -1001,7 +1001,7 @@ struct Comm
         }
 
         if (have_many && have_few) {
-          persistent_launch(con_few, con_many);
+          persistent_launch(con_few); persistent_launch(con_many);
         } else if (have_many) {
           persistent_launch(con_many);
         } else if (have_few) {
@@ -1048,7 +1048,7 @@ struct Comm
         // }
 
         if (have_many && have_few) {
-          persistent_stop(con_few, con_many);
+          persistent_stop(con_few); persistent_stop(con_many);
         } else if (have_many) {
           persistent_stop(con_many);
         } else if (have_few) {
@@ -1069,7 +1069,7 @@ struct Comm
         }
 
         if (have_many && have_few) {
-          persistent_launch(con_few, con_many);
+          persistent_launch(con_few); persistent_launch(con_many);
         } else if (have_many) {
           persistent_launch(con_many);
         } else if (have_few) {
@@ -1130,7 +1130,7 @@ struct Comm
         }
 
         if (have_many && have_few) {
-          persistent_stop(con_few, con_many);
+          persistent_stop(con_few); persistent_stop(con_many);
         } else if (have_many) {
           persistent_stop(con_many);
         } else if (have_few) {
@@ -1151,7 +1151,7 @@ struct Comm
         }
 
         if (have_many && have_few) {
-          persistent_launch(con_few, con_many);
+          persistent_launch(con_few); persistent_launch(con_many);
         } else if (have_many) {
           persistent_launch(con_many);
         } else if (have_few) {
@@ -1185,7 +1185,7 @@ struct Comm
         }
 
         if (have_many && have_few) {
-          batch_launch(con_few, con_many);
+          batch_launch(con_few); batch_launch(con_many);
         } else if (have_many) {
           batch_launch(con_many);
         } else if (have_few) {
@@ -1193,7 +1193,7 @@ struct Comm
         }
 
         if (have_many && have_few) {
-          persistent_stop(con_few, con_many);
+          persistent_stop(con_few); persistent_stop(con_many);
         } else if (have_many) {
           persistent_stop(con_many);
         } else if (have_few) {
@@ -1209,7 +1209,7 @@ struct Comm
     m_recv_requests.clear();
 
     if (have_many && have_few) {
-      synchronize(con_few, con_many);
+      synchronize(con_few); synchronize(con_many);
     } else if (have_many) {
       synchronize(con_many);
     } else if (have_few) {
