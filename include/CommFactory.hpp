@@ -342,8 +342,8 @@ struct CommFactory
     }
 
     // use the msg_info_maps to populate messages in comm
-    populate_comm(comm, comm.m_recvs, recv_msg_info_map);
-    populate_comm(comm, comm.m_sends, send_msg_info_map);
+    populate_comm(comm, detail::MessageBase::Kind::recv, comm.m_recvs, recv_msg_info_map);
+    populate_comm(comm, detail::MessageBase::Kind::send, comm.m_sends, send_msg_info_map);
 
     comm.finish_populating();
   }
@@ -402,7 +402,7 @@ private:
   }
 
   template < typename comm_type, typename msg_list_type >
-  void populate_comm(comm_type& comm, msg_list_type& msg_list, msg_info_map_type& msg_info_map) const
+  void populate_comm(comm_type& comm, detail::MessageBase::Kind kind, msg_list_type& msg_list, msg_info_map_type& msg_info_map) const
   {
     auto lambda = [&](message_info_type& msginfo) {
 
@@ -411,7 +411,7 @@ private:
       bool have_many = ((total_size + num_items - 1) / num_items) >= comm.comminfo.cutoff;
 
       // add a new message to the message list
-      msg_list.emplace_back(msginfo.partner_rank, msginfo.msg_tag, have_many);
+      msg_list.emplace_back(kind, msginfo.partner_rank, msginfo.msg_tag, have_many);
       typename comm_type::message_type& msg = msg_list.back();
 
       auto msginfo_items_end = msginfo.items.end();

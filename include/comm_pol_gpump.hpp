@@ -103,8 +103,8 @@ struct Message<gpump_pol> : detail::MessageBase
   using recv_status_type  = typename policy_comm::recv_status_type;
 
 
-  Message(int partner_rank, int tag, bool have_many)
-    : base(partner_rank, tag, have_many)
+  Message(Kind _kind, int partner_rank, int tag, bool have_many)
+    : base(_kind, partner_rank, tag, have_many)
     , m_region(nullptr)
   { }
 

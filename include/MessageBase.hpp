@@ -30,6 +30,11 @@ namespace detail {
 
 struct MessageBase
 {
+  enum struct Kind {
+    send
+   ,recv
+  };
+
   int m_partner_rank;
   int m_msg_tag;
   DataT* m_buf;
@@ -37,6 +42,7 @@ struct MessageBase
   IdxT m_max_nbytes;
   IdxT m_nbytes;
   bool m_have_many;
+  Kind m_kind;
 
   struct list_item_type
   {
@@ -55,13 +61,14 @@ struct MessageBase
 
   std::list<list_item_type> items;
 
-  MessageBase(int partner_rank, int tag, bool have_many)
+  MessageBase(Kind _kind, int partner_rank, int tag, bool have_many)
     : m_partner_rank(partner_rank)
     , m_msg_tag(tag)
     , m_buf(nullptr)
     , m_max_nbytes(0)
     , m_nbytes(0)
     , m_have_many(have_many)
+    , m_kind(_kind)
   {
 
   }
