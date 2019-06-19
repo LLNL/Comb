@@ -585,25 +585,27 @@ int main(int argc, char** argv)
     }
   }
 
+  COMB::ExecContexts exec;
+
   COMB::Allocators alloc;
 
   Timer tm(2*6*ncycles);
   Timer tm_total(1024);
 
   // warm-up memory pools
-  COMB::warmup(alloc, tm, num_vars+1, info.totallen);
+  COMB::warmup(exec, alloc, tm, num_vars+1, info.totallen);
 
-  COMB::test_copy(comminfo, alloc, memory_avail, exec_avail, tm, num_vars, info.totallen, ncycles);
+  COMB::test_copy(comminfo, exec, alloc, memory_avail, exec_avail, tm, num_vars, info.totallen, ncycles);
 
   if (comm_avail.mock)
-    COMB::test_cycles_mock(comminfo, info, alloc, memory_avail, exec_avail, num_vars, ncycles, tm, tm_total);
+    COMB::test_cycles_mock(comminfo, info, exec, alloc, memory_avail, exec_avail, num_vars, ncycles, tm, tm_total);
 
   if (comm_avail.mpi)
-    COMB::test_cycles_mpi(comminfo, info, alloc, memory_avail, exec_avail, num_vars, ncycles, tm, tm_total);
+    COMB::test_cycles_mpi(comminfo, info, exec, alloc, memory_avail, exec_avail, num_vars, ncycles, tm, tm_total);
 
 #ifdef COMB_ENABLE_GPUMP
   if (comm_avail.gpump)
-    COMB::test_cycles_gpump(comminfo, info, alloc, memory_avail, exec_avail, num_vars, ncycles, tm, tm_total);
+    COMB::test_cycles_gpump(comminfo, info, exec, alloc, memory_avail, exec_avail, num_vars, ncycles, tm, tm_total);
 #endif
 
   } // end region MPI communication via comminfo

@@ -143,6 +143,23 @@ struct ExecutorsAvailable
   bool cuda_aware_mpi = false;
 };
 
+struct ExecContexts
+{
+  ExecContext<seq_pol> seq{};
+#ifdef COMB_ENABLE_OPENMP
+  ExecContext<omp_pol> omp{seq};
+#endif
+#ifdef COMB_ENABLE_CUDA
+  ExecContext<cuda_pol> cuda{};
+  ExecContext<cuda_batch_pol> cuda_batch{cuda};
+  ExecContext<cuda_persistent_pol> cuda_persistent{cuda};
+#endif
+#ifdef COMB_ENABLE_CUDA_GRAPH
+  ExecContext<cuda_graph_pol> cuda_graph{cuda};
+#endif
+  ExecContext<mpi_type_pol> mpi_type{seq};
+};
+
 } // namespace COMB
 
 #endif // _FOR_ALL_HPP

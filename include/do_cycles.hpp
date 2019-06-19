@@ -21,11 +21,12 @@
 
 namespace COMB {
 
-template < typename pol_loop, typename pol_many, typename pol_few, typename pol_comm >
+template < typename pol_comm, typename pol_loop, typename pol_many, typename pol_few >
 void do_cycles(CommInfo& comm_info, MeshInfo& info,
                IdxT num_vars, IdxT ncycles,
-               COMB::Allocator& aloc_mesh,
-               COMB::Allocator& aloc_many, COMB::Allocator& aloc_few,
+               ExecContext<pol_loop> const& con_loop, COMB::Allocator& aloc_mesh,
+               ExecContext<pol_many> const& con_many, COMB::Allocator& aloc_many,
+               ExecContext<pol_few> const& con_few,  COMB::Allocator& aloc_few,
                Timer& tm, Timer& tm_total)
 {
   tm_total.clear();
@@ -38,10 +39,6 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info,
 
   {
     Range r0(test_name, Range::orange);
-
-    ExecContext<pol_loop> con_loop{};
-    ExecContext<pol_many> con_many{};
-    ExecContext<pol_few>  con_few{};
 
     // make a copy of comminfo to duplicate the MPI communicator
     CommInfo comminfo(comm_info);
