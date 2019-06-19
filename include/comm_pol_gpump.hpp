@@ -196,9 +196,12 @@ inline bool test_recv_all(gpump_pol const&,
 template < >
 struct Message<gpump_pol> : detail::MessageBase
 {
-  using policy_comm = gpump_pol;
-
   using base = detail::MessageBase;
+  using policy_comm = gpump_pol;
+  using communicator_type = typename policy_comm::communicator_type;
+  using send_request_type = typename policy_comm::send_request_type;
+  using recv_request_type = typename policy_comm::recv_request_type;
+
 
   Message(int partner_rank, int tag, bool have_many)
     : base(partner_rank, tag, have_many)
@@ -209,7 +212,7 @@ struct Message<gpump_pol> : detail::MessageBase
   { }
 
   template < typename context >
-  void pack(context const& con, typename policy_comm::communicator_type)
+  void pack(context const& con, communicator_type comm)
   {
     static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support mpi_type_pol");
     DataT* buf = m_buf;
@@ -226,7 +229,7 @@ struct Message<gpump_pol> : detail::MessageBase
   }
 
   template < typename context >
-  void unpack(context const& con, typename policy_comm::communicator_type)
+  void unpack(context const& con, communicator_type comm)
   {
     static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support mpi_type_pol");
     DataT const* buf = m_buf;
@@ -243,7 +246,7 @@ struct Message<gpump_pol> : detail::MessageBase
   }
 
   template < typename context >
-  void Isend(context const&, typename policy_comm::communicator_type comm, typename policy_comm::send_request_type* request)
+  void Isend(context const& con, communicator_type comm, send_request_type* request)
   {
     static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support mpi_type_pol");
     // FPRINTF(stdout, "%p Isend %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
@@ -251,7 +254,7 @@ struct Message<gpump_pol> : detail::MessageBase
   }
 
   template < typename context >
-  void Irecv(context const&, typename policy_comm::communicator_type comm, typename policy_comm::recv_request_type* request)
+  void Irecv(context const&, communicator_type comm, recv_request_type* request)
   {
     static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support mpi_type_pol");
     // FPRINTF(stdout, "%p Irecv %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
@@ -259,7 +262,7 @@ struct Message<gpump_pol> : detail::MessageBase
   }
 
   template < typename context >
-  void allocate(context const&, typename policy_comm::communicator_type comm, COMB::Allocator& buf_aloc)
+  void allocate(context const&, communicator_type comm, COMB::Allocator& buf_aloc)
   {
     static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support mpi_type_pol");
     if (m_buf == nullptr) {
@@ -269,7 +272,7 @@ struct Message<gpump_pol> : detail::MessageBase
   }
 
   template < typename context >
-  void deallocate(context const&, typename policy_comm::communicator_type comm, COMB::Allocator& buf_aloc)
+  void deallocate(context const&, communicator_type comm, COMB::Allocator& buf_aloc)
   {
     static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support mpi_type_pol");
     if (m_buf != nullptr) {

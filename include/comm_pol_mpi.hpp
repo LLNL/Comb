@@ -164,15 +164,18 @@ inline bool test_recv_all(mpi_pol const&,
 template < >
 struct Message<mpi_pol> : detail::MessageBase
 {
-  using policy_comm = mpi_pol;
-
   using base = detail::MessageBase;
+
+  using policy_comm = mpi_pol;
+  using communicator_type = typename policy_comm::communicator_type;
+  using send_request_type = typename policy_comm::send_request_type;
+  using recv_request_type = typename policy_comm::recv_request_type;
 
   // use the base class constructor
   using base::base;
 
   template < typename context >
-  void pack(context const& con, typename policy_comm::communicator_type)
+  void pack(context const& con, communicator_type)
   {
     DataT* buf = m_buf;
     assert(buf != nullptr);
@@ -187,7 +190,7 @@ struct Message<mpi_pol> : detail::MessageBase
     }
   }
 
-  void pack(ExecContext<mpi_type_pol> const&, typename policy_comm::communicator_type comm)
+  void pack(ExecContext<mpi_type_pol> const&, communicator_type comm)
   {
     if (items.size() == 1) {
       m_nbytes = sizeof(DataT)*items.front().size;
@@ -209,7 +212,7 @@ struct Message<mpi_pol> : detail::MessageBase
   }
 
   template < typename context >
-  void unpack(context const& con, typename policy_comm::communicator_type)
+  void unpack(context const& con, communicator_type)
   {
     DataT const* buf = m_buf;
     assert(buf != nullptr);
@@ -224,7 +227,7 @@ struct Message<mpi_pol> : detail::MessageBase
     }
   }
 
-  void unpack(ExecContext<mpi_type_pol> const&, typename policy_comm::communicator_type comm)
+  void unpack(ExecContext<mpi_type_pol> const&, communicator_type comm)
   {
     if (items.size() == 1) {
       // nothing to do
@@ -244,13 +247,13 @@ struct Message<mpi_pol> : detail::MessageBase
   }
 
   template < typename context >
-  void Isend(context const&, typename policy_comm::communicator_type comm, typename policy_comm::send_request_type* request)
+  void Isend(context const&, communicator_type comm, send_request_type* request)
   {
     // FPRINTF(stdout, "%p Isend %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
     start_send(policy_comm{}, buffer(), nbytes(), MPI_BYTE, partner_rank(), tag(), comm, request);
   }
 
-  void Isend(ExecContext<mpi_type_pol> const&, typename policy_comm::communicator_type comm, typename policy_comm::send_request_type* request)
+  void Isend(ExecContext<mpi_type_pol> const&, communicator_type comm, send_request_type* request)
   {
     if (items.size() == 1) {
       DataT const* src = items.front().data;
@@ -264,13 +267,13 @@ struct Message<mpi_pol> : detail::MessageBase
   }
 
   template < typename context >
-  void Irecv(context const&, typename policy_comm::communicator_type comm, typename policy_comm::recv_request_type* request)
+  void Irecv(context const&, communicator_type comm, recv_request_type* request)
   {
     // FPRINTF(stdout, "%p Irecv %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
     start_recv(policy_comm{}, buffer(), nbytes(), MPI_BYTE, partner_rank(), tag(), comm, request);
   }
 
-  void Irecv(ExecContext<mpi_type_pol> const&, typename policy_comm::communicator_type comm, typename policy_comm::recv_request_type* request)
+  void Irecv(ExecContext<mpi_type_pol> const&, communicator_type comm, recv_request_type* request)
   {
     if (items.size() == 1) {
       DataT* dst = items.front().data;
@@ -284,7 +287,7 @@ struct Message<mpi_pol> : detail::MessageBase
   }
 
   template < typename context >
-  void allocate(context const&, typename policy_comm::communicator_type comm, COMB::Allocator& buf_aloc)
+  void allocate(context const&, communicator_type comm, COMB::Allocator& buf_aloc)
   {
     COMB::ignore_unused(comm);
     if (m_buf == nullptr) {
@@ -292,7 +295,7 @@ struct Message<mpi_pol> : detail::MessageBase
     }
   }
 
-  void allocate(ExecContext<mpi_type_pol> const&, typename policy_comm::communicator_type comm, COMB::Allocator& buf_aloc)
+  void allocate(ExecContext<mpi_type_pol> const&, communicator_type comm, COMB::Allocator& buf_aloc)
   {
     COMB::ignore_unused(comm);
     if (m_buf == nullptr) {
@@ -305,7 +308,7 @@ struct Message<mpi_pol> : detail::MessageBase
   }
 
   template < typename context >
-  void deallocate(context const&, typename policy_comm::communicator_type comm, COMB::Allocator& buf_aloc)
+  void deallocate(context const&, communicator_type comm, COMB::Allocator& buf_aloc)
   {
     COMB::ignore_unused(comm);
     if (m_buf != nullptr) {
