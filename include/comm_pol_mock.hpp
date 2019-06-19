@@ -60,15 +60,6 @@ inline void disconnect_ranks(mock_pol const&,
 }
 
 
-inline void start_send(mock_pol const&,
-                void* buffer, int size, mock_pol::type_type type,
-                int dest_rank, int tag,
-                mock_pol::communicator_type comm, mock_pol::send_request_type* request)
-{
-  COMB::ignore_unused(buffer, size, type, dest_rank, tag, comm);
-  *request = 1;
-}
-
 inline int wait_send_any(mock_pol const&,
                   int count, mock_pol::send_request_type* requests,
                   mock_pol::send_status_type* statuses)
@@ -158,15 +149,6 @@ inline bool test_send_all(mock_pol const&,
   return true;
 }
 
-
-inline void start_recv(mock_pol const&,
-                void* buffer, int size, mock_pol::type_type type,
-                int src_rank, int tag,
-                mock_pol::communicator_type comm, mock_pol::send_request_type* request)
-{
-  COMB::ignore_unused(buffer, size, type, src_rank, tag, comm);
-  *request = 1;
-}
 
 inline int wait_recv_any(mock_pol const&,
                   int count, mock_pol::recv_request_type* requests,
@@ -345,10 +327,10 @@ struct Message<mock_pol> : detail::MessageBase
   }
 
   template < typename context >
-  void Isend(context const&, communicator_type comm, send_request_type* request)
+  void Isend(context const&, communicator_type, send_request_type* request)
   {
     // FPRINTF(stdout, "%p Isend %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
-    start_send(policy_comm{}, buffer(), nbytes(), type_type{}, partner_rank(), tag(), comm, request);
+    *request = 1;
   }
 
   void Isend(ExecContext<mpi_type_pol> const&, communicator_type comm, send_request_type* request)
@@ -357,18 +339,18 @@ struct Message<mock_pol> : detail::MessageBase
       DataT const* src = items.front().data;
       // MPI_Datatype mpi_type = items.front().mpi_type;
       // FPRINTF(stdout, "%p Isend %p to %i tag %i\n", this, src, partner_rank(), tag());
-      start_send(policy_comm{}, (void*)src, 1, type_type{}, partner_rank(), tag(), comm, request);
+      *request = 1;
     } else {
       // FPRINTF(stdout, "%p Isend %p nbytes %i to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
-      start_send(policy_comm{}, buffer(), nbytes(), type_type{}, partner_rank(), tag(), comm, request);
+      *request = 1;
     }
   }
 
   template < typename context >
-  void Irecv(context const&, communicator_type comm, recv_request_type* request)
+  void Irecv(context const&, communicator_type, recv_request_type* request)
   {
     // FPRINTF(stdout, "%p Irecv %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
-    start_recv(policy_comm{}, buffer(), nbytes(), type_type{}, partner_rank(), tag(), comm, request);
+    *request = 1;
   }
 
   void Irecv(ExecContext<mpi_type_pol> const&, communicator_type comm, recv_request_type* request)
@@ -377,10 +359,10 @@ struct Message<mock_pol> : detail::MessageBase
       DataT* dst = items.front().data;
       // MPI_Datatype mpi_type = items.front().mpi_type;
       // FPRINTF(stdout, "%p Irecv %p to %i tag %i\n", this, dst, partner_rank(), tag());
-      start_recv(policy_comm{}, dst, 1, type_type{}, partner_rank(), tag(), comm, request);
+      *request = 1;
     } else {
       // FPRINTF(stdout, "%p Irecv %p maxnbytes %i to %i tag %i\n", this, dst, max_nbytes(), partner_rank(), tag());
-      start_recv(policy_comm{}, buffer(), max_nbytes(), type_type{}, partner_rank(), tag(), comm, request);
+      *request = 1;
     }
   }
 

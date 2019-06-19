@@ -59,14 +59,6 @@ inline void disconnect_ranks(mpi_pol const&,
 }
 
 
-inline void start_send(mpi_pol const&,
-                void* buffer, int size, mpi_pol::type_type type,
-                int dest_rank, int tag,
-                mpi_pol::communicator_type comm, mpi_pol::send_request_type* request)
-{
-  detail::MPI::Isend(buffer, size, type, dest_rank, tag, comm, request);
-}
-
 inline int wait_send_any(mpi_pol const&,
                   int count, mpi_pol::send_request_type* requests,
                   mpi_pol::send_status_type* statuses)
@@ -109,14 +101,6 @@ inline bool test_send_all(mpi_pol const&,
   return detail::MPI::Testall(count, requests, statuses);
 }
 
-
-inline void start_recv(mpi_pol const&,
-                void* buffer, int size, mpi_pol::type_type type,
-                int src_rank, int tag,
-                mpi_pol::communicator_type comm, mpi_pol::send_request_type* request)
-{
-  detail::MPI::Irecv(buffer, size, type, src_rank, tag, comm, request);
-}
 
 inline int wait_recv_any(mpi_pol const&,
                   int count, mpi_pol::recv_request_type* requests,
@@ -250,7 +234,7 @@ struct Message<mpi_pol> : detail::MessageBase
   void Isend(context const&, communicator_type comm, send_request_type* request)
   {
     // FPRINTF(stdout, "%p Isend %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
-    start_send(policy_comm{}, buffer(), nbytes(), MPI_BYTE, partner_rank(), tag(), comm, request);
+    detail::MPI::Isend(buffer(), nbytes(), MPI_BYTE, partner_rank(), tag(), comm, request);
   }
 
   void Isend(ExecContext<mpi_type_pol> const&, communicator_type comm, send_request_type* request)
@@ -259,10 +243,10 @@ struct Message<mpi_pol> : detail::MessageBase
       DataT const* src = items.front().data;
       MPI_Datatype mpi_type = items.front().mpi_type;
       // FPRINTF(stdout, "%p Isend %p to %i tag %i\n", this, src, partner_rank(), tag());
-      start_send(policy_comm{}, (void*)src, 1, mpi_type, partner_rank(), tag(), comm, request);
+      detail::MPI::Isend((void*)src, 1, mpi_type, partner_rank(), tag(), comm, request);
     } else {
       // FPRINTF(stdout, "%p Isend %p nbytes %i to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
-      start_send(policy_comm{}, buffer(), nbytes(), MPI_PACKED, partner_rank(), tag(), comm, request);
+      detail::MPI::Isend(buffer(), nbytes(), MPI_PACKED, partner_rank(), tag(), comm, request);
     }
   }
 
@@ -270,7 +254,7 @@ struct Message<mpi_pol> : detail::MessageBase
   void Irecv(context const&, communicator_type comm, recv_request_type* request)
   {
     // FPRINTF(stdout, "%p Irecv %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
-    start_recv(policy_comm{}, buffer(), nbytes(), MPI_BYTE, partner_rank(), tag(), comm, request);
+    detail::MPI::Irecv(buffer(), nbytes(), MPI_BYTE, partner_rank(), tag(), comm, request);
   }
 
   void Irecv(ExecContext<mpi_type_pol> const&, communicator_type comm, recv_request_type* request)
@@ -279,10 +263,10 @@ struct Message<mpi_pol> : detail::MessageBase
       DataT* dst = items.front().data;
       MPI_Datatype mpi_type = items.front().mpi_type;
       // FPRINTF(stdout, "%p Irecv %p to %i tag %i\n", this, dst, partner_rank(), tag());
-      start_recv(policy_comm{}, dst, 1, mpi_type, partner_rank(), tag(), comm, request);
+      detail::MPI::Irecv(dst, 1, mpi_type, partner_rank(), tag(), comm, request);
     } else {
       // FPRINTF(stdout, "%p Irecv %p maxnbytes %i to %i tag %i\n", this, dst, max_nbytes(), partner_rank(), tag());
-      start_recv(policy_comm{}, buffer(), max_nbytes(), MPI_PACKED, partner_rank(), tag(), comm, request);
+      detail::MPI::Irecv(buffer(), max_nbytes(), MPI_PACKED, partner_rank(), tag(), comm, request);
     }
   }
 

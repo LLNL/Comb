@@ -91,14 +91,6 @@ inline void disconnect_ranks(gpump_pol const&,
 }
 
 
-inline void start_send(gpump_pol const&,
-                void* buffer, int size, gpump_pol::type_type type,
-                int dest_rank, int tag,
-                gpump_pol::communicator_type comm, gpump_pol::send_request_type* request)
-{
-  detail::MPI::Isend(buffer, size, type, dest_rank, tag, comm, request);
-}
-
 inline int wait_send_any(gpump_pol const&,
                   int count, gpump_pol::send_request_type* requests,
                   gpump_pol::send_status_type* statuses)
@@ -141,14 +133,6 @@ inline bool test_send_all(gpump_pol const&,
   return detail::MPI::Testall(count, requests, statuses);
 }
 
-
-inline void start_recv(gpump_pol const&,
-                void* buffer, int size, gpump_pol::type_type type,
-                int src_rank, int tag,
-                gpump_pol::communicator_type comm, gpump_pol::send_request_type* request)
-{
-  detail::MPI::Irecv(buffer, size, type, src_rank, tag, comm, request);
-}
 
 inline int wait_recv_any(gpump_pol const&,
                   int count, gpump_pol::recv_request_type* requests,
@@ -250,7 +234,7 @@ struct Message<gpump_pol> : detail::MessageBase
   {
     static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support mpi_type_pol");
     // FPRINTF(stdout, "%p Isend %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
-    start_send(policy_comm{}, (void*)m_region/*buffer()*/, nbytes(), 0, partner_rank(), tag(), comm, request);
+    detail::MPI::Isend((void*)m_region/*buffer()*/, nbytes(), 0, partner_rank(), tag(), comm, request);
   }
 
   template < typename context >
@@ -258,7 +242,7 @@ struct Message<gpump_pol> : detail::MessageBase
   {
     static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support mpi_type_pol");
     // FPRINTF(stdout, "%p Irecv %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
-    start_recv(policy_comm{}, (void*)m_region/*buffer()*/, nbytes(), 0, partner_rank(), tag(), comm, request);
+    detail::MPI::Irecv((void*)m_region/*buffer()*/, nbytes(), 0, partner_rank(), tag(), comm, request);
   }
 
   template < typename context >
