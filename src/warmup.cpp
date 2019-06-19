@@ -25,6 +25,8 @@ void do_warmup(COMB::Allocator& aloc, Timer& tm, IdxT num_vars, IdxT len)
   char test_name[1024] = ""; snprintf(test_name, 1024, "warmup %s %s", pol::get_name(), aloc.name());
   Range r(test_name, Range::green);
 
+  ExecContext<pol> con{};
+
   DataT** vars = new DataT*[num_vars];
 
   for (IdxT i = 0; i < num_vars; ++i) {
@@ -35,10 +37,10 @@ void do_warmup(COMB::Allocator& aloc, Timer& tm, IdxT num_vars, IdxT len)
 
     DataT* data = vars[i];
 
-    for_all(ExecContext<pol>{}, 0, len, detail::set_n1{data});
+    for_all(con, 0, len, detail::set_n1{data});
   }
 
-  synchronize(ExecContext<pol>{});
+  synchronize(con);
 
 }
 

@@ -311,20 +311,20 @@ struct Comm
     , communicator(policy_comm::communicator_create(comminfo_.cart.comm))
   { }
 
-  void finish_populating()
+  void finish_populating(ExecContext<policy_many> const& con_many, ExecContext<policy_few> const& con_few)
   {
     size_t num_sends = m_sends.size();
     for(size_t i = 0; i != num_sends; ++i) {
-      m_send_contexts_many.push_back( ExecContext<policy_many>{} );
-      m_send_contexts_few.push_back( ExecContext<policy_few>{} );
+      m_send_contexts_many.push_back( con_many );
+      m_send_contexts_few.push_back( con_few );
       m_send_events_many.push_back( createEvent(m_send_contexts_many.back()) );
       m_send_events_few.push_back( createEvent(m_send_contexts_few.back()) );
     }
 
     size_t num_recvs = m_recvs.size();
     for(size_t i = 0; i != num_recvs; ++i) {
-      m_recv_contexts_many.push_back( ExecContext<policy_many>{} );
-      m_recv_contexts_few.push_back( ExecContext<policy_few>{} );
+      m_recv_contexts_many.push_back( con_many );
+      m_recv_contexts_few.push_back( con_few );
     }
 
     std::vector<int> send_ranks;
@@ -338,15 +338,15 @@ struct Comm
     connect_ranks(policy_comm{}, communicator, send_ranks, recv_ranks);
   }
 
-  ~Comm()
+  void depopulate()
   {
     size_t num_events = m_send_events_many.size();
     for(size_t i = 0; i != num_events; ++i) {
-      destroyEvent(ExecContext<policy_many>{}, m_send_events_many[i]);
+      destroyEvent(m_send_contexts_many[i], m_send_events_many[i]);
     }
     num_events = m_send_events_few.size();
     for(size_t i = 0; i != num_events; ++i) {
-      destroyEvent(ExecContext<policy_few>{}, m_send_events_few[i]);
+      destroyEvent(m_send_contexts_few[i], m_send_events_few[i]);
     }
 
     std::vector<int> send_ranks;
@@ -365,7 +365,10 @@ struct Comm
     for(message_type& msg : m_recvs) {
       msg.destroy();
     }
+  }
 
+  ~Comm()
+  {
     policy_comm::communicator_destroy(communicator);
   }
 

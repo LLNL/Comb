@@ -92,7 +92,7 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info,
         synchronize(con_loop);
       }
 
-      factory.populate(comm);
+      factory.populate(comm, con_many, con_few);
     }
 
     tm_total.stop();
@@ -476,6 +476,8 @@ void do_cycles(CommInfo& comm_info, MeshInfo& info,
 
     print_timer(comminfo, tm);
     print_timer(comminfo, tm_total);
+
+    comm.depopulate();
   }
 
   tm.clear();

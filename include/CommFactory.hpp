@@ -308,7 +308,9 @@ struct CommFactory
   using msg_info_map_type = std::map<int, message_info_type>;
 
   template < typename comm_type >
-  void populate(comm_type& comm) const
+  void populate(comm_type& comm,
+                ExecContext<typename comm_type::policy_many> const& con_many,
+                ExecContext<typename comm_type::policy_few> const& con_few) const
   {
 
     // map from partner rank to message indices
@@ -342,10 +344,10 @@ struct CommFactory
     }
 
     // use the msg_info_maps to populate messages in comm
-    populate_comm(comm, detail::MessageBase::Kind::recv, comm.m_recvs, recv_msg_info_map);
-    populate_comm(comm, detail::MessageBase::Kind::send, comm.m_sends, send_msg_info_map);
+    populate_comm(comm, con_many, con_few, detail::MessageBase::Kind::recv, comm.m_recvs, recv_msg_info_map);
+    populate_comm(comm, con_many, con_few, detail::MessageBase::Kind::send, comm.m_sends, send_msg_info_map);
 
-    comm.finish_populating();
+    comm.finish_populating(con_many, con_few);
   }
 
   ~CommFactory()
@@ -402,7 +404,11 @@ private:
   }
 
   template < typename comm_type, typename msg_list_type >
-  void populate_comm(comm_type& comm, detail::MessageBase::Kind kind, msg_list_type& msg_list, msg_info_map_type& msg_info_map) const
+  void populate_comm(comm_type& comm,
+                     ExecContext<typename comm_type::policy_many> const& con_many,
+                     ExecContext<typename comm_type::policy_few> const& con_few,
+                     detail::MessageBase::Kind kind, msg_list_type& msg_list,
+                     msg_info_map_type& msg_info_map) const
   {
     auto lambda = [&](message_info_type& msginfo) {
 
@@ -424,9 +430,9 @@ private:
         MPI_Datatype mpi_type = MPI_DATATYPE_NULL;
         IdxT mpi_pack_nbytes = 0;
         if (have_many) {
-          populate_msg_info(ExecContext<typename comm_type::policy_many>{}, comm.comminfo.cart.comm, msg_data, msg_box, indices, len, mpi_type, mpi_pack_nbytes);
+          populate_msg_info(con_many, comm.comminfo.cart.comm, msg_data, msg_box, indices, len, mpi_type, mpi_pack_nbytes);
         } else {
-          populate_msg_info(ExecContext<typename comm_type::policy_few>{}, comm.comminfo.cart.comm, msg_data, msg_box, indices, len, mpi_type, mpi_pack_nbytes);
+          populate_msg_info(con_few, comm.comminfo.cart.comm, msg_data, msg_box, indices, len, mpi_type, mpi_pack_nbytes);
         }
 
         // add an item to the message
