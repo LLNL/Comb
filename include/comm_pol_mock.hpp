@@ -18,8 +18,6 @@
 
 #include "config.hpp"
 
-#include <atomic>
-
 #include "for_all.hpp"
 #include "utils.hpp"
 #include "MessageBase.hpp"
@@ -176,7 +174,7 @@ struct Message<mock_pol> : detail::MessageBase
   void Irecv(context const&, communicator_type, recv_request_type* request)
   {
     // FPRINTF(stdout, "%p Irecv %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
-    *request = 1;
+    *request = -1;
   }
 
   void Irecv(ExecContext<mpi_type_pol> const&, communicator_type comm, recv_request_type* request)
@@ -185,10 +183,10 @@ struct Message<mock_pol> : detail::MessageBase
       DataT* dst = items.front().data;
       // MPI_Datatype mpi_type = items.front().mpi_type;
       // FPRINTF(stdout, "%p Irecv %p to %i tag %i\n", this, dst, partner_rank(), tag());
-      *request = 1;
+      *request = -1;
     } else {
       // FPRINTF(stdout, "%p Irecv %p maxnbytes %i to %i tag %i\n", this, dst, max_nbytes(), partner_rank(), tag());
-      *request = 1;
+      *request = -1;
     }
   }
 
@@ -313,9 +311,9 @@ struct Message<mock_pol> : detail::MessageBase
                            recv_status_type* statuses)
   {
     for (int i = 0; i < count; ++i) {
-      if (requests[i] != 2) {
-        assert(requests[i] == 1);
-        requests[i] = 2;
+      if (requests[i] != -2) {
+        assert(requests[i] == -1);
+        requests[i] = -2;
         statuses[i] = 1;
         return i;
       }
@@ -327,9 +325,9 @@ struct Message<mock_pol> : detail::MessageBase
                            recv_status_type* statuses)
   {
     for (int i = 0; i < count; ++i) {
-      if (requests[i] != 2) {
-        assert(requests[i] == 1);
-        requests[i] = 2;
+      if (requests[i] != -2) {
+        assert(requests[i] == -1);
+        requests[i] = -2;
         statuses[i] = 1;
         return i;
       }
@@ -342,9 +340,9 @@ struct Message<mock_pol> : detail::MessageBase
   {
     int done = 0;
     for (int i = 0; i < count; ++i) {
-      if (requests[i] != 2) {
-        assert(requests[i] == 1);
-        requests[i] = 2;
+      if (requests[i] != -2) {
+        assert(requests[i] == -1);
+        requests[i] = -2;
         statuses[i] = 1;
         indices[done++] = i;
       }
@@ -357,9 +355,9 @@ struct Message<mock_pol> : detail::MessageBase
   {
     int done = 0;
     for (int i = 0; i < count; ++i) {
-      if (requests[i] != 2) {
-        assert(requests[i] == 1);
-        requests[i] = 2;
+      if (requests[i] != -2) {
+        assert(requests[i] == -1);
+        requests[i] = -2;
         statuses[i] = 1;
         indices[done++] = i;
       }
@@ -371,9 +369,9 @@ struct Message<mock_pol> : detail::MessageBase
                             recv_status_type* statuses)
   {
     for (int i = 0; i < count; ++i) {
-      if (requests[i] != 2) {
-        assert(requests[i] == 1);
-        requests[i] = 2;
+      if (requests[i] != -2) {
+        assert(requests[i] == -1);
+        requests[i] = -2;
         statuses[i] = 1;
       }
     }
@@ -383,9 +381,9 @@ struct Message<mock_pol> : detail::MessageBase
                             recv_status_type* statuses)
   {
     for (int i = 0; i < count; ++i) {
-      if (requests[i] != 2) {
-        assert(requests[i] == 1);
-        requests[i] = 2;
+      if (requests[i] != -2) {
+        assert(requests[i] == -1);
+        requests[i] = -2;
         statuses[i] = 1;
       }
     }
