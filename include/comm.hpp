@@ -318,16 +318,16 @@ struct Comm
   {
     size_t num_sends = m_sends.size();
     for(size_t i = 0; i != num_sends; ++i) {
-      m_send_contexts_many.push_back( ExecContext<typename comm_type::policy_many>{} );
-      m_send_contexts_few.push_back( ExecContext<typename comm_type::policy_few>{} );
+      m_send_contexts_many.push_back( ExecContext<policy_many>{} );
+      m_send_contexts_few.push_back( ExecContext<policy_few>{} );
       m_send_events_many.push_back( createEvent(m_send_contexts_many.back()) );
       m_send_events_few.push_back( createEvent(m_send_contexts_few.back()) );
     }
 
     size_t num_recvs = m_recvs.size();
     for(size_t i = 0; i != num_recvs; ++i) {
-      m_recv_contexts_many.push_back( ExecContext<typename comm_type::policy_many>{} );
-      m_recv_contexts_few.push_back( ExecContext<typename comm_type::policy_few>{} );
+      m_recv_contexts_many.push_back( ExecContext<policy_many>{} );
+      m_recv_contexts_few.push_back( ExecContext<policy_few>{} );
     }
 
     std::vector<int> send_ranks;
