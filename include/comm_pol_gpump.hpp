@@ -43,6 +43,52 @@ struct gpump_pol {
 };
 
 
+inline void connect_ranks(gpump_pol const&,
+                          gpump_pol::communicator_type comm,
+                          std::vector<int> const& send_ranks,
+                          std::vector<int> const& recv_ranks)
+{
+  std::set<int> ranks;
+  for (int rank : send_ranks) {
+    if (ranks.find(rank) != ranks.end()) {
+      ranks.insert(rank);
+    }
+  }
+  for (int rank : recv_ranks) {
+    if (ranks.find(rank) != ranks.end()) {
+      ranks.insert(rank);
+    }
+  }
+  for (int rank : ranks) {
+    gpump_connect_propose(comm, rank);
+  }
+  for (int rank : ranks) {
+    gpump_connect_accept(comm, rank);
+  }
+}
+
+inline void disconnect_ranks(gpump_pol const&,
+                             gpump_pol::communicator_type comm,
+                             std::vector<int> const& send_ranks,
+                             std::vector<int> const& recv_ranks)
+{
+  std::set<int> ranks;
+  for (int rank : send_ranks) {
+    if (ranks.find(rank) != ranks.end()) {
+      ranks.insert(rank);
+    }
+  }
+  for (int rank : recv_ranks) {
+    if (ranks.find(rank) != ranks.end()) {
+      ranks.insert(rank);
+    }
+  }
+  for (int rank : ranks) {
+    gpump_disconnect(comm, rank);
+  }
+}
+
+
 inline void start_send(gpump_pol const&,
                 void* buffer, int size, gpump_pol::type_type type,
                 int dest_rank, int tag,

@@ -40,6 +40,23 @@ struct mpi_pol {
 };
 
 
+inline void connect_ranks(mpi_pol const&,
+                          mpi_pol::communicator_type comm,
+                          std::vector<int> const& send_ranks,
+                          std::vector<int> const& recv_ranks)
+{
+  COMB::ignore_unused(comm, send_ranks, recv_ranks);
+}
+
+inline void disconnect_ranks(mpi_pol const&,
+                             mpi_pol::communicator_type comm,
+                             std::vector<int> const& send_ranks,
+                             std::vector<int> const& recv_ranks)
+{
+  COMB::ignore_unused(comm, send_ranks, recv_ranks);
+}
+
+
 inline void start_send(mpi_pol const&,
                 void* buffer, int size, mpi_pol::type_type type,
                 int dest_rank, int tag,

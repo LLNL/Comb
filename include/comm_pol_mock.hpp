@@ -41,6 +41,23 @@ struct mock_pol {
 };
 
 
+inline void connect_ranks(mock_pol const&,
+                          mock_pol::communicator_type comm,
+                          std::vector<int> const& send_ranks,
+                          std::vector<int> const& recv_ranks)
+{
+  COMB::ignore_unused(comm, send_ranks, recv_ranks);
+}
+
+inline void disconnect_ranks(mock_pol const&,
+                             mock_pol::communicator_type comm,
+                             std::vector<int> const& send_ranks,
+                             std::vector<int> const& recv_ranks)
+{
+  COMB::ignore_unused(comm, send_ranks, recv_ranks);
+}
+
+
 inline void start_send(mock_pol const&,
                 void* buffer, int size, mock_pol::type_type type,
                 int dest_rank, int tag,

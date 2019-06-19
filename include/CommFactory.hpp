@@ -345,19 +345,7 @@ struct CommFactory
     populate_comm(comm, comm.m_recvs, recv_msg_info_map);
     populate_comm(comm, comm.m_sends, send_msg_info_map);
 
-    size_t num_sends = comm.m_sends.size();
-    for(size_t i = 0; i != num_sends; ++i) {
-      comm.m_send_contexts_many.push_back( ExecContext<typename comm_type::policy_many>{} );
-      comm.m_send_contexts_few.push_back( ExecContext<typename comm_type::policy_few>{} );
-      comm.m_send_events_many.push_back( createEvent(comm.m_send_contexts_many.back()) );
-      comm.m_send_events_few.push_back( createEvent(comm.m_send_contexts_few.back()) );
-    }
-
-    size_t num_recvs = comm.m_recvs.size();
-    for(size_t i = 0; i != num_recvs; ++i) {
-      comm.m_recv_contexts_many.push_back( ExecContext<typename comm_type::policy_many>{} );
-      comm.m_recv_contexts_few.push_back( ExecContext<typename comm_type::policy_few>{} );
-    }
+    comm.finish_populating();
   }
 
   ~CommFactory()
