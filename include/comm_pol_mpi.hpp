@@ -38,7 +38,6 @@ struct mpi_pol {
   static inline send_status_type send_status_null() { return send_status_type{}; }
   using recv_status_type = MPI_Status;
   static inline recv_status_type recv_status_null() { return recv_status_type{}; }
-  using type_type = MPI_Datatype;
 };
 
 
@@ -59,92 +58,6 @@ inline void disconnect_ranks(mpi_pol const&,
 }
 
 
-inline int wait_send_any(mpi_pol const&,
-                  int count, mpi_pol::send_request_type* requests,
-                  mpi_pol::send_status_type* statuses)
-{
-  return detail::MPI::Waitany(count, requests, statuses);
-}
-
-inline int test_send_any(mpi_pol const&,
-                  int count, mpi_pol::send_request_type* requests,
-                  mpi_pol::send_status_type* statuses)
-{
-  return detail::MPI::Testany(count, requests, statuses);
-}
-
-inline int wait_send_some(mpi_pol const&,
-                   int count, mpi_pol::send_request_type* requests,
-                   int* indices, mpi_pol::send_status_type* statuses)
-{
-  return detail::MPI::Waitsome(count, requests, indices, statuses);
-}
-
-inline int test_send_some(mpi_pol const&,
-                   int count, mpi_pol::send_request_type* requests,
-                   int* indices, mpi_pol::send_status_type* statuses)
-{
-  return detail::MPI::Testsome(count, requests, indices, statuses);
-}
-
-inline void wait_send_all(mpi_pol const&,
-                   int count, mpi_pol::send_request_type* requests,
-                   mpi_pol::send_status_type* statuses)
-{
-  detail::MPI::Waitall(count, requests, statuses);
-}
-
-inline bool test_send_all(mpi_pol const&,
-                   int count, mpi_pol::send_request_type* requests,
-                   mpi_pol::send_status_type* statuses)
-{
-  return detail::MPI::Testall(count, requests, statuses);
-}
-
-
-inline int wait_recv_any(mpi_pol const&,
-                  int count, mpi_pol::recv_request_type* requests,
-                  mpi_pol::recv_status_type* statuses)
-{
-  return detail::MPI::Waitany(count, requests, statuses);
-}
-
-inline int test_recv_any(mpi_pol const&,
-                  int count, mpi_pol::recv_request_type* requests,
-                  mpi_pol::recv_status_type* statuses)
-{
-  return detail::MPI::Testany(count, requests, statuses);
-}
-
-inline int wait_recv_some(mpi_pol const&,
-                   int count, mpi_pol::recv_request_type* requests,
-                   int* indices, mpi_pol::recv_status_type* statuses)
-{
-  return detail::MPI::Waitsome(count, requests, indices, statuses);
-}
-
-inline int test_recv_some(mpi_pol const&,
-                   int count, mpi_pol::recv_request_type* requests,
-                   int* indices, mpi_pol::recv_status_type* statuses)
-{
-  return detail::MPI::Testsome(count, requests, indices, statuses);
-}
-
-inline void wait_recv_all(mpi_pol const&,
-                   int count, mpi_pol::recv_request_type* requests,
-                   mpi_pol::recv_status_type* statuses)
-{
-  detail::MPI::Waitall(count, requests, statuses);
-}
-
-inline bool test_recv_all(mpi_pol const&,
-                   int count, mpi_pol::recv_request_type* requests,
-                   mpi_pol::recv_status_type* statuses)
-{
-  return detail::MPI::Testall(count, requests, statuses);
-}
-
-
 template < >
 struct Message<mpi_pol> : detail::MessageBase
 {
@@ -154,9 +67,16 @@ struct Message<mpi_pol> : detail::MessageBase
   using communicator_type = typename policy_comm::communicator_type;
   using send_request_type = typename policy_comm::send_request_type;
   using recv_request_type = typename policy_comm::recv_request_type;
+  using send_status_type  = typename policy_comm::send_status_type;
+  using recv_status_type  = typename policy_comm::recv_status_type;
+
 
   // use the base class constructor
   using base::base;
+
+  ~Message()
+  { }
+
 
   template < typename context >
   void pack(context const& con, communicator_type)
@@ -230,6 +150,7 @@ struct Message<mpi_pol> : detail::MessageBase
     }
   }
 
+
   template < typename context >
   void Isend(context const&, communicator_type comm, send_request_type* request)
   {
@@ -270,6 +191,7 @@ struct Message<mpi_pol> : detail::MessageBase
     }
   }
 
+
   template < typename context >
   void allocate(context const&, communicator_type comm, COMB::Allocator& buf_aloc)
   {
@@ -301,8 +223,78 @@ struct Message<mpi_pol> : detail::MessageBase
     }
   }
 
-  ~Message()
+
+  static int wait_send_any(int count, send_request_type* requests,
+                           send_status_type* statuses)
   {
+    return detail::MPI::Waitany(count, requests, statuses);
+  }
+
+  static int test_send_any(int count, send_request_type* requests,
+                           send_status_type* statuses)
+  {
+    return detail::MPI::Testany(count, requests, statuses);
+  }
+
+  static int wait_send_some(int count, send_request_type* requests,
+                            int* indices, send_status_type* statuses)
+  {
+    return detail::MPI::Waitsome(count, requests, indices, statuses);
+  }
+
+  static int test_send_some(int count, send_request_type* requests,
+                            int* indices, send_status_type* statuses)
+  {
+    return detail::MPI::Testsome(count, requests, indices, statuses);
+  }
+
+  static void wait_send_all(int count, send_request_type* requests,
+                            send_status_type* statuses)
+  {
+    detail::MPI::Waitall(count, requests, statuses);
+  }
+
+  static bool test_send_all(int count, send_request_type* requests,
+                            send_status_type* statuses)
+  {
+    return detail::MPI::Testall(count, requests, statuses);
+  }
+
+
+  static int wait_recv_any(int count, recv_request_type* requests,
+                           recv_status_type* statuses)
+  {
+    return detail::MPI::Waitany(count, requests, statuses);
+  }
+
+  static int test_recv_any(int count, recv_request_type* requests,
+                           recv_status_type* statuses)
+  {
+    return detail::MPI::Testany(count, requests, statuses);
+  }
+
+  static int wait_recv_some(int count, recv_request_type* requests,
+                            int* indices, recv_status_type* statuses)
+  {
+    return detail::MPI::Waitsome(count, requests, indices, statuses);
+  }
+
+  static int test_recv_some(int count, recv_request_type* requests,
+                            int* indices, recv_status_type* statuses)
+  {
+    return detail::MPI::Testsome(count, requests, indices, statuses);
+  }
+
+  static void wait_recv_all(int count, recv_request_type* requests,
+                            recv_status_type* statuses)
+  {
+    detail::MPI::Waitall(count, requests, statuses);
+  }
+
+  static bool test_recv_all(int count, recv_request_type* requests,
+                            recv_status_type* statuses)
+  {
+    return detail::MPI::Testall(count, requests, statuses);
   }
 };
 

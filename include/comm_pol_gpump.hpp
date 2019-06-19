@@ -41,7 +41,6 @@ struct gpump_pol {
   static inline send_status_type send_status_null() { return send_status_type{}; }
   using recv_status_type = MPI_Status;
   static inline recv_status_type recv_status_null() { return recv_status_type{}; }
-  using type_type = MPI_Datatype;
 };
 
 
@@ -91,100 +90,17 @@ inline void disconnect_ranks(gpump_pol const&,
 }
 
 
-inline int wait_send_any(gpump_pol const&,
-                  int count, gpump_pol::send_request_type* requests,
-                  gpump_pol::send_status_type* statuses)
-{
-  return detail::MPI::Waitany(count, requests, statuses);
-}
-
-inline int test_send_any(gpump_pol const&,
-                  int count, gpump_pol::send_request_type* requests,
-                  gpump_pol::send_status_type* statuses)
-{
-  return detail::MPI::Testany(count, requests, statuses);
-}
-
-inline int wait_send_some(gpump_pol const&,
-                   int count, gpump_pol::send_request_type* requests,
-                   int* indices, gpump_pol::send_status_type* statuses)
-{
-  return detail::MPI::Waitsome(count, requests, indices, statuses);
-}
-
-inline int test_send_some(gpump_pol const&,
-                   int count, gpump_pol::send_request_type* requests,
-                   int* indices, gpump_pol::send_status_type* statuses)
-{
-  return detail::MPI::Testsome(count, requests, indices, statuses);
-}
-
-inline void wait_send_all(gpump_pol const&,
-                   int count, gpump_pol::send_request_type* requests,
-                   gpump_pol::send_status_type* statuses)
-{
-  detail::MPI::Waitall(count, requests, statuses);
-}
-
-inline bool test_send_all(gpump_pol const&,
-                   int count, gpump_pol::send_request_type* requests,
-                   gpump_pol::send_status_type* statuses)
-{
-  return detail::MPI::Testall(count, requests, statuses);
-}
-
-
-inline int wait_recv_any(gpump_pol const&,
-                  int count, gpump_pol::recv_request_type* requests,
-                  gpump_pol::recv_status_type* statuses)
-{
-  return detail::MPI::Waitany(count, requests, statuses);
-}
-
-inline int test_recv_any(gpump_pol const&,
-                  int count, gpump_pol::recv_request_type* requests,
-                  gpump_pol::recv_status_type* statuses)
-{
-  return detail::MPI::Testany(count, requests, statuses);
-}
-
-inline int wait_recv_some(gpump_pol const&,
-                   int count, gpump_pol::recv_request_type* requests,
-                   int* indices, gpump_pol::recv_status_type* statuses)
-{
-  return detail::MPI::Waitsome(count, requests, indices, statuses);
-}
-
-inline int test_recv_some(gpump_pol const&,
-                   int count, gpump_pol::recv_request_type* requests,
-                   int* indices, gpump_pol::recv_status_type* statuses)
-{
-  return detail::MPI::Testsome(count, requests, indices, statuses);
-}
-
-inline void wait_recv_all(gpump_pol const&,
-                   int count, gpump_pol::recv_request_type* requests,
-                   gpump_pol::recv_status_type* statuses)
-{
-  detail::MPI::Waitall(count, requests, statuses);
-}
-
-inline bool test_recv_all(gpump_pol const&,
-                   int count, gpump_pol::recv_request_type* requests,
-                   gpump_pol::recv_status_type* statuses)
-{
-  return detail::MPI::Testall(count, requests, statuses);
-}
-
-
 template < >
 struct Message<gpump_pol> : detail::MessageBase
 {
   using base = detail::MessageBase;
+
   using policy_comm = gpump_pol;
   using communicator_type = typename policy_comm::communicator_type;
   using send_request_type = typename policy_comm::send_request_type;
   using recv_request_type = typename policy_comm::recv_request_type;
+  using send_status_type  = typename policy_comm::send_status_type;
+  using recv_status_type  = typename policy_comm::recv_status_type;
 
 
   Message(int partner_rank, int tag, bool have_many)
@@ -194,6 +110,7 @@ struct Message<gpump_pol> : detail::MessageBase
 
   ~Message()
   { }
+
 
   template < typename context >
   void pack(context const& con, communicator_type comm)
@@ -215,6 +132,15 @@ struct Message<gpump_pol> : detail::MessageBase
   template < typename context >
   void unpack(context const& con, communicator_type comm)
   {
+
+
+    // TODO: know if waiting on stream or cpu
+
+    // gpump_stream_wait_recv_complete(comm, partner_rank(), con.stream);
+
+    // gpump_cpu_ack_recv(comm, partner_rank());
+
+
     static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support mpi_type_pol");
     DataT const* buf = m_buf;
     assert(buf != nullptr);
@@ -229,12 +155,24 @@ struct Message<gpump_pol> : detail::MessageBase
     }
   }
 
+
   template < typename context >
   void Isend(context const& con, communicator_type comm, send_request_type* request)
   {
     static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support mpi_type_pol");
     // FPRINTF(stdout, "%p Isend %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
-    detail::MPI::Isend((void*)m_region/*buffer()*/, nbytes(), 0, partner_rank(), tag(), comm, request);
+    // detail::MPI::Isend((void*)m_region/*buffer()*/, nbytes(), 0, partner_rank(), tag(), comm, request);
+
+
+    // TODO: know if waiting on stream or cpu
+
+    // gpump_stream_send(comm, partner_rank(), con.stream, m_region, 0, nbytes());
+    // gpump_stream_wait_send_complete(comm, partner_rank(), con.stream);
+
+    // gpump_isend(comm, partner_rank(), m_region, 0, nbytes());
+    // gpump_cpu_ack_isend(comm, partner_rank());
+
+
   }
 
   template < typename context >
@@ -242,8 +180,14 @@ struct Message<gpump_pol> : detail::MessageBase
   {
     static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support mpi_type_pol");
     // FPRINTF(stdout, "%p Irecv %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
-    detail::MPI::Irecv((void*)m_region/*buffer()*/, nbytes(), 0, partner_rank(), tag(), comm, request);
+    // detail::MPI::Irecv((void*)m_region/*buffer()*/, nbytes(), 0, partner_rank(), tag(), comm, request);
+
+
+    // gpump_receive(comm, partner_rank(), m_region, 0, nbytes());
+
+
   }
+
 
   template < typename context >
   void allocate(context const&, communicator_type comm, COMB::Allocator& buf_aloc)
@@ -260,11 +204,104 @@ struct Message<gpump_pol> : detail::MessageBase
   {
     static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support mpi_type_pol");
     if (m_buf != nullptr) {
+
+
+      // TODO: know if recv or send, know if waiting on stream or cpu
+
+      // gpump_wait_receive_complete(comm, partner_rank()) or gpump_is_receive_complete(comm, partner_rank());
+
+      // gpump_wait_send_complete(comm, partner_rank()) or gpump_is_send_complete(comm, partner_rank());
+
+
       gpump_deregister_region(comm, m_region);
       m_region = nullptr;
       buf_aloc.deallocate(m_buf);
       m_buf = nullptr;
     }
+  }
+
+
+  static int wait_send_any(int count, send_request_type* requests,
+                           send_status_type* statuses)
+  {
+    // return detail::MPI::Waitany(count, requests, statuses);
+    return -1;
+  }
+
+  static int test_send_any(int count, send_request_type* requests,
+                           send_status_type* statuses)
+  {
+    // return detail::MPI::Testany(count, requests, statuses);
+    return -1;
+  }
+
+  static int wait_send_some(int count, send_request_type* requests,
+                            int* indices, send_status_type* statuses)
+  {
+    // return detail::MPI::Waitsome(count, requests, indices, statuses);
+    return -1;
+  }
+
+  static int test_send_some(int count, send_request_type* requests,
+                            int* indices, send_status_type* statuses)
+  {
+    // return detail::MPI::Testsome(count, requests, indices, statuses);
+    return -1;
+  }
+
+  static void wait_send_all(int count, send_request_type* requests,
+                            send_status_type* statuses)
+  {
+    // detail::MPI::Waitall(count, requests, statuses);
+  }
+
+  static bool test_send_all(int count, send_request_type* requests,
+                            send_status_type* statuses)
+  {
+    // return detail::MPI::Testall(count, requests, statuses);
+    return true;
+  }
+
+
+  static int wait_recv_any(int count, recv_request_type* requests,
+                           recv_status_type* statuses)
+  {
+    // return detail::MPI::Waitany(count, requests, statuses);
+    return -1;
+  }
+
+  static int test_recv_any(int count, recv_request_type* requests,
+                           recv_status_type* statuses)
+  {
+    // return detail::MPI::Testany(count, requests, statuses);
+    return -1;
+  }
+
+  static int wait_recv_some(int count, recv_request_type* requests,
+                            int* indices, recv_status_type* statuses)
+  {
+    // return detail::MPI::Waitsome(count, requests, indices, statuses);
+    return -1;
+  }
+
+  static int test_recv_some(int count, recv_request_type* requests,
+                            int* indices, recv_status_type* statuses)
+  {
+    // return detail::MPI::Testsome(count, requests, indices, statuses);
+    return -1;
+  }
+
+  static void wait_recv_all(int count, recv_request_type* requests,
+                            recv_status_type* statuses)
+  {
+    // detail::MPI::Waitall(count, requests, statuses);
+  }
+
+  static bool test_recv_all(int count, recv_request_type* requests,
+                            recv_status_type* statuses)
+  {
+    // return detail::MPI::Testall(count, requests, statuses);
+    return true;
   }
 
 private:

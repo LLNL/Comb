@@ -1012,11 +1012,11 @@ struct Comm
 
           IdxT idx = num_done;
           if (wait_recv_method == CommInfo::method::waitany) {
-            idx = wait_recv_any(policy_comm{}, num_recvs, &m_recv_requests[0], &status);
+            idx = message_type::wait_recv_any(num_recvs, &m_recv_requests[0], &status);
           } else {
             idx = -1;
             while(idx < 0 || idx >= num_recvs) {
-              idx = test_recv_any(policy_comm{}, num_recvs, &m_recv_requests[0], &status);
+              idx = message_type::test_recv_any(num_recvs, &m_recv_requests[0], &status);
             }
           }
 
@@ -1081,9 +1081,9 @@ struct Comm
 
           IdxT num_recvd = num_recvs;
           if (wait_recv_method == CommInfo::method::waitsome) {
-            num_recvd = wait_recv_some(policy_comm{}, num_recvs, &m_recv_requests[0], &indices[0], &recv_statuses[0]);
+            num_recvd = message_type::wait_recv_some(num_recvs, &m_recv_requests[0], &indices[0], &recv_statuses[0]);
           } else {
-            while( 0 == (num_recvd = test_recv_some(policy_comm{}, num_recvs, &m_recv_requests[0], &indices[0], &recv_statuses[0])) );
+            while( 0 == (num_recvd = message_type::test_recv_some(num_recvs, &m_recv_requests[0], &indices[0], &recv_statuses[0])) );
           }
 
           bool inner_have_many = false;
@@ -1158,9 +1158,9 @@ struct Comm
         std::vector<typename policy_comm::recv_status_type> recv_statuses(m_recv_requests.size(), policy_comm::recv_status_null());
 
         if (wait_recv_method == CommInfo::method::waitall) {
-          wait_recv_all(policy_comm{}, num_recvs, &m_recv_requests[0], &recv_statuses[0]);
+          message_type::wait_recv_all(num_recvs, &m_recv_requests[0], &recv_statuses[0]);
         } else {
-          while (!test_recv_all(policy_comm{}, num_recvs, &m_recv_requests[0], &recv_statuses[0]));
+          while (!message_type::test_recv_all(num_recvs, &m_recv_requests[0], &recv_statuses[0]));
         }
 
         IdxT num_done = 0;
@@ -1233,11 +1233,11 @@ struct Comm
 
           IdxT idx = num_done;
           if (wait_send_method == CommInfo::method::waitany) {
-            idx = wait_send_any(policy_comm{}, num_sends, &m_send_requests[0], &status);
+            idx = message_type::wait_send_any(num_sends, &m_send_requests[0], &status);
           } else {
             idx = -1;
             while(idx < 0 || idx >= num_sends) {
-              idx = test_send_any(policy_comm{}, num_sends, &m_send_requests[0], &status);
+              idx = message_type::test_send_any(num_sends, &m_send_requests[0], &status);
             }
           }
 
@@ -1266,9 +1266,9 @@ struct Comm
 
           IdxT num_sent = num_sends;
           if (wait_send_method == CommInfo::method::waitsome) {
-            num_sent = wait_send_some(policy_comm{}, num_sends, &m_send_requests[0], &indices[0], &send_statuses[0]);
+            num_sent = message_type::wait_send_some(num_sends, &m_send_requests[0], &indices[0], &send_statuses[0]);
           } else {
-            num_sent = test_send_some(policy_comm{}, num_sends, &m_send_requests[0], &indices[0], &send_statuses[0]);
+            num_sent = message_type::test_send_some(num_sends, &m_send_requests[0], &indices[0], &send_statuses[0]);
           }
 
           for (IdxT i = 0; i < num_sent; ++i) {
@@ -1296,9 +1296,9 @@ struct Comm
         std::vector<typename policy_comm::send_status_type> send_statuses(m_send_requests.size(), policy_comm::send_status_null());
 
         if (wait_send_method == CommInfo::method::waitall) {
-          wait_send_all(policy_comm{}, num_sends, &m_send_requests[0], &send_statuses[0]);
+          message_type::wait_send_all(num_sends, &m_send_requests[0], &send_statuses[0]);
         } else {
-          while(!test_send_all(policy_comm{}, num_sends, &m_send_requests[0], &send_statuses[0]));
+          while(!message_type::test_send_all(num_sends, &m_send_requests[0], &send_statuses[0]));
         }
 
         while (num_done < num_sends) {

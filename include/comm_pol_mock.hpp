@@ -39,7 +39,6 @@ struct mock_pol {
   static inline send_status_type send_status_null() { return 0; }
   using recv_status_type = int;
   static inline recv_status_type recv_status_null() { return 0; }
-  using type_type = int;
 };
 
 
@@ -60,186 +59,6 @@ inline void disconnect_ranks(mock_pol const&,
 }
 
 
-inline int wait_send_any(mock_pol const&,
-                  int count, mock_pol::send_request_type* requests,
-                  mock_pol::send_status_type* statuses)
-{
-  for (int i = 0; i < count; ++i) {
-    if (requests[i] != 2) {
-      assert(requests[i] == 1);
-      requests[i] = 2;
-      statuses[i] = 1;
-      return i;
-    }
-  }
-  return -1;
-}
-
-inline int test_send_any(mock_pol const&,
-                  int count, mock_pol::send_request_type* requests,
-                  mock_pol::send_status_type* statuses)
-{
-  for (int i = 0; i < count; ++i) {
-    if (requests[i] != 2) {
-      assert(requests[i] == 1);
-      requests[i] = 2;
-      statuses[i] = 1;
-      return i;
-    }
-  }
-  return -1;
-}
-
-inline int wait_send_some(mock_pol const&,
-                   int count, mock_pol::send_request_type* requests,
-                   int* indices, mock_pol::send_status_type* statuses)
-{
-  int done = 0;
-  for (int i = 0; i < count; ++i) {
-    if (requests[i] != 2) {
-      assert(requests[i] == 1);
-      requests[i] = 2;
-      statuses[i] = 1;
-      indices[done++] = i;
-    }
-  }
-  return done;
-}
-
-inline int test_send_some(mock_pol const&,
-                   int count, mock_pol::send_request_type* requests,
-                   int* indices, mock_pol::send_status_type* statuses)
-{
-  int done = 0;
-  for (int i = 0; i < count; ++i) {
-    if (requests[i] != 2) {
-      assert(requests[i] == 1);
-      requests[i] = 2;
-      statuses[i] = 1;
-      indices[done++] = i;
-    }
-  }
-  return done;
-}
-
-inline void wait_send_all(mock_pol const&,
-                   int count, mock_pol::send_request_type* requests,
-                   mock_pol::send_status_type* statuses)
-{
-  for (int i = 0; i < count; ++i) {
-    if (requests[i] != 2) {
-      assert(requests[i] == 1);
-      requests[i] = 2;
-      statuses[i] = 1;
-    }
-  }
-}
-
-inline bool test_send_all(mock_pol const&,
-                   int count, mock_pol::send_request_type* requests,
-                   mock_pol::send_status_type* statuses)
-{
-  for (int i = 0; i < count; ++i) {
-    if (requests[i] != 2) {
-      assert(requests[i] == 1);
-      requests[i] = 2;
-      statuses[i] = 1;
-    }
-  }
-  return true;
-}
-
-
-inline int wait_recv_any(mock_pol const&,
-                  int count, mock_pol::recv_request_type* requests,
-                  mock_pol::recv_status_type* statuses)
-{
-  for (int i = 0; i < count; ++i) {
-    if (requests[i] != 2) {
-      assert(requests[i] == 1);
-      requests[i] = 2;
-      statuses[i] = 1;
-      return i;
-    }
-  }
-  return -1;
-}
-
-inline int test_recv_any(mock_pol const&,
-                  int count, mock_pol::recv_request_type* requests,
-                  mock_pol::recv_status_type* statuses)
-{
-  for (int i = 0; i < count; ++i) {
-    if (requests[i] != 2) {
-      assert(requests[i] == 1);
-      requests[i] = 2;
-      statuses[i] = 1;
-      return i;
-    }
-  }
-  return -1;
-}
-
-inline int wait_recv_some(mock_pol const&,
-                   int count, mock_pol::recv_request_type* requests,
-                   int* indices, mock_pol::recv_status_type* statuses)
-{
-  int done = 0;
-  for (int i = 0; i < count; ++i) {
-    if (requests[i] != 2) {
-      assert(requests[i] == 1);
-      requests[i] = 2;
-      statuses[i] = 1;
-      indices[done++] = i;
-    }
-  }
-  return done;
-}
-
-inline int test_recv_some(mock_pol const&,
-                   int count, mock_pol::recv_request_type* requests,
-                   int* indices, mock_pol::recv_status_type* statuses)
-{
-  int done = 0;
-  for (int i = 0; i < count; ++i) {
-    if (requests[i] != 2) {
-      assert(requests[i] == 1);
-      requests[i] = 2;
-      statuses[i] = 1;
-      indices[done++] = i;
-    }
-  }
-  return done;
-}
-
-inline void wait_recv_all(mock_pol const&,
-                   int count, mock_pol::recv_request_type* requests,
-                   mock_pol::recv_status_type* statuses)
-{
-  for (int i = 0; i < count; ++i) {
-    if (requests[i] != 2) {
-      assert(requests[i] == 1);
-      requests[i] = 2;
-      statuses[i] = 1;
-    }
-  }
-}
-
-inline bool test_recv_all(mock_pol const&,
-                   int count, mock_pol::recv_request_type* requests,
-                   mock_pol::recv_status_type* statuses)
-{
-  for (int i = 0; i < count; ++i) {
-    if (requests[i] != 2) {
-      assert(requests[i] == 1);
-      requests[i] = 2;
-      statuses[i] = 1;
-    }
-  }
-  return true;
-}
-
-
 template < >
 struct Message<mock_pol> : detail::MessageBase
 {
@@ -249,10 +68,16 @@ struct Message<mock_pol> : detail::MessageBase
   using communicator_type = typename policy_comm::communicator_type;
   using send_request_type = typename policy_comm::send_request_type;
   using recv_request_type = typename policy_comm::recv_request_type;
-  using type_type         = typename policy_comm::type_type;
+  using send_status_type  = typename policy_comm::send_status_type;
+  using recv_status_type  = typename policy_comm::recv_status_type;
+
 
   // use the base class constructor
   using base::base;
+
+  ~Message()
+  { }
+
 
   template < typename context >
   void pack(context const& con, communicator_type)
@@ -326,6 +151,7 @@ struct Message<mock_pol> : detail::MessageBase
     }
   }
 
+
   template < typename context >
   void Isend(context const&, communicator_type, send_request_type* request)
   {
@@ -366,6 +192,7 @@ struct Message<mock_pol> : detail::MessageBase
     }
   }
 
+
   template < typename context >
   void allocate(context const&, communicator_type comm, COMB::Allocator& buf_aloc)
   {
@@ -397,8 +224,172 @@ struct Message<mock_pol> : detail::MessageBase
     }
   }
 
-  ~Message()
+
+  static int wait_send_any(int count, send_request_type* requests,
+                           send_status_type* statuses)
   {
+    for (int i = 0; i < count; ++i) {
+      if (requests[i] != 2) {
+        assert(requests[i] == 1);
+        requests[i] = 2;
+        statuses[i] = 1;
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  static int test_send_any(int count, send_request_type* requests,
+                           send_status_type* statuses)
+  {
+    for (int i = 0; i < count; ++i) {
+      if (requests[i] != 2) {
+        assert(requests[i] == 1);
+        requests[i] = 2;
+        statuses[i] = 1;
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  static int wait_send_some(int count, send_request_type* requests,
+                            int* indices, send_status_type* statuses)
+  {
+    int done = 0;
+    for (int i = 0; i < count; ++i) {
+      if (requests[i] != 2) {
+        assert(requests[i] == 1);
+        requests[i] = 2;
+        statuses[i] = 1;
+        indices[done++] = i;
+      }
+    }
+    return done;
+  }
+
+  static int test_send_some(int count, send_request_type* requests,
+                            int* indices, send_status_type* statuses)
+  {
+    int done = 0;
+    for (int i = 0; i < count; ++i) {
+      if (requests[i] != 2) {
+        assert(requests[i] == 1);
+        requests[i] = 2;
+        statuses[i] = 1;
+        indices[done++] = i;
+      }
+    }
+    return done;
+  }
+
+  static void wait_send_all(int count, send_request_type* requests,
+                            send_status_type* statuses)
+  {
+    for (int i = 0; i < count; ++i) {
+      if (requests[i] != 2) {
+        assert(requests[i] == 1);
+        requests[i] = 2;
+        statuses[i] = 1;
+      }
+    }
+  }
+
+  static bool test_send_all(int count, send_request_type* requests,
+                            send_status_type* statuses)
+  {
+    for (int i = 0; i < count; ++i) {
+      if (requests[i] != 2) {
+        assert(requests[i] == 1);
+        requests[i] = 2;
+        statuses[i] = 1;
+      }
+    }
+    return true;
+  }
+
+
+  static int wait_recv_any(int count, recv_request_type* requests,
+                           recv_status_type* statuses)
+  {
+    for (int i = 0; i < count; ++i) {
+      if (requests[i] != 2) {
+        assert(requests[i] == 1);
+        requests[i] = 2;
+        statuses[i] = 1;
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  static int test_recv_any(int count, recv_request_type* requests,
+                           recv_status_type* statuses)
+  {
+    for (int i = 0; i < count; ++i) {
+      if (requests[i] != 2) {
+        assert(requests[i] == 1);
+        requests[i] = 2;
+        statuses[i] = 1;
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  static int wait_recv_some(int count, recv_request_type* requests,
+                            int* indices, recv_status_type* statuses)
+  {
+    int done = 0;
+    for (int i = 0; i < count; ++i) {
+      if (requests[i] != 2) {
+        assert(requests[i] == 1);
+        requests[i] = 2;
+        statuses[i] = 1;
+        indices[done++] = i;
+      }
+    }
+    return done;
+  }
+
+  static int test_recv_some(int count, recv_request_type* requests,
+                            int* indices, recv_status_type* statuses)
+  {
+    int done = 0;
+    for (int i = 0; i < count; ++i) {
+      if (requests[i] != 2) {
+        assert(requests[i] == 1);
+        requests[i] = 2;
+        statuses[i] = 1;
+        indices[done++] = i;
+      }
+    }
+    return done;
+  }
+
+  static void wait_recv_all(int count, recv_request_type* requests,
+                            recv_status_type* statuses)
+  {
+    for (int i = 0; i < count; ++i) {
+      if (requests[i] != 2) {
+        assert(requests[i] == 1);
+        requests[i] = 2;
+        statuses[i] = 1;
+      }
+    }
+  }
+
+  static bool test_recv_all(int count, recv_request_type* requests,
+                            recv_status_type* statuses)
+  {
+    for (int i = 0; i < count; ++i) {
+      if (requests[i] != 2) {
+        assert(requests[i] == 1);
+        requests[i] = 2;
+        statuses[i] = 1;
+      }
+    }
+    return true;
   }
 };
 
