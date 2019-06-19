@@ -33,11 +33,8 @@
 #include "memory.hpp"
 #include "for_all.hpp"
 #include "utils.hpp"
-#include "Message.hpp"
 
-#include "comm_pol_mock.hpp"
-#include "comm_pol_mpi.hpp"
-#include "comm_pol_gpump.hpp"
+#include "MessageBase.hpp"
 
 
 enum struct FileGroup
@@ -374,7 +371,7 @@ struct Comm
 
   bool mock_communication() const
   {
-    return std::is_same<policy_comm, mock_pol>::value;
+    return policy_comm::mock;
   }
 
   void barrier()

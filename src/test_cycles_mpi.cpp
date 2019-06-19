@@ -15,6 +15,7 @@
 
 #include "comb.hpp"
 
+#include "comm_pol_mpi.hpp"
 #include "do_cycles.hpp"
 
 namespace COMB {

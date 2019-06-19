@@ -17,6 +17,7 @@
 
 #ifdef COMB_ENABLE_GPUMP
 
+#include "comm_pol_gpump.hpp"
 #include "do_cycles.hpp"
 
 namespace COMB {
