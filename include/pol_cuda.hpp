@@ -26,19 +26,20 @@ struct cuda_pol {
 };
 
 template < >
-struct ExecContext<cuda_pol>
+struct ExecContext<cuda_pol> : CudaContext
 {
-  cudaStream_t stream = 0;
+  using base = CudaContext;
+  ExecContext()
+    : base()
+  { }
+  ExecContext(base const& b)
+    : base(b)
+  { }
 };
-
-inline bool operator==(ExecContext<cuda_pol> const& lhs, ExecContext<cuda_pol> const& rhs)
-{
-  return lhs.stream == rhs.stream;
-}
 
 inline void synchronize(ExecContext<cuda_pol> const& con)
 {
-  cudaCheck(cudaStreamSynchronize(con.stream));
+  cudaCheck(cudaStreamSynchronize(con.stream()));
 }
 
 inline void persistent_launch(ExecContext<cuda_pol> const&)
@@ -62,7 +63,7 @@ inline typename cuda_pol::event_type createEvent(ExecContext<cuda_pol> const&)
 
 inline void recordEvent(ExecContext<cuda_pol> const& con, typename cuda_pol::event_type event)
 {
-  cudaCheck(cudaEventRecord(event, con.stream));
+  cudaCheck(cudaEventRecord(event, con.stream()));
 }
 
 inline bool queryEvent(ExecContext<cuda_pol> const&, typename cuda_pol::event_type event)
@@ -106,7 +107,7 @@ inline void for_all(ExecContext<cuda_pol> const& con, IdxT begin, IdxT end, body
   dim3 blockDim(threads);
   void* args[]{&begin, &len, &body};
   size_t sharedMem = 0;
-  cudaStream_t stream = con.stream;
+  cudaStream_t stream = con.stream();
 
   cudaCheck(cudaLaunchKernel(func, gridDim, blockDim, args, sharedMem, stream));
   //synchronize(con);
@@ -145,7 +146,7 @@ inline void for_all_2d(ExecContext<cuda_pol> const& con, IdxT begin0, IdxT end0,
   dim3 blockDim(threads1, threads0, 1);
   void* args[]{&begin0, &len0, &begin1, &len1, &body};
   size_t sharedMem = 0;
-  cudaStream_t stream = con.stream;
+  cudaStream_t stream = con.stream();
 
   cudaCheck(cudaLaunchKernel(func, gridDim, blockDim, args, sharedMem, stream));
   //synchronize(con);
@@ -191,7 +192,7 @@ inline void for_all_3d(ExecContext<cuda_pol> const& con, IdxT begin0, IdxT end0,
   dim3 blockDim(threads2, threads1, threads0);
   void* args[]{&begin0, &len0, &begin1, &len1, &begin2, &len2, &len12, &body};
   size_t sharedMem = 0;
-  cudaStream_t stream = con.stream;
+  cudaStream_t stream = con.stream();
 
   cudaCheck(cudaLaunchKernel(func, gridDim, blockDim, args, sharedMem, stream));
   //synchronize(con);

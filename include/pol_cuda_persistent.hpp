@@ -26,24 +26,25 @@ struct cuda_persistent_pol {
 };
 
 template < >
-struct ExecContext<cuda_persistent_pol>
+struct ExecContext<cuda_persistent_pol> : CudaContext
 {
-  cudaStream_t stream = 0;
+  using base = CudaContext;
+  ExecContext()
+    : base()
+  { }
+  ExecContext(base const& b)
+    : base(b)
+  { }
 };
-
-inline bool operator==(ExecContext<cuda_persistent_pol> const& lhs, ExecContext<cuda_persistent_pol> const& rhs)
-{
-  return lhs.stream == rhs.stream;
-}
 
 inline void synchronize(ExecContext<cuda_persistent_pol> const& con)
 {
-  cuda::persistent_launch::synchronize(con.stream);
+  cuda::persistent_launch::synchronize(con.stream());
 }
 
 inline void persistent_launch(ExecContext<cuda_persistent_pol> const& con)
 {
-  cuda::persistent_launch::force_launch(con.stream);
+  cuda::persistent_launch::force_launch(con.stream());
 }
 
 inline void batch_launch(ExecContext<cuda_persistent_pol> const&)
@@ -52,7 +53,7 @@ inline void batch_launch(ExecContext<cuda_persistent_pol> const&)
 
 inline void persistent_stop(ExecContext<cuda_persistent_pol> const& con)
 {
-  cuda::persistent_launch::force_stop(con.stream);
+  cuda::persistent_launch::force_stop(con.stream());
 }
 
 inline typename cuda_persistent_pol::event_type createEvent(ExecContext<cuda_persistent_pol> const&)
@@ -62,7 +63,7 @@ inline typename cuda_persistent_pol::event_type createEvent(ExecContext<cuda_per
 
 inline void recordEvent(ExecContext<cuda_persistent_pol> const& con, typename cuda_persistent_pol::event_type event)
 {
-  return cuda::persistent_launch::recordEvent(event, con.stream);
+  return cuda::persistent_launch::recordEvent(event, con.stream());
 }
 
 inline bool queryEvent(ExecContext<cuda_persistent_pol> const&, typename cuda_persistent_pol::event_type event)
@@ -84,7 +85,7 @@ template < typename body_type >
 inline void for_all(ExecContext<cuda_persistent_pol> const& con, IdxT begin, IdxT end, body_type&& body)
 {
   COMB::ignore_unused(con);
-  cuda::persistent_launch::for_all(begin, end, std::forward<body_type>(body), con.stream);
+  cuda::persistent_launch::for_all(begin, end, std::forward<body_type>(body), con.stream());
   //synchronize(con);
 }
 
@@ -93,7 +94,7 @@ inline void for_all_2d(ExecContext<cuda_persistent_pol> const& con, IdxT begin0,
 {
   COMB::ignore_unused(con);
   IdxT len = (end0 - begin0) * (end1 - begin1);
-  cuda::persistent_launch::for_all(0, len, detail::adapter_2d<typename std::remove_reference<body_type>::type>{begin0, end0, begin1, end1, std::forward<body_type>(body)}, con.stream);
+  cuda::persistent_launch::for_all(0, len, detail::adapter_2d<typename std::remove_reference<body_type>::type>{begin0, end0, begin1, end1, std::forward<body_type>(body)}, con.stream());
   //synchronize(con);
 }
 
@@ -102,7 +103,7 @@ inline void for_all_3d(ExecContext<cuda_persistent_pol> const& con, IdxT begin0,
 {
   COMB::ignore_unused(con);
   IdxT len = (end0 - begin0) * (end1 - begin1) * (end2 - begin2);
-  cuda::persistent_launch::for_all(0, len, detail::adapter_3d<typename std::remove_reference<body_type>::type>{begin0, end0, begin1, end1, begin2, end2, std::forward<body_type>(body)}, con.stream);
+  cuda::persistent_launch::for_all(0, len, detail::adapter_3d<typename std::remove_reference<body_type>::type>{begin0, end0, begin1, end1, begin2, end2, std::forward<body_type>(body)}, con.stream());
   //synchronize(con);
 }
 

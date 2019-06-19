@@ -136,7 +136,7 @@ struct Message<gpump_pol> : detail::MessageBase
 
     // TODO: know if waiting on stream or cpu
 
-    // gpump_stream_wait_recv_complete(comm, partner_rank(), con.stream);
+    // gpump_stream_wait_recv_complete(comm, partner_rank(), con.stream());
 
     // gpump_cpu_ack_recv(comm, partner_rank());
 
@@ -165,8 +165,8 @@ struct Message<gpump_pol> : detail::MessageBase
 
     // TODO: know if waiting on stream or cpu
 
-    // gpump_stream_send(comm, partner_rank(), con.stream, m_region, 0, nbytes());
-    // gpump_stream_wait_send_complete(comm, partner_rank(), con.stream);
+    // gpump_stream_send(comm, partner_rank(), con.stream(), m_region, 0, nbytes());
+    // gpump_stream_wait_send_complete(comm, partner_rank(), con.stream());
 
     // gpump_isend(comm, partner_rank(), m_region, 0, nbytes());
     // gpump_cpu_ack_isend(comm, partner_rank());

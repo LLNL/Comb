@@ -25,16 +25,16 @@ struct mpi_type_pol {
 };
 
 template < >
-struct ExecContext<mpi_type_pol>
+struct ExecContext<mpi_type_pol> : CPUContext
 {
-
+  using base = CPUContext;
+  ExecContext()
+    : base()
+  { }
+  ExecContext(base const& b)
+    : base(b)
+  { }
 };
-
-inline bool operator==(ExecContext<mpi_type_pol> const& lhs, ExecContext<mpi_type_pol> const& rhs)
-{
-  COMB::ignore_unused(lhs, rhs);
-  return true;
-}
 
 // synchronization functions
 inline void synchronize(ExecContext<mpi_type_pol> const&)

@@ -25,16 +25,16 @@ struct seq_pol {
 };
 
 template < >
-struct ExecContext<seq_pol>
+struct ExecContext<seq_pol> : CPUContext
 {
-
+  using base = CPUContext;
+  ExecContext()
+    : base()
+  { }
+  ExecContext(base const& b)
+    : base(b)
+  { }
 };
-
-inline bool operator==(ExecContext<seq_pol> const& lhs, ExecContext<seq_pol> const& rhs)
-{
-  COMB::ignore_unused(lhs, rhs);
-  return true;
-}
 
 // synchronization functions
 inline void synchronize(ExecContext<seq_pol> const&)

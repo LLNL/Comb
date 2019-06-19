@@ -32,16 +32,16 @@ struct omp_pol {
 };
 
 template < >
-struct ExecContext<omp_pol>
+struct ExecContext<omp_pol> : CPUContext
 {
-
+  using base = CPUContext;
+  ExecContext()
+    : base()
+  { }
+  ExecContext(base const& b)
+    : base(b)
+  { }
 };
-
-inline bool operator==(ExecContext<omp_pol> const& lhs, ExecContext<omp_pol> const& rhs)
-{
-  COMB::ignore_unused(lhs, rhs);
-  return true;
-}
 
 // synchronization functions
 inline void synchronize(ExecContext<omp_pol> const&)

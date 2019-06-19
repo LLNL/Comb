@@ -26,19 +26,20 @@ struct cuda_graph_pol {
 };
 
 template < >
-struct ExecContext<cuda_graph_pol>
+struct ExecContext<cuda_graph_pol> : CudaContext
 {
-  cudaStream_t stream = 0;
+  using base = CudaContext;
+  ExecContext()
+    : base()
+  { }
+  ExecContext(base const& b)
+    : base(b)
+  { }
 };
-
-inline bool operator==(ExecContext<cuda_graph_pol> const& lhs, ExecContext<cuda_graph_pol> const& rhs)
-{
-  return lhs.stream == rhs.stream;
-}
 
 inline void synchronize(ExecContext<cuda_graph_pol> const& con)
 {
-  cuda::graph_launch::synchronize(con.stream);
+  cuda::graph_launch::synchronize(con.stream());
 }
 
 inline void persistent_launch(ExecContext<cuda_graph_pol> const&)
@@ -47,7 +48,7 @@ inline void persistent_launch(ExecContext<cuda_graph_pol> const&)
 
 inline void batch_launch(ExecContext<cuda_graph_pol> const& con)
 {
-  cuda::graph_launch::force_launch(con.stream);
+  cuda::graph_launch::force_launch(con.stream());
 }
 
 inline void persistent_stop(ExecContext<cuda_graph_pol> const&)
@@ -61,7 +62,7 @@ inline typename cuda_graph_pol::event_type createEvent(ExecContext<cuda_graph_po
 
 inline void recordEvent(ExecContext<cuda_graph_pol> const& con, typename cuda_graph_pol::event_type event)
 {
-  return cuda::graph_launch::recordEvent(event, con.stream);
+  return cuda::graph_launch::recordEvent(event, con.stream());
 }
 
 inline bool queryEvent(ExecContext<cuda_graph_pol> const&, typename cuda_graph_pol::event_type event)
