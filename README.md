@@ -149,12 +149,12 @@ The test involves one measurement.
 
 The second set of tests are the message passing tests with names of the following form.
 
-    Mesh (physics execution policy) (mesh memory space) Buffers (large message execution policy) (large message memory space) (small message execution policy) (small message memory space) Comm (message passing execution policy)
+    Comm (message passing execution policy) Mesh (physics execution policy) (mesh memory space) Buffers (large message execution policy) (large message memory space) (small message execution policy) (small message memory space)
     (test phase): num (number of repeats) sum (time) s min (time) s max (time) s
     ...
 Example
 
-    Mesh seq Host Buffers seq Host seq Host Comm mpi
+    Comm mpi Mesh seq Host Buffers seq Host seq Host
     pre-comm:  num 200 sum 0.123456789 s min 0.123456789 s max 0.123456789 s
     post-recv: num 200 sum 0.123456789 s min 0.123456789 s max 0.123456789 s
     post-send: num 200 sum 0.123456789 s min 0.123456789 s max 0.123456789 s
