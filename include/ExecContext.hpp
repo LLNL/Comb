@@ -166,12 +166,18 @@ struct CPUContext
   {
     // do nothing
   }
+
 #ifdef COMB_ENABLE_CUDA
   void waitOn(CudaContext const& other) const
   {
     other.synchronize();
   }
 #endif
+
+  void synchronize() const
+  {
+    // do nothing
+  }
 };
 
 
