@@ -299,6 +299,21 @@ inline device_wrapper_ptr* get_pinned_device_wrapper_ptr_buf()
   return ptr;
 }
 
+// Helper function to create a new nonblocking cuda stream
+inline cudaStream_t get_new_nonblocking_stream_wrapper()
+{
+  cudaStream_t stream;
+  cudaCheck(cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking));
+  return stream;
+}
+
+// Function to get a nonblocking cuda stream
+inline cudaStream_t& get_device_wrapper_ptr_stream()
+{
+  static cudaStream_t stream = get_new_nonblocking_stream_wrapper();
+  return stream;
+}
+
 // Function that gets and caches the device wrapper function pointer
 // for the templated type. A pointer to a device function can only be taken
 // in device code, so this launches a kernel to get the pointer. It then holds
@@ -313,7 +328,7 @@ inline device_wrapper_ptr get_device_wrapper_ptr()
   if (ptr == nullptr) {
      device_wrapper_ptr* pinned_buf = get_pinned_device_wrapper_ptr_buf();
 
-     cudaStream_t stream = 0;
+     cudaStream_t stream = get_device_wrapper_ptr_stream();
      void* func = (void*)&write_device_wrapper_ptr<kernel_type>;
      void* args[] = {&pinned_buf};
      cudaCheck(cudaLaunchKernel(func, 1, 1, args, 0, stream));
