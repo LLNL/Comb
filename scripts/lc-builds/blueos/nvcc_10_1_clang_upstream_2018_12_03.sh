@@ -22,6 +22,8 @@ rm -rf build_${BUILD_SUFFIX} >/dev/null
 mkdir build_${BUILD_SUFFIX} && cd build_${BUILD_SUFFIX}
 
 module load cmake/3.9.2
+module load cuda/10.1.168
+module load clang/upstream-2018.12.03
 
 cmake \
   -DCMAKE_BUILD_TYPE=Release \
