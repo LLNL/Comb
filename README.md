@@ -182,6 +182,7 @@ The final three measure problem setup, correctness testing, and total benchmark 
   - __seq__ Sequential CPU execution
   - __omp__ Parallel CPU execution via OpenMP
   - __cuda__ Parallel GPU execution via cuda
+  - __cudaGraph__ Parallel GPU execution via cuda graphs
   - __cudaBatch__ Parallel GPU execution via kernel batching
   - __cudaBatch_fewgs__ Parallel GPU execution via kernel batching without grid synchronization between kernels
   - __cudaPersistent__ Parallel GPU execution via persistent kernel batching
