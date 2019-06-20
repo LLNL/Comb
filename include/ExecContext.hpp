@@ -18,6 +18,13 @@
 
 #include "config.hpp"
 
+enum struct ContextEnum
+{
+  invalid = 0
+ ,cpu = 1
+ ,cuda = 2
+};
+
 struct CPUContext;
 
 #ifdef COMB_ENABLE_CUDA
