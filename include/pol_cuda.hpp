@@ -39,7 +39,7 @@ struct ExecContext<cuda_pol> : CudaContext
 
 inline void synchronize(ExecContext<cuda_pol> const& con)
 {
-  cudaCheck(cudaStreamSynchronize(con.stream()));
+  con.synchronize();
 }
 
 inline void persistent_launch(ExecContext<cuda_pol> const&)
