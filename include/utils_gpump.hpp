@@ -20,7 +20,7 @@
 
 #ifdef COMB_ENABLE_GPUMP
 
-#include "libgpump.h"
+#include <libgpump.h>
 
 #include <cassert>
 #include <cstdio>
