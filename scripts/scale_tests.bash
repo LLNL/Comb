@@ -68,12 +68,12 @@ comb_args="${comb_args} -omp_threads 10"
 comb_args="${comb_args} -cuda_aware_mpi"
 # enable all execution tests
 comb_args="${comb_args} -exec enable all"
-# disable host memory tests
+# enable all memory tests
 comb_args="${comb_args} -memory enable all"
-# enable mock communication tests
-comb_args="${comb_args} -comm enable mock"
-# enable mpi communication tests
-comb_args="${comb_args} -comm enable mpi"
+# enable all communication tests
+comb_args="${comb_args} -comm enable all"
+# disable mpi_type execution tests (MPI Packing)
+# comb_args="${comb_args} -exec disable mpi_type"
 
 # set up arguments for a variety of communication methods
 wait_all_method="-comm post_recv wait_all -comm post_send wait_all -comm wait_recv wait_all -comm wait_send wait_all"
