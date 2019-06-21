@@ -161,12 +161,12 @@ inline void connect_ranks(gpump_pol const&,
 {
   std::set<int> ranks;
   for (int rank : send_ranks) {
-    if (ranks.find(rank) != ranks.end()) {
+    if (ranks.find(rank) == ranks.end()) {
       ranks.insert(rank);
     }
   }
   for (int rank : recv_ranks) {
-    if (ranks.find(rank) != ranks.end()) {
+    if (ranks.find(rank) == ranks.end()) {
       ranks.insert(rank);
     }
   }
