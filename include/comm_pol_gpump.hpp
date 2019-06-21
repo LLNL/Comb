@@ -20,11 +20,11 @@
 
 #ifdef COMB_ENABLE_GPUMP
 
-#include "libgpump.h"
 
 #include "for_all.hpp"
 #include "utils.hpp"
 #include "utils_cuda.hpp"
+#include "utils_gpump.hpp"
 #include "MessageBase.hpp"
 
 struct GpumpRequest
@@ -141,8 +141,8 @@ struct gpump_pol {
   static const bool mock = false;
   static const char* get_name() { return "gpump"; }
   using communicator_type = struct gpump*;
-  static inline communicator_type communicator_create(MPI_Comm comm) { return gpump_init(comm); }
-  static inline void communicator_destroy(communicator_type g) { gpump_term(g); }
+  static inline communicator_type communicator_create(MPI_Comm comm) { return detail::gpump::init(comm); }
+  static inline void communicator_destroy(communicator_type g) { detail::gpump::term(g); }
   using send_request_type = GpumpRequest;
   static inline send_request_type send_request_null() { return send_request_type{}; }
   using recv_request_type = GpumpRequest;
@@ -171,10 +171,10 @@ inline void connect_ranks(gpump_pol const&,
     }
   }
   for (int rank : ranks) {
-    gpump_connect_propose(comm, rank);
+    detail::gpump::connect_propose(comm, rank);
   }
   for (int rank : ranks) {
-    gpump_connect_accept(comm, rank);
+    detail::gpump::connect_accept(comm, rank);
   }
 }
 
@@ -195,7 +195,7 @@ inline void disconnect_ranks(gpump_pol const&,
     }
   }
   for (int rank : ranks) {
-    gpump_disconnect(comm, rank);
+    detail::gpump::disconnect(comm, rank);
   }
 }
 
@@ -259,14 +259,14 @@ struct Message<gpump_pol> : detail::MessageBase
 private:
   void start_Isend(CPUContext const&, communicator_type comm)
   {
-    gpump_isend(comm, partner_rank(), m_region, 0, nbytes());
-    gpump_cpu_ack_isend(comm, partner_rank());
+    detail::gpump::isend(comm, partner_rank(), m_region, 0, nbytes());
+    detail::gpump::cpu_ack_isend(comm, partner_rank());
   }
 
   void start_Isend(CudaContext const& con, communicator_type comm)
   {
-    gpump_stream_send(comm, partner_rank(), con.stream(), m_region, 0, nbytes());
-    gpump_stream_wait_send_complete(comm, partner_rank(), con.stream());
+    detail::gpump::stream_send(comm, partner_rank(), con.stream(), m_region, 0, nbytes());
+    detail::gpump::stream_wait_send_complete(comm, partner_rank(), con.stream());
   }
 
 public:
@@ -289,7 +289,7 @@ public:
     static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support mpi_type_pol");
     // FPRINTF(stdout, "%p Irecv %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
 
-    gpump_receive(comm, partner_rank(), m_region, 0, nbytes());
+    detail::gpump::receive(comm, partner_rank(), m_region, 0, nbytes());
     request->status = -1;
     request->comm = comm;
     request->partner_rank = partner_rank();
@@ -303,7 +303,7 @@ public:
     static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support mpi_type_pol");
     if (m_buf == nullptr) {
       m_buf = (DataT*)buf_aloc.allocate(nbytes());
-      m_region = gpump_register_region(comm, m_buf, nbytes());
+      m_region = detail::gpump::register_region(comm, m_buf, nbytes());
     }
   }
 
@@ -315,7 +315,7 @@ private:
 
   void wait_recv(CudaContext const& con, communicator_type comm)
   {
-    gpump_wait_receive_complete(comm, partner_rank());
+    detail::gpump::wait_receive_complete(comm, partner_rank());
   }
 
 public:
@@ -330,7 +330,7 @@ public:
       } else if (m_kind == Kind::recv) {
         wait_recv(con, comm);
       }
-      gpump_deregister_region(comm, m_region);
+      detail::gpump::deregister_region(comm, m_region);
       m_region = nullptr;
       buf_aloc.deallocate(m_buf);
       m_buf = nullptr;
@@ -342,9 +342,9 @@ private:
   static bool start_wait_send(send_request_type& request)
   {
     if (request.context_type == ContextEnum::cuda) {
-      return gpump_is_send_complete(request.comm, request.partner_rank);
+      return detail::gpump::is_send_complete(request.comm, request.partner_rank);
     } else if (request.context_type == ContextEnum::cpu) {
-      return gpump_is_send_complete(request.comm, request.partner_rank);
+      return detail::gpump::is_send_complete(request.comm, request.partner_rank);
     } else {
       assert(0);
     }
@@ -354,9 +354,9 @@ private:
   static bool test_waiting_send(send_request_type& request)
   {
     if (request.context_type == ContextEnum::cuda) {
-      return gpump_is_send_complete(request.comm, request.partner_rank);
+      return detail::gpump::is_send_complete(request.comm, request.partner_rank);
     } else if (request.context_type == ContextEnum::cpu) {
-      return gpump_is_send_complete(request.comm, request.partner_rank);
+      return detail::gpump::is_send_complete(request.comm, request.partner_rank);
     } else {
       assert(0);
     }
@@ -502,11 +502,11 @@ private:
   static bool start_wait_recv(recv_request_type& request)
   {
     if (request.context_type == ContextEnum::cuda) {
-      gpump_stream_wait_recv_complete(request.comm, request.partner_rank, request.context.cuda.stream());
+      detail::gpump::stream_wait_recv_complete(request.comm, request.partner_rank, request.context.cuda.stream());
       return true;
     } else if (request.context_type == ContextEnum::cpu) {
-      gpump_cpu_ack_recv(request.comm, request.partner_rank);
-      return gpump_is_receive_complete(request.comm, request.partner_rank);
+      detail::gpump::cpu_ack_recv(request.comm, request.partner_rank);
+      return detail::gpump::is_receive_complete(request.comm, request.partner_rank);
     } else {
       assert(0);
     }
@@ -518,7 +518,7 @@ private:
     if (request.context_type == ContextEnum::cuda) {
       assert(0);
     } else if (request.context_type == ContextEnum::cpu) {
-      return gpump_is_receive_complete(request.comm, request.partner_rank);
+      return detail::gpump::is_receive_complete(request.comm, request.partner_rank);
     } else {
       assert(0);
     }
