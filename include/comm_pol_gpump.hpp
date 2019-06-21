@@ -24,6 +24,7 @@
 
 #include "for_all.hpp"
 #include "utils.hpp"
+#include "utils_cuda.hpp"
 #include "MessageBase.hpp"
 
 struct GpumpRequest

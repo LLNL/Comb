@@ -31,6 +31,7 @@
 #include <mpi.h>
 
 #include "utils.hpp"
+#include "utils_cuda.hpp"
 
 
 inline bool& get_batch_always_grid_sync()

@@ -16,6 +16,8 @@
 #ifndef _POL_MPI_TYPE_HPP
 #define _POL_MPI_TYPE_HPP
 
+#include "config.hpp"
+
 // execution policy indicating that message packing/unpacking should be done
 // in MPI using MPI_Types
 struct mpi_type_pol {

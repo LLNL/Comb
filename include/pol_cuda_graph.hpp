@@ -16,6 +16,8 @@
 #ifndef _POL_CUDA_GRAPH_HPP
 #define _POL_CUDA_GRAPH_HPP
 
+#include "config.hpp"
+
 #ifdef COMB_ENABLE_CUDA_GRAPH
 #include "graph_launch.hpp"
 

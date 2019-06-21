@@ -16,7 +16,10 @@
 #ifndef _POL_OMP_HPP
 #define _POL_OMP_HPP
 
+#include "config.hpp"
+
 #ifdef COMB_ENABLE_OPENMP
+
 #include <omp.h>
 
 // #define COMB_USE_OMP_COLLAPSE

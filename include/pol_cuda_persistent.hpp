@@ -16,6 +16,8 @@
 #ifndef _POL_CUDA_PERSISTENT_HPP
 #define _POL_CUDA_PERSISTENT_HPP
 
+#include "config.hpp"
+
 #ifdef COMB_ENABLE_CUDA
 #include "persistent_launch.hpp"
 

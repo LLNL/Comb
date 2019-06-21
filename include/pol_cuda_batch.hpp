@@ -16,6 +16,8 @@
 #ifndef _POL_CUDA_BATCH_HPP
 #define _POL_CUDA_BATCH_HPP
 
+#include "config.hpp"
+
 #ifdef COMB_ENABLE_CUDA
 #include "batch_launch.hpp"
 

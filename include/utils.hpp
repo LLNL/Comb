@@ -169,8 +169,5 @@ set_idxr_idxr<I_src, T_dst, I_dst> make_set_idxr_idxr(I_src const& idxr_src, T_d
 
 } // namespace detail
 
-#include "utils_mpi.hpp"
-#include "utils_cuda.hpp"
-
 #endif // _UTILS_HPP
 

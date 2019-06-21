@@ -16,6 +16,8 @@
 #ifndef _POL_SEQ_HPP
 #define _POL_SEQ_HPP
 
+#include "config.hpp"
+
 #include "utils.hpp"
 
 struct seq_pol {

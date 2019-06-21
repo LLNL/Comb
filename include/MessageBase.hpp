@@ -25,6 +25,7 @@
 #include "memory.hpp"
 #include "for_all.hpp"
 #include "utils.hpp"
+#include "utils_mpi.hpp"
 
 namespace detail {
 
