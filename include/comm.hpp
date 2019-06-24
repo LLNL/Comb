@@ -1335,6 +1335,7 @@ struct CommunicatorsAvailable
   bool mock = false;
   bool mpi = false;
   bool gpump = false;
+  bool mp = false;
 };
 
 } // namespace COMB

@@ -28,6 +28,7 @@ set(ENABLE_MPI ON CACHE Bool "Build MPI support")
 set(ENABLE_OPENMP OFF CACHE Bool "Build OpenMP support")
 set(ENABLE_CUDA OFF CACHE Bool "Build CUDA support")
 set(ENABLE_GPUMP OFF CACHE Bool "Build GPUMP support")
+set(ENABLE_MP OFF CACHE Bool "Build MP support")
 
 set(COMB_CXX_STANDARD_FLAG "default" CACHE STRING "Specific c++ standard flag to use, default attempts to autodetect the highest available")
 
@@ -79,7 +80,8 @@ set(comb_sources
   src/test_copy.cpp
   src/test_cycles_mock.cpp
   src/test_cycles_mpi.cpp
-  src/test_cycles_gpump.cpp)
+  src/test_cycles_gpump.cpp
+  src/test_cycles_mp.cpp)
 
 set(comb_depends )
 
@@ -97,6 +99,10 @@ endif()
 
 if (ENABLE_GPUMP)
   set(comb_depends ${comb_depends} gpump)
+endif()
+
+if (ENABLE_MP)
+  set(comb_depends ${comb_depends} mp)
 endif()
 
 blt_add_executable(

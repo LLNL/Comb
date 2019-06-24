@@ -161,6 +161,15 @@ extern void test_cycles_gpump(CommInfo& comminfo, MeshInfo& info,
                               IdxT num_vars, IdxT ncycles, Timer& tm, Timer& tm_total);
 #endif
 
+#ifdef COMB_ENABLE_MP
+extern void test_cycles_mp(CommInfo& comminfo, MeshInfo& info,
+                           COMB::ExecContexts& exec,
+                           COMB::Allocators& alloc,
+                           COMB::AllocatorsAvailable& memory_avail,
+                           COMB::ExecutorsAvailable& exec_avail,
+                           IdxT num_vars, IdxT ncycles, Timer& tm, Timer& tm_total);
+#endif
+
 } // namespace COMB
 
 #endif // _COMB_HPP

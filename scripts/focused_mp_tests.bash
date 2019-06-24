@@ -80,8 +80,8 @@ comb_args="${comb_args} -memory enable cuda_managed"
 comb_args="${comb_args} -comm enable mock"
 # enable mpi communication tests
 comb_args="${comb_args} -comm enable mpi"
-# enable gpump communication tests
-comb_args="${comb_args} -comm enable gpump"
+# enable mp communication tests
+comb_args="${comb_args} -comm enable mp"
 
 # set up arguments for communication method
 wait_any_method="-comm post_recv wait_any -comm post_send wait_any -comm wait_recv wait_any -comm wait_send wait_all"

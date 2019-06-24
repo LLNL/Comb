@@ -64,3 +64,29 @@ if (ENABLE_GPUMP)
                        LINK_FLAGS    ${GPUMP_CXX_LINK_FLAGS}
                        DEFINES USE_GPUMP)
 endif()
+
+
+if (ENABLE_MP)
+  message(STATUS "FindMP.camke ${PROJECT_SOURCE_DIR}/cmake")
+  set (CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake;${CMAKE_MODULE_PATH}")
+  find_package(MP REQUIRED)
+
+  if (MP_FOUND)
+    message(STATUS "MP Enabled")
+    message(STATUS "MP  Compile Flags:  ${MP_CXX_COMPILE_FLAGS}")
+    message(STATUS "MP  Include Path:   ${MP_INCLUDE_PATH}")
+    message(STATUS "MP  Link Flags:     ${MP_CXX_LINK_FLAGS}")
+    message(STATUS "MP  Libraries:      ${MP_CXX_LIBRARIES}")
+    message(STATUS "MP  Device Arch:    ${MP_ARCH}")
+  else()
+    message(FATAL_ERROR "mp NOT FOUND")
+  endif()
+
+  # register MP with blt
+  blt_register_library(NAME mp
+                       INCLUDES ${MP_CXX_INCLUDE_PATH}
+                       LIBRARIES ${MP_CXX_LIBRARIES}
+                       COMPILE_FLAGS ${MP_CXX_COMPILE_FLAGS}
+                       LINK_FLAGS    ${MP_CXX_LINK_FLAGS}
+                       DEFINES USE_MP)
+endif()
