@@ -260,13 +260,11 @@ private:
   void start_Isend(CPUContext const&, communicator_type comm)
   {
     detail::mp::isend(comm, partner_rank(), m_region, 0, nbytes());
-    detail::mp::cpu_ack_isend(comm, partner_rank());
   }
 
   void start_Isend(CudaContext const& con, communicator_type comm)
   {
     detail::mp::stream_send(comm, partner_rank(), con.stream(), m_region, 0, nbytes());
-    detail::mp::stream_wait_send_complete(comm, partner_rank(), con.stream());
   }
 
 public:
@@ -308,6 +306,16 @@ public:
   }
 
 private:
+  void wait_send(CPUContext const&, communicator_type comm)
+  {
+    // already done
+  }
+
+  void wait_send(CudaContext const& con, communicator_type comm)
+  {
+    detail::mp::wait_send_complete(comm, partner_rank());
+  }
+
   void wait_recv(CPUContext const&, communicator_type comm)
   {
     // already done
@@ -326,7 +334,7 @@ public:
     if (m_buf != nullptr) {
 
       if (m_kind == Kind::send) {
-        // already done
+        wait_send(con, comm);
       } else if (m_kind == Kind::recv) {
         wait_recv(con, comm);
       }
@@ -342,8 +350,10 @@ private:
   static bool start_wait_send(send_request_type& request)
   {
     if (request.context_type == ContextEnum::cuda) {
-      return detail::mp::is_send_complete(request.comm, request.partner_rank);
+      detail::mp::stream_wait_send_complete(request.comm, request.partner_rank, request.context.cuda.stream());
+      return true;
     } else if (request.context_type == ContextEnum::cpu) {
+      detail::mp::cpu_ack_isend(request.comm, request.partner_rank);
       return detail::mp::is_send_complete(request.comm, request.partner_rank);
     } else {
       assert(0);
@@ -354,7 +364,7 @@ private:
   static bool test_waiting_send(send_request_type& request)
   {
     if (request.context_type == ContextEnum::cuda) {
-      return detail::mp::is_send_complete(request.comm, request.partner_rank);
+      assert(0);
     } else if (request.context_type == ContextEnum::cpu) {
       return detail::mp::is_send_complete(request.comm, request.partner_rank);
     } else {
