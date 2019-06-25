@@ -41,7 +41,7 @@ endif()
 
 
 if (ENABLE_GPUMP)
-  message(STATUS "FindGPUMP.camke ${PROJECT_SOURCE_DIR}/cmake")
+  message(STATUS "FindGPUMP.cmake ${PROJECT_SOURCE_DIR}/cmake")
   set (CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake;${CMAKE_MODULE_PATH}")
   find_package(gpump REQUIRED)
 
@@ -67,7 +67,7 @@ endif()
 
 
 if (ENABLE_MP)
-  message(STATUS "FindMP.camke ${PROJECT_SOURCE_DIR}/cmake")
+  message(STATUS "FindMP.cmake ${PROJECT_SOURCE_DIR}/cmake")
   set (CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake;${CMAKE_MODULE_PATH}")
   find_package(MP REQUIRED)
 
@@ -89,4 +89,30 @@ if (ENABLE_MP)
                        COMPILE_FLAGS ${MP_CXX_COMPILE_FLAGS}
                        LINK_FLAGS    ${MP_CXX_LINK_FLAGS}
                        DEFINES USE_MP)
+endif()
+
+
+if (ENABLE_UMR)
+  message(STATUS "FindUMR.cmake ${PROJECT_SOURCE_DIR}/cmake")
+  set (CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake;${CMAKE_MODULE_PATH}")
+  find_package(UMR REQUIRED)
+
+  if (UMR_FOUND)
+    message(STATUS "UMR Enabled")
+    message(STATUS "UMR  Compile Flags:  ${UMR_CXX_COMPILE_FLAGS}")
+    message(STATUS "UMR  Include Path:   ${UMR_INCLUDE_PATH}")
+    message(STATUS "UMR  Link Flags:     ${UMR_CXX_LINK_FLAGS}")
+    message(STATUS "UMR  Libraries:      ${UMR_CXX_LIBRARIES}")
+    message(STATUS "UMR  Device Arch:    ${UMR_ARCH}")
+  else()
+    message(FATAL_ERROR "UMR NOT FOUND")
+  endif()
+
+  # register UMR with blt
+  blt_register_library(NAME UMR
+                       INCLUDES ${UMR_CXX_INCLUDE_PATH}
+                       LIBRARIES ${UMR_CXX_LIBRARIES}
+                       COMPILE_FLAGS ${UMR_CXX_COMPILE_FLAGS}
+                       LINK_FLAGS    ${UMR_CXX_LINK_FLAGS}
+                       DEFINES USE_UMR)
 endif()

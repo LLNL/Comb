@@ -1336,6 +1336,7 @@ struct CommunicatorsAvailable
   bool mpi = false;
   bool gpump = false;
   bool mp = false;
+  bool umr = false;
 };
 
 } // namespace COMB

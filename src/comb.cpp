@@ -174,6 +174,9 @@ int main(int argc, char** argv)
 #ifdef COMB_ENABLE_MP
                 comm_avail.mp = enabledisable;
 #endif
+#ifdef COMB_ENABLE_UMR
+                comm_avail.umr = enabledisable;
+#endif
               } else if (strcmp(argv[i], "mock") == 0) {
                 comm_avail.mock = enabledisable;
               } else if (strcmp(argv[i], "mpi") == 0) {
@@ -185,6 +188,10 @@ int main(int argc, char** argv)
               } else if (strcmp(argv[i], "mp") == 0) {
 #ifdef COMB_ENABLE_MP
                 comm_avail.mp = enabledisable;
+#endif
+              } else if (strcmp(argv[i], "umr") == 0) {
+#ifdef COMB_ENABLE_UMR
+                comm_avail.umr = enabledisable;
 #endif
               } else {
                 comminfo.print(FileGroup::err_master, "Invalid argument to sub-option, ignoring %s %s %s.\n", argv[i-2], argv[i-1], argv[i]);
@@ -618,6 +625,11 @@ int main(int argc, char** argv)
 #ifdef COMB_ENABLE_MP
   if (comm_avail.mp)
     COMB::test_cycles_mp(comminfo, info, exec, alloc, memory_avail, exec_avail, num_vars, ncycles, tm, tm_total);
+#endif
+
+#ifdef COMB_ENABLE_UMR
+  if (comm_avail.umr)
+    COMB::test_cycles_umr(comminfo, info, exec, alloc, memory_avail, exec_avail, num_vars, ncycles, tm, tm_total);
 #endif
 
   } // end region MPI communication via comminfo

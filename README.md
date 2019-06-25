@@ -62,6 +62,7 @@ The runtime options change the properties of the grid and its decomposition, as 
           -   __mpi__ mpi message passing execution pattern
           -   __gpump__ libgpump message passing execution pattern
           -   __mp__ libmp message passing execution pattern (experimental)
+          -   __umr__ umr message passing execution pattern (experimental)
       -   __post_recv *option*__ Communication post receive (MPI_Irecv) options
           -   __wait_any__ Post recvs one-by-one
           -   __wait_some__ Post recvs one-by-one
