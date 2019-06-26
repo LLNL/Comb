@@ -396,11 +396,9 @@ struct Comm
         for (IdxT i = 0; i < num_recvs; ++i) {
 
           if (m_recvs[i].have_many()) {
-            m_recv_contexts_many[i] = con_many;
             m_recvs[i].allocate(m_recv_contexts_many[i], communicator, many_aloc);
             m_recvs[i].Irecv(m_recv_contexts_many[i], communicator, &m_recv_requests[i]);
           } else {
-            m_recv_contexts_few[i] = con_few;
             m_recvs[i].allocate(m_recv_contexts_few[i], communicator, few_aloc);
             m_recvs[i].Irecv(m_recv_contexts_few[i], communicator, &m_recv_requests[i]);
           }
@@ -413,11 +411,9 @@ struct Comm
         for (IdxT i = 0; i < num_recvs; ++i) {
 
           if (m_recvs[i].have_many()) {
-            m_recv_contexts_many[i] = con_many;
             m_recvs[i].allocate(m_recv_contexts_many[i], communicator, many_aloc);
             m_recvs[i].Irecv(m_recv_contexts_many[i], communicator, &m_recv_requests[i]);
           } else {
-            m_recv_contexts_few[i] = con_few;
             m_recvs[i].allocate(m_recv_contexts_few[i], communicator, few_aloc);
             m_recvs[i].Irecv(m_recv_contexts_few[i], communicator, &m_recv_requests[i]);
           }
@@ -430,10 +426,8 @@ struct Comm
         for (IdxT i = 0; i < num_recvs; ++i) {
 
           if (m_recvs[i].have_many()) {
-            m_recv_contexts_many[i] = con_many;
             m_recvs[i].allocate(m_recv_contexts_many[i], communicator, many_aloc);
           } else {
-            m_recv_contexts_few[i] = con_few;
             m_recvs[i].allocate(m_recv_contexts_few[i], communicator, few_aloc);
           }
         }
@@ -468,13 +462,11 @@ struct Comm
         for (IdxT i = 0; i < num_sends; ++i) {
 
           if (m_sends[i].have_many()) {
-            m_send_contexts_many[i] = con_many;
             m_sends[i].allocate(m_send_contexts_many[i], communicator, many_aloc);
             m_sends[i].pack(m_send_contexts_many[i], communicator);
             synchronize(m_send_contexts_many[i]);
             m_sends[i].Isend(m_send_contexts_many[i], communicator, &m_send_requests[i]);
           } else {
-            m_send_contexts_few[i] = con_few;
             m_sends[i].allocate(m_send_contexts_few[i], communicator, few_aloc);
             m_sends[i].pack(m_send_contexts_few[i], communicator);
             synchronize(m_send_contexts_few[i]);
@@ -492,11 +484,9 @@ struct Comm
         for (IdxT i = 0; i < num_sends; ++i) {
 
           if (m_sends[i].have_many()) {
-            m_send_contexts_many[i] = con_many;
             m_sends[i].allocate(m_send_contexts_many[i], communicator, many_aloc);
             have_many = true;
           } else {
-            m_send_contexts_few[i] = con_few;
             m_sends[i].allocate(m_send_contexts_few[i], communicator, few_aloc);
             have_few = true;
           }
@@ -605,7 +595,6 @@ struct Comm
           for (IdxT i = 0; i < num_sends; ++i) {
 
             if (m_sends[i].have_many()) {
-              m_send_contexts_many[i] = con_many;
               m_sends[i].allocate(m_send_contexts_many[i], communicator, many_aloc);
               m_sends[i].pack(m_send_contexts_many[i], communicator);
               found_many = true;
@@ -631,7 +620,6 @@ struct Comm
           for (IdxT i = 0; i < num_sends; ++i) {
 
             if (!m_sends[i].have_many()) {
-              m_send_contexts_few[i] = con_few;
               m_sends[i].allocate(m_send_contexts_few[i], communicator, few_aloc);
               m_sends[i].pack(m_send_contexts_few[i], communicator);
 
@@ -653,11 +641,9 @@ struct Comm
         for (IdxT i = 0; i < num_sends; ++i) {
 
           if (m_sends[i].have_many()) {
-            m_send_contexts_many[i] = con_many;
             m_sends[i].allocate(m_send_contexts_many[i], communicator, many_aloc);
             have_many = true;
           } else {
-            m_send_contexts_few[i] = con_few;
             m_sends[i].allocate(m_send_contexts_few[i], communicator, few_aloc);
             have_few = true;
           }
@@ -833,12 +819,10 @@ struct Comm
         for (IdxT i = 0; i < num_sends; ++i) {
 
           if (m_sends[i].have_many()) {
-            m_send_contexts_many[i] = con_many;
             m_sends[i].allocate(m_send_contexts_many[i], communicator, many_aloc);
             m_sends[i].pack(m_send_contexts_many[i], communicator);
             have_many = true;
           } else {
-            m_send_contexts_few[i] = con_few;
             m_sends[i].allocate(m_send_contexts_few[i], communicator, few_aloc);
             m_sends[i].pack(m_send_contexts_few[i], communicator);
             have_few = true;
@@ -872,11 +856,9 @@ struct Comm
         for (IdxT i = 0; i < num_sends; ++i) {
 
           if (m_sends[i].have_many()) {
-            m_send_contexts_many[i] = con_many;
             m_sends[i].allocate(m_send_contexts_many[i], communicator, many_aloc);
             have_many = true;
           } else {
-            m_send_contexts_few[i] = con_few;
             m_sends[i].allocate(m_send_contexts_few[i], communicator, few_aloc);
             have_few = true;
           }
@@ -1024,12 +1006,10 @@ struct Comm
           }
 
           if (m_recvs[idx].have_many()) {
-            m_recv_contexts_many[idx] = con_many;
             m_recvs[idx].unpack(m_recv_contexts_many[idx], communicator);
             m_recvs[idx].deallocate(m_recv_contexts_many[idx], communicator, many_aloc);
             batch_launch(m_recv_contexts_many[idx]);
           } else {
-            m_recv_contexts_few[idx] = con_few;
             m_recvs[idx].unpack(m_recv_contexts_few[idx], communicator);
             m_recvs[idx].deallocate(m_recv_contexts_few[idx], communicator, few_aloc);
             batch_launch(m_recv_contexts_few[idx]);
@@ -1096,7 +1076,6 @@ struct Comm
 
             if (m_recvs[indices[i]].have_many()) {
 
-              m_recv_contexts_many[indices[i]] = con_many;
               m_recvs[indices[i]].unpack(m_recv_contexts_many[indices[i]], communicator);
               m_recvs[indices[i]].deallocate(m_recv_contexts_many[indices[i]], communicator, many_aloc);
 
@@ -1114,7 +1093,6 @@ struct Comm
 
             if (!m_recvs[indices[i]].have_many()) {
 
-              m_recv_contexts_few[indices[i]] = con_few;
               m_recvs[indices[i]].unpack(m_recv_contexts_few[indices[i]], communicator);
               m_recvs[indices[i]].deallocate(m_recv_contexts_few[indices[i]], communicator, few_aloc);
 
@@ -1170,12 +1148,10 @@ struct Comm
         while (num_done < num_recvs) {
 
           if (m_recvs[num_done].have_many()) {
-            m_recv_contexts_many[num_done] = con_many;
             m_recvs[num_done].unpack(m_recv_contexts_many[num_done], communicator);
             m_recvs[num_done].deallocate(m_recv_contexts_many[num_done], communicator, many_aloc);
             have_many = true;
           } else {
-            m_recv_contexts_few[num_done] = con_few;
             m_recvs[num_done].unpack(m_recv_contexts_few[num_done], communicator);
             m_recvs[num_done].deallocate(m_recv_contexts_few[num_done], communicator, few_aloc);
             have_few = true;
@@ -1245,10 +1221,8 @@ struct Comm
           }
 
           if (m_sends[idx].have_many()) {
-            m_send_contexts_many[idx] = con_many;
             m_sends[idx].deallocate(m_send_contexts_many[idx], communicator, many_aloc);
           } else {
-            m_send_contexts_few[idx] = con_few;
             m_sends[idx].deallocate(m_send_contexts_few[idx], communicator, few_aloc);
           }
 
@@ -1278,10 +1252,8 @@ struct Comm
 
             IdxT idx = indices[i];
             if (m_sends[idx].have_many()) {
-              m_send_contexts_many[idx] = con_many;
               m_sends[idx].deallocate(m_send_contexts_many[idx], communicator, many_aloc);
             } else {
-              m_send_contexts_few[idx] = con_few;
               m_sends[idx].deallocate(m_send_contexts_few[idx], communicator, few_aloc);
             }
 
@@ -1308,10 +1280,8 @@ struct Comm
 
           IdxT idx = num_done;
           if (m_sends[idx].have_many()) {
-            m_send_contexts_many[idx] = con_many;
             m_sends[idx].deallocate(m_send_contexts_many[idx], communicator, many_aloc);
           } else {
-            m_send_contexts_few[idx] = con_few;
             m_sends[idx].deallocate(m_send_contexts_few[idx], communicator, few_aloc);
           }
 
