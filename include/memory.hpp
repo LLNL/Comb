@@ -298,6 +298,12 @@ struct AllocatorsAvailable
   bool cuda_managed_host_preferred_device_accessed = false;
   bool cuda_managed_device_preferred = false;
   bool cuda_managed_device_preferred_host_accessed = false;
+};
+
+struct AllocatorsAccessible
+{
+  // special flag to enable tests that pass device buffers to MPI
+  bool cuda_aware_mpi = false;
   // special flag to enable tests that access host pageable memory from the device
   bool cuda_host_accessible_from_device = false;
   // special flag to enable tests that access device memory from the host

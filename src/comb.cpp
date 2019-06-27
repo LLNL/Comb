@@ -101,6 +101,8 @@ int main(int argc, char** argv)
   COMB::AllocatorsAvailable memory_avail;
   memory_avail.host = true;
 
+  COMB::AllocatorsAccessible memory_accessible;
+
   IdxT i = 1;
   IdxT s = 0;
   for(; i < argc; ++i) {
@@ -445,13 +447,19 @@ int main(int argc, char** argv)
         }
       } else if (strcmp(&argv[i][1], "cuda_aware_mpi") == 0) {
 #ifdef COMB_ENABLE_CUDA
-        exec_avail.cuda_aware_mpi = true;
+        memory_accessible.cuda_aware_mpi = true;
 #else
         comminfo.print(FileGroup::err_master, "Not built with cuda, ignoring %s.\n", argv[i]);
 #endif
       } else if (strcmp(&argv[i][1], "cuda_host_accessible_from_device") == 0) {
 #ifdef COMB_ENABLE_CUDA
-        memory_avail.cuda_host_accessible_from_device = COMB::detail::cuda::get_host_accessible_from_device();
+        memory_accessible.cuda_host_accessible_from_device = COMB::detail::cuda::get_host_accessible_from_device();
+#else
+        comminfo.print(FileGroup::err_master, "Not built with cuda, ignoring %s.\n", argv[i]);
+#endif
+      } else if (strcmp(&argv[i][1], "cuda_device_accessible_from_host") == 0) {
+#ifdef COMB_ENABLE_CUDA
+        memory_accessible.cuda_device_accessible_from_host = COMB::detail::cuda::get_device_accessible_from_host();
 #else
         comminfo.print(FileGroup::err_master, "Not built with cuda, ignoring %s.\n", argv[i]);
 #endif
@@ -609,27 +617,27 @@ int main(int argc, char** argv)
   // warm-up memory pools
   COMB::warmup(exec, alloc, tm, num_vars+1, info.totallen);
 
-  COMB::test_copy(comminfo, exec, alloc, memory_avail, exec_avail, tm, num_vars, info.totallen, ncycles);
+  COMB::test_copy(comminfo, exec, alloc, memory_avail, memory_accessible, exec_avail, tm, num_vars, info.totallen, ncycles);
 
   if (comm_avail.mock)
-    COMB::test_cycles_mock(comminfo, info, exec, alloc, memory_avail, exec_avail, num_vars, ncycles, tm, tm_total);
+    COMB::test_cycles_mock(comminfo, info, exec, alloc, memory_avail, memory_accessible, exec_avail, num_vars, ncycles, tm, tm_total);
 
   if (comm_avail.mpi)
-    COMB::test_cycles_mpi(comminfo, info, exec, alloc, memory_avail, exec_avail, num_vars, ncycles, tm, tm_total);
+    COMB::test_cycles_mpi(comminfo, info, exec, alloc, memory_avail, memory_accessible, exec_avail, num_vars, ncycles, tm, tm_total);
 
 #ifdef COMB_ENABLE_GPUMP
   if (comm_avail.gpump)
-    COMB::test_cycles_gpump(comminfo, info, exec, alloc, memory_avail, exec_avail, num_vars, ncycles, tm, tm_total);
+    COMB::test_cycles_gpump(comminfo, info, exec, alloc, memory_avail, memory_accessible, exec_avail, num_vars, ncycles, tm, tm_total);
 #endif
 
 #ifdef COMB_ENABLE_MP
   if (comm_avail.mp)
-    COMB::test_cycles_mp(comminfo, info, exec, alloc, memory_avail, exec_avail, num_vars, ncycles, tm, tm_total);
+    COMB::test_cycles_mp(comminfo, info, exec, alloc, memory_avail, memory_accessible, exec_avail, num_vars, ncycles, tm, tm_total);
 #endif
 
 #ifdef COMB_ENABLE_UMR
   if (comm_avail.umr)
-    COMB::test_cycles_umr(comminfo, info, exec, alloc, memory_avail, exec_avail, num_vars, ncycles, tm, tm_total);
+    COMB::test_cycles_umr(comminfo, info, exec, alloc, memory_avail, memory_accessible, exec_avail, num_vars, ncycles, tm, tm_total);
 #endif
 
   } // end region MPI communication via comminfo

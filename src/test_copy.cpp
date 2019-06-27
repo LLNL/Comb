@@ -18,7 +18,11 @@
 namespace COMB {
 
 template < typename pol >
-void do_copy(ExecContext<pol> const& con, CommInfo& comminfo, COMB::Allocator& src_aloc, COMB::Allocator& dst_aloc, Timer& tm, IdxT num_vars, IdxT len, IdxT nrepeats)
+void do_copy(ExecContext<pol> const& con,
+             CommInfo& comminfo,
+             COMB::Allocator& src_aloc,
+             COMB::Allocator& dst_aloc,
+             Timer& tm, IdxT num_vars, IdxT len, IdxT nrepeats)
 {
   tm.clear();
 
@@ -81,6 +85,7 @@ void test_copy(CommInfo& comminfo,
                COMB::ExecContexts& exec,
                COMB::Allocators& alloc,
                COMB::AllocatorsAvailable& memory_avail,
+               COMB::AllocatorsAccessible& memory_accessible,
                COMB::ExecutorsAvailable& exec_avail,
                Timer& tm, IdxT num_vars, IdxT len, IdxT nrepeats)
 {
@@ -96,7 +101,7 @@ void test_copy(CommInfo& comminfo,
 #endif
 
 #ifdef COMB_ENABLE_CUDA
-    if (memory_avail.cuda_host_accessible_from_device) {
+    if (memory_accessible.cuda_host_accessible_from_device) {
 
       if (exec_avail.cuda) do_copy(exec.cuda, comminfo, alloc.host, alloc.host, tm, num_vars, len, nrepeats);
 
@@ -153,7 +158,7 @@ void test_copy(CommInfo& comminfo,
     char name[1024] = ""; snprintf(name, 1024, "set_vars %s", alloc.device.name());
     Range r0(name, Range::green);
 
-    if (memory_avail.cuda_device_accessible_from_host) {
+    if (memory_accessible.cuda_device_accessible_from_host) {
       if (exec_avail.seq) do_copy(exec.seq, comminfo, alloc.device, alloc.host, tm, num_vars, len, nrepeats);
 
 #ifdef COMB_ENABLE_OPENMP

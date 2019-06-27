@@ -135,6 +135,7 @@ extern void test_copy(CommInfo& comminfo,
                       COMB::ExecContexts& exec,
                       COMB::Allocators& alloc,
                       COMB::AllocatorsAvailable& memory_avail,
+                      COMB::AllocatorsAccessible& memory_accessible,
                       COMB::ExecutorsAvailable& exec_avail,
                       Timer& tm, IdxT num_vars, IdxT len, IdxT nrepeats);
 
@@ -142,6 +143,7 @@ extern void test_cycles_mock(CommInfo& comminfo, MeshInfo& info,
                              COMB::ExecContexts& exec,
                              COMB::Allocators& alloc,
                              COMB::AllocatorsAvailable& memory_avail,
+                             COMB::AllocatorsAccessible& memory_accessible,
                              COMB::ExecutorsAvailable& exec_avail,
                              IdxT num_vars, IdxT ncycles, Timer& tm, Timer& tm_total);
 
@@ -149,6 +151,7 @@ extern void test_cycles_mpi(CommInfo& comminfo, MeshInfo& info,
                             COMB::ExecContexts& exec,
                             COMB::Allocators& alloc,
                             COMB::AllocatorsAvailable& memory_avail,
+                            COMB::AllocatorsAccessible& memory_accessible,
                             COMB::ExecutorsAvailable& exec_avail,
                             IdxT num_vars, IdxT ncycles, Timer& tm, Timer& tm_total);
 
@@ -157,6 +160,7 @@ extern void test_cycles_gpump(CommInfo& comminfo, MeshInfo& info,
                               COMB::ExecContexts& exec,
                               COMB::Allocators& alloc,
                               COMB::AllocatorsAvailable& memory_avail,
+                              COMB::AllocatorsAccessible& memory_accessible,
                               COMB::ExecutorsAvailable& exec_avail,
                               IdxT num_vars, IdxT ncycles, Timer& tm, Timer& tm_total);
 #endif
@@ -166,6 +170,7 @@ extern void test_cycles_mp(CommInfo& comminfo, MeshInfo& info,
                            COMB::ExecContexts& exec,
                            COMB::Allocators& alloc,
                            COMB::AllocatorsAvailable& memory_avail,
+                           COMB::AllocatorsAccessible& memory_accessible,
                            COMB::ExecutorsAvailable& exec_avail,
                            IdxT num_vars, IdxT ncycles, Timer& tm, Timer& tm_total);
 #endif
@@ -175,6 +180,7 @@ extern void test_cycles_umr(CommInfo& comminfo, MeshInfo& info,
                             COMB::ExecContexts& exec,
                             COMB::Allocators& alloc,
                             COMB::AllocatorsAvailable& memory_avail,
+                            COMB::AllocatorsAccessible& memory_accessible,
                             COMB::ExecutorsAvailable& exec_avail,
                             IdxT num_vars, IdxT ncycles, Timer& tm, Timer& tm_total);
 #endif
