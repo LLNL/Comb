@@ -279,13 +279,13 @@ struct ManagedDevicePreferredHostAccessedAllocator : Allocator
 struct Allocators
 {
   HostAllocator host;
-  HostPinnedAllocator hostpinned;
-  DeviceAllocator device;
-  ManagedAllocator managed;
-  ManagedHostPreferredAllocator managed_host_preferred;
-  ManagedHostPreferredDeviceAccessedAllocator managed_host_preferred_device_accessed;
-  ManagedDevicePreferredAllocator managed_device_preferred;
-  ManagedDevicePreferredHostAccessedAllocator managed_device_preferred_host_accessed;
+  HostPinnedAllocator cuda_hostpinned;
+  DeviceAllocator cuda_device;
+  ManagedAllocator cuda_managed;
+  ManagedHostPreferredAllocator cuda_managed_host_preferred;
+  ManagedHostPreferredDeviceAccessedAllocator cuda_managed_host_preferred_device_accessed;
+  ManagedDevicePreferredAllocator cuda_managed_device_preferred;
+  ManagedDevicePreferredHostAccessedAllocator cuda_managed_device_preferred_host_accessed;
 };
 
 struct AllocatorsAvailable

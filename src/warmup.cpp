@@ -53,32 +53,32 @@ void warmup(COMB::ExecContexts& exec,
 #endif
 
 #ifdef COMB_ENABLE_CUDA
-  do_warmup(exec.seq, alloc.hostpinned, tm, num_vars, len);
+  do_warmup(exec.seq, alloc.cuda_hostpinned, tm, num_vars, len);
 
-  do_warmup(exec.cuda, alloc.device, tm, num_vars, len);
+  do_warmup(exec.cuda, alloc.cuda_device, tm, num_vars, len);
 
-  do_warmup(exec.seq,  alloc.managed, tm, num_vars, len);
-  do_warmup(exec.cuda, alloc.managed, tm, num_vars, len);
+  do_warmup(exec.seq,  alloc.cuda_managed, tm, num_vars, len);
+  do_warmup(exec.cuda, alloc.cuda_managed, tm, num_vars, len);
 
-  do_warmup(exec.seq,        alloc.managed_host_preferred, tm, num_vars, len);
-  do_warmup(exec.cuda_batch, alloc.managed_host_preferred, tm, num_vars, len);
+  do_warmup(exec.seq,        alloc.cuda_managed_host_preferred, tm, num_vars, len);
+  do_warmup(exec.cuda_batch, alloc.cuda_managed_host_preferred, tm, num_vars, len);
 
-  do_warmup(exec.seq,             alloc.managed_host_preferred_device_accessed, tm, num_vars, len);
-  do_warmup(exec.cuda_persistent, alloc.managed_host_preferred_device_accessed, tm, num_vars, len);
+  do_warmup(exec.seq,             alloc.cuda_managed_host_preferred_device_accessed, tm, num_vars, len);
+  do_warmup(exec.cuda_persistent, alloc.cuda_managed_host_preferred_device_accessed, tm, num_vars, len);
 
   {
     SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
-    do_warmup(exec.seq,        alloc.managed_device_preferred, tm, num_vars, len);
-    do_warmup(exec.cuda_batch, alloc.managed_device_preferred, tm, num_vars, len);
+    do_warmup(exec.seq,        alloc.cuda_managed_device_preferred, tm, num_vars, len);
+    do_warmup(exec.cuda_batch, alloc.cuda_managed_device_preferred, tm, num_vars, len);
 
-    do_warmup(exec.seq,             alloc.managed_device_preferred_host_accessed, tm, num_vars, len);
-    do_warmup(exec.cuda_persistent, alloc.managed_device_preferred_host_accessed, tm, num_vars, len);
+    do_warmup(exec.seq,             alloc.cuda_managed_device_preferred_host_accessed, tm, num_vars, len);
+    do_warmup(exec.cuda_persistent, alloc.cuda_managed_device_preferred_host_accessed, tm, num_vars, len);
   }
 #endif
 
 #ifdef COMB_ENABLE_CUDA_GRAPH
-  do_warmup(exec.cuda_graph, alloc.device, tm, num_vars, len);
+  do_warmup(exec.cuda_graph, alloc.cuda_device, tm, num_vars, len);
 #endif
 }
 

@@ -128,7 +128,7 @@ void test_cycles_mpi(CommInfo& comminfo, MeshInfo& info,
 #ifdef COMB_ENABLE_CUDA
   // host pinned allocated
   if (memory_avail.cuda_hostpinned) {
-    COMB::Allocator& mesh_aloc = alloc.hostpinned;
+    COMB::Allocator& mesh_aloc = alloc.cuda_hostpinned;
 
     char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.name());
     Range r0(name, Range::blue);
@@ -159,46 +159,46 @@ void test_cycles_mpi(CommInfo& comminfo, MeshInfo& info,
 #endif
 
     if (exec_avail.cuda && exec_avail.cuda && exec_avail.seq)
-      do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda, alloc.hostpinned, exec.seq, alloc.host, tm, tm_total);
+      do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda, alloc.cuda_hostpinned, exec.seq, alloc.host, tm, tm_total);
 
     if (exec_avail.cuda && exec_avail.cuda && exec_avail.cuda)
-      do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda, alloc.hostpinned, exec.cuda, alloc.hostpinned, tm, tm_total);
+      do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda, alloc.cuda_hostpinned, exec.cuda, alloc.cuda_hostpinned, tm, tm_total);
 
     {
       if (exec_avail.cuda && exec_avail.cuda_batch && exec_avail.seq)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.hostpinned, exec.seq, alloc.host, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.cuda_hostpinned, exec.seq, alloc.host, tm, tm_total);
 
       if (exec_avail.cuda && exec_avail.cuda_batch && exec_avail.cuda_batch)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.hostpinned, exec.cuda_batch, alloc.hostpinned, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.cuda_hostpinned, exec.cuda_batch, alloc.cuda_hostpinned, tm, tm_total);
 
       if (exec_avail.cuda && exec_avail.cuda_persistent && exec_avail.seq)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.hostpinned, exec.seq, alloc.host, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.cuda_hostpinned, exec.seq, alloc.host, tm, tm_total);
 
       if (exec_avail.cuda && exec_avail.cuda_persistent && exec_avail.cuda_persistent)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.hostpinned, exec.cuda_persistent, alloc.hostpinned, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.cuda_hostpinned, exec.cuda_persistent, alloc.cuda_hostpinned, tm, tm_total);
 
 
       SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
       if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.seq)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.hostpinned, exec.seq, alloc.host, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.cuda_hostpinned, exec.seq, alloc.host, tm, tm_total);
 
       if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.cuda_batch_fewgs)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.hostpinned, exec.cuda_batch, alloc.hostpinned, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.cuda_hostpinned, exec.cuda_batch, alloc.cuda_hostpinned, tm, tm_total);
 
       if (exec_avail.cuda && exec_avail.cuda_persistent_fewgs && exec_avail.seq)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.hostpinned, exec.seq, alloc.host, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.cuda_hostpinned, exec.seq, alloc.host, tm, tm_total);
 
       if (exec_avail.cuda && exec_avail.cuda_persistent_fewgs && exec_avail.cuda_persistent_fewgs)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.hostpinned, exec.cuda_persistent, alloc.hostpinned, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.cuda_hostpinned, exec.cuda_persistent, alloc.cuda_hostpinned, tm, tm_total);
     }
 
 #ifdef COMB_ENABLE_CUDA_GRAPH
     if (exec_avail.cuda && exec_avail.cuda_graph && exec_avail.seq)
-      do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_graph, alloc.hostpinned, exec.seq, alloc.host, tm, tm_total);
+      do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_graph, alloc.cuda_hostpinned, exec.seq, alloc.host, tm, tm_total);
 
     if (exec_avail.cuda && exec_avail.cuda_graph && exec_avail.cuda_graph)
-      do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_graph, alloc.hostpinned, exec.cuda_graph, alloc.hostpinned, tm, tm_total);
+      do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_graph, alloc.cuda_hostpinned, exec.cuda_graph, alloc.cuda_hostpinned, tm, tm_total);
 #endif
 
     if (exec_avail.seq && exec_avail.mpi_type && exec_avail.mpi_type)
@@ -215,7 +215,7 @@ void test_cycles_mpi(CommInfo& comminfo, MeshInfo& info,
 
   // device allocated
   if (memory_avail.cuda_device) {
-    COMB::Allocator& mesh_aloc = alloc.device;
+    COMB::Allocator& mesh_aloc = alloc.cuda_device;
 
     char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.name());
     Range r0(name, Range::blue);
@@ -247,57 +247,57 @@ void test_cycles_mpi(CommInfo& comminfo, MeshInfo& info,
 #endif
 
       if (exec_avail.cuda && exec_avail.cuda && exec_avail.seq)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda, alloc.hostpinned, exec.seq, alloc.host, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda, alloc.cuda_hostpinned, exec.seq, alloc.host, tm, tm_total);
     }
 
     if (exec_avail.cuda && exec_avail.cuda && exec_avail.cuda)
-      do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda, alloc.hostpinned, exec.cuda, alloc.hostpinned, tm, tm_total);
+      do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda, alloc.cuda_hostpinned, exec.cuda, alloc.cuda_hostpinned, tm, tm_total);
 
     {
       if (memory_accessible.cuda_device_accessible_from_host) {
         if (exec_avail.cuda && exec_avail.cuda_batch && exec_avail.seq)
-          do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.hostpinned, exec.seq, alloc.host, tm, tm_total);
+          do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.cuda_hostpinned, exec.seq, alloc.host, tm, tm_total);
       }
 
       if (exec_avail.cuda && exec_avail.cuda_batch && exec_avail.cuda_batch)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.hostpinned, exec.cuda_batch, alloc.hostpinned, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.cuda_hostpinned, exec.cuda_batch, alloc.cuda_hostpinned, tm, tm_total);
 
       if (memory_accessible.cuda_device_accessible_from_host) {
         if (exec_avail.cuda && exec_avail.cuda_persistent && exec_avail.seq)
-          do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.hostpinned, exec.seq, alloc.host, tm, tm_total);
+          do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.cuda_hostpinned, exec.seq, alloc.host, tm, tm_total);
       }
 
       if (exec_avail.cuda && exec_avail.cuda_persistent && exec_avail.cuda_persistent)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.hostpinned, exec.cuda_persistent, alloc.hostpinned, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.cuda_hostpinned, exec.cuda_persistent, alloc.cuda_hostpinned, tm, tm_total);
 
 
       SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
       if (memory_accessible.cuda_device_accessible_from_host) {
         if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.seq)
-          do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.hostpinned, exec.seq, alloc.host, tm, tm_total);
+          do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.cuda_hostpinned, exec.seq, alloc.host, tm, tm_total);
       }
 
       if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.cuda_batch_fewgs)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.hostpinned, exec.cuda_batch, alloc.hostpinned, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.cuda_hostpinned, exec.cuda_batch, alloc.cuda_hostpinned, tm, tm_total);
 
       if (memory_accessible.cuda_device_accessible_from_host) {
         if (exec_avail.cuda && exec_avail.cuda_persistent_fewgs && exec_avail.seq)
-          do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.hostpinned, exec.seq, alloc.host, tm, tm_total);
+          do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.cuda_hostpinned, exec.seq, alloc.host, tm, tm_total);
       }
 
       if (exec_avail.cuda && exec_avail.cuda_persistent_fewgs && exec_avail.cuda_persistent_fewgs)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.hostpinned, exec.cuda_persistent, alloc.hostpinned, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.cuda_hostpinned, exec.cuda_persistent, alloc.cuda_hostpinned, tm, tm_total);
     }
 
 #ifdef COMB_ENABLE_CUDA_GRAPH
     if (memory_accessible.cuda_device_accessible_from_host) {
       if (exec_avail.cuda && exec_avail.cuda_graph && exec_avail.seq)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_graph, alloc.hostpinned, exec.seq, alloc.host, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_graph, alloc.cuda_hostpinned, exec.seq, alloc.host, tm, tm_total);
     }
 
     if (exec_avail.cuda && exec_avail.cuda_graph && exec_avail.cuda_graph)
-      do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_graph, alloc.hostpinned, exec.cuda_graph, alloc.hostpinned, tm, tm_total);
+      do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_graph, alloc.cuda_hostpinned, exec.cuda_graph, alloc.cuda_hostpinned, tm, tm_total);
 #endif
 
     if (memory_accessible.cuda_aware_mpi) {
@@ -320,7 +320,7 @@ void test_cycles_mpi(CommInfo& comminfo, MeshInfo& info,
 
   // managed allocated
   if (memory_avail.cuda_managed) {
-    COMB::Allocator& mesh_aloc = alloc.managed;
+    COMB::Allocator& mesh_aloc = alloc.cuda_managed;
 
     char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.name());
     Range r0(name, Range::blue);
@@ -351,46 +351,46 @@ void test_cycles_mpi(CommInfo& comminfo, MeshInfo& info,
 #endif
 
     if (exec_avail.cuda && exec_avail.cuda && exec_avail.seq)
-      do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda, alloc.hostpinned, exec.seq, alloc.host, tm, tm_total);
+      do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda, alloc.cuda_hostpinned, exec.seq, alloc.host, tm, tm_total);
 
     if (exec_avail.cuda && exec_avail.cuda && exec_avail.cuda)
-      do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda, alloc.hostpinned, exec.cuda, alloc.hostpinned, tm, tm_total);
+      do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda, alloc.cuda_hostpinned, exec.cuda, alloc.cuda_hostpinned, tm, tm_total);
 
     {
       if (exec_avail.cuda && exec_avail.cuda_batch && exec_avail.seq)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.hostpinned, exec.seq, alloc.host, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.cuda_hostpinned, exec.seq, alloc.host, tm, tm_total);
 
       if (exec_avail.cuda && exec_avail.cuda_batch && exec_avail.cuda_batch)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.hostpinned, exec.cuda_batch, alloc.hostpinned, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.cuda_hostpinned, exec.cuda_batch, alloc.cuda_hostpinned, tm, tm_total);
 
       if (exec_avail.cuda && exec_avail.cuda_persistent && exec_avail.seq)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.hostpinned, exec.seq, alloc.host, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.cuda_hostpinned, exec.seq, alloc.host, tm, tm_total);
 
       if (exec_avail.cuda && exec_avail.cuda_persistent && exec_avail.cuda_persistent)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.hostpinned, exec.cuda_persistent, alloc.hostpinned, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.cuda_hostpinned, exec.cuda_persistent, alloc.cuda_hostpinned, tm, tm_total);
 
 
       SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
       if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.seq)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.hostpinned, exec.seq, alloc.host, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.cuda_hostpinned, exec.seq, alloc.host, tm, tm_total);
 
       if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.cuda_batch_fewgs)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.hostpinned, exec.cuda_batch, alloc.hostpinned, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.cuda_hostpinned, exec.cuda_batch, alloc.cuda_hostpinned, tm, tm_total);
 
       if (exec_avail.cuda && exec_avail.cuda_persistent_fewgs && exec_avail.seq)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.hostpinned, exec.seq, alloc.host, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.cuda_hostpinned, exec.seq, alloc.host, tm, tm_total);
 
       if (exec_avail.cuda && exec_avail.cuda_persistent_fewgs && exec_avail.cuda_persistent_fewgs)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.hostpinned, exec.cuda_persistent, alloc.hostpinned, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.cuda_hostpinned, exec.cuda_persistent, alloc.cuda_hostpinned, tm, tm_total);
     }
 
 #ifdef COMB_ENABLE_CUDA_GRAPH
     if (exec_avail.cuda && exec_avail.cuda_graph && exec_avail.seq)
-      do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_graph, alloc.hostpinned, exec.seq, alloc.host, tm, tm_total);
+      do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_graph, alloc.cuda_hostpinned, exec.seq, alloc.host, tm, tm_total);
 
     if (exec_avail.cuda && exec_avail.cuda_graph && exec_avail.cuda_graph)
-      do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_graph, alloc.hostpinned, exec.cuda_graph, alloc.hostpinned, tm, tm_total);
+      do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_graph, alloc.cuda_hostpinned, exec.cuda_graph, alloc.cuda_hostpinned, tm, tm_total);
 #endif
 
     if (memory_accessible.cuda_aware_mpi) {
@@ -409,7 +409,7 @@ void test_cycles_mpi(CommInfo& comminfo, MeshInfo& info,
 
   // managed host preferred allocated
   if (memory_avail.cuda_managed_host_preferred) {
-    COMB::Allocator& mesh_aloc = alloc.managed_host_preferred;
+    COMB::Allocator& mesh_aloc = alloc.cuda_managed_host_preferred;
 
     char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.name());
     Range r0(name, Range::blue);
@@ -440,46 +440,46 @@ void test_cycles_mpi(CommInfo& comminfo, MeshInfo& info,
 #endif
 
     if (exec_avail.cuda && exec_avail.cuda && exec_avail.seq)
-      do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda, alloc.hostpinned, exec.seq, alloc.host, tm, tm_total);
+      do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda, alloc.cuda_hostpinned, exec.seq, alloc.host, tm, tm_total);
 
     if (exec_avail.cuda && exec_avail.cuda && exec_avail.cuda)
-      do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda, alloc.hostpinned, exec.cuda, alloc.hostpinned, tm, tm_total);
+      do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda, alloc.cuda_hostpinned, exec.cuda, alloc.cuda_hostpinned, tm, tm_total);
 
     {
       if (exec_avail.cuda && exec_avail.cuda_batch && exec_avail.seq)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.hostpinned, exec.seq, alloc.host, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.cuda_hostpinned, exec.seq, alloc.host, tm, tm_total);
 
       if (exec_avail.cuda && exec_avail.cuda_batch && exec_avail.cuda_batch)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.hostpinned, exec.cuda_batch, alloc.hostpinned, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.cuda_hostpinned, exec.cuda_batch, alloc.cuda_hostpinned, tm, tm_total);
 
       if (exec_avail.cuda && exec_avail.cuda_persistent && exec_avail.seq)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.hostpinned, exec.seq, alloc.host, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.cuda_hostpinned, exec.seq, alloc.host, tm, tm_total);
 
       if (exec_avail.cuda && exec_avail.cuda_persistent && exec_avail.cuda_persistent)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.hostpinned, exec.cuda_persistent, alloc.hostpinned, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.cuda_hostpinned, exec.cuda_persistent, alloc.cuda_hostpinned, tm, tm_total);
 
 
       SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
       if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.seq)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.hostpinned, exec.seq, alloc.host, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.cuda_hostpinned, exec.seq, alloc.host, tm, tm_total);
 
       if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.cuda_batch_fewgs)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.hostpinned, exec.cuda_batch, alloc.hostpinned, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.cuda_hostpinned, exec.cuda_batch, alloc.cuda_hostpinned, tm, tm_total);
 
       if (exec_avail.cuda && exec_avail.cuda_persistent_fewgs && exec_avail.seq)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.hostpinned, exec.seq, alloc.host, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.cuda_hostpinned, exec.seq, alloc.host, tm, tm_total);
 
       if (exec_avail.cuda && exec_avail.cuda_persistent_fewgs && exec_avail.cuda_persistent_fewgs)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.hostpinned, exec.cuda_persistent, alloc.hostpinned, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.cuda_hostpinned, exec.cuda_persistent, alloc.cuda_hostpinned, tm, tm_total);
     }
 
 #ifdef COMB_ENABLE_CUDA_GRAPH
     if (exec_avail.cuda && exec_avail.cuda_graph && exec_avail.seq)
-      do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_graph, alloc.hostpinned, exec.seq, alloc.host, tm, tm_total);
+      do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_graph, alloc.cuda_hostpinned, exec.seq, alloc.host, tm, tm_total);
 
     if (exec_avail.cuda && exec_avail.cuda_graph && exec_avail.cuda_graph)
-      do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_graph, alloc.hostpinned, exec.cuda_graph, alloc.hostpinned, tm, tm_total);
+      do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_graph, alloc.cuda_hostpinned, exec.cuda_graph, alloc.cuda_hostpinned, tm, tm_total);
 #endif
 
     if (memory_accessible.cuda_aware_mpi) {
@@ -498,7 +498,7 @@ void test_cycles_mpi(CommInfo& comminfo, MeshInfo& info,
 
   // managed host preferred device accessed allocated
   if (memory_avail.cuda_managed_host_preferred_device_accessed) {
-    COMB::Allocator& mesh_aloc = alloc.managed_host_preferred_device_accessed;
+    COMB::Allocator& mesh_aloc = alloc.cuda_managed_host_preferred_device_accessed;
 
     char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.name());
     Range r0(name, Range::blue);
@@ -529,46 +529,46 @@ void test_cycles_mpi(CommInfo& comminfo, MeshInfo& info,
 #endif
 
     if (exec_avail.cuda && exec_avail.cuda && exec_avail.seq)
-      do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda, alloc.hostpinned, exec.seq, alloc.host, tm, tm_total);
+      do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda, alloc.cuda_hostpinned, exec.seq, alloc.host, tm, tm_total);
 
     if (exec_avail.cuda && exec_avail.cuda && exec_avail.cuda)
-      do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda, alloc.hostpinned, exec.cuda, alloc.hostpinned, tm, tm_total);
+      do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda, alloc.cuda_hostpinned, exec.cuda, alloc.cuda_hostpinned, tm, tm_total);
 
     {
       if (exec_avail.cuda && exec_avail.cuda_batch && exec_avail.seq)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.hostpinned, exec.seq, alloc.host, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.cuda_hostpinned, exec.seq, alloc.host, tm, tm_total);
 
       if (exec_avail.cuda && exec_avail.cuda_batch && exec_avail.cuda_batch)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.hostpinned, exec.cuda_batch, alloc.hostpinned, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.cuda_hostpinned, exec.cuda_batch, alloc.cuda_hostpinned, tm, tm_total);
 
       if (exec_avail.cuda && exec_avail.cuda_persistent && exec_avail.seq)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.hostpinned, exec.seq, alloc.host, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.cuda_hostpinned, exec.seq, alloc.host, tm, tm_total);
 
       if (exec_avail.cuda && exec_avail.cuda_persistent && exec_avail.cuda_persistent)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.hostpinned, exec.cuda_persistent, alloc.hostpinned, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.cuda_hostpinned, exec.cuda_persistent, alloc.cuda_hostpinned, tm, tm_total);
 
 
       SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
       if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.seq)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.hostpinned, exec.seq, alloc.host, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.cuda_hostpinned, exec.seq, alloc.host, tm, tm_total);
 
       if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.cuda_batch_fewgs)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.hostpinned, exec.cuda_batch, alloc.hostpinned, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.cuda_hostpinned, exec.cuda_batch, alloc.cuda_hostpinned, tm, tm_total);
 
       if (exec_avail.cuda && exec_avail.cuda_persistent_fewgs && exec_avail.seq)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.hostpinned, exec.seq, alloc.host, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.cuda_hostpinned, exec.seq, alloc.host, tm, tm_total);
 
       if (exec_avail.cuda && exec_avail.cuda_persistent_fewgs && exec_avail.cuda_persistent_fewgs)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.hostpinned, exec.cuda_persistent, alloc.hostpinned, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.cuda_hostpinned, exec.cuda_persistent, alloc.cuda_hostpinned, tm, tm_total);
     }
 
 #ifdef COMB_ENABLE_CUDA_GRAPH
     if (exec_avail.cuda && exec_avail.cuda_graph && exec_avail.seq)
-      do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_graph, alloc.hostpinned, exec.seq, alloc.host, tm, tm_total);
+      do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_graph, alloc.cuda_hostpinned, exec.seq, alloc.host, tm, tm_total);
 
     if (exec_avail.cuda && exec_avail.cuda_graph && exec_avail.cuda_graph)
-      do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_graph, alloc.hostpinned, exec.cuda_graph, alloc.hostpinned, tm, tm_total);
+      do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_graph, alloc.cuda_hostpinned, exec.cuda_graph, alloc.cuda_hostpinned, tm, tm_total);
 #endif
 
     if (memory_accessible.cuda_aware_mpi) {
@@ -587,7 +587,7 @@ void test_cycles_mpi(CommInfo& comminfo, MeshInfo& info,
 
   // managed device preferred allocated
   if (memory_avail.cuda_managed_device_preferred) {
-    COMB::Allocator& mesh_aloc = alloc.managed_device_preferred;
+    COMB::Allocator& mesh_aloc = alloc.cuda_managed_device_preferred;
 
     char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.name());
     Range r0(name, Range::blue);
@@ -618,46 +618,46 @@ void test_cycles_mpi(CommInfo& comminfo, MeshInfo& info,
 #endif
 
     if (exec_avail.cuda && exec_avail.cuda && exec_avail.seq)
-      do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda, alloc.hostpinned, exec.seq, alloc.host, tm, tm_total);
+      do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda, alloc.cuda_hostpinned, exec.seq, alloc.host, tm, tm_total);
 
     if (exec_avail.cuda && exec_avail.cuda && exec_avail.cuda)
-      do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda, alloc.hostpinned, exec.cuda, alloc.hostpinned, tm, tm_total);
+      do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda, alloc.cuda_hostpinned, exec.cuda, alloc.cuda_hostpinned, tm, tm_total);
 
     {
       if (exec_avail.cuda && exec_avail.cuda_batch && exec_avail.seq)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.hostpinned, exec.seq, alloc.host, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.cuda_hostpinned, exec.seq, alloc.host, tm, tm_total);
 
       if (exec_avail.cuda && exec_avail.cuda_batch && exec_avail.cuda_batch)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.hostpinned, exec.cuda_batch, alloc.hostpinned, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.cuda_hostpinned, exec.cuda_batch, alloc.cuda_hostpinned, tm, tm_total);
 
       if (exec_avail.cuda && exec_avail.cuda_persistent && exec_avail.seq)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.hostpinned, exec.seq, alloc.host, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.cuda_hostpinned, exec.seq, alloc.host, tm, tm_total);
 
       if (exec_avail.cuda && exec_avail.cuda_persistent && exec_avail.cuda_persistent)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.hostpinned, exec.cuda_persistent, alloc.hostpinned, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.cuda_hostpinned, exec.cuda_persistent, alloc.cuda_hostpinned, tm, tm_total);
 
 
       SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
       if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.seq)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.hostpinned, exec.seq, alloc.host, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.cuda_hostpinned, exec.seq, alloc.host, tm, tm_total);
 
       if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.cuda_batch_fewgs)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.hostpinned, exec.cuda_batch, alloc.hostpinned, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.cuda_hostpinned, exec.cuda_batch, alloc.cuda_hostpinned, tm, tm_total);
 
       if (exec_avail.cuda && exec_avail.cuda_persistent_fewgs && exec_avail.seq)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.hostpinned, exec.seq, alloc.host, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.cuda_hostpinned, exec.seq, alloc.host, tm, tm_total);
 
       if (exec_avail.cuda && exec_avail.cuda_persistent_fewgs && exec_avail.cuda_persistent_fewgs)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.hostpinned, exec.cuda_persistent, alloc.hostpinned, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.cuda_hostpinned, exec.cuda_persistent, alloc.cuda_hostpinned, tm, tm_total);
     }
 
 #ifdef COMB_ENABLE_CUDA_GRAPH
     if (exec_avail.cuda && exec_avail.cuda_graph && exec_avail.seq)
-      do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_graph, alloc.hostpinned, exec.seq, alloc.host, tm, tm_total);
+      do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_graph, alloc.cuda_hostpinned, exec.seq, alloc.host, tm, tm_total);
 
     if (exec_avail.cuda && exec_avail.cuda_graph && exec_avail.cuda_graph)
-      do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_graph, alloc.hostpinned, exec.cuda_graph, alloc.hostpinned, tm, tm_total);
+      do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_graph, alloc.cuda_hostpinned, exec.cuda_graph, alloc.cuda_hostpinned, tm, tm_total);
 #endif
 
     if (memory_accessible.cuda_aware_mpi) {
@@ -676,7 +676,7 @@ void test_cycles_mpi(CommInfo& comminfo, MeshInfo& info,
 
   // managed device preferred host accessed allocated
   if (memory_avail.cuda_managed_device_preferred_host_accessed) {
-    COMB::Allocator& mesh_aloc = alloc.managed_device_preferred_host_accessed;
+    COMB::Allocator& mesh_aloc = alloc.cuda_managed_device_preferred_host_accessed;
 
     char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.name());
     Range r0(name, Range::blue);
@@ -707,46 +707,46 @@ void test_cycles_mpi(CommInfo& comminfo, MeshInfo& info,
 #endif
 
     if (exec_avail.cuda && exec_avail.cuda && exec_avail.seq)
-      do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda, alloc.hostpinned, exec.seq, alloc.host, tm, tm_total);
+      do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda, alloc.cuda_hostpinned, exec.seq, alloc.host, tm, tm_total);
 
     if (exec_avail.cuda && exec_avail.cuda && exec_avail.cuda)
-      do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda, alloc.hostpinned, exec.cuda, alloc.hostpinned, tm, tm_total);
+      do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda, alloc.cuda_hostpinned, exec.cuda, alloc.cuda_hostpinned, tm, tm_total);
 
     {
       if (exec_avail.cuda && exec_avail.cuda_batch && exec_avail.seq)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.hostpinned, exec.seq, alloc.host, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.cuda_hostpinned, exec.seq, alloc.host, tm, tm_total);
 
       if (exec_avail.cuda && exec_avail.cuda_batch && exec_avail.cuda_batch)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.hostpinned, exec.cuda_batch, alloc.hostpinned, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.cuda_hostpinned, exec.cuda_batch, alloc.cuda_hostpinned, tm, tm_total);
 
       if (exec_avail.cuda && exec_avail.cuda_persistent && exec_avail.seq)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.hostpinned, exec.seq, alloc.host, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.cuda_hostpinned, exec.seq, alloc.host, tm, tm_total);
 
       if (exec_avail.cuda && exec_avail.cuda_persistent && exec_avail.cuda_persistent)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.hostpinned, exec.cuda_persistent, alloc.hostpinned, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.cuda_hostpinned, exec.cuda_persistent, alloc.cuda_hostpinned, tm, tm_total);
 
 
       SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
       if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.seq)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.hostpinned, exec.seq, alloc.host, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.cuda_hostpinned, exec.seq, alloc.host, tm, tm_total);
 
       if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.cuda_batch_fewgs)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.hostpinned, exec.cuda_batch, alloc.hostpinned, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.cuda_hostpinned, exec.cuda_batch, alloc.cuda_hostpinned, tm, tm_total);
 
       if (exec_avail.cuda && exec_avail.cuda_persistent_fewgs && exec_avail.seq)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.hostpinned, exec.seq, alloc.host, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.cuda_hostpinned, exec.seq, alloc.host, tm, tm_total);
 
       if (exec_avail.cuda && exec_avail.cuda_persistent_fewgs && exec_avail.cuda_persistent_fewgs)
-        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.hostpinned, exec.cuda_persistent, alloc.hostpinned, tm, tm_total);
+        do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.cuda_hostpinned, exec.cuda_persistent, alloc.cuda_hostpinned, tm, tm_total);
     }
 
 #ifdef COMB_ENABLE_CUDA_GRAPH
     if (exec_avail.cuda && exec_avail.cuda_graph && exec_avail.seq)
-      do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_graph, alloc.hostpinned, exec.seq, alloc.host, tm, tm_total);
+      do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_graph, alloc.cuda_hostpinned, exec.seq, alloc.host, tm, tm_total);
 
     if (exec_avail.cuda && exec_avail.cuda_graph && exec_avail.cuda_graph)
-      do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_graph, alloc.hostpinned, exec.cuda_graph, alloc.hostpinned, tm, tm_total);
+      do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_graph, alloc.cuda_hostpinned, exec.cuda_graph, alloc.cuda_hostpinned, tm, tm_total);
 #endif
 
     if (memory_accessible.cuda_aware_mpi) {
