@@ -76,6 +76,13 @@ int main(int argc, char** argv)
 #endif
 
 
+  COMB::ExecContexts exec;
+
+  // stores the Allocator for each memory type,
+  // whether each memory type is available for use,
+  // and whether each memory type is accessbile from each exec context
+  COMB::Allocators alloc;
+
   // read command line arguments
 #ifdef COMB_ENABLE_OPENMP
   int omp_threads = -1;
@@ -98,10 +105,7 @@ int main(int argc, char** argv)
   exec_avail.seq = true;
 
   // stores whether each memory type is available for use
-  COMB::AllocatorsAvailable memory_avail;
-  memory_avail.host = true;
-
-  COMB::AllocatorsAccessible memory_accessible;
+  alloc.host.available = true;
 
   IdxT i = 1;
   IdxT s = 0;
@@ -313,45 +317,45 @@ int main(int argc, char** argv)
             if (i+1 < argc && argv[i+1][0] != '-') {
               ++i;
               if (strcmp(argv[i], "all") == 0) {
-                memory_avail.host = enabledisable;
+                alloc.host.available = enabledisable;
   #ifdef COMB_ENABLE_CUDA
-                memory_avail.cuda_hostpinned = enabledisable;
-                memory_avail.cuda_device = enabledisable;
-                memory_avail.cuda_managed = enabledisable;
-                memory_avail.cuda_managed_host_preferred = enabledisable;
-                memory_avail.cuda_managed_host_preferred_device_accessed = enabledisable;
-                memory_avail.cuda_managed_device_preferred = enabledisable;
-                memory_avail.cuda_managed_device_preferred_host_accessed = enabledisable;
+                alloc.cuda_hostpinned.available = enabledisable;
+                alloc.cuda_device.available = enabledisable;
+                alloc.cuda_managed.available = enabledisable;
+                alloc.cuda_managed_host_preferred.available = enabledisable;
+                alloc.cuda_managed_host_preferred_device_accessed.available = enabledisable;
+                alloc.cuda_managed_device_preferred.available = enabledisable;
+                alloc.cuda_managed_device_preferred_host_accessed.available = enabledisable;
   #endif
               } else if (strcmp(argv[i], "host") == 0) {
-                memory_avail.host = enabledisable;
+                alloc.host.available = enabledisable;
               } else if (strcmp(argv[i], "cuda_hostpinned") == 0) {
   #ifdef COMB_ENABLE_CUDA
-                memory_avail.cuda_hostpinned = enabledisable;
+                alloc.cuda_hostpinned.available = enabledisable;
   #endif
               } else if (strcmp(argv[i], "cuda_device") == 0) {
   #ifdef COMB_ENABLE_CUDA
-                memory_avail.cuda_device = enabledisable;
+                alloc.cuda_device.available = enabledisable;
   #endif
               } else if (strcmp(argv[i], "cuda_managed") == 0) {
   #ifdef COMB_ENABLE_CUDA
-                memory_avail.cuda_managed = enabledisable;
+                alloc.cuda_managed.available = enabledisable;
   #endif
               } else if (strcmp(argv[i], "cuda_managed_host_preferred") == 0) {
   #ifdef COMB_ENABLE_CUDA
-                memory_avail.cuda_managed_host_preferred = enabledisable;
+                alloc.cuda_managed_host_preferred.available = enabledisable;
   #endif
               } else if (strcmp(argv[i], "cuda_managed_host_preferred_device_accessed") == 0) {
   #ifdef COMB_ENABLE_CUDA
-                memory_avail.cuda_managed_host_preferred_device_accessed = enabledisable;
+                alloc.cuda_managed_host_preferred_device_accessed.available = enabledisable;
   #endif
               } else if (strcmp(argv[i], "cuda_managed_device_preferred") == 0) {
   #ifdef COMB_ENABLE_CUDA
-                memory_avail.cuda_managed_device_preferred = enabledisable;
+                alloc.cuda_managed_device_preferred.available = enabledisable;
   #endif
               } else if (strcmp(argv[i], "cuda_managed_device_preferred_host_accessed") == 0) {
   #ifdef COMB_ENABLE_CUDA
-                memory_avail.cuda_managed_device_preferred_host_accessed = enabledisable;
+                alloc.cuda_managed_device_preferred_host_accessed.available = enabledisable;
   #endif
               } else {
                 comminfo.print(FileGroup::err_master, "Invalid argument to sub-option, ignoring %s %s %s.\n", argv[i-2], argv[i-1], argv[i]);
@@ -447,19 +451,19 @@ int main(int argc, char** argv)
         }
       } else if (strcmp(&argv[i][1], "cuda_aware_mpi") == 0) {
 #ifdef COMB_ENABLE_CUDA
-        memory_accessible.cuda_aware_mpi = true;
+        alloc.cuda_aware_mpi = true;
 #else
         comminfo.print(FileGroup::err_master, "Not built with cuda, ignoring %s.\n", argv[i]);
 #endif
       } else if (strcmp(&argv[i][1], "cuda_host_accessible_from_device") == 0) {
 #ifdef COMB_ENABLE_CUDA
-        memory_accessible.cuda_host_accessible_from_device = COMB::detail::cuda::get_host_accessible_from_device();
+        alloc.host.cuda_host_accessible_from_device = COMB::detail::cuda::get_host_accessible_from_device();
 #else
         comminfo.print(FileGroup::err_master, "Not built with cuda, ignoring %s.\n", argv[i]);
 #endif
       } else if (strcmp(&argv[i][1], "cuda_device_accessible_from_host") == 0) {
 #ifdef COMB_ENABLE_CUDA
-        memory_accessible.cuda_device_accessible_from_host = COMB::detail::cuda::get_device_accessible_from_host();
+        alloc.cuda_device.cuda_device_accessible_from_host = COMB::detail::cuda::get_device_accessible_from_host();
 #else
         comminfo.print(FileGroup::err_master, "Not built with cuda, ignoring %s.\n", argv[i]);
 #endif
@@ -607,37 +611,33 @@ int main(int argc, char** argv)
     }
   }
 
-  COMB::ExecContexts exec;
-
-  COMB::Allocators alloc;
-
   Timer tm(2*6*ncycles);
   Timer tm_total(1024);
 
   // warm-up memory pools
   COMB::warmup(exec, alloc, tm, num_vars+1, info.totallen);
 
-  COMB::test_copy(comminfo, exec, alloc, memory_avail, memory_accessible, exec_avail, tm, num_vars, info.totallen, ncycles);
+  COMB::test_copy(comminfo, exec, alloc, exec_avail, tm, num_vars, info.totallen, ncycles);
 
   if (comm_avail.mock)
-    COMB::test_cycles_mock(comminfo, info, exec, alloc, memory_avail, memory_accessible, exec_avail, num_vars, ncycles, tm, tm_total);
+    COMB::test_cycles_mock(comminfo, info, exec, alloc, exec_avail, num_vars, ncycles, tm, tm_total);
 
   if (comm_avail.mpi)
-    COMB::test_cycles_mpi(comminfo, info, exec, alloc, memory_avail, memory_accessible, exec_avail, num_vars, ncycles, tm, tm_total);
+    COMB::test_cycles_mpi(comminfo, info, exec, alloc, exec_avail, num_vars, ncycles, tm, tm_total);
 
 #ifdef COMB_ENABLE_GPUMP
   if (comm_avail.gpump)
-    COMB::test_cycles_gpump(comminfo, info, exec, alloc, memory_avail, memory_accessible, exec_avail, num_vars, ncycles, tm, tm_total);
+    COMB::test_cycles_gpump(comminfo, info, exec, alloc, exec_avail, num_vars, ncycles, tm, tm_total);
 #endif
 
 #ifdef COMB_ENABLE_MP
   if (comm_avail.mp)
-    COMB::test_cycles_mp(comminfo, info, exec, alloc, memory_avail, memory_accessible, exec_avail, num_vars, ncycles, tm, tm_total);
+    COMB::test_cycles_mp(comminfo, info, exec, alloc, exec_avail, num_vars, ncycles, tm, tm_total);
 #endif
 
 #ifdef COMB_ENABLE_UMR
   if (comm_avail.umr)
-    COMB::test_cycles_umr(comminfo, info, exec, alloc, memory_avail, memory_accessible, exec_avail, num_vars, ncycles, tm, tm_total);
+    COMB::test_cycles_umr(comminfo, info, exec, alloc, exec_avail, num_vars, ncycles, tm, tm_total);
 #endif
 
   } // end region MPI communication via comminfo

@@ -46,39 +46,39 @@ void warmup(COMB::ExecContexts& exec,
             Timer& tm, IdxT num_vars, IdxT len)
 {
   // warm-up memory pools
-  do_warmup(exec.seq, alloc.host, tm, num_vars, len);
+  do_warmup(exec.seq, alloc.host.allocator, tm, num_vars, len);
 
 #ifdef COMB_ENABLE_OPENMP
-  do_warmup(exec.omp, alloc.host, tm, num_vars, len);
+  do_warmup(exec.omp, alloc.host.allocator, tm, num_vars, len);
 #endif
 
 #ifdef COMB_ENABLE_CUDA
-  do_warmup(exec.seq, alloc.cuda_hostpinned, tm, num_vars, len);
+  do_warmup(exec.seq, alloc.cuda_hostpinned.allocator, tm, num_vars, len);
 
-  do_warmup(exec.cuda, alloc.cuda_device, tm, num_vars, len);
+  do_warmup(exec.cuda, alloc.cuda_device.allocator, tm, num_vars, len);
 
-  do_warmup(exec.seq,  alloc.cuda_managed, tm, num_vars, len);
-  do_warmup(exec.cuda, alloc.cuda_managed, tm, num_vars, len);
+  do_warmup(exec.seq,  alloc.cuda_managed.allocator, tm, num_vars, len);
+  do_warmup(exec.cuda, alloc.cuda_managed.allocator, tm, num_vars, len);
 
-  do_warmup(exec.seq,        alloc.cuda_managed_host_preferred, tm, num_vars, len);
-  do_warmup(exec.cuda_batch, alloc.cuda_managed_host_preferred, tm, num_vars, len);
+  do_warmup(exec.seq,        alloc.cuda_managed_host_preferred.allocator, tm, num_vars, len);
+  do_warmup(exec.cuda_batch, alloc.cuda_managed_host_preferred.allocator, tm, num_vars, len);
 
-  do_warmup(exec.seq,             alloc.cuda_managed_host_preferred_device_accessed, tm, num_vars, len);
-  do_warmup(exec.cuda_persistent, alloc.cuda_managed_host_preferred_device_accessed, tm, num_vars, len);
+  do_warmup(exec.seq,             alloc.cuda_managed_host_preferred_device_accessed.allocator, tm, num_vars, len);
+  do_warmup(exec.cuda_persistent, alloc.cuda_managed_host_preferred_device_accessed.allocator, tm, num_vars, len);
 
   {
     SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
-    do_warmup(exec.seq,        alloc.cuda_managed_device_preferred, tm, num_vars, len);
-    do_warmup(exec.cuda_batch, alloc.cuda_managed_device_preferred, tm, num_vars, len);
+    do_warmup(exec.seq,        alloc.cuda_managed_device_preferred.allocator, tm, num_vars, len);
+    do_warmup(exec.cuda_batch, alloc.cuda_managed_device_preferred.allocator, tm, num_vars, len);
 
-    do_warmup(exec.seq,             alloc.cuda_managed_device_preferred_host_accessed, tm, num_vars, len);
-    do_warmup(exec.cuda_persistent, alloc.cuda_managed_device_preferred_host_accessed, tm, num_vars, len);
+    do_warmup(exec.seq,             alloc.cuda_managed_device_preferred_host_accessed.allocator, tm, num_vars, len);
+    do_warmup(exec.cuda_persistent, alloc.cuda_managed_device_preferred_host_accessed.allocator, tm, num_vars, len);
   }
 #endif
 
 #ifdef COMB_ENABLE_CUDA_GRAPH
-  do_warmup(exec.cuda_graph, alloc.cuda_device, tm, num_vars, len);
+  do_warmup(exec.cuda_graph, alloc.cuda_device.allocator, tm, num_vars, len);
 #endif
 }
 

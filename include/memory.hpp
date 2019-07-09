@@ -276,38 +276,71 @@ struct ManagedDevicePreferredHostAccessedAllocator : Allocator
 #endif
 };
 
-struct Allocators
+struct HostAllocatorInfo
 {
-  HostAllocator host;
-  HostPinnedAllocator cuda_hostpinned;
-  DeviceAllocator cuda_device;
-  ManagedAllocator cuda_managed;
-  ManagedHostPreferredAllocator cuda_managed_host_preferred;
-  ManagedHostPreferredDeviceAccessedAllocator cuda_managed_host_preferred_device_accessed;
-  ManagedDevicePreferredAllocator cuda_managed_device_preferred;
-  ManagedDevicePreferredHostAccessedAllocator cuda_managed_device_preferred_host_accessed;
-};
-
-struct AllocatorsAvailable
-{
-  bool host = false;
-  bool cuda_hostpinned = false;
-  bool cuda_device = false;
-  bool cuda_managed = false;
-  bool cuda_managed_host_preferred = false;
-  bool cuda_managed_host_preferred_device_accessed = false;
-  bool cuda_managed_device_preferred = false;
-  bool cuda_managed_device_preferred_host_accessed = false;
-};
-
-struct AllocatorsAccessible
-{
-  // special flag to enable tests that pass device buffers to MPI
-  bool cuda_aware_mpi = false;
+  HostAllocator allocator;
+  bool available = false;
   // special flag to enable tests that access host pageable memory from the device
   bool cuda_host_accessible_from_device = false;
+};
+
+struct HostPinnedAllocatorInfo
+{
+  HostPinnedAllocator allocator;
+  bool available = false;
+};
+
+struct DeviceAllocatorInfo
+{
+  DeviceAllocator allocator;
+  bool available = false;
   // special flag to enable tests that access device memory from the host
   bool cuda_device_accessible_from_host = false;
+};
+
+struct ManagedAllocatorInfo
+{
+  ManagedAllocator allocator;
+  bool available = false;
+};
+
+struct ManagedHostPreferredAllocatorInfo
+{
+  ManagedHostPreferredAllocator allocator;
+  bool available = false;
+};
+
+struct ManagedHostPreferredDeviceAccessedAllocatorInfo
+{
+  ManagedHostPreferredDeviceAccessedAllocator allocator;
+  bool available = false;
+};
+
+struct ManagedDevicePreferredAllocatorInfo
+{
+  ManagedDevicePreferredAllocator allocator;
+  bool available = false;
+};
+
+struct ManagedDevicePreferredHostAccessedAllocatorInfo
+{
+  ManagedDevicePreferredHostAccessedAllocator allocator;
+  bool available = false;
+};
+
+struct Allocators
+{
+  HostAllocatorInfo host;
+  HostPinnedAllocatorInfo cuda_hostpinned;
+  DeviceAllocatorInfo cuda_device;
+  ManagedAllocatorInfo cuda_managed;
+  ManagedHostPreferredAllocatorInfo cuda_managed_host_preferred;
+  ManagedHostPreferredDeviceAccessedAllocatorInfo cuda_managed_host_preferred_device_accessed;
+  ManagedDevicePreferredAllocatorInfo cuda_managed_device_preferred;
+  ManagedDevicePreferredHostAccessedAllocatorInfo cuda_managed_device_preferred_host_accessed;
+
+  // special flag to enable tests that pass device buffers to MPI
+  bool cuda_aware_mpi = false;
 };
 
 } // namespace COMB
