@@ -88,307 +88,307 @@ void test_copy(CommInfo& comminfo,
                Timer& tm, IdxT num_vars, IdxT len, IdxT nrepeats)
 {
   // host memory
-  if (alloc.host.available) {
-    char name[1024] = ""; snprintf(name, 1024, "set_vars %s", alloc.host.allocator.name());
+  if (alloc.host.available()) {
+    char name[1024] = ""; snprintf(name, 1024, "set_vars %s", alloc.host.allocator().name());
     Range r0(name, Range::green);
 
     if (exec_avail.seq)
-      do_copy(exec.seq, comminfo, alloc.host.allocator, alloc.host.allocator, tm, num_vars, len, nrepeats);
+      do_copy(exec.seq, comminfo, alloc.host.allocator(), alloc.host.allocator(), tm, num_vars, len, nrepeats);
 
 #ifdef COMB_ENABLE_OPENMP
     if (exec_avail.omp)
-      do_copy(exec.omp, comminfo, alloc.host.allocator, alloc.host.allocator, tm, num_vars, len, nrepeats);
+      do_copy(exec.omp, comminfo, alloc.host.allocator(), alloc.host.allocator(), tm, num_vars, len, nrepeats);
 #endif
 
 #ifdef COMB_ENABLE_CUDA
     if (alloc.access.cuda_host_accessible_from_device) {
 
       if (exec_avail.cuda)
-        do_copy(exec.cuda, comminfo, alloc.host.allocator, alloc.host.allocator, tm, num_vars, len, nrepeats);
+        do_copy(exec.cuda, comminfo, alloc.host.allocator(), alloc.host.allocator(), tm, num_vars, len, nrepeats);
 
       if (exec_avail.cuda_batch)
-        do_copy(exec.cuda_batch, comminfo, alloc.host.allocator, alloc.host.allocator, tm, num_vars, len, nrepeats);
+        do_copy(exec.cuda_batch, comminfo, alloc.host.allocator(), alloc.host.allocator(), tm, num_vars, len, nrepeats);
 
       if (exec_avail.cuda_persistent)
-        do_copy(exec.cuda_persistent, comminfo, alloc.host.allocator, alloc.host.allocator, tm, num_vars, len, nrepeats);
+        do_copy(exec.cuda_persistent, comminfo, alloc.host.allocator(), alloc.host.allocator(), tm, num_vars, len, nrepeats);
 
       {
         SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
         if (exec_avail.cuda_batch_fewgs)
-          do_copy(exec.cuda_batch, comminfo, alloc.host.allocator, alloc.host.allocator, tm, num_vars, len, nrepeats);
+          do_copy(exec.cuda_batch, comminfo, alloc.host.allocator(), alloc.host.allocator(), tm, num_vars, len, nrepeats);
 
         if (exec_avail.cuda_persistent_fewgs)
-          do_copy(exec.cuda_persistent, comminfo, alloc.host.allocator, alloc.host.allocator, tm, num_vars, len, nrepeats);
+          do_copy(exec.cuda_persistent, comminfo, alloc.host.allocator(), alloc.host.allocator(), tm, num_vars, len, nrepeats);
       }
 
 #ifdef COMB_ENABLE_CUDA_GRAPH
       if (exec_avail.cuda_graph)
-        do_copy(exec.cuda_graph, comminfo, alloc.host.allocator, alloc.host.allocator, tm, num_vars, len, nrepeats);
+        do_copy(exec.cuda_graph, comminfo, alloc.host.allocator(), alloc.host.allocator(), tm, num_vars, len, nrepeats);
 #endif
     }
 #endif
   }
 
 #ifdef COMB_ENABLE_CUDA
-  if (alloc.cuda_hostpinned.available) {
-    char name[1024] = ""; snprintf(name, 1024, "set_vars %s", alloc.cuda_hostpinned.allocator.name());
+  if (alloc.cuda_hostpinned.available()) {
+    char name[1024] = ""; snprintf(name, 1024, "set_vars %s", alloc.cuda_hostpinned.allocator().name());
     Range r0(name, Range::green);
 
     if (exec_avail.seq)
-      do_copy(exec.seq, comminfo, alloc.cuda_hostpinned.allocator, alloc.host.allocator, tm, num_vars, len, nrepeats);
+      do_copy(exec.seq, comminfo, alloc.cuda_hostpinned.allocator(), alloc.host.allocator(), tm, num_vars, len, nrepeats);
 
 #ifdef COMB_ENABLE_OPENMP
     if (exec_avail.omp)
-      do_copy(exec.omp, comminfo, alloc.cuda_hostpinned.allocator, alloc.host.allocator, tm, num_vars, len, nrepeats);
+      do_copy(exec.omp, comminfo, alloc.cuda_hostpinned.allocator(), alloc.host.allocator(), tm, num_vars, len, nrepeats);
 #endif
 
     if (exec_avail.cuda)
-      do_copy(exec.cuda, comminfo, alloc.cuda_hostpinned.allocator, alloc.cuda_hostpinned.allocator, tm, num_vars, len, nrepeats);
+      do_copy(exec.cuda, comminfo, alloc.cuda_hostpinned.allocator(), alloc.cuda_hostpinned.allocator(), tm, num_vars, len, nrepeats);
 
     if (exec_avail.cuda_batch)
-      do_copy(exec.cuda_batch, comminfo, alloc.cuda_hostpinned.allocator, alloc.cuda_hostpinned.allocator, tm, num_vars, len, nrepeats);
+      do_copy(exec.cuda_batch, comminfo, alloc.cuda_hostpinned.allocator(), alloc.cuda_hostpinned.allocator(), tm, num_vars, len, nrepeats);
 
     if (exec_avail.cuda_persistent)
-      do_copy(exec.cuda_persistent, comminfo, alloc.cuda_hostpinned.allocator, alloc.cuda_hostpinned.allocator, tm, num_vars, len, nrepeats);
+      do_copy(exec.cuda_persistent, comminfo, alloc.cuda_hostpinned.allocator(), alloc.cuda_hostpinned.allocator(), tm, num_vars, len, nrepeats);
 
     {
       SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
       if (exec_avail.cuda_batch_fewgs)
-        do_copy(exec.cuda_batch, comminfo, alloc.cuda_hostpinned.allocator, alloc.cuda_hostpinned.allocator, tm, num_vars, len, nrepeats);
+        do_copy(exec.cuda_batch, comminfo, alloc.cuda_hostpinned.allocator(), alloc.cuda_hostpinned.allocator(), tm, num_vars, len, nrepeats);
 
       if (exec_avail.cuda_persistent_fewgs)
-        do_copy(exec.cuda_persistent, comminfo, alloc.cuda_hostpinned.allocator, alloc.cuda_hostpinned.allocator, tm, num_vars, len, nrepeats);
+        do_copy(exec.cuda_persistent, comminfo, alloc.cuda_hostpinned.allocator(), alloc.cuda_hostpinned.allocator(), tm, num_vars, len, nrepeats);
     }
 
 #ifdef COMB_ENABLE_CUDA_GRAPH
     if (exec_avail.cuda_graph)
-      do_copy(exec.cuda_graph, comminfo, alloc.cuda_hostpinned.allocator, alloc.cuda_hostpinned.allocator, tm, num_vars, len, nrepeats);
+      do_copy(exec.cuda_graph, comminfo, alloc.cuda_hostpinned.allocator(), alloc.cuda_hostpinned.allocator(), tm, num_vars, len, nrepeats);
 #endif
   }
 
-  if (alloc.cuda_device.available) {
-    char name[1024] = ""; snprintf(name, 1024, "set_vars %s", alloc.cuda_device.allocator.name());
+  if (alloc.cuda_device.available()) {
+    char name[1024] = ""; snprintf(name, 1024, "set_vars %s", alloc.cuda_device.allocator().name());
     Range r0(name, Range::green);
 
     if (alloc.access.cuda_device_accessible_from_host) {
       if (exec_avail.seq)
-        do_copy(exec.seq, comminfo, alloc.cuda_device.allocator, alloc.host.allocator, tm, num_vars, len, nrepeats);
+        do_copy(exec.seq, comminfo, alloc.cuda_device.allocator(), alloc.host.allocator(), tm, num_vars, len, nrepeats);
 
 #ifdef COMB_ENABLE_OPENMP
       if (exec_avail.omp)
-        do_copy(exec.omp, comminfo, alloc.cuda_device.allocator, alloc.host.allocator, tm, num_vars, len, nrepeats);
+        do_copy(exec.omp, comminfo, alloc.cuda_device.allocator(), alloc.host.allocator(), tm, num_vars, len, nrepeats);
 #endif
     }
 
     if (exec_avail.cuda)
-      do_copy(exec.cuda, comminfo, alloc.cuda_device.allocator, alloc.cuda_hostpinned.allocator, tm, num_vars, len, nrepeats);
+      do_copy(exec.cuda, comminfo, alloc.cuda_device.allocator(), alloc.cuda_hostpinned.allocator(), tm, num_vars, len, nrepeats);
 
     if (exec_avail.cuda_batch)
-      do_copy(exec.cuda_batch, comminfo, alloc.cuda_device.allocator, alloc.cuda_hostpinned.allocator, tm, num_vars, len, nrepeats);
+      do_copy(exec.cuda_batch, comminfo, alloc.cuda_device.allocator(), alloc.cuda_hostpinned.allocator(), tm, num_vars, len, nrepeats);
 
     if (exec_avail.cuda_persistent)
-      do_copy(exec.cuda_persistent, comminfo, alloc.cuda_device.allocator, alloc.cuda_hostpinned.allocator, tm, num_vars, len, nrepeats);
+      do_copy(exec.cuda_persistent, comminfo, alloc.cuda_device.allocator(), alloc.cuda_hostpinned.allocator(), tm, num_vars, len, nrepeats);
 
     {
       SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
       if (exec_avail.cuda_batch_fewgs)
-        do_copy(exec.cuda_batch, comminfo, alloc.cuda_device.allocator, alloc.cuda_hostpinned.allocator, tm, num_vars, len, nrepeats);
+        do_copy(exec.cuda_batch, comminfo, alloc.cuda_device.allocator(), alloc.cuda_hostpinned.allocator(), tm, num_vars, len, nrepeats);
 
       if (exec_avail.cuda_persistent_fewgs)
-        do_copy(exec.cuda_persistent, comminfo, alloc.cuda_device.allocator, alloc.cuda_hostpinned.allocator, tm, num_vars, len, nrepeats);
+        do_copy(exec.cuda_persistent, comminfo, alloc.cuda_device.allocator(), alloc.cuda_hostpinned.allocator(), tm, num_vars, len, nrepeats);
     }
 
 #ifdef COMB_ENABLE_CUDA_GRAPH
     if (exec_avail.cuda_graph)
-      do_copy(exec.cuda_graph, comminfo, alloc.cuda_device.allocator, alloc.cuda_hostpinned.allocator, tm, num_vars, len, nrepeats);
+      do_copy(exec.cuda_graph, comminfo, alloc.cuda_device.allocator(), alloc.cuda_hostpinned.allocator(), tm, num_vars, len, nrepeats);
 #endif
   }
 
-  if (alloc.cuda_managed.available) {
-    char name[1024] = ""; snprintf(name, 1024, "set_vars %s", alloc.cuda_managed.allocator.name());
+  if (alloc.cuda_managed.available()) {
+    char name[1024] = ""; snprintf(name, 1024, "set_vars %s", alloc.cuda_managed.allocator().name());
     Range r0(name, Range::green);
 
     if (exec_avail.seq)
-      do_copy(exec.seq, comminfo, alloc.cuda_managed.allocator, alloc.host.allocator, tm, num_vars, len, nrepeats);
+      do_copy(exec.seq, comminfo, alloc.cuda_managed.allocator(), alloc.host.allocator(), tm, num_vars, len, nrepeats);
 
 #ifdef COMB_ENABLE_OPENMP
     if (exec_avail.omp)
-      do_copy(exec.omp, comminfo, alloc.cuda_managed.allocator, alloc.host.allocator, tm, num_vars, len, nrepeats);
+      do_copy(exec.omp, comminfo, alloc.cuda_managed.allocator(), alloc.host.allocator(), tm, num_vars, len, nrepeats);
 #endif
 
     if (exec_avail.cuda)
-      do_copy(exec.cuda, comminfo, alloc.cuda_managed.allocator, alloc.cuda_hostpinned.allocator, tm, num_vars, len, nrepeats);
+      do_copy(exec.cuda, comminfo, alloc.cuda_managed.allocator(), alloc.cuda_hostpinned.allocator(), tm, num_vars, len, nrepeats);
 
     if (exec_avail.cuda_batch)
-      do_copy(exec.cuda_batch, comminfo, alloc.cuda_managed.allocator, alloc.cuda_hostpinned.allocator, tm, num_vars, len, nrepeats);
+      do_copy(exec.cuda_batch, comminfo, alloc.cuda_managed.allocator(), alloc.cuda_hostpinned.allocator(), tm, num_vars, len, nrepeats);
 
     if (exec_avail.cuda_persistent)
-      do_copy(exec.cuda_persistent, comminfo, alloc.cuda_managed.allocator, alloc.cuda_hostpinned.allocator, tm, num_vars, len, nrepeats);
+      do_copy(exec.cuda_persistent, comminfo, alloc.cuda_managed.allocator(), alloc.cuda_hostpinned.allocator(), tm, num_vars, len, nrepeats);
 
     {
       SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
       if (exec_avail.cuda_batch_fewgs)
-        do_copy(exec.cuda_batch, comminfo, alloc.cuda_managed.allocator, alloc.cuda_hostpinned.allocator, tm, num_vars, len, nrepeats);
+        do_copy(exec.cuda_batch, comminfo, alloc.cuda_managed.allocator(), alloc.cuda_hostpinned.allocator(), tm, num_vars, len, nrepeats);
 
       if (exec_avail.cuda_persistent_fewgs)
-        do_copy(exec.cuda_persistent, comminfo, alloc.cuda_managed.allocator, alloc.cuda_hostpinned.allocator, tm, num_vars, len, nrepeats);
+        do_copy(exec.cuda_persistent, comminfo, alloc.cuda_managed.allocator(), alloc.cuda_hostpinned.allocator(), tm, num_vars, len, nrepeats);
     }
 
 #ifdef COMB_ENABLE_CUDA_GRAPH
     if (exec_avail.cuda_graph)
-      do_copy(exec.cuda_graph, comminfo, alloc.cuda_managed.allocator, alloc.cuda_hostpinned.allocator, tm, num_vars, len, nrepeats);
+      do_copy(exec.cuda_graph, comminfo, alloc.cuda_managed.allocator(), alloc.cuda_hostpinned.allocator(), tm, num_vars, len, nrepeats);
 #endif
   }
 
-  if (alloc.cuda_managed_host_preferred.available) {
-    char name[1024] = ""; snprintf(name, 1024, "set_vars %s", alloc.cuda_managed_host_preferred.allocator.name());
+  if (alloc.cuda_managed_host_preferred.available()) {
+    char name[1024] = ""; snprintf(name, 1024, "set_vars %s", alloc.cuda_managed_host_preferred.allocator().name());
     Range r0(name, Range::green);
 
     if (exec_avail.seq)
-      do_copy(exec.seq, comminfo, alloc.cuda_managed_host_preferred.allocator, alloc.host.allocator, tm, num_vars, len, nrepeats);
+      do_copy(exec.seq, comminfo, alloc.cuda_managed_host_preferred.allocator(), alloc.host.allocator(), tm, num_vars, len, nrepeats);
 
 #ifdef COMB_ENABLE_OPENMP
     if (exec_avail.omp)
-      do_copy(exec.omp, comminfo, alloc.cuda_managed_host_preferred.allocator, alloc.host.allocator, tm, num_vars, len, nrepeats);
+      do_copy(exec.omp, comminfo, alloc.cuda_managed_host_preferred.allocator(), alloc.host.allocator(), tm, num_vars, len, nrepeats);
 #endif
 
     if (exec_avail.cuda)
-      do_copy(exec.cuda, comminfo, alloc.cuda_managed_host_preferred.allocator, alloc.cuda_hostpinned.allocator, tm, num_vars, len, nrepeats);
+      do_copy(exec.cuda, comminfo, alloc.cuda_managed_host_preferred.allocator(), alloc.cuda_hostpinned.allocator(), tm, num_vars, len, nrepeats);
 
     if (exec_avail.cuda_batch)
-      do_copy(exec.cuda_batch, comminfo, alloc.cuda_managed_host_preferred.allocator, alloc.cuda_hostpinned.allocator, tm, num_vars, len, nrepeats);
+      do_copy(exec.cuda_batch, comminfo, alloc.cuda_managed_host_preferred.allocator(), alloc.cuda_hostpinned.allocator(), tm, num_vars, len, nrepeats);
 
     if (exec_avail.cuda_persistent)
-      do_copy(exec.cuda_persistent, comminfo, alloc.cuda_managed_host_preferred.allocator, alloc.cuda_hostpinned.allocator, tm, num_vars, len, nrepeats);
+      do_copy(exec.cuda_persistent, comminfo, alloc.cuda_managed_host_preferred.allocator(), alloc.cuda_hostpinned.allocator(), tm, num_vars, len, nrepeats);
 
     {
       SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
       if (exec_avail.cuda_batch_fewgs)
-        do_copy(exec.cuda_batch, comminfo, alloc.cuda_managed_host_preferred.allocator, alloc.cuda_hostpinned.allocator, tm, num_vars, len, nrepeats);
+        do_copy(exec.cuda_batch, comminfo, alloc.cuda_managed_host_preferred.allocator(), alloc.cuda_hostpinned.allocator(), tm, num_vars, len, nrepeats);
 
       if (exec_avail.cuda_persistent_fewgs)
-        do_copy(exec.cuda_persistent, comminfo, alloc.cuda_managed_host_preferred.allocator, alloc.cuda_hostpinned.allocator, tm, num_vars, len, nrepeats);
+        do_copy(exec.cuda_persistent, comminfo, alloc.cuda_managed_host_preferred.allocator(), alloc.cuda_hostpinned.allocator(), tm, num_vars, len, nrepeats);
     }
 
 #ifdef COMB_ENABLE_CUDA_GRAPH
     if (exec_avail.cuda_graph)
-      do_copy(exec.cuda_graph, comminfo, alloc.cuda_managed_host_preferred.allocator, alloc.cuda_hostpinned.allocator, tm, num_vars, len, nrepeats);
+      do_copy(exec.cuda_graph, comminfo, alloc.cuda_managed_host_preferred.allocator(), alloc.cuda_hostpinned.allocator(), tm, num_vars, len, nrepeats);
 #endif
   }
 
-  if (alloc.cuda_managed_host_preferred_device_accessed.available) {
-    char name[1024] = ""; snprintf(name, 1024, "set_vars %s", alloc.cuda_managed_host_preferred_device_accessed.allocator.name());
+  if (alloc.cuda_managed_host_preferred_device_accessed.available()) {
+    char name[1024] = ""; snprintf(name, 1024, "set_vars %s", alloc.cuda_managed_host_preferred_device_accessed.allocator().name());
     Range r0(name, Range::green);
 
     if (exec_avail.seq)
-      do_copy(exec.seq, comminfo, alloc.cuda_managed_host_preferred_device_accessed.allocator, alloc.host.allocator, tm, num_vars, len, nrepeats);
+      do_copy(exec.seq, comminfo, alloc.cuda_managed_host_preferred_device_accessed.allocator(), alloc.host.allocator(), tm, num_vars, len, nrepeats);
 
 #ifdef COMB_ENABLE_OPENMP
     if (exec_avail.omp)
-      do_copy(exec.omp, comminfo, alloc.cuda_managed_host_preferred_device_accessed.allocator, alloc.host.allocator, tm, num_vars, len, nrepeats);
+      do_copy(exec.omp, comminfo, alloc.cuda_managed_host_preferred_device_accessed.allocator(), alloc.host.allocator(), tm, num_vars, len, nrepeats);
 #endif
 
     if (exec_avail.cuda)
-      do_copy(exec.cuda, comminfo, alloc.cuda_managed_host_preferred_device_accessed.allocator, alloc.cuda_hostpinned.allocator, tm, num_vars, len, nrepeats);
+      do_copy(exec.cuda, comminfo, alloc.cuda_managed_host_preferred_device_accessed.allocator(), alloc.cuda_hostpinned.allocator(), tm, num_vars, len, nrepeats);
 
     if (exec_avail.cuda_batch)
-      do_copy(exec.cuda_batch, comminfo, alloc.cuda_managed_host_preferred_device_accessed.allocator, alloc.cuda_hostpinned.allocator, tm, num_vars, len, nrepeats);
+      do_copy(exec.cuda_batch, comminfo, alloc.cuda_managed_host_preferred_device_accessed.allocator(), alloc.cuda_hostpinned.allocator(), tm, num_vars, len, nrepeats);
 
     if (exec_avail.cuda_persistent)
-      do_copy(exec.cuda_persistent, comminfo, alloc.cuda_managed_host_preferred_device_accessed.allocator, alloc.cuda_hostpinned.allocator, tm, num_vars, len, nrepeats);
+      do_copy(exec.cuda_persistent, comminfo, alloc.cuda_managed_host_preferred_device_accessed.allocator(), alloc.cuda_hostpinned.allocator(), tm, num_vars, len, nrepeats);
 
     {
       SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
       if (exec_avail.cuda_batch_fewgs)
-        do_copy(exec.cuda_batch, comminfo, alloc.cuda_managed_host_preferred_device_accessed.allocator, alloc.cuda_hostpinned.allocator, tm, num_vars, len, nrepeats);
+        do_copy(exec.cuda_batch, comminfo, alloc.cuda_managed_host_preferred_device_accessed.allocator(), alloc.cuda_hostpinned.allocator(), tm, num_vars, len, nrepeats);
 
       if (exec_avail.cuda_persistent_fewgs)
-        do_copy(exec.cuda_persistent, comminfo, alloc.cuda_managed_host_preferred_device_accessed.allocator, alloc.cuda_hostpinned.allocator, tm, num_vars, len, nrepeats);
+        do_copy(exec.cuda_persistent, comminfo, alloc.cuda_managed_host_preferred_device_accessed.allocator(), alloc.cuda_hostpinned.allocator(), tm, num_vars, len, nrepeats);
     }
 
 #ifdef COMB_ENABLE_CUDA_GRAPH
     if (exec_avail.cuda_graph)
-      do_copy(exec.cuda_graph, comminfo, alloc.cuda_managed_host_preferred_device_accessed.allocator, alloc.cuda_hostpinned.allocator, tm, num_vars, len, nrepeats);
+      do_copy(exec.cuda_graph, comminfo, alloc.cuda_managed_host_preferred_device_accessed.allocator(), alloc.cuda_hostpinned.allocator(), tm, num_vars, len, nrepeats);
 #endif
   }
 
-  if (alloc.cuda_managed_device_preferred.available) {
-    char name[1024] = ""; snprintf(name, 1024, "set_vars %s", alloc.cuda_managed_device_preferred.allocator.name());
+  if (alloc.cuda_managed_device_preferred.available()) {
+    char name[1024] = ""; snprintf(name, 1024, "set_vars %s", alloc.cuda_managed_device_preferred.allocator().name());
     Range r0(name, Range::green);
 
     if (exec_avail.seq)
-      do_copy(exec.seq, comminfo, alloc.cuda_managed_device_preferred.allocator, alloc.host.allocator, tm, num_vars, len, nrepeats);
+      do_copy(exec.seq, comminfo, alloc.cuda_managed_device_preferred.allocator(), alloc.host.allocator(), tm, num_vars, len, nrepeats);
 
 #ifdef COMB_ENABLE_OPENMP
     if (exec_avail.omp)
-      do_copy(exec.omp, comminfo, alloc.cuda_managed_device_preferred.allocator, alloc.host.allocator, tm, num_vars, len, nrepeats);
+      do_copy(exec.omp, comminfo, alloc.cuda_managed_device_preferred.allocator(), alloc.host.allocator(), tm, num_vars, len, nrepeats);
 #endif
 
     if (exec_avail.cuda)
-      do_copy(exec.cuda, comminfo, alloc.cuda_managed_device_preferred.allocator, alloc.cuda_hostpinned.allocator, tm, num_vars, len, nrepeats);
+      do_copy(exec.cuda, comminfo, alloc.cuda_managed_device_preferred.allocator(), alloc.cuda_hostpinned.allocator(), tm, num_vars, len, nrepeats);
 
     if (exec_avail.cuda_batch)
-      do_copy(exec.cuda_batch, comminfo, alloc.cuda_managed_device_preferred.allocator, alloc.cuda_hostpinned.allocator, tm, num_vars, len, nrepeats);
+      do_copy(exec.cuda_batch, comminfo, alloc.cuda_managed_device_preferred.allocator(), alloc.cuda_hostpinned.allocator(), tm, num_vars, len, nrepeats);
 
     if (exec_avail.cuda_persistent)
-      do_copy(exec.cuda_persistent, comminfo, alloc.cuda_managed_device_preferred.allocator, alloc.cuda_hostpinned.allocator, tm, num_vars, len, nrepeats);
+      do_copy(exec.cuda_persistent, comminfo, alloc.cuda_managed_device_preferred.allocator(), alloc.cuda_hostpinned.allocator(), tm, num_vars, len, nrepeats);
 
     {
       SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
       if (exec_avail.cuda_batch_fewgs)
-        do_copy(exec.cuda_batch, comminfo, alloc.cuda_managed_device_preferred.allocator, alloc.cuda_hostpinned.allocator, tm, num_vars, len, nrepeats);
+        do_copy(exec.cuda_batch, comminfo, alloc.cuda_managed_device_preferred.allocator(), alloc.cuda_hostpinned.allocator(), tm, num_vars, len, nrepeats);
 
       if (exec_avail.cuda_persistent_fewgs)
-        do_copy(exec.cuda_persistent, comminfo, alloc.cuda_managed_device_preferred.allocator, alloc.cuda_hostpinned.allocator, tm, num_vars, len, nrepeats);
+        do_copy(exec.cuda_persistent, comminfo, alloc.cuda_managed_device_preferred.allocator(), alloc.cuda_hostpinned.allocator(), tm, num_vars, len, nrepeats);
     }
 
 #ifdef COMB_ENABLE_CUDA_GRAPH
     if (exec_avail.cuda_graph)
-      do_copy(exec.cuda_graph, comminfo, alloc.cuda_managed_device_preferred.allocator, alloc.cuda_hostpinned.allocator, tm, num_vars, len, nrepeats);
+      do_copy(exec.cuda_graph, comminfo, alloc.cuda_managed_device_preferred.allocator(), alloc.cuda_hostpinned.allocator(), tm, num_vars, len, nrepeats);
 #endif
   }
 
-  if (alloc.cuda_managed_device_preferred_host_accessed.available) {
-    char name[1024] = ""; snprintf(name, 1024, "set_vars %s", alloc.cuda_managed_device_preferred_host_accessed.allocator.name());
+  if (alloc.cuda_managed_device_preferred_host_accessed.available()) {
+    char name[1024] = ""; snprintf(name, 1024, "set_vars %s", alloc.cuda_managed_device_preferred_host_accessed.allocator().name());
     Range r0(name, Range::green);
 
     if (exec_avail.seq)
-      do_copy(exec.seq, comminfo, alloc.cuda_managed_device_preferred_host_accessed.allocator, alloc.host.allocator, tm, num_vars, len, nrepeats);
+      do_copy(exec.seq, comminfo, alloc.cuda_managed_device_preferred_host_accessed.allocator(), alloc.host.allocator(), tm, num_vars, len, nrepeats);
 
 #ifdef COMB_ENABLE_OPENMP
     if (exec_avail.omp)
-      do_copy(exec.omp, comminfo, alloc.cuda_managed_device_preferred_host_accessed.allocator, alloc.host.allocator, tm, num_vars, len, nrepeats);
+      do_copy(exec.omp, comminfo, alloc.cuda_managed_device_preferred_host_accessed.allocator(), alloc.host.allocator(), tm, num_vars, len, nrepeats);
 #endif
 
     if (exec_avail.cuda)
-      do_copy(exec.cuda, comminfo, alloc.cuda_managed_device_preferred_host_accessed.allocator, alloc.cuda_hostpinned.allocator, tm, num_vars, len, nrepeats);
+      do_copy(exec.cuda, comminfo, alloc.cuda_managed_device_preferred_host_accessed.allocator(), alloc.cuda_hostpinned.allocator(), tm, num_vars, len, nrepeats);
 
     if (exec_avail.cuda_batch)
-      do_copy(exec.cuda_batch, comminfo, alloc.cuda_managed_device_preferred_host_accessed.allocator, alloc.cuda_hostpinned.allocator, tm, num_vars, len, nrepeats);
+      do_copy(exec.cuda_batch, comminfo, alloc.cuda_managed_device_preferred_host_accessed.allocator(), alloc.cuda_hostpinned.allocator(), tm, num_vars, len, nrepeats);
 
     if (exec_avail.cuda_persistent)
-      do_copy(exec.cuda_persistent, comminfo, alloc.cuda_managed_device_preferred_host_accessed.allocator, alloc.cuda_hostpinned.allocator, tm, num_vars, len, nrepeats);
+      do_copy(exec.cuda_persistent, comminfo, alloc.cuda_managed_device_preferred_host_accessed.allocator(), alloc.cuda_hostpinned.allocator(), tm, num_vars, len, nrepeats);
 
     {
       SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
       if (exec_avail.cuda_batch_fewgs)
-        do_copy(exec.cuda_batch, comminfo, alloc.cuda_managed_device_preferred_host_accessed.allocator, alloc.cuda_hostpinned.allocator, tm, num_vars, len, nrepeats);
+        do_copy(exec.cuda_batch, comminfo, alloc.cuda_managed_device_preferred_host_accessed.allocator(), alloc.cuda_hostpinned.allocator(), tm, num_vars, len, nrepeats);
 
       if (exec_avail.cuda_persistent_fewgs)
-        do_copy(exec.cuda_persistent, comminfo, alloc.cuda_managed_device_preferred_host_accessed.allocator, alloc.cuda_hostpinned.allocator, tm, num_vars, len, nrepeats);
+        do_copy(exec.cuda_persistent, comminfo, alloc.cuda_managed_device_preferred_host_accessed.allocator(), alloc.cuda_hostpinned.allocator(), tm, num_vars, len, nrepeats);
     }
 
 #ifdef COMB_ENABLE_CUDA_GRAPH
     if (exec_avail.cuda_graph)
-      do_copy(exec.cuda_graph, comminfo, alloc.cuda_managed_device_preferred_host_accessed.allocator, alloc.cuda_hostpinned.allocator, tm, num_vars, len, nrepeats);
+      do_copy(exec.cuda_graph, comminfo, alloc.cuda_managed_device_preferred_host_accessed.allocator(), alloc.cuda_hostpinned.allocator(), tm, num_vars, len, nrepeats);
 #endif
   }
 #endif // COMB_ENABLE_CUDA

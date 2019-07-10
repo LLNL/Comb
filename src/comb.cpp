@@ -105,7 +105,7 @@ int main(int argc, char** argv)
   exec_avail.seq = true;
 
   // stores whether each memory type is available for use
-  alloc.host.available = true;
+  alloc.host.m_available = true;
 
   IdxT i = 1;
   IdxT s = 0;
@@ -317,45 +317,45 @@ int main(int argc, char** argv)
             if (i+1 < argc && argv[i+1][0] != '-') {
               ++i;
               if (strcmp(argv[i], "all") == 0) {
-                alloc.host.available = enabledisable;
+                alloc.host.m_available = enabledisable;
   #ifdef COMB_ENABLE_CUDA
-                alloc.cuda_hostpinned.available = enabledisable;
-                alloc.cuda_device.available = enabledisable;
-                alloc.cuda_managed.available = enabledisable;
-                alloc.cuda_managed_host_preferred.available = enabledisable;
-                alloc.cuda_managed_host_preferred_device_accessed.available = enabledisable;
-                alloc.cuda_managed_device_preferred.available = enabledisable;
-                alloc.cuda_managed_device_preferred_host_accessed.available = enabledisable;
+                alloc.cuda_hostpinned.m_available = enabledisable;
+                alloc.cuda_device.m_available = enabledisable;
+                alloc.cuda_managed.m_available = enabledisable;
+                alloc.cuda_managed_host_preferred.m_available = enabledisable;
+                alloc.cuda_managed_host_preferred_device_accessed.m_available = enabledisable;
+                alloc.cuda_managed_device_preferred.m_available = enabledisable;
+                alloc.cuda_managed_device_preferred_host_accessed.m_available = enabledisable;
   #endif
               } else if (strcmp(argv[i], "host") == 0) {
-                alloc.host.available = enabledisable;
+                alloc.host.m_available = enabledisable;
               } else if (strcmp(argv[i], "cuda_hostpinned") == 0) {
   #ifdef COMB_ENABLE_CUDA
-                alloc.cuda_hostpinned.available = enabledisable;
+                alloc.cuda_hostpinned.m_available = enabledisable;
   #endif
               } else if (strcmp(argv[i], "cuda_device") == 0) {
   #ifdef COMB_ENABLE_CUDA
-                alloc.cuda_device.available = enabledisable;
+                alloc.cuda_device.m_available = enabledisable;
   #endif
               } else if (strcmp(argv[i], "cuda_managed") == 0) {
   #ifdef COMB_ENABLE_CUDA
-                alloc.cuda_managed.available = enabledisable;
+                alloc.cuda_managed.m_available = enabledisable;
   #endif
               } else if (strcmp(argv[i], "cuda_managed_host_preferred") == 0) {
   #ifdef COMB_ENABLE_CUDA
-                alloc.cuda_managed_host_preferred.available = enabledisable;
+                alloc.cuda_managed_host_preferred.m_available = enabledisable;
   #endif
               } else if (strcmp(argv[i], "cuda_managed_host_preferred_device_accessed") == 0) {
   #ifdef COMB_ENABLE_CUDA
-                alloc.cuda_managed_host_preferred_device_accessed.available = enabledisable;
+                alloc.cuda_managed_host_preferred_device_accessed.m_available = enabledisable;
   #endif
               } else if (strcmp(argv[i], "cuda_managed_device_preferred") == 0) {
   #ifdef COMB_ENABLE_CUDA
-                alloc.cuda_managed_device_preferred.available = enabledisable;
+                alloc.cuda_managed_device_preferred.m_available = enabledisable;
   #endif
               } else if (strcmp(argv[i], "cuda_managed_device_preferred_host_accessed") == 0) {
   #ifdef COMB_ENABLE_CUDA
-                alloc.cuda_managed_device_preferred_host_accessed.available = enabledisable;
+                alloc.cuda_managed_device_preferred_host_accessed.m_available = enabledisable;
   #endif
               } else {
                 comminfo.print(FileGroup::err_master, "Invalid argument to sub-option, ignoring %s %s %s.\n", argv[i-2], argv[i-1], argv[i]);

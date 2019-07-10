@@ -286,52 +286,86 @@ struct AllocatorAccessibilityFlags
   bool cuda_aware_mpi = false;
 };
 
-struct HostAllocatorInfo
+struct AllocatorInfo
 {
-  HostAllocator allocator;
-  bool available = false;
+  bool m_available = false;
+  AllocatorInfo(AllocatorAccessibilityFlags& a) : m_accessFlags(a) { }
+  virtual Allocator& allocator() = 0;
+  virtual bool available() = 0;
+protected:
+  AllocatorAccessibilityFlags& m_accessFlags;
 };
 
-struct HostPinnedAllocatorInfo
+struct HostAllocatorInfo : AllocatorInfo
 {
-  HostPinnedAllocator allocator;
-  bool available = false;
+  HostAllocatorInfo(AllocatorAccessibilityFlags& a) : AllocatorInfo(a) { }
+  Allocator& allocator() override { return m_allocator; }
+  bool available() override { return m_available; }
+private:
+  HostAllocator m_allocator;
 };
 
-struct DeviceAllocatorInfo
+struct HostPinnedAllocatorInfo : AllocatorInfo
 {
-  DeviceAllocator allocator;
-  bool available = false;
+  HostPinnedAllocatorInfo(AllocatorAccessibilityFlags& a) : AllocatorInfo(a) { }
+  Allocator& allocator() override { return m_allocator; }
+  bool available() override { return m_available; }
+private:
+  HostPinnedAllocator m_allocator;
 };
 
-struct ManagedAllocatorInfo
+struct DeviceAllocatorInfo : AllocatorInfo
 {
-  ManagedAllocator allocator;
-  bool available = false;
+  DeviceAllocatorInfo(AllocatorAccessibilityFlags& a) : AllocatorInfo(a) { }
+  Allocator& allocator() override { return m_allocator; }
+  bool available() override { return m_available; }
+private:
+  DeviceAllocator m_allocator;
 };
 
-struct ManagedHostPreferredAllocatorInfo
+struct ManagedAllocatorInfo : AllocatorInfo
 {
-  ManagedHostPreferredAllocator allocator;
-  bool available = false;
+  ManagedAllocatorInfo(AllocatorAccessibilityFlags& a) : AllocatorInfo(a) { }
+  Allocator& allocator() override { return m_allocator; }
+  bool available() override { return m_available; }
+private:
+  ManagedAllocator m_allocator;
 };
 
-struct ManagedHostPreferredDeviceAccessedAllocatorInfo
+struct ManagedHostPreferredAllocatorInfo : AllocatorInfo
 {
-  ManagedHostPreferredDeviceAccessedAllocator allocator;
-  bool available = false;
+  ManagedHostPreferredAllocatorInfo(AllocatorAccessibilityFlags& a) : AllocatorInfo(a) { }
+  Allocator& allocator() override { return m_allocator; }
+  bool available() override { return m_available; }
+private:
+  ManagedHostPreferredAllocator m_allocator;
 };
 
-struct ManagedDevicePreferredAllocatorInfo
+struct ManagedHostPreferredDeviceAccessedAllocatorInfo : AllocatorInfo
 {
-  ManagedDevicePreferredAllocator allocator;
-  bool available = false;
+  ManagedHostPreferredDeviceAccessedAllocatorInfo(AllocatorAccessibilityFlags& a) : AllocatorInfo(a) { }
+  Allocator& allocator() override { return m_allocator; }
+  bool available() override { return m_available; }
+private:
+  ManagedHostPreferredDeviceAccessedAllocator m_allocator;
 };
 
-struct ManagedDevicePreferredHostAccessedAllocatorInfo
+struct ManagedDevicePreferredAllocatorInfo : AllocatorInfo
 {
-  ManagedDevicePreferredHostAccessedAllocator allocator;
-  bool available = false;
+  ManagedDevicePreferredAllocatorInfo(AllocatorAccessibilityFlags& a) : AllocatorInfo(a) { }
+  Allocator& allocator() override { return m_allocator; }
+  bool available() override { return m_available; }
+private:
+  ManagedDevicePreferredAllocator m_allocator;
+};
+
+struct ManagedDevicePreferredHostAccessedAllocatorInfo : AllocatorInfo
+{
+  ManagedDevicePreferredHostAccessedAllocatorInfo(AllocatorAccessibilityFlags& a) : AllocatorInfo(a) { }
+  Allocator& allocator() override { return m_allocator; }
+  bool available() override { return m_available; }
+private:
+  ManagedDevicePreferredHostAccessedAllocator m_allocator;
 };
 
 struct Allocators
