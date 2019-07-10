@@ -23,6 +23,9 @@ namespace COMB {
 
 template < typename pol_comm, typename pol_mesh, typename pol_many, typename pol_few >
 void do_cycles(CommInfo& comm_info, MeshInfo& info,
+template < typename pol_comm, typename pol_mesh, typename pol_many, typename pol_few >
+void do_cycles(CommContext<pol_comm> const&,
+               CommInfo& comm_info, MeshInfo& info,
                IdxT num_vars, IdxT ncycles,
                ExecContext<pol_mesh> const& con_mesh, COMB::Allocator& aloc_mesh,
                ExecContext<pol_many> const& con_many, COMB::Allocator& aloc_many,
