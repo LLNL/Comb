@@ -37,7 +37,7 @@ void test_cycles_gpump(CommInfo& comminfo, MeshInfo& info,
     char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.name());
     Range r0(name, Range::blue);
 
-    if (alloc.cuda_device.cuda_device_accessible_from_host) {
+    if (alloc.access.cuda_device_accessible_from_host) {
       if (exec_avail.seq && exec_avail.seq && exec_avail.seq)
         do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.seq, mesh_aloc, exec.seq, alloc.cuda_device.allocator, exec.seq, alloc.cuda_device.allocator, tm, tm_total);
 
@@ -54,7 +54,7 @@ void test_cycles_gpump(CommInfo& comminfo, MeshInfo& info,
     }
 
 #ifdef COMB_ENABLE_CUDA
-    if (alloc.host.cuda_host_accessible_from_device && alloc.cuda_device.cuda_device_accessible_from_host) {
+    if (alloc.access.cuda_host_accessible_from_device && alloc.access.cuda_device_accessible_from_host) {
       if (exec_avail.cuda && exec_avail.seq && exec_avail.seq)
         do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.seq, alloc.cuda_device.allocator, exec.seq, alloc.cuda_device.allocator, tm, tm_total);
 
@@ -70,13 +70,13 @@ void test_cycles_gpump(CommInfo& comminfo, MeshInfo& info,
         do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda, alloc.cuda_device.allocator, exec.seq, alloc.cuda_device.allocator, tm, tm_total);
     }
 
-    if (alloc.host.cuda_host_accessible_from_device) {
+    if (alloc.access.cuda_host_accessible_from_device) {
 
       if (exec_avail.cuda && exec_avail.cuda && exec_avail.cuda)
         do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda, alloc.cuda_device.allocator, exec.cuda, alloc.cuda_device.allocator, tm, tm_total);
 
       {
-        if (alloc.cuda_device.cuda_device_accessible_from_host) {
+        if (alloc.access.cuda_device_accessible_from_host) {
           if (exec_avail.cuda && exec_avail.cuda_batch && exec_avail.seq)
             do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.cuda_device.allocator, exec.seq, alloc.cuda_device.allocator, tm, tm_total);
         }
@@ -84,7 +84,7 @@ void test_cycles_gpump(CommInfo& comminfo, MeshInfo& info,
         if (exec_avail.cuda && exec_avail.cuda_batch && exec_avail.cuda_batch)
           do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.cuda_device.allocator, exec.cuda_batch, alloc.cuda_device.allocator, tm, tm_total);
 
-        if (alloc.cuda_device.cuda_device_accessible_from_host) {
+        if (alloc.access.cuda_device_accessible_from_host) {
           if (exec_avail.cuda && exec_avail.cuda_persistent && exec_avail.seq)
             do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.cuda_device.allocator, exec.seq, alloc.cuda_device.allocator, tm, tm_total);
         }
@@ -95,14 +95,14 @@ void test_cycles_gpump(CommInfo& comminfo, MeshInfo& info,
 
         SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
-        if (alloc.cuda_device.cuda_device_accessible_from_host) {
+        if (alloc.access.cuda_device_accessible_from_host) {
           if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.seq)
             do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.cuda_device.allocator, exec.seq, alloc.cuda_device.allocator, tm, tm_total);
         }
 
         if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.cuda_batch_fewgs)
           do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.cuda_device.allocator, exec.cuda_batch, alloc.cuda_device.allocator, tm, tm_total);
-        if (alloc.cuda_device.cuda_device_accessible_from_host) {
+        if (alloc.access.cuda_device_accessible_from_host) {
           if (exec_avail.cuda && exec_avail.cuda_persistent_fewgs && exec_avail.seq)
             do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.cuda_device.allocator, exec.seq, alloc.cuda_device.allocator, tm, tm_total);
         }
@@ -112,7 +112,7 @@ void test_cycles_gpump(CommInfo& comminfo, MeshInfo& info,
       }
 
 #ifdef COMB_ENABLE_CUDA_GRAPH
-      if (alloc.cuda_device.cuda_device_accessible_from_host) {
+      if (alloc.access.cuda_device_accessible_from_host) {
         if (exec_avail.cuda && exec_avail.cuda_graph && exec_avail.seq)
           do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_graph, alloc.cuda_device.allocator, exec.seq, alloc.cuda_device.allocator, tm, tm_total);
       }
@@ -132,7 +132,7 @@ void test_cycles_gpump(CommInfo& comminfo, MeshInfo& info,
 #endif
 
 #ifdef COMB_ENABLE_CUDA
-    if (alloc.host.cuda_host_accessible_from_device) {
+    if (alloc.access.cuda_host_accessible_from_device) {
       // if (exec_avail.cuda && exec_avail.mpi_type && exec_avail.mpi_type)
       //   do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.mpi_type, mesh_aloc, exec.mpi_type, mesh_aloc, tm, tm_total);
     }
@@ -234,7 +234,7 @@ void test_cycles_gpump(CommInfo& comminfo, MeshInfo& info,
     char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.name());
     Range r0(name, Range::blue);
 
-    if (alloc.cuda_device.cuda_device_accessible_from_host) {
+    if (alloc.access.cuda_device_accessible_from_host) {
       if (exec_avail.seq && exec_avail.seq && exec_avail.seq)
         do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.seq, mesh_aloc, exec.seq, alloc.cuda_device.allocator, exec.seq, alloc.cuda_device.allocator, tm, tm_total);
 
@@ -268,7 +268,7 @@ void test_cycles_gpump(CommInfo& comminfo, MeshInfo& info,
       do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda, alloc.cuda_device.allocator, exec.cuda, alloc.cuda_device.allocator, tm, tm_total);
 
     {
-      if (alloc.cuda_device.cuda_device_accessible_from_host) {
+      if (alloc.access.cuda_device_accessible_from_host) {
         if (exec_avail.cuda && exec_avail.cuda_batch && exec_avail.seq)
           do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.cuda_device.allocator, exec.seq, alloc.cuda_device.allocator, tm, tm_total);
       }
@@ -276,7 +276,7 @@ void test_cycles_gpump(CommInfo& comminfo, MeshInfo& info,
       if (exec_avail.cuda && exec_avail.cuda_batch && exec_avail.cuda_batch)
         do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.cuda_device.allocator, exec.cuda_batch, alloc.cuda_device.allocator, tm, tm_total);
 
-      if (alloc.cuda_device.cuda_device_accessible_from_host) {
+      if (alloc.access.cuda_device_accessible_from_host) {
         if (exec_avail.cuda && exec_avail.cuda_persistent && exec_avail.seq)
           do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.cuda_device.allocator, exec.seq, alloc.cuda_device.allocator, tm, tm_total);
       }
@@ -287,7 +287,7 @@ void test_cycles_gpump(CommInfo& comminfo, MeshInfo& info,
 
       SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
-      if (alloc.cuda_device.cuda_device_accessible_from_host) {
+      if (alloc.access.cuda_device_accessible_from_host) {
         if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.seq)
           do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.cuda_device.allocator, exec.seq, alloc.cuda_device.allocator, tm, tm_total);
       }
@@ -295,7 +295,7 @@ void test_cycles_gpump(CommInfo& comminfo, MeshInfo& info,
       if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.cuda_batch_fewgs)
         do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, alloc.cuda_device.allocator, exec.cuda_batch, alloc.cuda_device.allocator, tm, tm_total);
 
-      if (alloc.cuda_device.cuda_device_accessible_from_host) {
+      if (alloc.access.cuda_device_accessible_from_host) {
         if (exec_avail.cuda && exec_avail.cuda_persistent_fewgs && exec_avail.seq)
           do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, alloc.cuda_device.allocator, exec.seq, alloc.cuda_device.allocator, tm, tm_total);
       }
@@ -305,7 +305,7 @@ void test_cycles_gpump(CommInfo& comminfo, MeshInfo& info,
     }
 
 #ifdef COMB_ENABLE_CUDA_GRAPH
-    if (alloc.cuda_device.cuda_device_accessible_from_host) {
+    if (alloc.access.cuda_device_accessible_from_host) {
       if (exec_avail.cuda && exec_avail.cuda_graph && exec_avail.seq)
         do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_graph, alloc.cuda_device.allocator, exec.seq, alloc.cuda_device.allocator, tm, tm_total);
     }
@@ -314,14 +314,14 @@ void test_cycles_gpump(CommInfo& comminfo, MeshInfo& info,
       do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_graph, alloc.cuda_device.allocator, exec.cuda_graph, alloc.cuda_device.allocator, tm, tm_total);
 #endif
 
-    if (alloc.cuda_aware_mpi) {
-      if (alloc.cuda_device.cuda_device_accessible_from_host) {
+    if (alloc.access.cuda_aware_mpi) {
+      if (alloc.access.cuda_device_accessible_from_host) {
         // if (exec_avail.seq && exec_avail.mpi_type && exec_avail.mpi_type)
         //   do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.seq, mesh_aloc, exec.mpi_type, mesh_aloc, exec.mpi_type, mesh_aloc, tm, tm_total);
       }
 
 #ifdef COMB_ENABLE_OPENMP
-      if (alloc.cuda_device.cuda_device_accessible_from_host) {
+      if (alloc.access.cuda_device_accessible_from_host) {
         // if (exec_avail.omp && exec_avail.mpi_type && exec_avail.mpi_type)
         //   do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.omp, mesh_aloc, exec.mpi_type, mesh_aloc, exec.mpi_type, mesh_aloc, tm, tm_total);
       }
@@ -407,7 +407,7 @@ void test_cycles_gpump(CommInfo& comminfo, MeshInfo& info,
       do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_graph, alloc.cuda_device.allocator, exec.cuda_graph, alloc.cuda_device.allocator, tm, tm_total);
 #endif
 
-    if (alloc.cuda_aware_mpi) {
+    if (alloc.access.cuda_aware_mpi) {
       // if (exec_avail.seq && exec_avail.mpi_type && exec_avail.mpi_type)
       //   do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.seq, mesh_aloc, exec.mpi_type, mesh_aloc, exec.mpi_type, mesh_aloc, tm, tm_total);
 
@@ -496,7 +496,7 @@ void test_cycles_gpump(CommInfo& comminfo, MeshInfo& info,
       do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_graph, alloc.cuda_device.allocator, exec.cuda_graph, alloc.cuda_device.allocator, tm, tm_total);
 #endif
 
-    if (alloc.cuda_aware_mpi) {
+    if (alloc.access.cuda_aware_mpi) {
       // if (exec_avail.seq && exec_avail.mpi_type && exec_avail.mpi_type)
       //   do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.seq, mesh_aloc, exec.mpi_type, mesh_aloc, exec.mpi_type, mesh_aloc, tm, tm_total);
 
@@ -585,7 +585,7 @@ void test_cycles_gpump(CommInfo& comminfo, MeshInfo& info,
       do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_graph, alloc.cuda_device.allocator, exec.cuda_graph, alloc.cuda_device.allocator, tm, tm_total);
 #endif
 
-    if (alloc.cuda_aware_mpi) {
+    if (alloc.access.cuda_aware_mpi) {
       // if (exec_avail.seq && exec_avail.mpi_type && exec_avail.mpi_type)
       //   do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.seq, mesh_aloc, exec.mpi_type, mesh_aloc, exec.mpi_type, mesh_aloc, tm, tm_total);
 
@@ -674,7 +674,7 @@ void test_cycles_gpump(CommInfo& comminfo, MeshInfo& info,
       do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_graph, alloc.cuda_device.allocator, exec.cuda_graph, alloc.cuda_device.allocator, tm, tm_total);
 #endif
 
-    if (alloc.cuda_aware_mpi) {
+    if (alloc.access.cuda_aware_mpi) {
       // if (exec_avail.seq && exec_avail.mpi_type && exec_avail.mpi_type)
       //   do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.seq, mesh_aloc, exec.mpi_type, mesh_aloc, exec.mpi_type, mesh_aloc, tm, tm_total);
 
@@ -763,7 +763,7 @@ void test_cycles_gpump(CommInfo& comminfo, MeshInfo& info,
       do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_graph, alloc.cuda_device.allocator, exec.cuda_graph, alloc.cuda_device.allocator, tm, tm_total);
 #endif
 
-    if (alloc.cuda_aware_mpi) {
+    if (alloc.access.cuda_aware_mpi) {
       // if (exec_avail.seq && exec_avail.mpi_type && exec_avail.mpi_type)
       //   do_cycles<policy_comm>(comminfo, info, num_vars, ncycles, exec.seq, mesh_aloc, exec.mpi_type, mesh_aloc, exec.mpi_type, mesh_aloc, tm, tm_total);
 

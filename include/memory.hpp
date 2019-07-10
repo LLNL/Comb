@@ -276,12 +276,20 @@ struct ManagedDevicePreferredHostAccessedAllocator : Allocator
 #endif
 };
 
+struct AllocatorAccessibilityFlags
+{
+  // special flag to enable tests that access host pageable memory from the device
+  bool cuda_host_accessible_from_device = false;
+  // special flag to enable tests that access device memory from the host
+  bool cuda_device_accessible_from_host = false;
+  // special flag to enable tests that pass device buffers to MPI
+  bool cuda_aware_mpi = false;
+};
+
 struct HostAllocatorInfo
 {
   HostAllocator allocator;
   bool available = false;
-  // special flag to enable tests that access host pageable memory from the device
-  bool cuda_host_accessible_from_device = false;
 };
 
 struct HostPinnedAllocatorInfo
@@ -294,8 +302,6 @@ struct DeviceAllocatorInfo
 {
   DeviceAllocator allocator;
   bool available = false;
-  // special flag to enable tests that access device memory from the host
-  bool cuda_device_accessible_from_host = false;
 };
 
 struct ManagedAllocatorInfo
@@ -330,17 +336,16 @@ struct ManagedDevicePreferredHostAccessedAllocatorInfo
 
 struct Allocators
 {
-  HostAllocatorInfo host;
-  HostPinnedAllocatorInfo cuda_hostpinned;
-  DeviceAllocatorInfo cuda_device;
-  ManagedAllocatorInfo cuda_managed;
-  ManagedHostPreferredAllocatorInfo cuda_managed_host_preferred;
-  ManagedHostPreferredDeviceAccessedAllocatorInfo cuda_managed_host_preferred_device_accessed;
-  ManagedDevicePreferredAllocatorInfo cuda_managed_device_preferred;
-  ManagedDevicePreferredHostAccessedAllocatorInfo cuda_managed_device_preferred_host_accessed;
+  AllocatorAccessibilityFlags access;
 
-  // special flag to enable tests that pass device buffers to MPI
-  bool cuda_aware_mpi = false;
+  HostAllocatorInfo                               host{access};
+  HostPinnedAllocatorInfo                         cuda_hostpinned{access};
+  DeviceAllocatorInfo                             cuda_device{access};
+  ManagedAllocatorInfo                            cuda_managed{access};
+  ManagedHostPreferredAllocatorInfo               cuda_managed_host_preferred{access};
+  ManagedHostPreferredDeviceAccessedAllocatorInfo cuda_managed_host_preferred_device_accessed{access};
+  ManagedDevicePreferredAllocatorInfo             cuda_managed_device_preferred{access};
+  ManagedDevicePreferredHostAccessedAllocatorInfo cuda_managed_device_preferred_host_accessed{access};
 };
 
 } // namespace COMB

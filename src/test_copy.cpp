@@ -101,7 +101,7 @@ void test_copy(CommInfo& comminfo,
 #endif
 
 #ifdef COMB_ENABLE_CUDA
-    if (alloc.host.cuda_host_accessible_from_device) {
+    if (alloc.access.cuda_host_accessible_from_device) {
 
       if (exec_avail.cuda)
         do_copy(exec.cuda, comminfo, alloc.host.allocator, alloc.host.allocator, tm, num_vars, len, nrepeats);
@@ -172,7 +172,7 @@ void test_copy(CommInfo& comminfo,
     char name[1024] = ""; snprintf(name, 1024, "set_vars %s", alloc.cuda_device.allocator.name());
     Range r0(name, Range::green);
 
-    if (alloc.cuda_device.cuda_device_accessible_from_host) {
+    if (alloc.access.cuda_device_accessible_from_host) {
       if (exec_avail.seq)
         do_copy(exec.seq, comminfo, alloc.cuda_device.allocator, alloc.host.allocator, tm, num_vars, len, nrepeats);
 

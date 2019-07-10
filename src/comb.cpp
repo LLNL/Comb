@@ -451,19 +451,19 @@ int main(int argc, char** argv)
         }
       } else if (strcmp(&argv[i][1], "cuda_aware_mpi") == 0) {
 #ifdef COMB_ENABLE_CUDA
-        alloc.cuda_aware_mpi = true;
+        alloc.access.cuda_aware_mpi = true;
 #else
         comminfo.print(FileGroup::err_master, "Not built with cuda, ignoring %s.\n", argv[i]);
 #endif
       } else if (strcmp(&argv[i][1], "cuda_host_accessible_from_device") == 0) {
 #ifdef COMB_ENABLE_CUDA
-        alloc.host.cuda_host_accessible_from_device = COMB::detail::cuda::get_host_accessible_from_device();
+        alloc.access.cuda_host_accessible_from_device = COMB::detail::cuda::get_host_accessible_from_device();
 #else
         comminfo.print(FileGroup::err_master, "Not built with cuda, ignoring %s.\n", argv[i]);
 #endif
       } else if (strcmp(&argv[i][1], "cuda_device_accessible_from_host") == 0) {
 #ifdef COMB_ENABLE_CUDA
-        alloc.cuda_device.cuda_device_accessible_from_host = COMB::detail::cuda::get_device_accessible_from_host();
+        alloc.access.cuda_device_accessible_from_host = COMB::detail::cuda::get_device_accessible_from_host();
 #else
         comminfo.print(FileGroup::err_master, "Not built with cuda, ignoring %s.\n", argv[i]);
 #endif
