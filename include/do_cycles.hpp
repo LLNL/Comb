@@ -22,7 +22,18 @@
 namespace COMB {
 
 template < typename pol_comm, typename pol_mesh, typename pol_many, typename pol_few >
-void do_cycles(CommInfo& comm_info, MeshInfo& info,
+bool should_do_cycles(CommContext<pol_comm> const& con_comm,
+                      ExecContext<pol_mesh> const& con_mesh, AllocatorInfo& aloc_mesh,
+                      ExecContext<pol_many> const& con_many, AllocatorInfo& aloc_many,
+                      ExecContext<pol_few>  const& con_few,  AllocatorInfo& aloc_few)
+{
+  return aloc_mesh.available() && aloc_many.available() && aloc_few.available()
+      && aloc_many.accessible(con_comm) && aloc_few.accessible(con_comm)
+      && aloc_mesh.accessible(con_mesh)
+      && aloc_mesh.accessible(con_many) && aloc_many.accessible(con_many)
+      && aloc_mesh.accessible(con_few)  && aloc_few.accessible(con_few) ;
+}
+
 template < typename pol_comm, typename pol_mesh, typename pol_many, typename pol_few >
 void do_cycles(CommContext<pol_comm> const&,
                CommInfo& comm_info, MeshInfo& info,
