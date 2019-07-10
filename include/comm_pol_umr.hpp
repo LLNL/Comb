@@ -24,6 +24,7 @@
 #include "utils.hpp"
 #include "utils_umr.hpp"
 #include "MessageBase.hpp"
+#include "ExecContext.hpp"
 
 struct umr_pol {
   // static const bool async = false;
@@ -40,6 +41,18 @@ struct umr_pol {
   static inline send_status_type send_status_null() { return send_status_type{}; }
   using recv_status_type = UMR_Status;
   static inline recv_status_type recv_status_null() { return recv_status_type{}; }
+};
+
+template < >
+struct CommContext<umr_pol> : MPIContext
+{
+  using base = MPIContext;
+  CommContext()
+    : base()
+  { }
+  CommContext(base const& b)
+    : base(b)
+  { }
 };
 
 

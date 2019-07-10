@@ -27,9 +27,9 @@ struct mpi_type_pol {
 };
 
 template < >
-struct ExecContext<mpi_type_pol> : CPUContext
+struct ExecContext<mpi_type_pol> : MPIContext
 {
-  using base = CPUContext;
+  using base = MPIContext;
   ExecContext()
     : base()
   { }

@@ -127,7 +127,7 @@ struct ExecContexts
 #ifdef COMB_ENABLE_CUDA_GRAPH
   ExecContext<cuda_graph_pol> cuda_graph{cuda};
 #endif
-  ExecContext<mpi_type_pol> mpi_type{seq};
+  ExecContext<mpi_type_pol> mpi_type{};
 };
 
 } // namespace COMB

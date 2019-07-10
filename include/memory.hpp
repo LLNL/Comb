@@ -294,6 +294,7 @@ struct AllocatorInfo
   virtual Allocator& allocator() = 0;
   virtual bool available() = 0;
   virtual bool accessible(CPUContext const&) = 0;
+  virtual bool accessible(MPIContext const&) = 0;
   virtual bool accessible(CudaContext const&) = 0;
 protected:
   AllocatorAccessibilityFlags& m_accessFlags;
@@ -305,6 +306,7 @@ struct HostAllocatorInfo : AllocatorInfo
   Allocator& allocator() override { return m_allocator; }
   bool available() override { return m_available; }
   bool accessible(CPUContext const&) override { return true; }
+  bool accessible(MPIContext const&) override { return true; }
   bool accessible(CudaContext const&) override { return m_accessFlags.cuda_host_accessible_from_device; }
 private:
   HostAllocator m_allocator;
@@ -316,6 +318,7 @@ struct HostPinnedAllocatorInfo : AllocatorInfo
   Allocator& allocator() override { return m_allocator; }
   bool available() override { return m_available; }
   bool accessible(CPUContext const&) override { return true; }
+  bool accessible(MPIContext const&) override { return true; }
   bool accessible(CudaContext const&) override { return true; }
 private:
   HostPinnedAllocator m_allocator;
@@ -327,6 +330,7 @@ struct DeviceAllocatorInfo : AllocatorInfo
   Allocator& allocator() override { return m_allocator; }
   bool available() override { return m_available; }
   bool accessible(CPUContext const&) override { return m_accessFlags.cuda_device_accessible_from_host; }
+  bool accessible(MPIContext const&) override { return m_accessFlags.cuda_aware_mpi; }
   bool accessible(CudaContext const&) override { return true; }
 private:
   DeviceAllocator m_allocator;
@@ -338,6 +342,7 @@ struct ManagedAllocatorInfo : AllocatorInfo
   Allocator& allocator() override { return m_allocator; }
   bool available() override { return m_available; }
   bool accessible(CPUContext const&) override { return true; }
+  bool accessible(MPIContext const&) override { return m_accessFlags.cuda_aware_mpi; }
   bool accessible(CudaContext const&) override { return true; }
 private:
   ManagedAllocator m_allocator;
@@ -349,6 +354,7 @@ struct ManagedHostPreferredAllocatorInfo : AllocatorInfo
   Allocator& allocator() override { return m_allocator; }
   bool available() override { return m_available; }
   bool accessible(CPUContext const&) override { return true; }
+  bool accessible(MPIContext const&) override { return m_accessFlags.cuda_aware_mpi; }
   bool accessible(CudaContext const&) override { return true; }
 private:
   ManagedHostPreferredAllocator m_allocator;
@@ -360,6 +366,7 @@ struct ManagedHostPreferredDeviceAccessedAllocatorInfo : AllocatorInfo
   Allocator& allocator() override { return m_allocator; }
   bool available() override { return m_available; }
   bool accessible(CPUContext const&) override { return true; }
+  bool accessible(MPIContext const&) override { return m_accessFlags.cuda_aware_mpi; }
   bool accessible(CudaContext const&) override { return true; }
 private:
   ManagedHostPreferredDeviceAccessedAllocator m_allocator;
@@ -371,6 +378,7 @@ struct ManagedDevicePreferredAllocatorInfo : AllocatorInfo
   Allocator& allocator() override { return m_allocator; }
   bool available() override { return m_available; }
   bool accessible(CPUContext const&) override { return true; }
+  bool accessible(MPIContext const&) override { return m_accessFlags.cuda_aware_mpi; }
   bool accessible(CudaContext const&) override { return true; }
 private:
   ManagedDevicePreferredAllocator m_allocator;
@@ -382,6 +390,7 @@ struct ManagedDevicePreferredHostAccessedAllocatorInfo : AllocatorInfo
   Allocator& allocator() override { return m_allocator; }
   bool available() override { return m_available; }
   bool accessible(CPUContext const&) override { return true; }
+  bool accessible(MPIContext const&) override { return m_accessFlags.cuda_aware_mpi; }
   bool accessible(CudaContext const&) override { return true; }
 private:
   ManagedDevicePreferredHostAccessedAllocator m_allocator;

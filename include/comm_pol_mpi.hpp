@@ -22,6 +22,7 @@
 #include "utils.hpp"
 #include "utils_mpi.hpp"
 #include "MessageBase.hpp"
+#include "ExecContext.hpp"
 
 struct mpi_pol {
   // static const bool async = false;
@@ -38,6 +39,18 @@ struct mpi_pol {
   static inline send_status_type send_status_null() { return send_status_type{}; }
   using recv_status_type = MPI_Status;
   static inline recv_status_type recv_status_null() { return recv_status_type{}; }
+};
+
+template < >
+struct CommContext<mpi_pol> : MPIContext
+{
+  using base = MPIContext;
+  CommContext()
+    : base()
+  { }
+  CommContext(base const& b)
+    : base(b)
+  { }
 };
 
 

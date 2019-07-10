@@ -21,6 +21,7 @@
 #include "for_all.hpp"
 #include "utils.hpp"
 #include "MessageBase.hpp"
+#include "ExecContext.hpp"
 
 struct mock_pol {
   // static const bool async = false;
@@ -37,6 +38,18 @@ struct mock_pol {
   static inline send_status_type send_status_null() { return 0; }
   using recv_status_type = int;
   static inline recv_status_type recv_status_null() { return 0; }
+};
+
+template < >
+struct CommContext<mock_pol> : MPIContext
+{
+  using base = MPIContext;
+  CommContext()
+    : base()
+  { }
+  CommContext(base const& b)
+    : base(b)
+  { }
 };
 
 

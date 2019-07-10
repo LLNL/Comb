@@ -26,6 +26,7 @@
 #include "utils_cuda.hpp"
 #include "utils_mp.hpp"
 #include "MessageBase.hpp"
+#include "ExecContext.hpp"
 
 struct MpRequest
 {
@@ -151,6 +152,18 @@ struct mp_pol {
   static inline send_status_type send_status_null() { return 0; }
   using recv_status_type = int;
   static inline recv_status_type recv_status_null() { return 0; }
+};
+
+template < >
+struct CommContext<mp_pol> : CudaContext
+{
+  using base = CudaContext;
+  CommContext()
+    : base()
+  { }
+  CommContext(base const& b)
+    : base(b)
+  { }
 };
 
 
