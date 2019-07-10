@@ -18,6 +18,8 @@
 
 #include "config.hpp"
 
+#include "utils_cuda.hpp"
+
 enum struct ContextEnum
 {
   invalid = 0
