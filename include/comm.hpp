@@ -384,6 +384,7 @@ struct Comm
 
   void postRecv(ExecContext<policy_many> const& con_many, ExecContext<policy_few> const& con_few)
   {
+    COMB::ignore_unused(con_many, con_few);
     //FPRINTF(stdout, "posting receives\n");
 
     m_recv_requests.resize(m_recvs.size(), policy_comm::recv_request_null());
@@ -1197,6 +1198,7 @@ struct Comm
 
   void waitSend(ExecContext<policy_many> const& con_many, ExecContext<policy_few> const& con_few)
   {
+    COMB::ignore_unused(con_many, con_few);
     //FPRINTF(stdout, "posting sends\n");
 
     switch (wait_send_method) {
