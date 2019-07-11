@@ -23,7 +23,7 @@ bool should_do_copy(ExecContext<pol> const& con,
                     COMB::AllocatorInfo& src_aloc,
                     COMB::AllocatorInfo& dst_aloc)
 {
-  return src_aloc.available() && dst_aloc.available()
+  return dst_aloc.available() // && src_aloc.available()
       && src_aloc.accessible(con)
       && dst_aloc.accessible(con) ;
 }
