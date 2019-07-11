@@ -138,21 +138,14 @@ void test_copy_allocator(CommInfo& comminfo,
 #endif
 }
 
-void test_copy(CommInfo& comminfo,
-               COMB::ExecContexts& exec,
-               COMB::Allocators& alloc,
-               COMB::ExecutorsAvailable& exec_avail,
-               Timer& tm, IdxT num_vars, IdxT len, IdxT nrepeats)
+void test_copy_allocators(CommInfo& comminfo,
+                          COMB::ExecContexts& exec,
+                          COMB::Allocators& alloc,
+                          AllocatorInfo& cpu_src_aloc,
+                          AllocatorInfo& cuda_src_aloc,
+                          COMB::ExecutorsAvailable& exec_avail,
+                          Timer& tm, IdxT num_vars, IdxT len, IdxT nrepeats)
 {
-  AllocatorInfo& cpu_src_aloc = alloc.host;
-
-#ifdef COMB_ENABLE_CUDA
-  AllocatorInfo& cuda_src_aloc = alloc.cuda_hostpinned;
-#else
-  AllocatorInfo& cuda_src_aloc = alloc.invalid;
-#endif
-
-  // host memory
   test_copy_allocator(comminfo,
                       exec,
                       alloc.host,
@@ -219,6 +212,53 @@ void test_copy(CommInfo& comminfo,
                       exec_avail,
                       tm, num_vars, len, nrepeats);
 
+#endif // COMB_ENABLE_CUDA
+
+}
+
+void test_copy(CommInfo& comminfo,
+               COMB::ExecContexts& exec,
+               COMB::Allocators& alloc,
+               COMB::ExecutorsAvailable& exec_avail,
+               Timer& tm, IdxT num_vars, IdxT len, IdxT nrepeats)
+{
+
+  {
+    // src host memory tests
+    AllocatorInfo& cpu_src_aloc = alloc.host;
+
+#ifdef COMB_ENABLE_CUDA
+    AllocatorInfo& cuda_src_aloc = alloc.cuda_hostpinned;
+#else
+    AllocatorInfo& cuda_src_aloc = alloc.invalid;
+#endif
+
+    test_copy_allocators(comminfo,
+                         exec,
+                         alloc,
+                         cpu_src_aloc,
+                         cuda_src_aloc,
+                         exec_avail,
+                         tm, num_vars, len, nrepeats);
+
+  }
+
+#ifdef COMB_ENABLE_CUDA
+  {
+    // src cuda memory tests
+    AllocatorInfo& cpu_src_aloc = alloc.cuda_device;
+
+    AllocatorInfo& cuda_src_aloc = alloc.cuda_device;
+
+    test_copy_allocators(comminfo,
+                         exec,
+                         alloc,
+                         cpu_src_aloc,
+                         cuda_src_aloc,
+                         exec_avail,
+                         tm, num_vars, len, nrepeats);
+
+  }
 #endif // COMB_ENABLE_CUDA
 
 }
