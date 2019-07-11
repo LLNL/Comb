@@ -108,7 +108,7 @@ void test_copy(CommInfo& comminfo,
   if (alloc.host.available()) {
     AllocatorInfo& dst_aloc = alloc.host;
 
-    char name[1024] = ""; snprintf(name, 1024, "set_vars %s", alloc.host.allocator().name());
+    char name[1024] = ""; snprintf(name, 1024, "set_vars %s", dst_aloc.allocator().name());
     Range r0(name, Range::green);
 
     if (exec_avail.seq && should_do_copy(exec.seq, dst_aloc, cpu_src_aloc))
@@ -150,7 +150,7 @@ void test_copy(CommInfo& comminfo,
   if (alloc.cuda_hostpinned.available()) {
     AllocatorInfo& dst_aloc = alloc.cuda_hostpinned;
 
-    char name[1024] = ""; snprintf(name, 1024, "set_vars %s", alloc.cuda_hostpinned.allocator().name());
+    char name[1024] = ""; snprintf(name, 1024, "set_vars %s", dst_aloc.allocator().name());
     Range r0(name, Range::green);
 
     if (exec_avail.seq && should_do_copy(exec.seq, dst_aloc, cpu_src_aloc))
@@ -189,7 +189,7 @@ void test_copy(CommInfo& comminfo,
   if (alloc.cuda_device.available()) {
     AllocatorInfo& dst_aloc = alloc.cuda_device;
 
-    char name[1024] = ""; snprintf(name, 1024, "set_vars %s", alloc.cuda_device.allocator().name());
+    char name[1024] = ""; snprintf(name, 1024, "set_vars %s", dst_aloc.allocator().name());
     Range r0(name, Range::green);
 
     if (exec_avail.seq && should_do_copy(exec.seq, dst_aloc, cpu_src_aloc))
@@ -228,7 +228,7 @@ void test_copy(CommInfo& comminfo,
   if (alloc.cuda_managed.available()) {
     AllocatorInfo& dst_aloc = alloc.cuda_managed;
 
-    char name[1024] = ""; snprintf(name, 1024, "set_vars %s", alloc.cuda_managed.allocator().name());
+    char name[1024] = ""; snprintf(name, 1024, "set_vars %s", dst_aloc.allocator().name());
     Range r0(name, Range::green);
 
     if (exec_avail.seq && should_do_copy(exec.seq, dst_aloc, cpu_src_aloc))
@@ -267,7 +267,7 @@ void test_copy(CommInfo& comminfo,
   if (alloc.cuda_managed_host_preferred.available()) {
     AllocatorInfo& dst_aloc = alloc.cuda_managed_host_preferred;
 
-    char name[1024] = ""; snprintf(name, 1024, "set_vars %s", alloc.cuda_managed_host_preferred.allocator().name());
+    char name[1024] = ""; snprintf(name, 1024, "set_vars %s", dst_aloc.allocator().name());
     Range r0(name, Range::green);
 
     if (exec_avail.seq && should_do_copy(exec.seq, dst_aloc, cpu_src_aloc))
@@ -306,7 +306,7 @@ void test_copy(CommInfo& comminfo,
   if (alloc.cuda_managed_host_preferred_device_accessed.available()) {
     AllocatorInfo& dst_aloc = alloc.cuda_managed_host_preferred_device_accessed;
 
-    char name[1024] = ""; snprintf(name, 1024, "set_vars %s", alloc.cuda_managed_host_preferred_device_accessed.allocator().name());
+    char name[1024] = ""; snprintf(name, 1024, "set_vars %s", dst_aloc.allocator().name());
     Range r0(name, Range::green);
 
     if (exec_avail.seq && should_do_copy(exec.seq, dst_aloc, cpu_src_aloc))
@@ -345,7 +345,7 @@ void test_copy(CommInfo& comminfo,
   if (alloc.cuda_managed_device_preferred.available()) {
     AllocatorInfo& dst_aloc = alloc.cuda_managed_device_preferred;
 
-    char name[1024] = ""; snprintf(name, 1024, "set_vars %s", alloc.cuda_managed_device_preferred.allocator().name());
+    char name[1024] = ""; snprintf(name, 1024, "set_vars %s", dst_aloc.allocator().name());
     Range r0(name, Range::green);
 
     if (exec_avail.seq && should_do_copy(exec.seq, dst_aloc, cpu_src_aloc))
@@ -384,7 +384,7 @@ void test_copy(CommInfo& comminfo,
   if (alloc.cuda_managed_device_preferred_host_accessed.available()) {
     AllocatorInfo& dst_aloc = alloc.cuda_managed_device_preferred_host_accessed;
 
-    char name[1024] = ""; snprintf(name, 1024, "set_vars %s", alloc.cuda_managed_device_preferred_host_accessed.allocator().name());
+    char name[1024] = ""; snprintf(name, 1024, "set_vars %s", dst_aloc.allocator().name());
     Range r0(name, Range::green);
 
     if (exec_avail.seq && should_do_copy(exec.seq, dst_aloc, cpu_src_aloc))
