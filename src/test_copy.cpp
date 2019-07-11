@@ -20,19 +20,19 @@ namespace COMB {
 
 template < typename pol >
 bool should_do_copy(ExecContext<pol> const& con,
-                    COMB::AllocatorInfo& src_aloc,
-                    COMB::AllocatorInfo& dst_aloc)
+                    COMB::AllocatorInfo& dst_aloc,
+                    COMB::AllocatorInfo& src_aloc)
 {
   return dst_aloc.available() // && src_aloc.available()
-      && src_aloc.accessible(con)
-      && dst_aloc.accessible(con) ;
+      && dst_aloc.accessible(con)
+      && src_aloc.accessible(con) ;
 }
 
 template < typename pol >
 void do_copy(ExecContext<pol> const& con,
              CommInfo& comminfo,
-             COMB::Allocator& src_aloc,
              COMB::Allocator& dst_aloc,
+             COMB::Allocator& src_aloc,
              Timer& tm, IdxT num_vars, IdxT len, IdxT nrepeats)
 {
   tm.clear();
