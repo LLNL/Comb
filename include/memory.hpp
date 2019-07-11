@@ -20,6 +20,7 @@
 
 #include <cstdio>
 #include <cstdlib>
+#include <stdexcept>
 
 #include "basic_mempool.hpp"
 
@@ -300,6 +301,16 @@ protected:
   AllocatorAccessibilityFlags& m_accessFlags;
 };
 
+struct InvalidAllocatorInfo : AllocatorInfo
+{
+  InvalidAllocatorInfo(AllocatorAccessibilityFlags& a) : AllocatorInfo(a) { }
+  Allocator& allocator() override { throw std::invalid_argument("InvalidAllocatorInfo has no allocator"); }
+  bool available() override { return false; }
+  bool accessible(CPUContext const&) override { return false; }
+  bool accessible(MPIContext const&) override { return false; }
+  bool accessible(CudaContext const&) override { return false; }
+};
+
 struct HostAllocatorInfo : AllocatorInfo
 {
   HostAllocatorInfo(AllocatorAccessibilityFlags& a) : AllocatorInfo(a) { }
@@ -400,6 +411,7 @@ struct Allocators
 {
   AllocatorAccessibilityFlags access;
 
+  InvalidAllocatorInfo                            invalid{access};
   HostAllocatorInfo                               host{access};
   HostPinnedAllocatorInfo                         cuda_hostpinned{access};
   DeviceAllocatorInfo                             cuda_device{access};

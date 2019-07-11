@@ -36,6 +36,9 @@ void test_cycles_gpump(CommInfo& comminfo, MeshInfo& info,
 #ifdef COMB_ENABLE_CUDA
   AllocatorInfo& cuda_many_aloc = alloc.cuda_device;
   AllocatorInfo& cuda_few_aloc  = alloc.cuda_device;
+#else
+  AllocatorInfo& cuda_many_aloc = alloc.invalid;
+  AllocatorInfo& cuda_few_aloc  = alloc.invalid;
 #endif
 
   // host allocated

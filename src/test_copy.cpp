@@ -148,6 +148,8 @@ void test_copy(CommInfo& comminfo,
 
 #ifdef COMB_ENABLE_CUDA
   AllocatorInfo& cuda_src_aloc = alloc.cuda_hostpinned;
+#else
+  AllocatorInfo& cuda_src_aloc = alloc.invalid;
 #endif
 
   // host memory
@@ -155,9 +157,7 @@ void test_copy(CommInfo& comminfo,
                       exec,
                       alloc.host,
                       cpu_src_aloc,
-#ifdef COMB_ENABLE_CUDA
                       cuda_src_aloc,
-#endif
                       exec_avail,
                       tm, num_vars, len, nrepeats);
 
@@ -167,9 +167,7 @@ void test_copy(CommInfo& comminfo,
                       exec,
                       alloc.cuda_hostpinned,
                       cpu_src_aloc,
-#ifdef COMB_ENABLE_CUDA
                       cuda_src_aloc,
-#endif
                       exec_avail,
                       tm, num_vars, len, nrepeats);
 
@@ -177,9 +175,7 @@ void test_copy(CommInfo& comminfo,
                       exec,
                       alloc.cuda_device,
                       cpu_src_aloc,
-#ifdef COMB_ENABLE_CUDA
                       cuda_src_aloc,
-#endif
                       exec_avail,
                       tm, num_vars, len, nrepeats);
 
@@ -187,9 +183,7 @@ void test_copy(CommInfo& comminfo,
                       exec,
                       alloc.cuda_managed,
                       cpu_src_aloc,
-#ifdef COMB_ENABLE_CUDA
                       cuda_src_aloc,
-#endif
                       exec_avail,
                       tm, num_vars, len, nrepeats);
 
@@ -197,9 +191,7 @@ void test_copy(CommInfo& comminfo,
                       exec,
                       alloc.cuda_managed_host_preferred,
                       cpu_src_aloc,
-#ifdef COMB_ENABLE_CUDA
                       cuda_src_aloc,
-#endif
                       exec_avail,
                       tm, num_vars, len, nrepeats);
 
@@ -207,9 +199,7 @@ void test_copy(CommInfo& comminfo,
                       exec,
                       alloc.cuda_managed_host_preferred_device_accessed,
                       cpu_src_aloc,
-#ifdef COMB_ENABLE_CUDA
                       cuda_src_aloc,
-#endif
                       exec_avail,
                       tm, num_vars, len, nrepeats);
 
@@ -217,9 +207,7 @@ void test_copy(CommInfo& comminfo,
                       exec,
                       alloc.cuda_managed_device_preferred,
                       cpu_src_aloc,
-#ifdef COMB_ENABLE_CUDA
                       cuda_src_aloc,
-#endif
                       exec_avail,
                       tm, num_vars, len, nrepeats);
 
@@ -227,13 +215,12 @@ void test_copy(CommInfo& comminfo,
                       exec,
                       alloc.cuda_managed_device_preferred_host_accessed,
                       cpu_src_aloc,
-#ifdef COMB_ENABLE_CUDA
                       cuda_src_aloc,
-#endif
                       exec_avail,
                       tm, num_vars, len, nrepeats);
 
 #endif // COMB_ENABLE_CUDA
+
 }
 
 } // namespace COMB
