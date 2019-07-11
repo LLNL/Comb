@@ -296,7 +296,9 @@ struct AllocatorInfo
   virtual bool available() = 0;
   virtual bool accessible(CPUContext const&) = 0;
   virtual bool accessible(MPIContext const&) = 0;
+#ifdef COMB_ENABLE_CUDA
   virtual bool accessible(CudaContext const&) = 0;
+#endif
 protected:
   AllocatorAccessibilityFlags& m_accessFlags;
 };
@@ -308,7 +310,9 @@ struct InvalidAllocatorInfo : AllocatorInfo
   bool available() override { return false; }
   bool accessible(CPUContext const&) override { return false; }
   bool accessible(MPIContext const&) override { return false; }
+#ifdef COMB_ENABLE_CUDA
   bool accessible(CudaContext const&) override { return false; }
+#endif
 };
 
 struct HostAllocatorInfo : AllocatorInfo
@@ -318,10 +322,14 @@ struct HostAllocatorInfo : AllocatorInfo
   bool available() override { return m_available; }
   bool accessible(CPUContext const&) override { return true; }
   bool accessible(MPIContext const&) override { return true; }
+#ifdef COMB_ENABLE_CUDA
   bool accessible(CudaContext const&) override { return m_accessFlags.cuda_host_accessible_from_device; }
+#endif
 private:
   HostAllocator m_allocator;
 };
+
+#ifdef COMB_ENABLE_CUDA
 
 struct HostPinnedAllocatorInfo : AllocatorInfo
 {
@@ -407,12 +415,15 @@ private:
   ManagedDevicePreferredHostAccessedAllocator m_allocator;
 };
 
+#endif
+
 struct Allocators
 {
   AllocatorAccessibilityFlags access;
 
   InvalidAllocatorInfo                            invalid{access};
   HostAllocatorInfo                               host{access};
+#ifdef COMB_ENABLE_CUDA
   HostPinnedAllocatorInfo                         cuda_hostpinned{access};
   DeviceAllocatorInfo                             cuda_device{access};
   ManagedAllocatorInfo                            cuda_managed{access};
@@ -420,6 +431,7 @@ struct Allocators
   ManagedHostPreferredDeviceAccessedAllocatorInfo cuda_managed_host_preferred_device_accessed{access};
   ManagedDevicePreferredAllocatorInfo             cuda_managed_device_preferred{access};
   ManagedDevicePreferredHostAccessedAllocatorInfo cuda_managed_device_preferred_host_accessed{access};
+#endif
 };
 
 } // namespace COMB
