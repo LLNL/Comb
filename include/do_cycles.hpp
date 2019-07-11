@@ -27,7 +27,7 @@ bool should_do_cycles(CommContext<pol_comm> const& con_comm,
                       ExecContext<pol_many> const& con_many, AllocatorInfo& aloc_many,
                       ExecContext<pol_few>  const& con_few,  AllocatorInfo& aloc_few)
 {
-  return aloc_mesh.available() && aloc_many.available() && aloc_few.available()
+  return aloc_mesh.available() // && aloc_many.available() && aloc_few.available()
       && aloc_many.accessible(con_comm) && aloc_few.accessible(con_comm)
       && aloc_mesh.accessible(con_mesh)
       && aloc_mesh.accessible(con_many) && aloc_many.accessible(con_many)
