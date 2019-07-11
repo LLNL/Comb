@@ -26,6 +26,8 @@
 struct mock_pol {
   // static const bool async = false;
   static const bool mock = true;
+  // compile mpi_type packing/unpacking tests for this comm policy
+  static const bool use_mpi_type = true;
   static const char* get_name() { return "mock"; }
   using communicator_type = int;
   static inline communicator_type communicator_create(MPI_Comm) { return communicator_type{0}; }

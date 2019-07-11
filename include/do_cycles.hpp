@@ -16,6 +16,8 @@
 #ifndef _DO_CYCLES_HPP
 #define _DO_CYCLES_HPP
 
+#include <type_traits>
+
 #include "comb.hpp"
 #include "CommFactory.hpp"
 
@@ -494,6 +496,222 @@ void do_cycles(CommContext<pol_comm> const&,
 
   tm.clear();
   tm_total.clear();
+
+}
+
+
+template < typename comm_pol >
+void do_cycles_mpi_type(std::true_type const&,
+                        CommContext<comm_pol> const& con_comm,
+                        CommInfo& comminfo, MeshInfo& info,
+                        COMB::ExecContexts& exec,
+                        AllocatorInfo& mesh_aloc,
+                        AllocatorInfo& cpu_many_aloc, AllocatorInfo& cpu_few_aloc,
+                        AllocatorInfo& cuda_many_aloc, AllocatorInfo& cuda_few_aloc,
+                        COMB::ExecutorsAvailable& exec_avail,
+                        IdxT num_vars, IdxT ncycles, Timer& tm, Timer& tm_total)
+{
+  if (exec_avail.seq && exec_avail.mpi_type && exec_avail.mpi_type && should_do_cycles(con_comm, exec.seq, mesh_aloc, exec.mpi_type, mesh_aloc, exec.mpi_type, mesh_aloc))
+    do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.seq, mesh_aloc.allocator(), exec.mpi_type, mesh_aloc.allocator(), exec.mpi_type, mesh_aloc.allocator(), tm, tm_total);
+
+#ifdef COMB_ENABLE_OPENMP
+  if (exec_avail.omp && exec_avail.mpi_type && exec_avail.mpi_type && should_do_cycles(con_comm, exec.omp, mesh_aloc, exec.mpi_type, mesh_aloc, exec.mpi_type, mesh_aloc))
+    do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.omp, mesh_aloc.allocator(), exec.mpi_type, mesh_aloc.allocator(), exec.mpi_type, mesh_aloc.allocator(), tm, tm_total);
+#endif
+
+#ifdef COMB_ENABLE_CUDA
+  if (exec_avail.cuda && exec_avail.mpi_type && exec_avail.mpi_type && should_do_cycles(con_comm, exec.cuda, mesh_aloc, exec.mpi_type, mesh_aloc, exec.mpi_type, mesh_aloc))
+    do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc.allocator(), exec.mpi_type, mesh_aloc.allocator(), exec.mpi_type, mesh_aloc.allocator(), tm, tm_total);
+#endif
+}
+
+template < typename comm_pol >
+void do_cycles_mpi_type(std::false_type const&,
+                        CommContext<comm_pol> const&,
+                        CommInfo&, MeshInfo&,
+                        COMB::ExecContexts&,
+                        AllocatorInfo&,
+                        AllocatorInfo&, AllocatorInfo&,
+                        AllocatorInfo&, AllocatorInfo&,
+                        COMB::ExecutorsAvailable&,
+                        IdxT, IdxT, Timer&, Timer&)
+{
+}
+
+template < typename comm_pol >
+void do_cycles_allocator(CommContext<comm_pol> const& con_comm,
+                         CommInfo& comminfo, MeshInfo& info,
+                         COMB::ExecContexts& exec,
+                         AllocatorInfo& mesh_aloc,
+                         AllocatorInfo& cpu_many_aloc, AllocatorInfo& cpu_few_aloc,
+                         AllocatorInfo& cuda_many_aloc, AllocatorInfo& cuda_few_aloc,
+                         COMB::ExecutorsAvailable& exec_avail,
+                         IdxT num_vars, IdxT ncycles, Timer& tm, Timer& tm_total)
+{
+  char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.allocator().name());
+  Range r0(name, Range::blue);
+
+  if (exec_avail.seq && exec_avail.seq && exec_avail.seq && should_do_cycles(con_comm, exec.seq, mesh_aloc, exec.seq, cpu_many_aloc, exec.seq, cpu_few_aloc))
+    do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.seq, mesh_aloc.allocator(), exec.seq, cpu_many_aloc.allocator(), exec.seq, cpu_few_aloc.allocator(), tm, tm_total);
+
+#ifdef COMB_ENABLE_OPENMP
+  if (exec_avail.omp && exec_avail.seq && exec_avail.seq && should_do_cycles(con_comm, exec.omp, mesh_aloc, exec.seq, cpu_many_aloc, exec.seq, cpu_few_aloc))
+    do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.omp, mesh_aloc.allocator(), exec.seq, cpu_many_aloc.allocator(), exec.seq, cpu_few_aloc.allocator(), tm, tm_total);
+
+  if (exec_avail.omp && exec_avail.omp && exec_avail.seq && should_do_cycles(con_comm, exec.omp, mesh_aloc, exec.omp, cpu_many_aloc, exec.seq, cpu_few_aloc))
+    do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.omp, mesh_aloc.allocator(), exec.omp, cpu_many_aloc.allocator(), exec.seq, cpu_few_aloc.allocator(), tm, tm_total);
+
+  if (exec_avail.omp && exec_avail.omp && exec_avail.omp && should_do_cycles(con_comm, exec.omp, mesh_aloc, exec.omp, cpu_many_aloc, exec.omp, cpu_few_aloc))
+    do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.omp, mesh_aloc.allocator(), exec.omp, cpu_many_aloc.allocator(), exec.omp, cpu_few_aloc.allocator(), tm, tm_total);
+#endif
+
+#ifdef COMB_ENABLE_CUDA
+  if (exec_avail.cuda && exec_avail.seq && exec_avail.seq && should_do_cycles(con_comm, exec.cuda, mesh_aloc, exec.seq, cpu_many_aloc, exec.seq, cpu_few_aloc))
+    do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc.allocator(), exec.seq, cpu_many_aloc.allocator(), exec.seq, cpu_few_aloc.allocator(), tm, tm_total);
+
+#ifdef COMB_ENABLE_OPENMP
+  if (exec_avail.cuda && exec_avail.omp && exec_avail.seq && should_do_cycles(con_comm, exec.cuda, mesh_aloc, exec.omp, cpu_many_aloc, exec.seq, cpu_few_aloc))
+    do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc.allocator(), exec.omp, cpu_many_aloc.allocator(), exec.seq, cpu_few_aloc.allocator(), tm, tm_total);
+
+  if (exec_avail.cuda && exec_avail.omp && exec_avail.omp && should_do_cycles(con_comm, exec.cuda, mesh_aloc, exec.omp, cpu_many_aloc, exec.omp, cpu_few_aloc))
+    do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc.allocator(), exec.omp, cpu_many_aloc.allocator(), exec.omp, cpu_few_aloc.allocator(), tm, tm_total);
+#endif
+
+  if (exec_avail.cuda && exec_avail.cuda && exec_avail.seq && should_do_cycles(con_comm, exec.cuda, mesh_aloc, exec.cuda, cuda_many_aloc, exec.seq, cpu_few_aloc))
+    do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc.allocator(), exec.cuda, cuda_many_aloc.allocator(), exec.seq, cpu_few_aloc.allocator(), tm, tm_total);
+
+  if (exec_avail.cuda && exec_avail.cuda && exec_avail.cuda && should_do_cycles(con_comm, exec.cuda, mesh_aloc, exec.cuda, cuda_many_aloc, exec.cuda, cuda_few_aloc))
+    do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc.allocator(), exec.cuda, cuda_many_aloc.allocator(), exec.cuda, cuda_few_aloc.allocator(), tm, tm_total);
+
+  {
+    if (exec_avail.cuda && exec_avail.cuda_batch && exec_avail.seq && should_do_cycles(con_comm, exec.cuda, mesh_aloc, exec.cuda_batch, cuda_many_aloc, exec.seq, cpu_few_aloc))
+      do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc.allocator(), exec.cuda_batch, cuda_many_aloc.allocator(), exec.seq, cpu_few_aloc.allocator(), tm, tm_total);
+
+    if (exec_avail.cuda && exec_avail.cuda_batch && exec_avail.cuda_batch && should_do_cycles(con_comm, exec.cuda, mesh_aloc, exec.cuda_batch, cuda_many_aloc, exec.cuda_batch, cuda_few_aloc))
+      do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc.allocator(), exec.cuda_batch, cuda_many_aloc.allocator(), exec.cuda_batch, cuda_few_aloc.allocator(), tm, tm_total);
+
+    if (exec_avail.cuda && exec_avail.cuda_persistent && exec_avail.seq && should_do_cycles(con_comm, exec.cuda, mesh_aloc, exec.cuda_persistent, cuda_many_aloc, exec.seq, cpu_few_aloc))
+      do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc.allocator(), exec.cuda_persistent, cuda_many_aloc.allocator(), exec.seq, cpu_few_aloc.allocator(), tm, tm_total);
+
+    if (exec_avail.cuda && exec_avail.cuda_persistent && exec_avail.cuda_persistent && should_do_cycles(con_comm, exec.cuda, mesh_aloc, exec.cuda_persistent, cuda_many_aloc, exec.cuda_persistent, cuda_few_aloc))
+      do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc.allocator(), exec.cuda_persistent, cuda_many_aloc.allocator(), exec.cuda_persistent, cuda_few_aloc.allocator(), tm, tm_total);
+
+
+    SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
+
+    if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.seq && should_do_cycles(con_comm, exec.cuda, mesh_aloc, exec.cuda_batch, cuda_many_aloc, exec.seq, cpu_few_aloc))
+      do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc.allocator(), exec.cuda_batch, cuda_many_aloc.allocator(), exec.seq, cpu_few_aloc.allocator(), tm, tm_total);
+
+    if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.cuda_batch_fewgs && should_do_cycles(con_comm, exec.cuda, mesh_aloc, exec.cuda_batch, cuda_many_aloc, exec.cuda_batch, cuda_few_aloc))
+      do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc.allocator(), exec.cuda_batch, cuda_many_aloc.allocator(), exec.cuda_batch, cuda_few_aloc.allocator(), tm, tm_total);
+
+    if (exec_avail.cuda && exec_avail.cuda_persistent_fewgs && exec_avail.seq && should_do_cycles(con_comm, exec.cuda, mesh_aloc, exec.cuda_persistent, cuda_many_aloc, exec.seq, cpu_few_aloc))
+      do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc.allocator(), exec.cuda_persistent, cuda_many_aloc.allocator(), exec.seq, cpu_few_aloc.allocator(), tm, tm_total);
+
+    if (exec_avail.cuda && exec_avail.cuda_persistent_fewgs && exec_avail.cuda_persistent_fewgs && should_do_cycles(con_comm, exec.cuda, mesh_aloc, exec.cuda_persistent, cuda_many_aloc, exec.cuda_persistent, cuda_few_aloc))
+      do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc.allocator(), exec.cuda_persistent, cuda_many_aloc.allocator(), exec.cuda_persistent, cuda_few_aloc.allocator(), tm, tm_total);
+  }
+
+#ifdef COMB_ENABLE_CUDA_GRAPH
+  if (exec_avail.cuda && exec_avail.cuda_graph && exec_avail.seq && should_do_cycles(con_comm, exec.cuda, mesh_aloc, exec.cuda_graph, cuda_many_aloc, exec.seq, cpu_few_aloc))
+    do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc.allocator(), exec.cuda_graph, cuda_many_aloc.allocator(), exec.seq, cpu_few_aloc.allocator(), tm, tm_total);
+
+  if (exec_avail.cuda && exec_avail.cuda_graph && exec_avail.cuda_graph && should_do_cycles(con_comm, exec.cuda, mesh_aloc, exec.cuda_graph, cuda_many_aloc, exec.cuda_graph, cuda_few_aloc))
+    do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc.allocator(), exec.cuda_graph, cuda_many_aloc.allocator(), exec.cuda_graph, cuda_few_aloc.allocator(), tm, tm_total);
+#endif
+#endif
+
+  do_cycles_mpi_type(typename std::conditional<comm_pol::use_mpi_type, std::true_type, std::false_type>::type{},
+      con_comm, comminfo, info, exec, mesh_aloc, cpu_many_aloc, cpu_few_aloc, cuda_many_aloc, cuda_few_aloc, exec_avail, num_vars, ncycles, tm, tm_total);
+}
+
+
+template < typename comm_pol >
+void do_cycles_allocators(CommContext<comm_pol> const& con_comm,
+                          CommInfo& comminfo, MeshInfo& info,
+                          COMB::ExecContexts& exec,
+                          Allocators& alloc,
+                          AllocatorInfo& cpu_many_aloc, AllocatorInfo& cpu_few_aloc,
+                          AllocatorInfo& cuda_many_aloc, AllocatorInfo& cuda_few_aloc,
+                          COMB::ExecutorsAvailable& exec_avail,
+                          IdxT num_vars, IdxT ncycles, Timer& tm, Timer& tm_total)
+{
+  do_cycles_allocator(con_comm,
+                      comminfo, info,
+                      exec,
+                      alloc.host,
+                      cpu_many_aloc, cpu_few_aloc,
+                      cuda_many_aloc, cuda_few_aloc,
+                      exec_avail,
+                      num_vars, ncycles, tm, tm_total);
+
+#ifdef COMB_ENABLE_CUDA
+
+  do_cycles_allocator(con_comm,
+                      comminfo, info,
+                      exec,
+                      alloc.cuda_hostpinned,
+                      cpu_many_aloc, cpu_few_aloc,
+                      cuda_many_aloc, cuda_few_aloc,
+                      exec_avail,
+                      num_vars, ncycles, tm, tm_total);
+
+  do_cycles_allocator(con_comm,
+                      comminfo, info,
+                      exec,
+                      alloc.cuda_device,
+                      cpu_many_aloc, cpu_few_aloc,
+                      cuda_many_aloc, cuda_few_aloc,
+                      exec_avail,
+                      num_vars, ncycles, tm, tm_total);
+
+  do_cycles_allocator(con_comm,
+                      comminfo, info,
+                      exec,
+                      alloc.cuda_managed,
+                      cpu_many_aloc, cpu_few_aloc,
+                      cuda_many_aloc, cuda_few_aloc,
+                      exec_avail,
+                      num_vars, ncycles, tm, tm_total);
+
+  do_cycles_allocator(con_comm,
+                      comminfo, info,
+                      exec,
+                      alloc.cuda_managed_host_preferred,
+                      cpu_many_aloc, cpu_few_aloc,
+                      cuda_many_aloc, cuda_few_aloc,
+                      exec_avail,
+                      num_vars, ncycles, tm, tm_total);
+
+  do_cycles_allocator(con_comm,
+                      comminfo, info,
+                      exec,
+                      alloc.cuda_managed_host_preferred_device_accessed,
+                      cpu_many_aloc, cpu_few_aloc,
+                      cuda_many_aloc, cuda_few_aloc,
+                      exec_avail,
+                      num_vars, ncycles, tm, tm_total);
+
+  do_cycles_allocator(con_comm,
+                      comminfo, info,
+                      exec,
+                      alloc.cuda_managed_device_preferred,
+                      cpu_many_aloc, cpu_few_aloc,
+                      cuda_many_aloc, cuda_few_aloc,
+                      exec_avail,
+                      num_vars, ncycles, tm, tm_total);
+
+  do_cycles_allocator(con_comm,
+                      comminfo, info,
+                      exec,
+                      alloc.cuda_managed_device_preferred_host_accessed,
+                      cpu_many_aloc, cpu_few_aloc,
+                      cuda_many_aloc, cuda_few_aloc,
+                      exec_avail,
+                      num_vars, ncycles, tm, tm_total);
+
+#endif // COMB_ENABLE_CUDA
+
 }
 
 } // namespace COMB

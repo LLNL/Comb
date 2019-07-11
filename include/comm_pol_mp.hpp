@@ -140,6 +140,8 @@ private:
 struct mp_pol {
   // static const bool async = false;
   static const bool mock = false;
+  // compile mpi_type packing/unpacking tests for this comm policy
+  static const bool use_mpi_type = false;
   static const char* get_name() { return "mp"; }
   using communicator_type = struct mp*;
   static inline communicator_type communicator_create(MPI_Comm comm) { return detail::mp::init(comm); }

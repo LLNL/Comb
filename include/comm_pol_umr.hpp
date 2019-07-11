@@ -29,6 +29,8 @@
 struct umr_pol {
   // static const bool async = false;
   static const bool mock = false;
+  // compile mpi_type packing/unpacking tests for this comm policy
+  static const bool use_mpi_type = false;
   static const char* get_name() { return "umr"; }
   using communicator_type = UMR_Comm;
   static inline communicator_type communicator_create(UMR_Comm comm) { return comm; }
