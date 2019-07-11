@@ -135,6 +135,8 @@ void test_copy_allocator(CommInfo& comminfo,
   if (exec_avail.cuda_graph && should_do_copy(exec.cuda_graph, dst_aloc, cuda_src_aloc))
     do_copy(exec.cuda_graph, comminfo, dst_aloc.allocator(), cuda_src_aloc.allocator(), tm, num_vars, len, nrepeats);
 #endif
+#else
+  COMB::ignore_unused(cuda_src_aloc);
 #endif
 }
 

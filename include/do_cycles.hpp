@@ -506,8 +506,6 @@ void do_cycles_mpi_type(std::true_type const&,
                         CommInfo& comminfo, MeshInfo& info,
                         COMB::ExecContexts& exec,
                         AllocatorInfo& mesh_aloc,
-                        AllocatorInfo& cpu_many_aloc, AllocatorInfo& cpu_few_aloc,
-                        AllocatorInfo& cuda_many_aloc, AllocatorInfo& cuda_few_aloc,
                         COMB::ExecutorsAvailable& exec_avail,
                         IdxT num_vars, IdxT ncycles, Timer& tm, Timer& tm_total)
 {
@@ -531,8 +529,6 @@ void do_cycles_mpi_type(std::false_type const&,
                         CommInfo&, MeshInfo&,
                         COMB::ExecContexts&,
                         AllocatorInfo&,
-                        AllocatorInfo&, AllocatorInfo&,
-                        AllocatorInfo&, AllocatorInfo&,
                         COMB::ExecutorsAvailable&,
                         IdxT, IdxT, Timer&, Timer&)
 {
@@ -619,10 +615,12 @@ void do_cycles_allocator(CommContext<comm_pol> const& con_comm,
   if (exec_avail.cuda && exec_avail.cuda_graph && exec_avail.cuda_graph && should_do_cycles(con_comm, exec.cuda, mesh_aloc, exec.cuda_graph, cuda_many_aloc, exec.cuda_graph, cuda_few_aloc))
     do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc.allocator(), exec.cuda_graph, cuda_many_aloc.allocator(), exec.cuda_graph, cuda_few_aloc.allocator(), tm, tm_total);
 #endif
+#else
+  COMB::ignore_unused(cuda_many_aloc, cuda_few_aloc);
 #endif
 
   do_cycles_mpi_type(typename std::conditional<comm_pol::use_mpi_type, std::true_type, std::false_type>::type{},
-      con_comm, comminfo, info, exec, mesh_aloc, cpu_many_aloc, cpu_few_aloc, cuda_many_aloc, cuda_few_aloc, exec_avail, num_vars, ncycles, tm, tm_total);
+      con_comm, comminfo, info, exec, mesh_aloc, exec_avail, num_vars, ncycles, tm, tm_total);
 }
 
 

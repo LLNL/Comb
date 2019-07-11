@@ -172,10 +172,11 @@ struct Message<mock_pol> : detail::MessageBase
     *request = 1;
   }
 
-  void Isend(ExecContext<mpi_type_pol> const&, communicator_type comm, send_request_type* request)
+  void Isend(ExecContext<mpi_type_pol> const&, communicator_type, send_request_type* request)
   {
+
     if (items.size() == 1) {
-      DataT const* src = items.front().data;
+      // DataT const* src = items.front().data;
       // MPI_Datatype mpi_type = items.front().mpi_type;
       // FPRINTF(stdout, "%p Isend %p to %i tag %i\n", this, src, partner_rank(), tag());
       *request = 1;
@@ -192,10 +193,10 @@ struct Message<mock_pol> : detail::MessageBase
     *request = -1;
   }
 
-  void Irecv(ExecContext<mpi_type_pol> const&, communicator_type comm, recv_request_type* request)
+  void Irecv(ExecContext<mpi_type_pol> const&, communicator_type, recv_request_type* request)
   {
     if (items.size() == 1) {
-      DataT* dst = items.front().data;
+      // DataT* dst = items.front().data;
       // MPI_Datatype mpi_type = items.front().mpi_type;
       // FPRINTF(stdout, "%p Irecv %p to %i tag %i\n", this, dst, partner_rank(), tag());
       *request = -1;
