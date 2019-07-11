@@ -18,7 +18,7 @@
 namespace COMB {
 
 template < typename pol >
-void do_warmup(ExecContext<pol> const& con, COMB::Allocator& aloc, Timer& tm, IdxT num_vars, IdxT len)
+void do_warmup(ExecContext<pol>& con, COMB::Allocator& aloc, Timer& tm, IdxT num_vars, IdxT len)
 {
   tm.clear();
 
@@ -35,10 +35,10 @@ void do_warmup(ExecContext<pol> const& con, COMB::Allocator& aloc, Timer& tm, Id
 
     DataT* data = vars[i];
 
-    for_all(con, 0, len, detail::set_n1{data});
+    con.for_all(0, len, detail::set_n1{data});
   }
 
-  synchronize(con);
+  con.synchronize();
 }
 
 void warmup(COMB::ExecContexts& exec,

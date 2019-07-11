@@ -25,86 +25,90 @@ struct cuda_graph_pol {
   static const bool async = true;
   static const char* get_name() { return "cudaGraph"; }
   using event_type = cuda::graph_launch::event_type;
+  using cache_type = int;
 };
 
 template < >
 struct ExecContext<cuda_graph_pol> : CudaContext
 {
+  using pol = cuda_graph_pol;
+  using event_type = typename pol::event_type;
+
   using base = CudaContext;
+
   ExecContext()
     : base()
   { }
+
   ExecContext(base const& b)
     : base(b)
   { }
+
+  void synchronize()
+  {
+    cuda::graph_launch::synchronize(base::stream());
+  }
+
+  void persistent_launch()
+  {
+  }
+
+  void batch_launch()
+  {
+    cuda::graph_launch::force_launch(base::stream());
+  }
+
+  void persistent_stop()
+  {
+  }
+
+  event_type createEvent()
+  {
+    return cuda::graph_launch::createEvent();
+  }
+
+  void recordEvent(event_type event)
+  {
+    return cuda::graph_launch::recordEvent(event, base::stream());
+  }
+
+  bool queryEvent(event_type event)
+  {
+    return cuda::graph_launch::queryEvent(event);
+  }
+
+  void waitEvent(event_type event)
+  {
+    cuda::graph_launch::waitEvent(event);
+  }
+
+  void destroyEvent(event_type event)
+  {
+    cuda::graph_launch::destroyEvent(event);
+  }
+
+  template < typename body_type >
+  void for_all(IdxT begin, IdxT end, body_type&& body)
+  {
+    cuda::graph_launch::for_all(begin, end, std::forward<body_type>(body));
+    // base::synchronize();
+  }
+
+  template < typename body_type >
+  void for_all_2d(IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, body_type&& body)
+  {
+    cuda::graph_launch::for_all_2d(begin0, end0, begin1, end1, std::forward<body_type>(body));
+    // base::synchronize();
+  }
+
+  template < typename body_type >
+  void for_all_3d(IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, IdxT begin2, IdxT end2, body_type&& body)
+  {
+    cuda::graph_launch::for_all_3d(begin0, end0, begin1, end1, begin2, end2, std::forward<body_type>(body));
+    // base::synchronize();
+  }
+
 };
-
-inline void synchronize(ExecContext<cuda_graph_pol> const& con)
-{
-  cuda::graph_launch::synchronize(con.stream());
-}
-
-inline void persistent_launch(ExecContext<cuda_graph_pol> const&)
-{
-}
-
-inline void batch_launch(ExecContext<cuda_graph_pol> const& con)
-{
-  cuda::graph_launch::force_launch(con.stream());
-}
-
-inline void persistent_stop(ExecContext<cuda_graph_pol> const&)
-{
-}
-
-inline typename cuda_graph_pol::event_type createEvent(ExecContext<cuda_graph_pol> const&)
-{
-  return cuda::graph_launch::createEvent();
-}
-
-inline void recordEvent(ExecContext<cuda_graph_pol> const& con, typename cuda_graph_pol::event_type event)
-{
-  return cuda::graph_launch::recordEvent(event, con.stream());
-}
-
-inline bool queryEvent(ExecContext<cuda_graph_pol> const&, typename cuda_graph_pol::event_type event)
-{
-  return cuda::graph_launch::queryEvent(event);
-}
-
-inline void waitEvent(ExecContext<cuda_graph_pol> const&, typename cuda_graph_pol::event_type event)
-{
-  cuda::graph_launch::waitEvent(event);
-}
-
-inline void destroyEvent(ExecContext<cuda_graph_pol> const&, typename cuda_graph_pol::event_type event)
-{
-  cuda::graph_launch::destroyEvent(event);
-}
-
-template < typename body_type >
-inline void for_all(ExecContext<cuda_graph_pol> const& con, IdxT begin, IdxT end, body_type&& body)
-{
-  COMB::ignore_unused(con);
-  cuda::graph_launch::for_all(begin, end, std::forward<body_type>(body));
-  //synchronize(con);
-}
-
-template < typename body_type >
-inline void for_all_2d(ExecContext<cuda_graph_pol> const& con, IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, body_type&& body)
-{
-  COMB::ignore_unused(con);
-  cuda::graph_launch::for_all_2d(begin0, end0, begin1, end1, std::forward<body_type>(body));
-  //synchronize(con);
-}
-
-template < typename body_type >
-inline void for_all_3d(ExecContext<cuda_graph_pol> const& con, IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, IdxT begin2, IdxT end2, body_type&& body)
-{
-  COMB::ignore_unused(con);
-  cuda::graph_launch::for_all_3d(begin0, end0, begin1, end1, begin2, end2, std::forward<body_type>(body));
-  //synchronize(con);
-}
 
 #endif // COMB_ENABLE_CUDA_GRAPH
 

@@ -309,8 +309,8 @@ struct CommFactory
 
   template < typename comm_type >
   void populate(comm_type& comm,
-                ExecContext<typename comm_type::policy_many> const& con_many,
-                ExecContext<typename comm_type::policy_few> const& con_few) const
+                ExecContext<typename comm_type::policy_many>& con_many,
+                ExecContext<typename comm_type::policy_few>& con_few) const
   {
 
     // map from partner rank to message indices
@@ -382,7 +382,7 @@ private:
   }
 
   template < typename context >
-  void populate_msg_info(context const& con, MPI_Comm comm, MeshData const* msg_data, Box3d const& msg_box,
+  void populate_msg_info(context& con, MPI_Comm comm, MeshData const* msg_data, Box3d const& msg_box,
                          LidxT*& indices, IdxT& len,
                          MPI_Datatype& mpi_type, IdxT& mpi_pack_nbytes) const
   {
@@ -392,7 +392,7 @@ private:
     msg_box.set_indices(con, indices);
   }
 
-  void populate_msg_info(ExecContext<mpi_type_pol> const&, MPI_Comm comm, MeshData const* msg_data, Box3d const& msg_box,
+  void populate_msg_info(ExecContext<mpi_type_pol>&, MPI_Comm comm, MeshData const* msg_data, Box3d const& msg_box,
                          LidxT*& indices, IdxT& len,
                          MPI_Datatype& mpi_type, IdxT& mpi_pack_nbytes) const
   {
@@ -405,8 +405,8 @@ private:
 
   template < typename comm_type, typename msg_list_type >
   void populate_comm(comm_type& comm,
-                     ExecContext<typename comm_type::policy_many> const& con_many,
-                     ExecContext<typename comm_type::policy_few> const& con_few,
+                     ExecContext<typename comm_type::policy_many>& con_many,
+                     ExecContext<typename comm_type::policy_few>& con_few,
                      detail::MessageBase::Kind kind, msg_list_type& msg_list,
                      msg_info_map_type& msg_info_map) const
   {

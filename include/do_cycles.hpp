@@ -24,10 +24,10 @@
 namespace COMB {
 
 template < typename pol_comm, typename pol_mesh, typename pol_many, typename pol_few >
-bool should_do_cycles(CommContext<pol_comm> const& con_comm,
-                      ExecContext<pol_mesh> const& con_mesh, AllocatorInfo& aloc_mesh,
-                      ExecContext<pol_many> const& con_many, AllocatorInfo& aloc_many,
-                      ExecContext<pol_few>  const& con_few,  AllocatorInfo& aloc_few)
+bool should_do_cycles(CommContext<pol_comm>& con_comm,
+                      ExecContext<pol_mesh>& con_mesh, AllocatorInfo& aloc_mesh,
+                      ExecContext<pol_many>& con_many, AllocatorInfo& aloc_many,
+                      ExecContext<pol_few>& con_few,  AllocatorInfo& aloc_few)
 {
   return aloc_mesh.available() // && aloc_many.available() && aloc_few.available()
       && aloc_many.accessible(con_comm) && aloc_few.accessible(con_comm)
@@ -37,12 +37,12 @@ bool should_do_cycles(CommContext<pol_comm> const& con_comm,
 }
 
 template < typename pol_comm, typename pol_mesh, typename pol_many, typename pol_few >
-void do_cycles(CommContext<pol_comm> const&,
+void do_cycles(CommContext<pol_comm>&,
                CommInfo& comm_info, MeshInfo& info,
                IdxT num_vars, IdxT ncycles,
-               ExecContext<pol_mesh> const& con_mesh, COMB::Allocator& aloc_mesh,
-               ExecContext<pol_many> const& con_many, COMB::Allocator& aloc_many,
-               ExecContext<pol_few> const& con_few,  COMB::Allocator& aloc_few,
+               ExecContext<pol_mesh>& con_mesh, COMB::Allocator& aloc_mesh,
+               ExecContext<pol_many>& con_many, COMB::Allocator& aloc_many,
+               ExecContext<pol_few>& con_few,  COMB::Allocator& aloc_few,
                Timer& tm, Timer& tm_total)
 {
   tm_total.clear();
@@ -98,12 +98,12 @@ void do_cycles(CommContext<pol_comm> const&,
         DataT* data = vars[i].data();
         IdxT totallen = info.totallen;
 
-        for_all(con_mesh, 0, totallen,
+        con_mesh.for_all(0, totallen,
                             detail::set_n1(data));
 
         factory.add_var(vars[i]);
 
-        synchronize(con_mesh);
+        con_mesh.synchronize();
       }
 
       factory.populate(comm, con_many, con_few);
@@ -153,7 +153,7 @@ void do_cycles(CommContext<pol_comm> const&,
         DataT* data = vars[i].data();
         IdxT var_i = i + 1;
 
-        for_all_3d(con_mesh, 0, klen,
+        con_mesh.for_all_3d(0, klen,
                                0, jlen,
                                0, ilen,
                                [=] COMB_HOST COMB_DEVICE (IdxT k, IdxT j, IdxT i, IdxT idx) {
@@ -213,7 +213,7 @@ void do_cycles(CommContext<pol_comm> const&,
         });
       }
 
-      synchronize(con_mesh);
+      con_mesh.synchronize();
 
       // tm.stop();
       r2.restart("post-recv", Range::pink);
@@ -235,7 +235,7 @@ void do_cycles(CommContext<pol_comm> const&,
       //   DataT* data = vars[i].data();
       //   IdxT var_i = i + 1;
 
-      //   for_all_3d(con_mesh, 0, klen,
+      //   con_mesh.for_all_3d(0, klen,
       //                          0, jlen,
       //                          0, ilen,
       //                          [=] COMB_HOST COMB_DEVICE (IdxT k, IdxT j, IdxT i, IdxT idx) {
@@ -278,7 +278,7 @@ void do_cycles(CommContext<pol_comm> const&,
       //   });
       // }
 
-      // synchronize(con_mesh);
+      // con_mesh.synchronize();
 
 
       r2.start("wait-recv", Range::pink);
@@ -301,7 +301,7 @@ void do_cycles(CommContext<pol_comm> const&,
         DataT* data = vars[i].data();
         IdxT var_i = i + 1;
 
-        for_all_3d(con_mesh, 0, klen,
+        con_mesh.for_all_3d(0, klen,
                                0, jlen,
                                0, ilen,
                                [=] COMB_HOST COMB_DEVICE (IdxT k, IdxT j, IdxT i, IdxT idx) {
@@ -361,7 +361,7 @@ void do_cycles(CommContext<pol_comm> const&,
         });
       }
 
-      synchronize(con_mesh);
+      con_mesh.synchronize();
 
       // tm.stop();
       r2.stop();
@@ -398,13 +398,13 @@ void do_cycles(CommContext<pol_comm> const&,
 
         DataT* data = vars[i].data();
 
-        for_all_3d(con_mesh, kmin, kmax,
+        con_mesh.for_all_3d(kmin, kmax,
                                jmin, jmax,
                                imin, imax,
                                detail::set_1(ilen, ijlen, data));
       }
 
-      synchronize(con_mesh);
+      con_mesh.synchronize();
 
       tm.stop();
       r3.restart("post-recv", Range::pink);
@@ -426,7 +426,7 @@ void do_cycles(CommContext<pol_comm> const&,
 
         DataT* data = vars[i].data();
 
-        for_all_3d(con_mesh, 0, klen,
+        con_mesh.for_all_3d(0, klen,
                                0, jlen,
                                0, ilen,
                                [=] COMB_HOST COMB_DEVICE (IdxT k, IdxT j, IdxT i, IdxT idx) {
@@ -467,13 +467,13 @@ void do_cycles(CommContext<pol_comm> const&,
 
         DataT* data = vars[i].data();
 
-        for_all_3d(con_mesh, 0, klen,
+        con_mesh.for_all_3d(0, klen,
                                0, jlen,
                                0, ilen,
                                detail::reset_1(ilen, ijlen, data, imin, jmin, kmin, imax, jmax, kmax));
       }
 
-      synchronize(con_mesh);
+      con_mesh.synchronize();
 
       tm.stop();
       r3.stop();
@@ -502,7 +502,7 @@ void do_cycles(CommContext<pol_comm> const&,
 
 template < typename comm_pol >
 void do_cycles_mpi_type(std::true_type const&,
-                        CommContext<comm_pol> const& con_comm,
+                        CommContext<comm_pol>& con_comm,
                         CommInfo& comminfo, MeshInfo& info,
                         COMB::ExecContexts& exec,
                         AllocatorInfo& mesh_aloc,
@@ -525,7 +525,7 @@ void do_cycles_mpi_type(std::true_type const&,
 
 template < typename comm_pol >
 void do_cycles_mpi_type(std::false_type const&,
-                        CommContext<comm_pol> const&,
+                        CommContext<comm_pol>&,
                         CommInfo&, MeshInfo&,
                         COMB::ExecContexts&,
                         AllocatorInfo&,
@@ -535,7 +535,7 @@ void do_cycles_mpi_type(std::false_type const&,
 }
 
 template < typename comm_pol >
-void do_cycles_allocator(CommContext<comm_pol> const& con_comm,
+void do_cycles_allocator(CommContext<comm_pol>& con_comm,
                          CommInfo& comminfo, MeshInfo& info,
                          COMB::ExecContexts& exec,
                          AllocatorInfo& mesh_aloc,
@@ -625,7 +625,7 @@ void do_cycles_allocator(CommContext<comm_pol> const& con_comm,
 
 
 template < typename comm_pol >
-void do_cycles_allocators(CommContext<comm_pol> const& con_comm,
+void do_cycles_allocators(CommContext<comm_pol>& con_comm,
                           CommInfo& comminfo, MeshInfo& info,
                           COMB::ExecContexts& exec,
                           Allocators& alloc,

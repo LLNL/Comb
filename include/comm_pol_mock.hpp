@@ -93,7 +93,7 @@ struct Message<mock_pol> : detail::MessageBase
 
 
   template < typename context >
-  void pack(context const& con, communicator_type)
+  void pack(context& con, communicator_type)
   {
     DataT* buf = m_buf;
     assert(buf != nullptr);
@@ -103,12 +103,12 @@ struct Message<mock_pol> : detail::MessageBase
       LidxT const* indices = i->indices;
       IdxT len = i->size;
       // FPRINTF(stdout, "%p pack %p = %p[%p] len %d\n", this, buf, src, indices, len);
-      for_all(con, 0, len, make_copy_idxr_idxr(src, detail::indexer_list_idx{indices}, buf, detail::indexer_idx{}));
+      con.for_all(0, len, make_copy_idxr_idxr(src, detail::indexer_list_idx{indices}, buf, detail::indexer_idx{}));
       buf += len;
     }
   }
 
-  void pack(ExecContext<mpi_type_pol> const&, communicator_type /*comm*/)
+  void pack(ExecContext<mpi_type_pol>&, communicator_type /*comm*/)
   {
     if (items.size() == 1) {
       m_nbytes = sizeof(DataT)*items.front().size;
@@ -130,7 +130,7 @@ struct Message<mock_pol> : detail::MessageBase
   }
 
   template < typename context >
-  void unpack(context const& con, communicator_type)
+  void unpack(context& con, communicator_type)
   {
     DataT const* buf = m_buf;
     assert(buf != nullptr);
@@ -140,12 +140,12 @@ struct Message<mock_pol> : detail::MessageBase
       LidxT const* indices = i->indices;
       IdxT len = i->size;
       // FPRINTF(stdout, "%p unpack %p[%p] = %p len %d\n", this, dst, indices, buf, len);
-      for_all(con, 0, len, make_copy_idxr_idxr(buf, detail::indexer_idx{}, dst, detail::indexer_list_idx{indices}));
+      con.for_all(0, len, make_copy_idxr_idxr(buf, detail::indexer_idx{}, dst, detail::indexer_list_idx{indices}));
       buf += len;
     }
   }
 
-  void unpack(ExecContext<mpi_type_pol> const&, communicator_type /*comm*/)
+  void unpack(ExecContext<mpi_type_pol>&, communicator_type /*comm*/)
   {
     if (items.size() == 1) {
       // nothing to do
@@ -166,13 +166,13 @@ struct Message<mock_pol> : detail::MessageBase
 
 
   template < typename context >
-  void Isend(context const&, communicator_type, send_request_type* request)
+  void Isend(context&, communicator_type, send_request_type* request)
   {
     // FPRINTF(stdout, "%p Isend %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
     *request = 1;
   }
 
-  void Isend(ExecContext<mpi_type_pol> const&, communicator_type, send_request_type* request)
+  void Isend(ExecContext<mpi_type_pol>&, communicator_type, send_request_type* request)
   {
 
     if (items.size() == 1) {
@@ -187,13 +187,13 @@ struct Message<mock_pol> : detail::MessageBase
   }
 
   template < typename context >
-  void Irecv(context const&, communicator_type, recv_request_type* request)
+  void Irecv(context&, communicator_type, recv_request_type* request)
   {
     // FPRINTF(stdout, "%p Irecv %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
     *request = -1;
   }
 
-  void Irecv(ExecContext<mpi_type_pol> const&, communicator_type, recv_request_type* request)
+  void Irecv(ExecContext<mpi_type_pol>&, communicator_type, recv_request_type* request)
   {
     if (items.size() == 1) {
       // DataT* dst = items.front().data;
@@ -208,7 +208,7 @@ struct Message<mock_pol> : detail::MessageBase
 
 
   template < typename context >
-  void allocate(context const&, communicator_type comm, COMB::Allocator& buf_aloc)
+  void allocate(context&, communicator_type comm, COMB::Allocator& buf_aloc)
   {
     COMB::ignore_unused(comm);
     if (m_buf == nullptr) {
@@ -216,7 +216,7 @@ struct Message<mock_pol> : detail::MessageBase
     }
   }
 
-  void allocate(ExecContext<mpi_type_pol> const&, communicator_type comm, COMB::Allocator& buf_aloc)
+  void allocate(ExecContext<mpi_type_pol>&, communicator_type comm, COMB::Allocator& buf_aloc)
   {
     COMB::ignore_unused(comm);
     if (m_buf == nullptr) {
@@ -229,7 +229,7 @@ struct Message<mock_pol> : detail::MessageBase
   }
 
   template < typename context >
-  void deallocate(context const&, communicator_type comm, COMB::Allocator& buf_aloc)
+  void deallocate(context&, communicator_type comm, COMB::Allocator& buf_aloc)
   {
     COMB::ignore_unused(comm);
     if (m_buf != nullptr) {

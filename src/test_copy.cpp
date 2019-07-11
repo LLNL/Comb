@@ -19,7 +19,7 @@ namespace COMB {
 
 
 template < typename pol >
-bool should_do_copy(ExecContext<pol> const& con,
+bool should_do_copy(ExecContext<pol>& con,
                     COMB::AllocatorInfo& dst_aloc,
                     COMB::AllocatorInfo& src_aloc)
 {
@@ -29,7 +29,7 @@ bool should_do_copy(ExecContext<pol> const& con,
 }
 
 template < typename pol >
-void do_copy(ExecContext<pol> const& con,
+void do_copy(ExecContext<pol>& con,
              CommInfo& comminfo,
              COMB::Allocator& dst_aloc,
              COMB::Allocator& src_aloc,
@@ -52,30 +52,30 @@ void do_copy(ExecContext<pol> const& con,
 
   // setup
   for (IdxT i = 0; i < num_vars; ++i) {
-    for_all(con, 0, len, detail::set_n1{dst[i]});
-    for_all(con, 0, len, detail::set_0{src[i]});
-    for_all(con, 0, len, detail::set_copy{dst[i], src[i]});
+    con.for_all(0, len, detail::set_n1{dst[i]});
+    con.for_all(0, len, detail::set_0{src[i]});
+    con.for_all(0, len, detail::set_copy{dst[i], src[i]});
   }
 
-  synchronize(con);
+  con.synchronize();
 
   char sub_test_name[1024] = ""; snprintf(sub_test_name, 1024, "copy_sync-%d-%d-%zu", num_vars, len, sizeof(DataT));
 
   for (IdxT rep = 0; rep < nrepeats; ++rep) {
 
     for (IdxT i = 0; i < num_vars; ++i) {
-      for_all(con, 0, len, detail::set_copy{src[i], dst[i]});
+      con.for_all(0, len, detail::set_copy{src[i], dst[i]});
     }
 
-    synchronize(con);
+    con.synchronize();
 
     tm.start(sub_test_name);
 
     for (IdxT i = 0; i < num_vars; ++i) {
-      for_all(con, 0, len, detail::set_copy{dst[i], src[i]});
+      con.for_all(0, len, detail::set_copy{dst[i], src[i]});
     }
 
-    synchronize(con);
+    con.synchronize();
 
     tm.stop();
   }

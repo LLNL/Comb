@@ -238,7 +238,7 @@ struct Message<gpump_pol> : detail::MessageBase
 
 
   template < typename context >
-  void pack(context const& con, communicator_type comm)
+  void pack(context& con, communicator_type comm)
   {
     static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support mpi_type_pol");
     DataT* buf = m_buf;
@@ -249,13 +249,13 @@ struct Message<gpump_pol> : detail::MessageBase
       LidxT const* indices = i->indices;
       IdxT len = i->size;
       // FPRINTF(stdout, "%p pack %p = %p[%p] len %d\n", this, buf, src, indices, len);
-      for_all(con, 0, len, make_copy_idxr_idxr(src, detail::indexer_list_idx{indices}, buf, detail::indexer_idx{}));
+      con.for_all(0, len, make_copy_idxr_idxr(src, detail::indexer_list_idx{indices}, buf, detail::indexer_idx{}));
       buf += len;
     }
   }
 
   template < typename context >
-  void unpack(context const& con, communicator_type comm)
+  void unpack(context& con, communicator_type comm)
   {
     static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support mpi_type_pol");
     DataT const* buf = m_buf;
@@ -266,7 +266,7 @@ struct Message<gpump_pol> : detail::MessageBase
       LidxT const* indices = i->indices;
       IdxT len = i->size;
       // FPRINTF(stdout, "%p unpack %p[%p] = %p len %d\n", this, dst, indices, buf, len);
-      for_all(con, 0, len, make_copy_idxr_idxr(buf, detail::indexer_idx{}, dst, detail::indexer_list_idx{indices}));
+      con.for_all(0, len, make_copy_idxr_idxr(buf, detail::indexer_idx{}, dst, detail::indexer_list_idx{indices}));
       buf += len;
     }
   }
@@ -284,7 +284,7 @@ private:
 
 public:
   template < typename context >
-  void Isend(context const& con, communicator_type comm, send_request_type* request)
+  void Isend(context& con, communicator_type comm, send_request_type* request)
   {
     static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support mpi_type_pol");
     // FPRINTF(stdout, "%p Isend %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
@@ -297,7 +297,7 @@ public:
   }
 
   template < typename context >
-  void Irecv(context const& con, communicator_type comm, recv_request_type* request)
+  void Irecv(context& con, communicator_type comm, recv_request_type* request)
   {
     static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support mpi_type_pol");
     // FPRINTF(stdout, "%p Irecv %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
@@ -311,7 +311,7 @@ public:
 
 
   template < typename context >
-  void allocate(context const&, communicator_type comm, COMB::Allocator& buf_aloc)
+  void allocate(context&, communicator_type comm, COMB::Allocator& buf_aloc)
   {
     static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support mpi_type_pol");
     if (m_buf == nullptr) {
@@ -343,7 +343,7 @@ private:
 
 public:
   template < typename context >
-  void deallocate(context const& con, communicator_type comm, COMB::Allocator& buf_aloc)
+  void deallocate(context& con, communicator_type comm, COMB::Allocator& buf_aloc)
   {
     static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support mpi_type_pol");
     if (m_buf != nullptr) {

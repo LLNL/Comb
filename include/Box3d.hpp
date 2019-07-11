@@ -258,7 +258,7 @@ struct Box3d
   }
 
   template < typename context >
-  void set_indices(context const& con, LidxT* index_list) const
+  void set_indices(context& con, LidxT* index_list) const
   {
     IdxT imin = min[0];
     IdxT jmin = min[1];
@@ -266,12 +266,12 @@ struct Box3d
     IdxT imax = min[0] + sizes[0];
     IdxT jmax = min[1] + sizes[1];
     IdxT kmax = min[2] + sizes[2];
-    for_all_3d(con, kmin, kmax, jmin, jmax, imin, imax, make_set_idxr_idxr(detail::indexer_kji{info.len[0]*info.len[1], info.len[0]}, index_list, detail::indexer_idx{}));
+    con.for_all_3d(kmin, kmax, jmin, jmax, imin, imax, make_set_idxr_idxr(detail::indexer_kji{info.len[0]*info.len[1], info.len[0]}, index_list, detail::indexer_idx{}));
     //for(IdxT idx = 0; idx < (imax-imin)*(jmax-jmin)*(kmax-kmin); ++idx) {
     //  FPRINTF(stdout, "indices[%i] = %i\n", idx, index_list[idx]);
     //  assert(0 <= index_list[idx] && index_list[idx] < (imax-imin)*(jmax-jmin)*(kmax-kmin));
     //}
-    synchronize(con);
+    con.synchronize();
   }
 };
 
