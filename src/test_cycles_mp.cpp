@@ -30,13 +30,16 @@ void test_cycles_mp(CommInfo& comminfo, MeshInfo& info,
 {
   CommContext<mp_pol> con_comm;
 
+#ifdef COMB_ENABLE_CUDA
   AllocatorInfo& cpu_many_aloc = alloc.cuda_device;
   AllocatorInfo& cpu_few_aloc  = alloc.cuda_device;
 
-#ifdef COMB_ENABLE_CUDA
   AllocatorInfo& cuda_many_aloc = alloc.cuda_device;
   AllocatorInfo& cuda_few_aloc  = alloc.cuda_device;
 #else
+  AllocatorInfo& cpu_many_aloc = alloc.invalid;
+  AllocatorInfo& cpu_few_aloc  = alloc.invalid;
+
   AllocatorInfo& cuda_many_aloc = alloc.invalid;
   AllocatorInfo& cuda_few_aloc  = alloc.invalid;
 #endif
