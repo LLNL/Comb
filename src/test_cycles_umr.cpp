@@ -93,16 +93,16 @@ void test_cycles_umr(CommInfo& comminfo, MeshInfo& info,
 
       SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
-      if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.seq)
+      if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.seq && should_do_cycles(con_comm, exec.cuda, mesh_aloc, exec.cuda_batch, cuda_many_aloc, exec.seq, cpu_few_aloc))
         do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc.allocator(), exec.cuda_batch, cuda_many_aloc.allocator(), exec.seq, cpu_few_aloc.allocator(), tm, tm_total);
 
-      if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.cuda_batch_fewgs)
+      if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.cuda_batch_fewgs && should_do_cycles(con_comm, exec.cuda, mesh_aloc, exec.cuda_batch, cuda_many_aloc, exec.cuda_batch, cuda_few_aloc))
         do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc.allocator(), exec.cuda_batch, cuda_many_aloc.allocator(), exec.cuda_batch, cuda_few_aloc.allocator(), tm, tm_total);
 
-      if (exec_avail.cuda && exec_avail.cuda_persistent_fewgs && exec_avail.seq)
+      if (exec_avail.cuda && exec_avail.cuda_persistent_fewgs && exec_avail.seq && should_do_cycles(con_comm, exec.cuda, mesh_aloc, exec.cuda_persistent, cuda_many_aloc, exec.seq, cpu_few_aloc))
         do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc.allocator(), exec.cuda_persistent, cuda_many_aloc.allocator(), exec.seq, cpu_few_aloc.allocator(), tm, tm_total);
 
-      if (exec_avail.cuda && exec_avail.cuda_persistent_fewgs && exec_avail.cuda_persistent_fewgs)
+      if (exec_avail.cuda && exec_avail.cuda_persistent_fewgs && exec_avail.cuda_persistent_fewgs && should_do_cycles(con_comm, exec.cuda, mesh_aloc, exec.cuda_persistent, cuda_many_aloc, exec.cuda_persistent, cuda_few_aloc))
         do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc.allocator(), exec.cuda_persistent, cuda_many_aloc.allocator(), exec.cuda_persistent, cuda_few_aloc.allocator(), tm, tm_total);
     }
 
@@ -184,16 +184,16 @@ void test_cycles_umr(CommInfo& comminfo, MeshInfo& info,
 
       SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
-      if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.seq)
+      if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.seq && should_do_cycles(con_comm, exec.cuda, mesh_aloc, exec.cuda_batch, cuda_many_aloc, exec.seq, cpu_few_aloc))
         do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc.allocator(), exec.cuda_batch, cuda_many_aloc.allocator(), exec.seq, cpu_few_aloc.allocator(), tm, tm_total);
 
-      if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.cuda_batch_fewgs)
+      if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.cuda_batch_fewgs && should_do_cycles(con_comm, exec.cuda, mesh_aloc, exec.cuda_batch, cuda_many_aloc, exec.cuda_batch, cuda_few_aloc))
         do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc.allocator(), exec.cuda_batch, cuda_many_aloc.allocator(), exec.cuda_batch, cuda_few_aloc.allocator(), tm, tm_total);
 
-      if (exec_avail.cuda && exec_avail.cuda_persistent_fewgs && exec_avail.seq)
+      if (exec_avail.cuda && exec_avail.cuda_persistent_fewgs && exec_avail.seq && should_do_cycles(con_comm, exec.cuda, mesh_aloc, exec.cuda_persistent, cuda_many_aloc, exec.seq, cpu_few_aloc))
         do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc.allocator(), exec.cuda_persistent, cuda_many_aloc.allocator(), exec.seq, cpu_few_aloc.allocator(), tm, tm_total);
 
-      if (exec_avail.cuda && exec_avail.cuda_persistent_fewgs && exec_avail.cuda_persistent_fewgs)
+      if (exec_avail.cuda && exec_avail.cuda_persistent_fewgs && exec_avail.cuda_persistent_fewgs && should_do_cycles(con_comm, exec.cuda, mesh_aloc, exec.cuda_persistent, cuda_many_aloc, exec.cuda_persistent, cuda_few_aloc))
         do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc.allocator(), exec.cuda_persistent, cuda_many_aloc.allocator(), exec.cuda_persistent, cuda_few_aloc.allocator(), tm, tm_total);
     }
 
@@ -271,16 +271,16 @@ void test_cycles_umr(CommInfo& comminfo, MeshInfo& info,
 
       SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
-      if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.seq)
+      if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.seq && should_do_cycles(con_comm, exec.cuda, mesh_aloc, exec.cuda_batch, cuda_many_aloc, exec.seq, cpu_few_aloc))
         do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc.allocator(), exec.cuda_batch, cuda_many_aloc.allocator(), exec.seq, cpu_few_aloc.allocator(), tm, tm_total);
 
-      if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.cuda_batch_fewgs)
+      if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.cuda_batch_fewgs && should_do_cycles(con_comm, exec.cuda, mesh_aloc, exec.cuda_batch, cuda_many_aloc, exec.cuda_batch, cuda_few_aloc))
         do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc.allocator(), exec.cuda_batch, cuda_many_aloc.allocator(), exec.cuda_batch, cuda_few_aloc.allocator(), tm, tm_total);
 
-      if (exec_avail.cuda && exec_avail.cuda_persistent_fewgs && exec_avail.seq)
+      if (exec_avail.cuda && exec_avail.cuda_persistent_fewgs && exec_avail.seq && should_do_cycles(con_comm, exec.cuda, mesh_aloc, exec.cuda_persistent, cuda_many_aloc, exec.seq, cpu_few_aloc))
         do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc.allocator(), exec.cuda_persistent, cuda_many_aloc.allocator(), exec.seq, cpu_few_aloc.allocator(), tm, tm_total);
 
-      if (exec_avail.cuda && exec_avail.cuda_persistent_fewgs && exec_avail.cuda_persistent_fewgs)
+      if (exec_avail.cuda && exec_avail.cuda_persistent_fewgs && exec_avail.cuda_persistent_fewgs && should_do_cycles(con_comm, exec.cuda, mesh_aloc, exec.cuda_persistent, cuda_many_aloc, exec.cuda_persistent, cuda_few_aloc))
         do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc.allocator(), exec.cuda_persistent, cuda_many_aloc.allocator(), exec.cuda_persistent, cuda_few_aloc.allocator(), tm, tm_total);
     }
 
@@ -358,16 +358,16 @@ void test_cycles_umr(CommInfo& comminfo, MeshInfo& info,
 
       SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
-      if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.seq)
+      if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.seq && should_do_cycles(con_comm, exec.cuda, mesh_aloc, exec.cuda_batch, cuda_many_aloc, exec.seq, cpu_few_aloc))
         do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc.allocator(), exec.cuda_batch, cuda_many_aloc.allocator(), exec.seq, cpu_few_aloc.allocator(), tm, tm_total);
 
-      if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.cuda_batch_fewgs)
+      if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.cuda_batch_fewgs && should_do_cycles(con_comm, exec.cuda, mesh_aloc, exec.cuda_batch, cuda_many_aloc, exec.cuda_batch, cuda_few_aloc))
         do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc.allocator(), exec.cuda_batch, cuda_many_aloc.allocator(), exec.cuda_batch, cuda_few_aloc.allocator(), tm, tm_total);
 
-      if (exec_avail.cuda && exec_avail.cuda_persistent_fewgs && exec_avail.seq)
+      if (exec_avail.cuda && exec_avail.cuda_persistent_fewgs && exec_avail.seq && should_do_cycles(con_comm, exec.cuda, mesh_aloc, exec.cuda_persistent, cuda_many_aloc, exec.seq, cpu_few_aloc))
         do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc.allocator(), exec.cuda_persistent, cuda_many_aloc.allocator(), exec.seq, cpu_few_aloc.allocator(), tm, tm_total);
 
-      if (exec_avail.cuda && exec_avail.cuda_persistent_fewgs && exec_avail.cuda_persistent_fewgs)
+      if (exec_avail.cuda && exec_avail.cuda_persistent_fewgs && exec_avail.cuda_persistent_fewgs && should_do_cycles(con_comm, exec.cuda, mesh_aloc, exec.cuda_persistent, cuda_many_aloc, exec.cuda_persistent, cuda_few_aloc))
         do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc.allocator(), exec.cuda_persistent, cuda_many_aloc.allocator(), exec.cuda_persistent, cuda_few_aloc.allocator(), tm, tm_total);
     }
 
@@ -445,16 +445,16 @@ void test_cycles_umr(CommInfo& comminfo, MeshInfo& info,
 
       SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
-      if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.seq)
+      if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.seq && should_do_cycles(con_comm, exec.cuda, mesh_aloc, exec.cuda_batch, cuda_many_aloc, exec.seq, cpu_few_aloc))
         do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc.allocator(), exec.cuda_batch, cuda_many_aloc.allocator(), exec.seq, cpu_few_aloc.allocator(), tm, tm_total);
 
-      if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.cuda_batch_fewgs)
+      if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.cuda_batch_fewgs && should_do_cycles(con_comm, exec.cuda, mesh_aloc, exec.cuda_batch, cuda_many_aloc, exec.cuda_batch, cuda_few_aloc))
         do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc.allocator(), exec.cuda_batch, cuda_many_aloc.allocator(), exec.cuda_batch, cuda_few_aloc.allocator(), tm, tm_total);
 
-      if (exec_avail.cuda && exec_avail.cuda_persistent_fewgs && exec_avail.seq)
+      if (exec_avail.cuda && exec_avail.cuda_persistent_fewgs && exec_avail.seq && should_do_cycles(con_comm, exec.cuda, mesh_aloc, exec.cuda_persistent, cuda_many_aloc, exec.seq, cpu_few_aloc))
         do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc.allocator(), exec.cuda_persistent, cuda_many_aloc.allocator(), exec.seq, cpu_few_aloc.allocator(), tm, tm_total);
 
-      if (exec_avail.cuda && exec_avail.cuda_persistent_fewgs && exec_avail.cuda_persistent_fewgs)
+      if (exec_avail.cuda && exec_avail.cuda_persistent_fewgs && exec_avail.cuda_persistent_fewgs && should_do_cycles(con_comm, exec.cuda, mesh_aloc, exec.cuda_persistent, cuda_many_aloc, exec.cuda_persistent, cuda_few_aloc))
         do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc.allocator(), exec.cuda_persistent, cuda_many_aloc.allocator(), exec.cuda_persistent, cuda_few_aloc.allocator(), tm, tm_total);
     }
 
@@ -532,16 +532,16 @@ void test_cycles_umr(CommInfo& comminfo, MeshInfo& info,
 
       SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
-      if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.seq)
+      if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.seq && should_do_cycles(con_comm, exec.cuda, mesh_aloc, exec.cuda_batch, cuda_many_aloc, exec.seq, cpu_few_aloc))
         do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc.allocator(), exec.cuda_batch, cuda_many_aloc.allocator(), exec.seq, cpu_few_aloc.allocator(), tm, tm_total);
 
-      if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.cuda_batch_fewgs)
+      if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.cuda_batch_fewgs && should_do_cycles(con_comm, exec.cuda, mesh_aloc, exec.cuda_batch, cuda_many_aloc, exec.cuda_batch, cuda_few_aloc))
         do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc.allocator(), exec.cuda_batch, cuda_many_aloc.allocator(), exec.cuda_batch, cuda_few_aloc.allocator(), tm, tm_total);
 
-      if (exec_avail.cuda && exec_avail.cuda_persistent_fewgs && exec_avail.seq)
+      if (exec_avail.cuda && exec_avail.cuda_persistent_fewgs && exec_avail.seq && should_do_cycles(con_comm, exec.cuda, mesh_aloc, exec.cuda_persistent, cuda_many_aloc, exec.seq, cpu_few_aloc))
         do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc.allocator(), exec.cuda_persistent, cuda_many_aloc.allocator(), exec.seq, cpu_few_aloc.allocator(), tm, tm_total);
 
-      if (exec_avail.cuda && exec_avail.cuda_persistent_fewgs && exec_avail.cuda_persistent_fewgs)
+      if (exec_avail.cuda && exec_avail.cuda_persistent_fewgs && exec_avail.cuda_persistent_fewgs && should_do_cycles(con_comm, exec.cuda, mesh_aloc, exec.cuda_persistent, cuda_many_aloc, exec.cuda_persistent, cuda_few_aloc))
         do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc.allocator(), exec.cuda_persistent, cuda_many_aloc.allocator(), exec.cuda_persistent, cuda_few_aloc.allocator(), tm, tm_total);
     }
 
@@ -619,16 +619,16 @@ void test_cycles_umr(CommInfo& comminfo, MeshInfo& info,
 
       SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
-      if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.seq)
+      if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.seq && should_do_cycles(con_comm, exec.cuda, mesh_aloc, exec.cuda_batch, cuda_many_aloc, exec.seq, cpu_few_aloc))
         do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc.allocator(), exec.cuda_batch, cuda_many_aloc.allocator(), exec.seq, cpu_few_aloc.allocator(), tm, tm_total);
 
-      if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.cuda_batch_fewgs)
+      if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.cuda_batch_fewgs && should_do_cycles(con_comm, exec.cuda, mesh_aloc, exec.cuda_batch, cuda_many_aloc, exec.cuda_batch, cuda_few_aloc))
         do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc.allocator(), exec.cuda_batch, cuda_many_aloc.allocator(), exec.cuda_batch, cuda_few_aloc.allocator(), tm, tm_total);
 
-      if (exec_avail.cuda && exec_avail.cuda_persistent_fewgs && exec_avail.seq)
+      if (exec_avail.cuda && exec_avail.cuda_persistent_fewgs && exec_avail.seq && should_do_cycles(con_comm, exec.cuda, mesh_aloc, exec.cuda_persistent, cuda_many_aloc, exec.seq, cpu_few_aloc))
         do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc.allocator(), exec.cuda_persistent, cuda_many_aloc.allocator(), exec.seq, cpu_few_aloc.allocator(), tm, tm_total);
 
-      if (exec_avail.cuda && exec_avail.cuda_persistent_fewgs && exec_avail.cuda_persistent_fewgs)
+      if (exec_avail.cuda && exec_avail.cuda_persistent_fewgs && exec_avail.cuda_persistent_fewgs && should_do_cycles(con_comm, exec.cuda, mesh_aloc, exec.cuda_persistent, cuda_many_aloc, exec.cuda_persistent, cuda_few_aloc))
         do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc.allocator(), exec.cuda_persistent, cuda_many_aloc.allocator(), exec.cuda_persistent, cuda_few_aloc.allocator(), tm, tm_total);
     }
 
@@ -706,16 +706,16 @@ void test_cycles_umr(CommInfo& comminfo, MeshInfo& info,
 
       SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
-      if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.seq)
+      if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.seq && should_do_cycles(con_comm, exec.cuda, mesh_aloc, exec.cuda_batch, cuda_many_aloc, exec.seq, cpu_few_aloc))
         do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc.allocator(), exec.cuda_batch, cuda_many_aloc.allocator(), exec.seq, cpu_few_aloc.allocator(), tm, tm_total);
 
-      if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.cuda_batch_fewgs)
+      if (exec_avail.cuda && exec_avail.cuda_batch_fewgs && exec_avail.cuda_batch_fewgs && should_do_cycles(con_comm, exec.cuda, mesh_aloc, exec.cuda_batch, cuda_many_aloc, exec.cuda_batch, cuda_few_aloc))
         do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc.allocator(), exec.cuda_batch, cuda_many_aloc.allocator(), exec.cuda_batch, cuda_few_aloc.allocator(), tm, tm_total);
 
-      if (exec_avail.cuda && exec_avail.cuda_persistent_fewgs && exec_avail.seq)
+      if (exec_avail.cuda && exec_avail.cuda_persistent_fewgs && exec_avail.seq && should_do_cycles(con_comm, exec.cuda, mesh_aloc, exec.cuda_persistent, cuda_many_aloc, exec.seq, cpu_few_aloc))
         do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc.allocator(), exec.cuda_persistent, cuda_many_aloc.allocator(), exec.seq, cpu_few_aloc.allocator(), tm, tm_total);
 
-      if (exec_avail.cuda && exec_avail.cuda_persistent_fewgs && exec_avail.cuda_persistent_fewgs)
+      if (exec_avail.cuda && exec_avail.cuda_persistent_fewgs && exec_avail.cuda_persistent_fewgs && should_do_cycles(con_comm, exec.cuda, mesh_aloc, exec.cuda_persistent, cuda_many_aloc, exec.cuda_persistent, cuda_few_aloc))
         do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc.allocator(), exec.cuda_persistent, cuda_many_aloc.allocator(), exec.cuda_persistent, cuda_few_aloc.allocator(), tm, tm_total);
     }
 
