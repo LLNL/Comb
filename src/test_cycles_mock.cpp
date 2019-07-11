@@ -28,25 +28,48 @@ void test_cycles_mock(CommInfo& comminfo, MeshInfo& info,
 {
   CommContext<mock_pol> con_comm;
 
-  AllocatorInfo& cpu_many_aloc = alloc.host;
-  AllocatorInfo& cpu_few_aloc  = alloc.host;
+  {
+    // mpi host memory tests
+    AllocatorInfo& cpu_many_aloc = alloc.host;
+    AllocatorInfo& cpu_few_aloc  = alloc.host;
+
+  #ifdef COMB_ENABLE_CUDA
+    AllocatorInfo& cuda_many_aloc = alloc.cuda_hostpinned;
+    AllocatorInfo& cuda_few_aloc  = alloc.cuda_hostpinned;
+  #else
+    AllocatorInfo& cuda_many_aloc = alloc.invalid;
+    AllocatorInfo& cuda_few_aloc  = alloc.invalid;
+  #endif
+
+    do_cycles_allocators(con_comm,
+                         comminfo, info,
+                         exec,
+                         alloc,
+                         cpu_many_aloc, cpu_few_aloc,
+                         cuda_many_aloc, cuda_few_aloc,
+                         exec_avail,
+                         num_vars, ncycles, tm, tm_total);
+  }
 
 #ifdef COMB_ENABLE_CUDA
-  AllocatorInfo& cuda_many_aloc = alloc.cuda_hostpinned;
-  AllocatorInfo& cuda_few_aloc  = alloc.cuda_hostpinned;
-#else
-  AllocatorInfo& cuda_many_aloc = alloc.invalid;
-  AllocatorInfo& cuda_few_aloc  = alloc.invalid;
-#endif
+  {
+    // mpi cuda memory tests
+    AllocatorInfo& cpu_many_aloc = alloc.cuda_device;
+    AllocatorInfo& cpu_few_aloc  = alloc.cuda_device;
 
-  do_cycles_allocators(con_comm,
-                       comminfo, info,
-                       exec,
-                       alloc,
-                       cpu_many_aloc, cpu_few_aloc,
-                       cuda_many_aloc, cuda_few_aloc,
-                       exec_avail,
-                       num_vars, ncycles, tm, tm_total);
+    AllocatorInfo& cuda_many_aloc = alloc.cuda_device;
+    AllocatorInfo& cuda_few_aloc  = alloc.cuda_device;
+
+    do_cycles_allocators(con_comm,
+                         comminfo, info,
+                         exec,
+                         alloc,
+                         cpu_many_aloc, cpu_few_aloc,
+                         cuda_many_aloc, cuda_few_aloc,
+                         exec_avail,
+                         num_vars, ncycles, tm, tm_total);
+  }
+#endif
 
 }
 
