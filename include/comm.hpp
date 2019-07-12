@@ -475,16 +475,6 @@ struct Comm
           }
         }
 
-        // pack and send
-        if (have_many && have_few) {
-          con_few.persistent_launch(); con_many.persistent_launch();
-        } else if (have_many) {
-          con_many.persistent_launch();
-        } else if (have_few) {
-          con_few.persistent_launch();
-        }
-
-        bool post_pack_complete = false;
         IdxT pack_send = 0;
         IdxT post_many_send = 0;
         IdxT post_few_send = 0;
@@ -495,37 +485,23 @@ struct Comm
           if (pack_send < num_sends) {
 
             if (m_sends[pack_send].have_many()) {
+              m_send_contexts_many[pack_send].persistent_launch();
               m_sends[pack_send].pack(m_send_contexts_many[pack_send], communicator);
               m_send_contexts_many[pack_send].recordEvent(m_send_events_many[pack_send]);
+              m_send_contexts_many[pack_send].batch_launch();
+              m_send_contexts_many[pack_send].persistent_stop();
             } else {
+              m_send_contexts_few[pack_send].persistent_launch();
               m_sends[pack_send].pack(m_send_contexts_few[pack_send], communicator);
               m_send_contexts_few[pack_send].recordEvent(m_send_events_few[pack_send]);
+              m_send_contexts_few[pack_send].batch_launch();
+              m_send_contexts_few[pack_send].persistent_stop();
             }
 
             ++pack_send;
-
-          } else if (!post_pack_complete) {
-
-            if (have_many && have_few) {
-              con_few.batch_launch(); con_many.batch_launch();
-            } else if (have_many) {
-              con_many.batch_launch();
-            } else if (have_few) {
-              con_few.batch_launch();
-            }
-
-            // stop persistent kernel
-            if (have_many && have_few) {
-              con_few.persistent_stop(); con_many.persistent_stop();
-            } else if (have_many) {
-              con_many.persistent_stop();
-            } else if (have_few) {
-              con_few.persistent_stop();
-            }
-
-            post_pack_complete = true;
           }
 
+          // have_many query events and isend
           while (post_many_send < pack_send) {
 
             if (m_sends[post_many_send].have_many()) {
@@ -545,6 +521,7 @@ struct Comm
             }
           }
 
+          // have_few query events and isend
           while (post_few_send < pack_send) {
 
             if (!m_sends[post_few_send].have_many()) {
@@ -564,7 +541,6 @@ struct Comm
               ++post_few_send;
             }
           }
-
         }
       } break;
       case CommInfo::method::waitsome:
