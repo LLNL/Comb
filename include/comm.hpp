@@ -344,13 +344,14 @@ struct Comm
     COMB::ignore_unused(con_many, con_few);
     //FPRINTF(stdout, "posting receives\n");
 
-    m_recv_requests.resize(m_recvs.size(), policy_comm::recv_request_null());
+    IdxT num_recvs = m_recvs.size();
+
+    m_recv_requests.resize(num_recvs, policy_comm::recv_request_null());
 
     switch (post_recv_method) {
       case CommInfo::method::waitany:
       case CommInfo::method::testany:
       {
-        IdxT num_recvs = m_recvs.size();
         for (IdxT i = 0; i < num_recvs; ++i) {
 
           if (m_recvs[i].have_many()) {
@@ -365,7 +366,6 @@ struct Comm
       case CommInfo::method::waitsome:
       case CommInfo::method::testsome:
       {
-        IdxT num_recvs = m_recvs.size();
         for (IdxT i = 0; i < num_recvs; ++i) {
 
           if (m_recvs[i].have_many()) {
@@ -394,7 +394,6 @@ struct Comm
       case CommInfo::method::waitall:
       case CommInfo::method::testall:
       {
-        IdxT num_recvs = m_recvs.size();
         for (IdxT i = 0; i < num_recvs; ++i) {
 
           if (m_recvs[i].have_many()) {
