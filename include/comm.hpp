@@ -958,15 +958,15 @@ struct Comm
           if (m_recvs[idx].have_many()) {
             m_recv_contexts_many[idx].persistent_launch();
             m_recvs[idx].unpack(m_recv_contexts_many[idx], communicator);
-            m_recvs[idx].deallocate(m_recv_contexts_many[idx], communicator, many_aloc);
             m_recv_contexts_many[idx].batch_launch();
             m_recv_contexts_many[idx].persistent_stop();
+            m_recvs[idx].deallocate(m_recv_contexts_many[idx], communicator, many_aloc);
           } else {
             m_recv_contexts_few[idx].persistent_launch();
             m_recvs[idx].unpack(m_recv_contexts_few[idx], communicator);
-            m_recvs[idx].deallocate(m_recv_contexts_few[idx], communicator, few_aloc);
             m_recv_contexts_few[idx].batch_launch();
             m_recv_contexts_few[idx].persistent_stop();
+            m_recvs[idx].deallocate(m_recv_contexts_few[idx], communicator, few_aloc);
           }
 
           num_done += 1;
@@ -1012,13 +1012,9 @@ struct Comm
 
             if (m_recvs[indices[i]].have_many()) {
               m_recvs[indices[i]].unpack(m_recv_contexts_many[indices[i]], communicator);
-              m_recvs[indices[i]].deallocate(m_recv_contexts_many[indices[i]], communicator, many_aloc);
             } else {
               m_recvs[indices[i]].unpack(m_recv_contexts_few[indices[i]], communicator);
-              m_recvs[indices[i]].deallocate(m_recv_contexts_few[indices[i]], communicator, few_aloc);
             }
-
-            num_done += 1;
           }
 
           if (inner_have_many && inner_have_few) {
@@ -1036,6 +1032,17 @@ struct Comm
           } else if (inner_have_few) {
             con_few.persistent_stop();
           }
+
+          for (IdxT i = 0; i < num_recvd; ++i) {
+
+            if (m_recvs[indices[i]].have_many()) {
+              m_recvs[indices[i]].deallocate(m_recv_contexts_many[indices[i]], communicator, many_aloc);
+            } else {
+              m_recvs[indices[i]].deallocate(m_recv_contexts_few[indices[i]], communicator, few_aloc);
+            }
+          }
+
+          num_done += num_recvd;
         }
       } break;
       case CommInfo::method::waitall:
@@ -1057,18 +1064,13 @@ struct Comm
           con_few.persistent_launch();
         }
 
-        IdxT num_done = 0;
-        while (num_done < num_recvs) {
+        for (int idx = 0; idx < num_recvs; ++idx) {
 
-          if (m_recvs[num_done].have_many()) {
-            m_recvs[num_done].unpack(m_recv_contexts_many[num_done], communicator);
-            m_recvs[num_done].deallocate(m_recv_contexts_many[num_done], communicator, many_aloc);
+          if (m_recvs[idx].have_many()) {
+            m_recvs[idx].unpack(m_recv_contexts_many[idx], communicator);
           } else {
-            m_recvs[num_done].unpack(m_recv_contexts_few[num_done], communicator);
-            m_recvs[num_done].deallocate(m_recv_contexts_few[num_done], communicator, few_aloc);
+            m_recvs[idx].unpack(m_recv_contexts_few[idx], communicator);
           }
-
-          num_done += 1;
         }
 
         if (have_many && have_few) {
@@ -1085,6 +1087,15 @@ struct Comm
           con_many.persistent_stop();
         } else if (have_few) {
           con_few.persistent_stop();
+        }
+
+        for (int idx = 0; idx < num_recvs; ++idx) {
+
+          if (m_recvs[idx].have_many()) {
+            m_recvs[idx].deallocate(m_recv_contexts_many[idx], communicator, many_aloc);
+          } else {
+            m_recvs[idx].deallocate(m_recv_contexts_few[idx], communicator, few_aloc);
+          }
         }
       } break;
       default:
