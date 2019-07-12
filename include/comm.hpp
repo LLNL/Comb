@@ -622,6 +622,7 @@ struct Comm
         IdxT post_many_send = 0;
         IdxT post_few_send = 0;
 
+        // pack many sends
         if (have_many) {
 
           con_many.persistent_launch();
@@ -629,35 +630,10 @@ struct Comm
           while (pack_many_send < num_sends) {
 
             if (m_sends[pack_many_send].have_many()) {
-
               m_sends[pack_many_send].pack(m_send_contexts_many[pack_many_send], communicator);
-
               m_send_contexts_many[pack_many_send].recordEvent(m_send_events_many[pack_many_send]);
-
             }
-
             ++pack_many_send;
-
-            // post sends if possible
-            while (post_many_send < pack_many_send) {
-
-              if (m_sends[post_many_send].have_many()) {
-
-                if (m_send_contexts_many[post_many_send].queryEvent(m_send_events_many[post_many_send])) {
-
-                  m_sends[post_many_send].Isend(m_send_contexts_many[post_many_send], communicator, &m_send_requests[post_many_send]);
-
-                  ++post_many_send;
-
-                } else {
-
-                  break;
-                }
-              } else {
-
-                ++post_many_send;
-              }
-            }
           }
 
           con_many.batch_launch();
@@ -667,6 +643,23 @@ struct Comm
           post_many_send = num_sends;
         }
 
+        // post more sends if possible
+        while (post_many_send < pack_many_send) {
+
+          if (m_sends[post_many_send].have_many()) {
+            if (m_send_contexts_many[post_many_send].queryEvent(m_send_events_many[post_many_send])) {
+
+              m_sends[post_many_send].Isend(m_send_contexts_many[post_many_send], communicator, &m_send_requests[post_many_send]);
+              ++post_many_send;
+            } else {
+              break;
+            }
+          } else {
+            ++post_many_send;
+          }
+        }
+
+        // pack few sends
         if (have_few) {
 
           con_few.persistent_launch();
@@ -674,56 +667,11 @@ struct Comm
           while (pack_few_send < num_sends) {
 
             if (!m_sends[pack_few_send].have_many()) {
-
               m_sends[pack_few_send].pack(m_send_contexts_few[pack_few_send], communicator);
-
               m_send_contexts_few[pack_few_send].recordEvent(m_send_events_few[pack_few_send]);
-
             }
 
             ++pack_few_send;
-
-            // post more sends if possible
-            while (post_many_send < pack_many_send) {
-
-              if (m_sends[post_many_send].have_many()) {
-
-                if (m_send_contexts_many[post_many_send].queryEvent(m_send_events_many[post_many_send])) {
-
-                  m_sends[post_many_send].Isend(m_send_contexts_many[post_many_send], communicator, &m_send_requests[post_many_send]);
-
-                  ++post_many_send;
-
-                } else {
-
-                  break;
-                }
-              } else {
-
-                ++post_many_send;
-              }
-            }
-
-            // post sends if possible
-            while (post_few_send < pack_few_send) {
-
-              if (!m_sends[post_few_send].have_many()) {
-
-                if (m_send_contexts_few[post_few_send].queryEvent(m_send_events_few[post_few_send])) {
-
-                  m_sends[post_few_send].Isend(m_send_contexts_few[post_few_send], communicator, &m_send_requests[post_few_send]);
-
-                  ++post_few_send;
-
-                } else {
-
-                  break;
-                }
-              } else {
-
-                ++post_few_send;
-              }
-            }
           }
 
           con_few.batch_launch();
@@ -739,19 +687,14 @@ struct Comm
           while (post_many_send < pack_many_send) {
 
             if (m_sends[post_many_send].have_many()) {
-
               if (m_send_contexts_many[post_many_send].queryEvent(m_send_events_many[post_many_send])) {
 
                 m_sends[post_many_send].Isend(m_send_contexts_many[post_many_send], communicator, &m_send_requests[post_many_send]);
-
                 ++post_many_send;
-
               } else {
-
                 break;
               }
             } else {
-
               ++post_many_send;
             }
           }
@@ -759,19 +702,14 @@ struct Comm
           while (post_few_send < pack_few_send) {
 
             if (!m_sends[post_few_send].have_many()) {
-
               if (m_send_contexts_few[post_few_send].queryEvent(m_send_events_few[post_few_send])) {
 
                 m_sends[post_few_send].Isend(m_send_contexts_few[post_few_send], communicator, &m_send_requests[post_few_send]);
-
                 ++post_few_send;
-
               } else {
-
                 break;
               }
             } else {
-
               ++post_few_send;
             }
           }
