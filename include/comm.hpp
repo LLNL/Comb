@@ -424,12 +424,24 @@ struct Comm
   {
     //FPRINTF(stdout, "posting sends\n");
 
-    m_send_requests.resize(m_sends.size(), policy_comm::send_request_null());
+    const IdxT num_sends = m_sends.size();
+
+    m_send_requests.resize(num_sends, policy_comm::send_request_null());
+
+    bool have_many = false;
+    bool have_few = false;
+
+    for (IdxT i = 0; i < num_sends; ++i) {
+      if (m_sends[i].have_many()) {
+        have_many = true;
+      } else {
+        have_few = true;
+      }
+    }
 
     switch (post_send_method) {
       case CommInfo::method::waitany:
       {
-        IdxT num_sends = m_sends.size();
         for (IdxT i = 0; i < num_sends; ++i) {
 
           if (m_sends[i].have_many()) {
@@ -447,19 +459,13 @@ struct Comm
       } break;
       case CommInfo::method::testany:
       {
-        IdxT num_sends = m_sends.size();
-        bool have_many = false;
-        bool have_few = false;
-
         // allocate
         for (IdxT i = 0; i < num_sends; ++i) {
 
           if (m_sends[i].have_many()) {
             m_sends[i].allocate(m_send_contexts_many[i], communicator, many_aloc);
-            have_many = true;
           } else {
             m_sends[i].allocate(m_send_contexts_few[i], communicator, few_aloc);
-            have_few = true;
           }
         }
 
@@ -557,8 +563,6 @@ struct Comm
       } break;
       case CommInfo::method::waitsome:
       {
-        IdxT num_sends = m_sends.size();
-
         {
           // have many case, send after all packed
           bool found_many = false;
@@ -603,20 +607,13 @@ struct Comm
       } break;
       case CommInfo::method::testsome:
       {
-        IdxT num_sends = m_sends.size();
-
-        bool have_many = false;
-        bool have_few = false;
-
         // allocate
         for (IdxT i = 0; i < num_sends; ++i) {
 
           if (m_sends[i].have_many()) {
             m_sends[i].allocate(m_send_contexts_many[i], communicator, many_aloc);
-            have_many = true;
           } else {
             m_sends[i].allocate(m_send_contexts_few[i], communicator, few_aloc);
-            have_few = true;
           }
         }
 
@@ -783,20 +780,14 @@ struct Comm
       } break;
       case CommInfo::method::waitall:
       {
-        IdxT num_sends = m_sends.size();
-        bool have_many = false;
-        bool have_few = false;
-
         for (IdxT i = 0; i < num_sends; ++i) {
 
           if (m_sends[i].have_many()) {
             m_sends[i].allocate(m_send_contexts_many[i], communicator, many_aloc);
             m_sends[i].pack(m_send_contexts_many[i], communicator);
-            have_many = true;
           } else {
             m_sends[i].allocate(m_send_contexts_few[i], communicator, few_aloc);
             m_sends[i].pack(m_send_contexts_few[i], communicator);
-            have_few = true;
           }
         }
 
@@ -819,19 +810,13 @@ struct Comm
       } break;
       case CommInfo::method::testall:
       {
-        IdxT num_sends = m_sends.size();
-        bool have_many = false;
-        bool have_few = false;
-
         // allocate
         for (IdxT i = 0; i < num_sends; ++i) {
 
           if (m_sends[i].have_many()) {
             m_sends[i].allocate(m_send_contexts_many[i], communicator, many_aloc);
-            have_many = true;
           } else {
             m_sends[i].allocate(m_send_contexts_few[i], communicator, few_aloc);
-            have_few = true;
           }
         }
 
