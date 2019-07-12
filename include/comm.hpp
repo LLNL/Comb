@@ -784,11 +784,42 @@ struct Comm
 
           if (m_sends[i].have_many()) {
             m_sends[i].allocate(m_send_contexts_many[i], communicator, many_aloc);
-            m_sends[i].pack(m_send_contexts_many[i], communicator);
           } else {
             m_sends[i].allocate(m_send_contexts_few[i], communicator, few_aloc);
+          }
+        }
+
+        if (have_many && have_few) {
+          con_few.persistent_launch(); con_many.persistent_launch();
+        } else if (have_many) {
+          con_many.persistent_launch();
+        } else if (have_few) {
+          con_few.persistent_launch();
+        }
+
+        for (IdxT i = 0; i < num_sends; ++i) {
+
+          if (m_sends[i].have_many()) {
+            m_sends[i].pack(m_send_contexts_many[i], communicator);
+          } else {
             m_sends[i].pack(m_send_contexts_few[i], communicator);
           }
+        }
+
+        if (have_many && have_few) {
+          con_few.batch_launch(); con_many.batch_launch();
+        } else if (have_many) {
+          con_many.batch_launch();
+        } else if (have_few) {
+          con_few.batch_launch();
+        }
+
+        if (have_many && have_few) {
+          con_few.persistent_stop(); con_many.persistent_stop();
+        } else if (have_many) {
+          con_many.persistent_stop();
+        } else if (have_few) {
+          con_few.persistent_stop();
         }
 
         if (have_many && have_few) {
