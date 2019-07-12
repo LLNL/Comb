@@ -545,43 +545,61 @@ struct Comm
       } break;
       case CommInfo::method::waitsome:
       {
-        {
-          // have many case, send after all packed
-          bool found_many = false;
-
+        if (have_many) {
           for (IdxT i = 0; i < num_sends; ++i) {
 
             if (m_sends[i].have_many()) {
               m_sends[i].allocate(m_send_contexts_many[i], communicator, many_aloc);
-              m_sends[i].pack(m_send_contexts_many[i], communicator);
-              found_many = true;
             }
           }
 
-          if (found_many) {
+          con_many.persistent_launch();
 
-            con_many.synchronize();
+          for (IdxT i = 0; i < num_sends; ++i) {
 
-            for (IdxT i = 0; i < num_sends; ++i) {
+            if (m_sends[i].have_many()) {
+              m_sends[i].pack(m_send_contexts_many[i], communicator);
+            }
+          }
 
-              if (m_sends[i].have_many()) {
+          con_many.batch_launch();
+          con_many.persistent_stop();
 
-                m_sends[i].Isend(m_send_contexts_many[i], communicator, &m_send_requests[i]);
-              }
+          con_many.synchronize();
+
+          for (IdxT i = 0; i < num_sends; ++i) {
+
+            if (m_sends[i].have_many()) {
+              m_sends[i].Isend(m_send_contexts_many[i], communicator, &m_send_requests[i]);
             }
           }
         }
 
-        {
-          // have_few case, send immediately
+        if (have_few) {
           for (IdxT i = 0; i < num_sends; ++i) {
 
             if (!m_sends[i].have_many()) {
               m_sends[i].allocate(m_send_contexts_few[i], communicator, few_aloc);
+            }
+          }
+
+          con_few.persistent_launch();
+
+          for (IdxT i = 0; i < num_sends; ++i) {
+
+            if (!m_sends[i].have_many()) {
               m_sends[i].pack(m_send_contexts_few[i], communicator);
+            }
+          }
 
-              m_send_contexts_few[i].synchronize();
+          con_few.batch_launch();
+          con_few.persistent_stop();
 
+          con_few.synchronize();
+
+          for (IdxT i = 0; i < num_sends; ++i) {
+
+            if (!m_sends[i].have_many()) {
               m_sends[i].Isend(m_send_contexts_few[i], communicator, &m_send_requests[i]);
             }
           }
