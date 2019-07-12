@@ -860,22 +860,16 @@ struct Comm
           con_few.persistent_launch();
         }
 
-        IdxT pack_send = 0;
-        IdxT post_many_send = 0;
-        IdxT post_few_send = 0;
-
-        while (pack_send < num_sends) {
+        for (IdxT i = 0; i < num_sends; ++i) {
 
           // pack and record events
-          if (m_sends[pack_send].have_many()) {
-            m_sends[pack_send].pack(m_send_contexts_many[pack_send], communicator);
-            m_send_contexts_many[pack_send].recordEvent(m_send_events_many[pack_send]);
+          if (m_sends[i].have_many()) {
+            m_sends[i].pack(m_send_contexts_many[i], communicator);
+            m_send_contexts_many[i].recordEvent(m_send_events_many[i]);
           } else {
-            m_sends[pack_send].pack(m_send_contexts_few[pack_send], communicator);
-            m_send_contexts_few[pack_send].recordEvent(m_send_events_few[pack_send]);
+            m_sends[i].pack(m_send_contexts_few[i], communicator);
+            m_send_contexts_few[i].recordEvent(m_send_events_few[i]);
           }
-
-          ++pack_send;
         }
 
         if (have_many && have_few) {
@@ -896,6 +890,8 @@ struct Comm
         }
 
         // post all sends
+        IdxT post_many_send = 0;
+        IdxT post_few_send = 0;
         while (post_many_send < num_sends || post_few_send < num_sends) {
 
           while (post_many_send < num_sends) {
