@@ -446,12 +446,18 @@ struct Comm
 
           if (m_sends[i].have_many()) {
             m_sends[i].allocate(m_send_contexts_many[i], communicator, many_aloc);
+            m_send_contexts_many[i].persistent_launch();
             m_sends[i].pack(m_send_contexts_many[i], communicator);
+            m_send_contexts_many[i].batch_launch();
+            m_send_contexts_many[i].persistent_stop();
             m_send_contexts_many[i].synchronize();
             m_sends[i].Isend(m_send_contexts_many[i], communicator, &m_send_requests[i]);
           } else {
             m_sends[i].allocate(m_send_contexts_few[i], communicator, few_aloc);
+            m_send_contexts_few[i].persistent_launch();
             m_sends[i].pack(m_send_contexts_few[i], communicator);
+            m_send_contexts_few[i].batch_launch();
+            m_send_contexts_few[i].persistent_stop();
             m_send_contexts_few[i].synchronize();
             m_sends[i].Isend(m_send_contexts_few[i], communicator, &m_send_requests[i]);
           }
