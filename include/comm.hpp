@@ -926,20 +926,20 @@ struct Comm
     bool have_many = false;
     bool have_few = false;
 
+    IdxT num_recvs = m_recvs.size();
+
+    for (IdxT i = 0; i < num_recvs; ++i) {
+      if (m_recvs[i].have_many()) {
+        have_many = true;
+      } else {
+        have_few = true;
+      }
+    }
+
     switch (wait_recv_method) {
       case CommInfo::method::waitany:
       case CommInfo::method::testany:
       {
-        IdxT num_recvs = m_recvs.size();
-
-        for (IdxT i = 0; i < num_recvs; ++i) {
-          if (m_recvs[i].have_many()) {
-            have_many = true;
-          } else {
-            have_few = true;
-          }
-        }
-
         if (have_many && have_few) {
           con_few.persistent_launch(); con_many.persistent_launch();
         } else if (have_many) {
@@ -996,16 +996,6 @@ struct Comm
       case CommInfo::method::waitsome:
       case CommInfo::method::testsome:
       {
-        IdxT num_recvs = m_recvs.size();
-
-        for (IdxT i = 0; i < num_recvs; ++i) {
-          if (m_recvs[i].have_many()) {
-            have_many = true;
-          } else {
-            have_few = true;
-          }
-        }
-
         if (have_many && have_few) {
           con_few.persistent_launch(); con_many.persistent_launch();
         } else if (have_many) {
@@ -1076,16 +1066,6 @@ struct Comm
       case CommInfo::method::waitall:
       case CommInfo::method::testall:
       {
-        IdxT num_recvs = m_recvs.size();
-
-        for (IdxT i = 0; i < num_recvs; ++i) {
-          if (m_recvs[i].have_many()) {
-            have_many = true;
-          } else {
-            have_few = true;
-          }
-        }
-
         if (have_many && have_few) {
           con_few.persistent_launch(); con_many.persistent_launch();
         } else if (have_many) {
@@ -1108,11 +1088,9 @@ struct Comm
           if (m_recvs[num_done].have_many()) {
             m_recvs[num_done].unpack(m_recv_contexts_many[num_done], communicator);
             m_recvs[num_done].deallocate(m_recv_contexts_many[num_done], communicator, many_aloc);
-            have_many = true;
           } else {
             m_recvs[num_done].unpack(m_recv_contexts_few[num_done], communicator);
             m_recvs[num_done].deallocate(m_recv_contexts_few[num_done], communicator, few_aloc);
-            have_few = true;
           }
 
           num_done += 1;
