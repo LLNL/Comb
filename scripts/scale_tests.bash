@@ -77,12 +77,12 @@ comb_args="${comb_args} -comm enable all"
 
 # set up arguments for a variety of communication methods
 wait_all_method="-comm post_recv wait_all -comm post_send wait_all -comm wait_recv wait_all -comm wait_send wait_all"
-wait_some_method="-comm post_recv wait_all -comm post_send wait_some -comm wait_recv wait_some -comm wait_send wait_all"
-wait_any_method="-comm post_recv wait_any -comm post_send wait_any -comm wait_recv wait_any -comm wait_send wait_all"
+wait_some_method="-comm post_recv wait_some -comm post_send wait_some -comm wait_recv wait_some -comm wait_send wait_some"
+wait_any_method="-comm post_recv wait_any -comm post_send wait_any -comm wait_recv wait_any -comm wait_send wait_any"
 
 test_all_method="-comm post_recv wait_all -comm post_send test_all -comm wait_recv wait_all -comm wait_send wait_all"
-test_some_method="-comm post_recv wait_all -comm post_send test_some -comm wait_recv wait_some -comm wait_send wait_all"
-test_any_method="-comm post_recv wait_any -comm post_send test_any -comm wait_recv wait_any -comm wait_send wait_all"
+test_some_method="-comm post_recv wait_some -comm post_send test_some -comm wait_recv wait_some -comm wait_send wait_some"
+test_any_method="-comm post_recv wait_any -comm post_send test_any -comm wait_recv wait_any -comm wait_send wait_any"
 
 # set up the base command to run a test
 # use sep_out.bash to separate each rank's output

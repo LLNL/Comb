@@ -84,7 +84,7 @@ comb_args="${comb_args} -comm enable mpi"
 comb_args="${comb_args} -comm enable umr"
 
 # set up arguments for communication method
-wait_any_method="-comm post_recv wait_any -comm post_send wait_any -comm wait_recv wait_any -comm wait_send wait_all"
+wait_any_method="-comm post_recv wait_any -comm post_send wait_any -comm wait_recv wait_any -comm wait_send wait_any"
 
 # set up the base command to run a test
 # use sep_out.bash to separate each rank's output
