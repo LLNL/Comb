@@ -505,18 +505,14 @@ struct Comm
           while (post_many_send < pack_send) {
 
             if (m_sends[post_many_send].have_many()) {
-
               if (m_send_contexts_many[post_many_send].queryEvent(m_send_events_many[post_many_send])) {
 
                 m_sends[post_many_send].Isend(m_send_contexts_many[post_many_send], communicator, &m_send_requests[post_many_send]);
-
                 ++post_many_send;
-
               } else {
                 break;
               }
             } else {
-
               ++post_many_send;
             }
           }
@@ -525,19 +521,14 @@ struct Comm
           while (post_few_send < pack_send) {
 
             if (!m_sends[post_few_send].have_many()) {
-
               if (m_send_contexts_few[post_few_send].queryEvent(m_send_events_few[post_few_send])) {
 
                 m_sends[post_few_send].Isend(m_send_contexts_few[post_few_send], communicator, &m_send_requests[post_few_send]);
-
                 ++post_few_send;
-
               } else {
                 break;
               }
-
             } else {
-
               ++post_few_send;
             }
           }
@@ -835,18 +826,14 @@ struct Comm
           while (post_many_send < num_sends) {
 
             if (m_sends[post_many_send].have_many()) {
-
               if (m_send_contexts_many[post_many_send].queryEvent(m_send_events_many[post_many_send])) {
 
                 m_sends[post_many_send].Isend(m_send_contexts_many[post_many_send], communicator, &m_send_requests[post_many_send]);
-
                 ++post_many_send;
-
               } else {
                 break;
               }
             } else {
-
               ++post_many_send;
             }
           }
@@ -854,19 +841,14 @@ struct Comm
           while (post_few_send < num_sends) {
 
             if (!m_sends[post_few_send].have_many()) {
-
               if (m_send_contexts_few[post_few_send].queryEvent(m_send_events_few[post_few_send])) {
 
                 m_sends[post_few_send].Isend(m_send_contexts_few[post_few_send], communicator, &m_send_requests[post_few_send]);
-
                 ++post_few_send;
-
               } else {
                 break;
               }
-
             } else {
-
               ++post_few_send;
             }
           }
