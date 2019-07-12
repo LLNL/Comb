@@ -1135,15 +1135,15 @@ struct Comm
     COMB::ignore_unused(con_many, con_few);
     //FPRINTF(stdout, "posting sends\n");
 
+    IdxT num_sends = m_sends.size();
+
     switch (wait_send_method) {
       case CommInfo::method::waitany:
       case CommInfo::method::testany:
       {
-        IdxT num_sends = m_sends.size();
-        IdxT num_done = 0;
-
         typename policy_comm::send_status_type status = policy_comm::send_status_null();
 
+        IdxT num_done = 0;
         while (num_done < num_sends) {
 
           IdxT idx = num_done;
@@ -1163,18 +1163,15 @@ struct Comm
           }
 
           num_done += 1;
-
         }
       } break;
       case CommInfo::method::waitsome:
       case CommInfo::method::testsome:
       {
-        IdxT num_sends = m_sends.size();
-        IdxT num_done = 0;
-
         std::vector<typename policy_comm::send_status_type> send_statuses(m_send_requests.size(), policy_comm::send_status_null());
         std::vector<int> indices(m_send_requests.size(), -1);
 
+        IdxT num_done = 0;
         while (num_done < num_sends) {
 
           IdxT num_sent = num_sends;
@@ -1186,24 +1183,19 @@ struct Comm
 
           for (IdxT i = 0; i < num_sent; ++i) {
 
-            IdxT idx = indices[i];
-            if (m_sends[idx].have_many()) {
-              m_sends[idx].deallocate(m_send_contexts_many[idx], communicator, many_aloc);
+            if (m_sends[indices[i]].have_many()) {
+              m_sends[indices[i]].deallocate(m_send_contexts_many[indices[i]], communicator, many_aloc);
             } else {
-              m_sends[idx].deallocate(m_send_contexts_few[idx], communicator, few_aloc);
+              m_sends[indices[i]].deallocate(m_send_contexts_few[indices[i]], communicator, few_aloc);
             }
-
-            num_done += 1;
-
           }
+
+          num_done += num_sent;
         }
       } break;
       case CommInfo::method::waitall:
       case CommInfo::method::testall:
       {
-        IdxT num_sends = m_sends.size();
-        IdxT num_done = 0;
-
         std::vector<typename policy_comm::send_status_type> send_statuses(m_send_requests.size(), policy_comm::send_status_null());
 
         if (wait_send_method == CommInfo::method::waitall) {
@@ -1212,16 +1204,13 @@ struct Comm
           while(!message_type::test_send_all(num_sends, &m_send_requests[0], &send_statuses[0]));
         }
 
-        while (num_done < num_sends) {
+        for (IdxT idx = 0; idx < num_sends; ++idx) {
 
-          IdxT idx = num_done;
           if (m_sends[idx].have_many()) {
             m_sends[idx].deallocate(m_send_contexts_many[idx], communicator, many_aloc);
           } else {
             m_sends[idx].deallocate(m_send_contexts_few[idx], communicator, few_aloc);
           }
-
-          num_done += 1;
         }
       } break;
       default:
