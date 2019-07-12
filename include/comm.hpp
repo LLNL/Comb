@@ -940,14 +940,6 @@ struct Comm
       case CommInfo::method::waitany:
       case CommInfo::method::testany:
       {
-        if (have_many && have_few) {
-          con_few.persistent_launch(); con_many.persistent_launch();
-        } else if (have_many) {
-          con_many.persistent_launch();
-        } else if (have_few) {
-          con_few.persistent_launch();
-        }
-
         typename policy_comm::recv_status_type status = policy_comm::recv_status_null();
 
         IdxT num_done = 0;
@@ -964,46 +956,26 @@ struct Comm
           }
 
           if (m_recvs[idx].have_many()) {
+            m_recv_contexts_many[idx].persistent_launch();
             m_recvs[idx].unpack(m_recv_contexts_many[idx], communicator);
             m_recvs[idx].deallocate(m_recv_contexts_many[idx], communicator, many_aloc);
             m_recv_contexts_many[idx].batch_launch();
+            m_recv_contexts_many[idx].persistent_stop();
           } else {
+            m_recv_contexts_few[idx].persistent_launch();
             m_recvs[idx].unpack(m_recv_contexts_few[idx], communicator);
             m_recvs[idx].deallocate(m_recv_contexts_few[idx], communicator, few_aloc);
             m_recv_contexts_few[idx].batch_launch();
+            m_recv_contexts_few[idx].persistent_stop();
           }
 
           num_done += 1;
 
         }
-
-        // if (have_many && have_few) {
-        //   batch_launch(m_recv_contexts_few[i], m_recv_contexts_many[i]);
-        // } else if (have_many) {
-        //   m_recv_contexts_many[i].batch_launch();
-        // } else if (have_few) {
-        //   m_recv_contexts_few[i].batch_launch();
-        // }
-
-        if (have_many && have_few) {
-          con_few.persistent_stop(); con_many.persistent_stop();
-        } else if (have_many) {
-          con_many.persistent_stop();
-        } else if (have_few) {
-          con_few.persistent_stop();
-        }
       } break;
       case CommInfo::method::waitsome:
       case CommInfo::method::testsome:
       {
-        if (have_many && have_few) {
-          con_few.persistent_launch(); con_many.persistent_launch();
-        } else if (have_many) {
-          con_many.persistent_launch();
-        } else if (have_few) {
-          con_few.persistent_launch();
-        }
-
         std::vector<typename policy_comm::recv_status_type> recv_statuses(m_recv_requests.size(), policy_comm::recv_status_null());
         std::vector<int> indices(m_recv_requests.size(), -1);
 
@@ -1021,65 +993,68 @@ struct Comm
           bool inner_have_few = false;
 
           for (IdxT i = 0; i < num_recvd; ++i) {
-
             if (m_recvs[indices[i]].have_many()) {
-
-              m_recvs[indices[i]].unpack(m_recv_contexts_many[indices[i]], communicator);
-              m_recvs[indices[i]].deallocate(m_recv_contexts_many[indices[i]], communicator, many_aloc);
-
               inner_have_many = true;
-
-              num_done += 1;
+            } else {
+              inner_have_few = true;
             }
           }
 
-          if (inner_have_many) {
-            con_many.batch_launch();
+          if (inner_have_many && inner_have_few) {
+            con_few.persistent_launch(); con_many.persistent_launch();
+          } else if (inner_have_many) {
+            con_many.persistent_launch();
+          } else if (inner_have_few) {
+            con_few.persistent_launch();
           }
 
           for (IdxT i = 0; i < num_recvd; ++i) {
 
-            if (!m_recvs[indices[i]].have_many()) {
-
+            if (m_recvs[indices[i]].have_many()) {
+              m_recvs[indices[i]].unpack(m_recv_contexts_many[indices[i]], communicator);
+              m_recvs[indices[i]].deallocate(m_recv_contexts_many[indices[i]], communicator, many_aloc);
+            } else {
               m_recvs[indices[i]].unpack(m_recv_contexts_few[indices[i]], communicator);
               m_recvs[indices[i]].deallocate(m_recv_contexts_few[indices[i]], communicator, few_aloc);
-
-              inner_have_few = true;
-
-              num_done += 1;
             }
+
+            num_done += 1;
           }
 
-          if (inner_have_few) {
+          if (inner_have_many && inner_have_few) {
+            con_few.batch_launch(); con_many.batch_launch();
+          } else if (inner_have_many) {
+            con_many.batch_launch();
+          } else if (inner_have_few) {
             con_few.batch_launch();
           }
-        }
 
-        if (have_many && have_few) {
-          con_few.persistent_stop(); con_many.persistent_stop();
-        } else if (have_many) {
-          con_many.persistent_stop();
-        } else if (have_few) {
-          con_few.persistent_stop();
+          if (inner_have_many && inner_have_few) {
+            con_few.persistent_stop(); con_many.persistent_stop();
+          } else if (inner_have_many) {
+            con_many.persistent_stop();
+          } else if (inner_have_few) {
+            con_few.persistent_stop();
+          }
         }
       } break;
       case CommInfo::method::waitall:
       case CommInfo::method::testall:
       {
-        if (have_many && have_few) {
-          con_few.persistent_launch(); con_many.persistent_launch();
-        } else if (have_many) {
-          con_many.persistent_launch();
-        } else if (have_few) {
-          con_few.persistent_launch();
-        }
-
         std::vector<typename policy_comm::recv_status_type> recv_statuses(m_recv_requests.size(), policy_comm::recv_status_null());
 
         if (wait_recv_method == CommInfo::method::waitall) {
           message_type::wait_recv_all(num_recvs, &m_recv_requests[0], &recv_statuses[0]);
         } else {
           while (!message_type::test_recv_all(num_recvs, &m_recv_requests[0], &recv_statuses[0]));
+        }
+
+        if (have_many && have_few) {
+          con_few.persistent_launch(); con_many.persistent_launch();
+        } else if (have_many) {
+          con_many.persistent_launch();
+        } else if (have_few) {
+          con_few.persistent_launch();
         }
 
         IdxT num_done = 0;
