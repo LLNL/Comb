@@ -370,9 +370,23 @@ struct Comm
 
           if (m_recvs[i].have_many()) {
             m_recvs[i].allocate(m_recv_contexts_many[i], communicator, many_aloc);
+          }
+        }
+        for (IdxT i = 0; i < num_recvs; ++i) {
+
+          if (m_recvs[i].have_many()) {
             m_recvs[i].Irecv(m_recv_contexts_many[i], communicator, &m_recv_requests[i]);
-          } else {
+          }
+        }
+        for (IdxT i = 0; i < num_recvs; ++i) {
+
+          if (!m_recvs[i].have_many()) {
             m_recvs[i].allocate(m_recv_contexts_few[i], communicator, few_aloc);
+          }
+        }
+        for (IdxT i = 0; i < num_recvs; ++i) {
+
+          if (!m_recvs[i].have_many()) {
             m_recvs[i].Irecv(m_recv_contexts_few[i], communicator, &m_recv_requests[i]);
           }
         }
