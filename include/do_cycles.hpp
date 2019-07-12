@@ -497,6 +497,7 @@ void do_cycles(CommContext<pol_comm>&,
   tm.clear();
   tm_total.clear();
 
+  // print_proc_memory_stats(comminfo);
 }
 
 

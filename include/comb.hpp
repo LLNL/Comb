@@ -175,5 +175,7 @@ extern void test_cycles_umr(CommInfo& comminfo, MeshInfo& info,
 
 } // namespace COMB
 
+extern void print_proc_memory_stats(CommInfo& comminfo);
+
 #endif // _COMB_HPP
 

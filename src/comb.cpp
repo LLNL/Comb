@@ -30,6 +30,39 @@
 #include <linux/sched.h>
 #endif
 
+void print_proc_memory_stats(CommInfo& comminfo)
+{
+  // print /proc/self/stat to per proc file
+  std::vector<char> stat;
+  const char fstat_name[] = "/proc/self/stat";
+  FILE* fstat = fopen(fstat_name, "r");
+  if (fstat) {
+    // fprintf(f, "%s ", fstat_name);
+    int c = fgetc(fstat);
+    int clast = c;
+    while(c != EOF) {
+      stat.push_back(c);
+      // fputc(c, f);
+      clast = c;
+      c = fgetc(fstat);
+    }
+    fclose(fstat);
+    if (clast != '\n') {
+      stat.push_back('\n');
+      // fprintf(f, "\n");
+    }
+    stat.push_back('\0');
+  }
+  comminfo.print(FileGroup::proc, "/proc/self/stat: %s", &stat[0]);
+
+#if defined(COMB_ENABLE_CUDA)
+  // print cuda device memory usage to per proc file
+  size_t free_mem, total_mem;
+  cudaCheck(cudaMemGetInfo(&free_mem, &total_mem));
+  comminfo.print(FileGroup::proc, "cuda device memory usage: %12zu\n", total_mem - free_mem);
+#endif
+}
+
 int main(int argc, char** argv)
 {
   int required = MPI_THREAD_FUNNELED; // MPI_THREAD_SINGLE, MPI_THREAD_FUNNELED, MPI_THREAD_SERIALIZED, MPI_THREAD_MULTIPLE
