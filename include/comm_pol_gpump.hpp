@@ -20,6 +20,11 @@
 
 #ifdef COMB_ENABLE_GPUMP
 
+#include <exception>
+#include <stdexcept>
+#include <algorithm>
+#include <unordered_map>
+#include <map>
 
 #include "for_all.hpp"
 #include "utils.hpp"
@@ -214,6 +219,142 @@ inline void disconnect_ranks(gpump_pol const&,
   }
 }
 
+struct gpump_mempool
+{
+  using communicator_type = typename gpump_pol::communicator_type;
+  struct ibv_ptr
+  {
+    struct ibv_mr* mr = nullptr;
+    size_t offset = 0;
+    void* ptr = nullptr;
+  };
+
+  ibv_ptr allocate(struct gpump* g, COMB::Allocator& aloc_in, size_t size)
+  {
+    assert(g == this->g);
+    ibv_ptr ptr{};
+    if (size > 0) {
+      size = std::max(size, sizeof(std::max_align_t));
+
+      auto iter = m_allocators.find(&aloc_in);
+      if (iter != m_allocators.end()) {
+        COMB::Allocator& aloc = *iter->first;
+        used_ptr_map&    used_ptrs = iter->second.used;
+        unused_ptr_map&  unused_ptrs = iter->second.unused;
+
+        ptr_info info{};
+
+        auto unused_iter = unused_ptrs.find(size);
+        if (unused_iter != unused_ptrs.end()) {
+          // found an existing unused ptr
+          info = unused_iter->second;
+          unused_ptrs.erase(unused_iter);
+          used_ptrs.emplace(info.ptr.ptr, info);
+        } else {
+          // allocate a new pointer for this size
+          info.size = size;
+          info.ptr.ptr = aloc.allocate(info.size);
+          info.ptr.mr = detail::gpump::register_region(g, info.ptr.ptr, info.size);
+          info.ptr.offset = 0;
+          used_ptrs.emplace(info.ptr.ptr, info);
+        }
+
+        ptr = info.ptr;
+      } else {
+        throw std::invalid_argument("unknown allocator passed to gpump_mempool::allocate");
+      }
+    }
+    return ptr;
+  }
+
+  void deallocate(struct gpump* g, COMB::Allocator& aloc_in, ibv_ptr ptr)
+  {
+    assert(g == this->g);
+    if (ptr.ptr != nullptr) {
+
+      auto iter = m_allocators.find(&aloc_in);
+      if (iter != m_allocators.end()) {
+        COMB::Allocator& aloc = *iter->first;
+        used_ptr_map&    used_ptrs = iter->second.used;
+        unused_ptr_map&  unused_ptrs = iter->second.unused;
+
+        auto used_iter = used_ptrs.find(ptr.ptr);
+        if (used_iter != used_ptrs.end()) {
+          // found an existing used ptr
+          ptr_info info = used_iter->second;
+          used_ptrs.erase(used_iter);
+          unused_ptrs.emplace(info.size, info);
+        } else {
+          // unknown or unused pointer
+          throw std::invalid_argument("unknown or unused pointer passed to gpump_mempool::deallocate");
+        }
+      } else {
+        throw std::invalid_argument("unknown allocator passed to gpump_mempool::deallocate");
+      }
+    }
+  }
+
+  void add_allocator(struct gpump* g, COMB::Allocator& aloc)
+  {
+    if (this->g == nullptr) {
+      this->g = g;
+    }
+    assert(g == this->g);
+    if (m_allocators.find(&aloc) == m_allocators.end()) {
+      // new allocator
+      m_allocators.emplace(&aloc, ptr_map{});
+    }
+  }
+
+  void remove_allocators(struct gpump* g)
+  {
+    assert(g == this->g);
+    bool error = false;
+    auto iter = m_allocators.begin();
+    while (iter != m_allocators.end()) {
+      COMB::Allocator& aloc = *iter->first;
+      used_ptr_map&    used_ptrs = iter->second.used;
+      unused_ptr_map&  unused_ptrs = iter->second.unused;
+
+      auto inner_iter = unused_ptrs.begin();
+      while (inner_iter != unused_ptrs.end()) {
+        ptr_info& info = inner_iter->second;
+
+        detail::gpump::deregister_region(this->g, info.ptr.mr);
+        aloc.deallocate(info.ptr.ptr);
+        inner_iter = unused_ptrs.erase(inner_iter);
+      }
+
+      if (used_ptrs.empty()) {
+        iter = m_allocators.erase(iter);
+      } else {
+        ++iter;
+        error = true;
+      }
+    }
+
+    if (error) throw std::logic_error("can not remove Allocator with used ptr");
+    this->g = nullptr;
+  }
+
+private:
+  struct ptr_info
+  {
+    ibv_ptr ptr{};
+    size_t size = 0;
+  };
+  using used_ptr_map = std::unordered_map<void*, ptr_info>;
+  using unused_ptr_map = std::multimap<size_t, ptr_info>;
+  struct ptr_map
+  {
+    used_ptr_map used{};
+    unused_ptr_map unused{};
+  };
+
+  struct gpump* g = nullptr;
+  std::unordered_map<COMB::Allocator*, ptr_map> m_allocators;
+};
+
 
 template < >
 struct Message<gpump_pol> : detail::MessageBase
@@ -227,20 +368,30 @@ struct Message<gpump_pol> : detail::MessageBase
   using send_status_type  = typename policy_comm::send_status_type;
   using recv_status_type  = typename policy_comm::recv_status_type;
 
+  using region_type = gpump_mempool::ibv_ptr;
+  static inline gpump_mempool& get_mempool()
+  {
+    static gpump_mempool mempool;
+    return mempool;
+  }
+
   static void setup_mempool(communicator_type comm,
                             COMB::Allocator& many_aloc,
                             COMB::Allocator& few_aloc)
   {
+    get_mempool().add_allocator(comm, many_aloc);
+    get_mempool().add_allocator(comm, few_aloc);
   }
 
   static void teardown_mempool(communicator_type comm)
   {
+    get_mempool().remove_allocators(comm);
   }
 
 
   Message(Kind _kind, int partner_rank, int tag, bool have_many)
     : base(_kind, partner_rank, tag, have_many)
-    , m_region(nullptr)
+    , m_region()
   { }
 
   ~Message()
@@ -284,12 +435,12 @@ struct Message<gpump_pol> : detail::MessageBase
 private:
   void start_Isend(CPUContext const&, communicator_type comm)
   {
-    detail::gpump::isend(comm, partner_rank(), m_region, 0, nbytes());
+    detail::gpump::isend(comm, partner_rank(), m_region.mr, m_region.offset, nbytes());
   }
 
   void start_Isend(CudaContext const& con, communicator_type comm)
   {
-    detail::gpump::stream_send(comm, partner_rank(), con.stream(), m_region, 0, nbytes());
+    detail::gpump::stream_send(comm, partner_rank(), con.stream(), m_region.mr, m_region.offset, nbytes());
   }
 
 public:
@@ -312,7 +463,7 @@ public:
     static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support mpi_type_pol");
     // FPRINTF(stdout, "%p Irecv %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
 
-    detail::gpump::receive(comm, partner_rank(), m_region, 0, nbytes());
+    detail::gpump::receive(comm, partner_rank(), m_region.mr, m_region.offset, nbytes());
     request->status = -1;
     request->comm = comm;
     request->partner_rank = partner_rank();
@@ -325,8 +476,8 @@ public:
   {
     static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support mpi_type_pol");
     if (m_buf == nullptr) {
-      m_buf = (DataT*)buf_aloc.allocate(nbytes());
-      m_region = detail::gpump::register_region(comm, m_buf, nbytes());
+      m_region = get_mempool().allocate(comm, buf_aloc, nbytes());
+      m_buf = (DataT*)m_region.ptr;
     }
   }
 
@@ -363,9 +514,8 @@ public:
       } else if (m_kind == Kind::recv) {
         wait_recv(con, comm);
       }
-      detail::gpump::deregister_region(comm, m_region);
-      m_region = nullptr;
-      buf_aloc.deallocate(m_buf);
+      get_mempool().deallocate(comm, buf_aloc, m_region);
+      m_region = region_type{};
       m_buf = nullptr;
     }
   }
@@ -695,7 +845,7 @@ public:
   }
 
 private:
-  struct ibv_mr* m_region;
+  region_type m_region;
 };
 
 #endif // COMB_ENABLE_GPUMP
