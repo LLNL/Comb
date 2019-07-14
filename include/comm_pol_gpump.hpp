@@ -227,12 +227,13 @@ struct Message<gpump_pol> : detail::MessageBase
   using send_status_type  = typename policy_comm::send_status_type;
   using recv_status_type  = typename policy_comm::recv_status_type;
 
-  static void setup_mempool(COMB::Allocator& many_aloc,
+  static void setup_mempool(communicator_type comm,
+                            COMB::Allocator& many_aloc,
                             COMB::Allocator& few_aloc)
   {
   }
 
-  static void teardown_mempool()
+  static void teardown_mempool(communicator_type comm)
   {
   }
 

@@ -294,12 +294,12 @@ struct Comm
     }
     connect_ranks(policy_comm{}, communicator, send_ranks, recv_ranks);
 
-    message_type::setup_mempool(many_aloc, few_aloc);
+    message_type::setup_mempool(communicator, many_aloc, few_aloc);
   }
 
   void depopulate()
   {
-    message_type::teardown_mempool();
+    message_type::teardown_mempool(communicator);
 
     size_t num_events = m_send_events_many.size();
     for(size_t i = 0; i != num_events; ++i) {
