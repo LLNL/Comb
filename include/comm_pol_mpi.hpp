@@ -85,6 +85,17 @@ struct Message<mpi_pol> : detail::MessageBase
   using send_status_type  = typename policy_comm::send_status_type;
   using recv_status_type  = typename policy_comm::recv_status_type;
 
+  static void setup_mempool(COMB::Allocator& many_aloc,
+                            COMB::Allocator& few_aloc)
+  {
+    COMB::ignore_unused(many_aloc, few_aloc);
+  }
+
+  static void teardown_mempool()
+  {
+
+  }
+
 
   // use the base class constructor
   using base::base;
