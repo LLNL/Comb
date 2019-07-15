@@ -21,7 +21,7 @@
 struct mpi_type_component
 {
   void* ptr = nullptr;
-}
+};
 
 // execution policy indicating that message packing/unpacking should be done
 // in MPI using MPI_Types
@@ -67,6 +67,26 @@ struct ExecContext<mpi_type_pol> : MPIContext
   // force complete functions
   void persistent_stop()
   {
+  }
+
+  component_type create_component()
+  {
+    return component_type{};
+  }
+
+  void push_component(component_type)
+  {
+
+  }
+
+  component_type pop_component()
+  {
+    return component_type{};
+  }
+
+  void destroy_component(component_type)
+  {
+
   }
 
   // event creation functions

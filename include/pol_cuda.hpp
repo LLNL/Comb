@@ -65,7 +65,7 @@ void cuda_for_all_3d(IdxT begin0, IdxT len0, IdxT begin1, IdxT len1, IdxT begin2
 struct cuda_component
 {
   void* ptr = nullptr;
-}
+};
 
 struct cuda_pol {
   static const bool async = true;
@@ -106,6 +106,26 @@ struct ExecContext<cuda_pol> : CudaContext
 
   void persistent_stop()
   {
+  }
+
+  component_type create_component()
+  {
+    return component_type{};
+  }
+
+  void push_component(component_type)
+  {
+
+  }
+
+  component_type pop_component()
+  {
+    return component_type{};
+  }
+
+  void destroy_component(component_type)
+  {
+
   }
 
   event_type createEvent()

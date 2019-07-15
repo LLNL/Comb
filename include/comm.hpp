@@ -250,11 +250,17 @@ struct Comm
   std::vector<ExecContext<policy_many>> m_send_contexts_many;
   std::vector<ExecContext<policy_few>>  m_send_contexts_few;
 
+  std::vector<typename policy_many::component_type> m_send_components_many;
+  std::vector<typename policy_few::component_type>  m_send_components_few;
+
   std::vector<message_type> m_recvs;
   std::vector<typename policy_comm::recv_request_type> m_recv_requests;
 
   std::vector<ExecContext<policy_many>> m_recv_contexts_many;
   std::vector<ExecContext<policy_few>>  m_recv_contexts_few;
+
+  std::vector<typename policy_many::component_type> m_recv_components_many;
+  std::vector<typename policy_few::component_type>  m_recv_components_few;
 
   Comm(CommInfo& comminfo_, COMB::Allocator& mesh_aloc_, COMB::Allocator& many_aloc_, COMB::Allocator& few_aloc_)
     : mesh_aloc(mesh_aloc_)
@@ -276,12 +282,16 @@ struct Comm
       m_send_contexts_few.push_back( con_few );
       m_send_events_many.push_back( m_send_contexts_many.back().createEvent() );
       m_send_events_few.push_back( m_send_contexts_few.back().createEvent() );
+      m_send_components_many.push_back( m_send_contexts_many.back().create_component() );
+      m_send_components_few.push_back( m_send_contexts_few.back().create_component() );
     }
 
     size_t num_recvs = m_recvs.size();
     for(size_t i = 0; i != num_recvs; ++i) {
       m_recv_contexts_many.push_back( con_many );
       m_recv_contexts_few.push_back( con_few );
+      m_recv_components_many.push_back( m_recv_contexts_many.back().create_component() );
+      m_recv_components_few.push_back( m_recv_contexts_few.back().create_component() );
     }
 
     std::vector<int> send_ranks;
@@ -301,13 +311,31 @@ struct Comm
   {
     message_type::teardown_mempool(communicator);
 
-    size_t num_events = m_send_events_many.size();
-    for(size_t i = 0; i != num_events; ++i) {
+    size_t num = m_send_contexts_many.size();
+    for(size_t i = 0; i != num; ++i) {
       m_send_contexts_many[i].destroyEvent(m_send_events_many[i]);
     }
-    num_events = m_send_events_few.size();
-    for(size_t i = 0; i != num_events; ++i) {
+    num = m_send_contexts_few.size();
+    for(size_t i = 0; i != num; ++i) {
       m_send_contexts_few[i].destroyEvent(m_send_events_few[i]);
+    }
+
+    num = m_send_contexts_many.size();
+    for(size_t i = 0; i != num; ++i) {
+      m_send_contexts_many[i].destroy_component(m_send_components_many[i]);
+    }
+    num = m_send_contexts_few.size();
+    for(size_t i = 0; i != num; ++i) {
+      m_send_contexts_few[i].destroy_component(m_send_components_few[i]);
+    }
+
+    num = m_recv_contexts_many.size();
+    for(size_t i = 0; i != num; ++i) {
+      m_recv_contexts_many[i].destroy_component(m_recv_components_many[i]);
+    }
+    num = m_recv_contexts_few.size();
+    for(size_t i = 0; i != num; ++i) {
+      m_recv_contexts_few[i].destroy_component(m_recv_components_few[i]);
     }
 
     std::vector<int> send_ranks;

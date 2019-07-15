@@ -24,7 +24,7 @@
 struct cuda_batch_component
 {
   void* ptr = nullptr;
-}
+};
 
 struct cuda_batch_pol {
   static const bool async = true;
@@ -66,6 +66,26 @@ struct ExecContext<cuda_batch_pol> : CudaContext
 
   void persistent_stop()
   {
+  }
+
+  component_type create_component()
+  {
+    return component_type{};
+  }
+
+  void push_component(component_type)
+  {
+
+  }
+
+  component_type pop_component()
+  {
+    return component_type{};
+  }
+
+  void destroy_component(component_type)
+  {
+
   }
 
   event_type createEvent()

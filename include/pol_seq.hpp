@@ -23,7 +23,7 @@
 struct seq_component
 {
   void* ptr = nullptr;
-}
+};
 
 struct seq_pol {
   static const bool async = false;
@@ -67,6 +67,26 @@ struct ExecContext<seq_pol> : CPUContext
   // force complete functions
   void persistent_stop()
   {
+  }
+
+  component_type create_component()
+  {
+    return component_type{};
+  }
+
+  void push_component(component_type)
+  {
+
+  }
+
+  component_type pop_component()
+  {
+    return component_type{};
+  }
+
+  void destroy_component(component_type)
+  {
+
   }
 
   // event creation functions
