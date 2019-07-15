@@ -30,10 +30,15 @@ struct mpi_type_pol {
 template < >
 struct ExecContext<mpi_type_pol> : MPIContext
 {
+  using pol = mpi_type_pol;
+  using event_type = typename pol::event_type;
+
   using base = MPIContext;
+
   ExecContext()
     : base()
   { }
+
   ExecContext(base const& b)
     : base(b)
   { }
@@ -59,29 +64,29 @@ struct ExecContext<mpi_type_pol> : MPIContext
   }
 
   // event creation functions
-  typename mpi_type_pol::event_type createEvent()
+  event_type createEvent()
   {
-    return typename mpi_type_pol::event_type{};
+    return event_type{};
   }
 
   // event record functions
-  void recordEvent(typename mpi_type_pol::event_type)
+  void recordEvent(event_type)
   {
   }
 
   // event query functions
-  bool queryEvent(typename mpi_type_pol::event_type)
+  bool queryEvent(event_type)
   {
     return true;
   }
 
   // event wait functions
-  void waitEvent(typename mpi_type_pol::event_type)
+  void waitEvent(event_type)
   {
   }
 
   // event destroy functions
-  void destroyEvent(typename mpi_type_pol::event_type)
+  void destroyEvent(event_type)
   {
   }
 
