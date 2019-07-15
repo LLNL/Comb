@@ -33,11 +33,17 @@ struct omp_component
   void* ptr = nullptr;
 };
 
+struct omp_group
+{
+  void* ptr = nullptr;
+};
+
 struct omp_pol {
   static const bool async = false;
   static const char* get_name() { return "omp"; }
   using event_type = int;
   using component_type = omp_component;
+  using group_type = omp_group;
 };
 
 template < >
@@ -46,6 +52,7 @@ struct ExecContext<omp_pol> : CPUContext
   using pol = omp_pol;
   using event_type = typename pol::event_type;
   using component_type = typename pol::component_type;
+  using group_type = typename pol::group_type;
 
   using base = CPUContext;
 
@@ -62,18 +69,23 @@ struct ExecContext<omp_pol> : CPUContext
   {
   }
 
-  // force start functions
-  void persistent_launch()
+  group_type create_group()
+  {
+    return group_type{};
+  }
+
+  void start_group(group_type)
   {
   }
 
-  // force complete functions
-  void batch_launch()
+  group_type finish_group()
   {
+    return group_type{};
   }
-  // force complete functions
-  void persistent_stop()
+
+  void destroy_group(group_type)
   {
+
   }
 
   component_type create_component()

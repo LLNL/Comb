@@ -23,6 +23,11 @@ struct mpi_type_component
   void* ptr = nullptr;
 };
 
+struct mpi_type_group
+{
+  void* ptr = nullptr;
+};
+
 // execution policy indicating that message packing/unpacking should be done
 // in MPI using MPI_Types
 struct mpi_type_pol {
@@ -30,6 +35,7 @@ struct mpi_type_pol {
   static const char* get_name() { return "mpi_type"; }
   using event_type = int;
   using component_type = mpi_type_component;
+  using group_type = mpi_type_group;
 };
 
 template < >
@@ -38,6 +44,7 @@ struct ExecContext<mpi_type_pol> : MPIContext
   using pol = mpi_type_pol;
   using event_type = typename pol::event_type;
   using component_type = typename pol::component_type;
+  using group_type = typename pol::group_type;
 
   using base = MPIContext;
 
@@ -54,19 +61,23 @@ struct ExecContext<mpi_type_pol> : MPIContext
   {
   }
 
-  // force start functions
-  void persistent_launch()
+  group_type create_group()
+  {
+    return group_type{};
+  }
+
+  void start_group(group_type)
   {
   }
 
-  // force complete functions
-  void batch_launch()
+  group_type finish_group()
   {
+    return group_type{};
   }
 
-  // force complete functions
-  void persistent_stop()
+  void destroy_group(group_type)
   {
+
   }
 
   component_type create_component()

@@ -26,11 +26,17 @@ struct cuda_persistent_component
   void* ptr = nullptr;
 };
 
+struct cuda_persistent_group
+{
+  void* ptr = nullptr;
+};
+
 struct cuda_persistent_pol {
   static const bool async = true;
   static const char* get_name() { return ( get_batch_always_grid_sync() ? "cudaPersistent" : "cudaPersistent_fewgs" ); }
   using event_type = detail::batch_event_type_ptr;
   using component_type = cuda_persistent_component;
+  using group_type = cuda_persistent_group;
 };
 
 template < >
@@ -39,6 +45,7 @@ struct ExecContext<cuda_persistent_pol> : CudaContext
   using pol = cuda_persistent_pol;
   using event_type = typename pol::event_type;
   using component_type = typename pol::component_type;
+  using group_type = typename pol::group_type;
 
   using base = CudaContext;
 
@@ -55,18 +62,25 @@ struct ExecContext<cuda_persistent_pol> : CudaContext
     cuda::persistent_launch::synchronize(base::stream());
   }
 
-  void persistent_launch()
+  group_type create_group()
+  {
+    return group_type{};
+  }
+
+  void start_group(group_type)
   {
     cuda::persistent_launch::force_launch(base::stream());
   }
 
-  void batch_launch()
-  {
-  }
-
-  void persistent_stop()
+  group_type finish_group()
   {
     cuda::persistent_launch::force_stop(base::stream());
+    return group_type{};
+  }
+
+  void destroy_group(group_type)
+  {
+
   }
 
   component_type create_component()

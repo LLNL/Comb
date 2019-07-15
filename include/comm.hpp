@@ -250,6 +250,9 @@ struct Comm
   std::vector<ExecContext<policy_many>> m_send_contexts_many;
   std::vector<ExecContext<policy_few>>  m_send_contexts_few;
 
+  std::vector<typename policy_many::group_type> m_send_groups_many;
+  std::vector<typename policy_few::group_type>  m_send_groups_few;
+
   std::vector<typename policy_many::component_type> m_send_components_many;
   std::vector<typename policy_few::component_type>  m_send_components_few;
 
@@ -258,6 +261,9 @@ struct Comm
 
   std::vector<ExecContext<policy_many>> m_recv_contexts_many;
   std::vector<ExecContext<policy_few>>  m_recv_contexts_few;
+
+  std::vector<typename policy_many::group_type> m_recv_groups_many;
+  std::vector<typename policy_few::group_type>  m_recv_groups_few;
 
   std::vector<typename policy_many::component_type> m_recv_components_many;
   std::vector<typename policy_few::component_type>  m_recv_components_few;
@@ -282,6 +288,8 @@ struct Comm
       m_send_contexts_few.push_back( con_few );
       m_send_events_many.push_back( m_send_contexts_many.back().createEvent() );
       m_send_events_few.push_back( m_send_contexts_few.back().createEvent() );
+      m_send_groups_many.push_back( m_send_contexts_many.back().create_group() );
+      m_send_groups_few.push_back( m_send_contexts_few.back().create_group() );
       m_send_components_many.push_back( m_send_contexts_many.back().create_component() );
       m_send_components_few.push_back( m_send_contexts_few.back().create_component() );
     }
@@ -290,6 +298,8 @@ struct Comm
     for(size_t i = 0; i != num_recvs; ++i) {
       m_recv_contexts_many.push_back( con_many );
       m_recv_contexts_few.push_back( con_few );
+      m_recv_groups_many.push_back( m_recv_contexts_many.back().create_group() );
+      m_recv_groups_few.push_back( m_recv_contexts_few.back().create_group() );
       m_recv_components_many.push_back( m_recv_contexts_many.back().create_component() );
       m_recv_components_few.push_back( m_recv_contexts_few.back().create_component() );
     }
@@ -311,31 +321,42 @@ struct Comm
   {
     message_type::teardown_mempool(communicator);
 
-    size_t num = m_send_contexts_many.size();
-    for(size_t i = 0; i != num; ++i) {
-      m_send_contexts_many[i].destroyEvent(m_send_events_many[i]);
-    }
-    num = m_send_contexts_few.size();
+    size_t num = m_send_contexts_few.size();
     for(size_t i = 0; i != num; ++i) {
       m_send_contexts_few[i].destroyEvent(m_send_events_few[i]);
+    }
+    for(size_t i = 0; i != num; ++i) {
+      m_send_contexts_few[i].destroy_component(m_send_components_few[i]);
+    }
+    for(size_t i = 0; i != num; ++i) {
+      m_send_contexts_few[i].destroy_group(m_send_groups_few[i]);
     }
 
     num = m_send_contexts_many.size();
     for(size_t i = 0; i != num; ++i) {
+      m_send_contexts_many[i].destroyEvent(m_send_events_many[i]);
+    }
+    for(size_t i = 0; i != num; ++i) {
       m_send_contexts_many[i].destroy_component(m_send_components_many[i]);
     }
-    num = m_send_contexts_few.size();
     for(size_t i = 0; i != num; ++i) {
-      m_send_contexts_few[i].destroy_component(m_send_components_few[i]);
+      m_send_contexts_many[i].destroy_group(m_send_groups_many[i]);
+    }
+
+    num = m_recv_contexts_few.size();
+    for(size_t i = 0; i != num; ++i) {
+      m_recv_contexts_few[i].destroy_component(m_recv_components_few[i]);
+    }
+    for(size_t i = 0; i != num; ++i) {
+      m_recv_contexts_few[i].destroy_group(m_recv_groups_few[i]);
     }
 
     num = m_recv_contexts_many.size();
     for(size_t i = 0; i != num; ++i) {
       m_recv_contexts_many[i].destroy_component(m_recv_components_many[i]);
     }
-    num = m_recv_contexts_few.size();
     for(size_t i = 0; i != num; ++i) {
-      m_recv_contexts_few[i].destroy_component(m_recv_components_few[i]);
+      m_recv_contexts_many[i].destroy_group(m_recv_groups_many[i]);
     }
 
     std::vector<int> send_ranks;
@@ -478,22 +499,20 @@ struct Comm
 
           if (m_sends[i].have_many()) {
             m_sends[i].allocate(m_send_contexts_many[i], communicator, many_aloc);
-            m_send_contexts_many[i].persistent_launch();
+            m_send_contexts_many[i].start_group(m_send_groups_many[i]);
             m_send_contexts_many[i].push_component(m_send_components_many[i]);
             m_sends[i].pack(m_send_contexts_many[i], communicator);
             m_send_components_many[i] = m_send_contexts_many[i].pop_component();
-            m_send_contexts_many[i].batch_launch();
-            m_send_contexts_many[i].persistent_stop();
+            m_send_groups_many[i] = m_send_contexts_many[i].finish_group();
             m_send_contexts_many[i].synchronize();
             m_sends[i].Isend(m_send_contexts_many[i], communicator, &m_send_requests[i]);
           } else {
             m_sends[i].allocate(m_send_contexts_few[i], communicator, few_aloc);
-            m_send_contexts_few[i].persistent_launch();
+            m_send_contexts_few[i].start_group(m_send_groups_few[i]);
             m_send_contexts_few[i].push_component(m_send_components_few[i]);
             m_sends[i].pack(m_send_contexts_few[i], communicator);
             m_send_components_few[i] = m_send_contexts_few[i].pop_component();
-            m_send_contexts_few[i].batch_launch();
-            m_send_contexts_few[i].persistent_stop();
+            m_send_groups_few[i] = m_send_contexts_few[i].finish_group();
             m_send_contexts_few[i].synchronize();
             m_sends[i].Isend(m_send_contexts_few[i], communicator, &m_send_requests[i]);
           }
@@ -521,21 +540,19 @@ struct Comm
           if (pack_send < num_sends) {
 
             if (m_sends[pack_send].have_many()) {
-              m_send_contexts_many[pack_send].persistent_launch();
+              m_send_contexts_many[pack_send].start_group(m_send_groups_many[pack_send]);
               m_send_contexts_many[pack_send].push_component(m_send_components_many[pack_send]);
               m_sends[pack_send].pack(m_send_contexts_many[pack_send], communicator);
               m_send_components_many[pack_send] = m_send_contexts_many[pack_send].pop_component();
               m_send_contexts_many[pack_send].recordEvent(m_send_events_many[pack_send]);
-              m_send_contexts_many[pack_send].batch_launch();
-              m_send_contexts_many[pack_send].persistent_stop();
+              m_send_groups_many[pack_send] = m_send_contexts_many[pack_send].finish_group();
             } else {
-              m_send_contexts_few[pack_send].persistent_launch();
+              m_send_contexts_few[pack_send].start_group(m_send_groups_few[pack_send]);
               m_send_contexts_few[pack_send].push_component(m_send_components_few[pack_send]);
               m_sends[pack_send].pack(m_send_contexts_few[pack_send], communicator);
               m_send_components_few[pack_send] = m_send_contexts_few[pack_send].pop_component();
               m_send_contexts_few[pack_send].recordEvent(m_send_events_few[pack_send]);
-              m_send_contexts_few[pack_send].batch_launch();
-              m_send_contexts_few[pack_send].persistent_stop();
+              m_send_groups_few[pack_send] = m_send_contexts_few[pack_send].finish_group();
             }
 
             ++pack_send;
@@ -584,7 +601,7 @@ struct Comm
             }
           }
 
-          con_many.persistent_launch();
+          con_many.start_group(m_send_groups_many[0]);
 
           for (IdxT i = 0; i < num_sends; ++i) {
 
@@ -595,8 +612,7 @@ struct Comm
             }
           }
 
-          con_many.batch_launch();
-          con_many.persistent_stop();
+          m_send_groups_many[0] = con_many.finish_group();
 
           con_many.synchronize();
 
@@ -616,7 +632,7 @@ struct Comm
             }
           }
 
-          con_few.persistent_launch();
+          con_few.start_group(m_send_groups_few[0]);
 
           for (IdxT i = 0; i < num_sends; ++i) {
 
@@ -627,8 +643,7 @@ struct Comm
             }
           }
 
-          con_few.batch_launch();
-          con_few.persistent_stop();
+          m_send_groups_few[0] = con_few.finish_group();
 
           con_few.synchronize();
 
@@ -660,7 +675,7 @@ struct Comm
         // pack many sends
         if (have_many) {
 
-          con_many.persistent_launch();
+          con_many.start_group(m_send_groups_many[0]);
 
           while (pack_many_send < num_sends) {
 
@@ -673,8 +688,7 @@ struct Comm
             ++pack_many_send;
           }
 
-          con_many.batch_launch();
-          con_many.persistent_stop();
+          m_send_groups_many[0] = con_many.finish_group();
         } else {
           pack_many_send = num_sends;
           post_many_send = num_sends;
@@ -699,7 +713,7 @@ struct Comm
         // pack few sends
         if (have_few) {
 
-          con_few.persistent_launch();
+          con_few.start_group(m_send_groups_few[0]);
 
           while (pack_few_send < num_sends) {
 
@@ -713,8 +727,7 @@ struct Comm
             ++pack_few_send;
           }
 
-          con_few.batch_launch();
-          con_few.persistent_stop();
+          m_send_groups_few[0] = con_few.finish_group();
         } else {
           pack_few_send = num_sends;
           post_few_send = num_sends;
@@ -767,11 +780,11 @@ struct Comm
         }
 
         if (have_many && have_few) {
-          con_few.persistent_launch(); con_many.persistent_launch();
+          con_few.start_group(m_send_groups_few[0]); con_many.start_group(m_send_groups_many[0]);
         } else if (have_many) {
-          con_many.persistent_launch();
+          con_many.start_group(m_send_groups_many[0]);
         } else if (have_few) {
-          con_few.persistent_launch();
+          con_few.start_group(m_send_groups_few[0]);
         }
 
         for (IdxT i = 0; i < num_sends; ++i) {
@@ -788,19 +801,11 @@ struct Comm
         }
 
         if (have_many && have_few) {
-          con_few.batch_launch(); con_many.batch_launch();
+          m_send_groups_few[0] = con_few.finish_group(); m_send_groups_many[0] = con_many.finish_group();
         } else if (have_many) {
-          con_many.batch_launch();
+          m_send_groups_many[0] = con_many.finish_group();
         } else if (have_few) {
-          con_few.batch_launch();
-        }
-
-        if (have_many && have_few) {
-          con_few.persistent_stop(); con_many.persistent_stop();
-        } else if (have_many) {
-          con_many.persistent_stop();
-        } else if (have_few) {
-          con_few.persistent_stop();
+          m_send_groups_few[0] = con_few.finish_group();
         }
 
         if (have_many && have_few) {
@@ -834,11 +839,11 @@ struct Comm
 
         // pack and send
         if (have_many && have_few) {
-          con_few.persistent_launch(); con_many.persistent_launch();
+          con_few.start_group(m_send_groups_few[0]); con_many.start_group(m_send_groups_many[0]);
         } else if (have_many) {
-          con_many.persistent_launch();
+          con_many.start_group(m_send_groups_many[0]);
         } else if (have_few) {
-          con_few.persistent_launch();
+          con_few.start_group(m_send_groups_few[0]);
         }
 
         for (IdxT i = 0; i < num_sends; ++i) {
@@ -857,21 +862,13 @@ struct Comm
           }
         }
 
-        if (have_many && have_few) {
-          con_few.batch_launch(); con_many.batch_launch();
-        } else if (have_many) {
-          con_many.batch_launch();
-        } else if (have_few) {
-          con_few.batch_launch();
-        }
-
         // stop persistent kernel
         if (have_many && have_few) {
-          con_few.persistent_stop(); con_many.persistent_stop();
+          m_send_groups_few[0] = con_few.finish_group(); m_send_groups_many[0] = con_many.finish_group();
         } else if (have_many) {
-          con_many.persistent_stop();
+          m_send_groups_many[0] = con_many.finish_group();
         } else if (have_few) {
-          con_few.persistent_stop();
+          m_send_groups_few[0] = con_few.finish_group();
         }
 
         // post all sends
@@ -957,20 +954,18 @@ struct Comm
           }
 
           if (m_recvs[idx].have_many()) {
-            m_recv_contexts_many[idx].persistent_launch();
+            m_recv_contexts_many[idx].start_group(m_recv_groups_many[idx]);
             m_recv_contexts_many[idx].push_component(m_recv_components_many[idx]);
             m_recvs[idx].unpack(m_recv_contexts_many[idx], communicator);
             m_recv_components_many[idx] = m_recv_contexts_many[idx].pop_component();
-            m_recv_contexts_many[idx].batch_launch();
-            m_recv_contexts_many[idx].persistent_stop();
+            m_recv_groups_many[idx] = m_recv_contexts_many[idx].finish_group();
             m_recvs[idx].deallocate(m_recv_contexts_many[idx], communicator, many_aloc);
           } else {
-            m_recv_contexts_few[idx].persistent_launch();
+            m_recv_contexts_few[idx].start_group(m_recv_groups_few[idx]);
             m_recv_contexts_few[idx].push_component(m_recv_components_few[idx]);
             m_recvs[idx].unpack(m_recv_contexts_few[idx], communicator);
             m_recv_components_few[idx] = m_recv_contexts_few[idx].pop_component();
-            m_recv_contexts_few[idx].batch_launch();
-            m_recv_contexts_few[idx].persistent_stop();
+            m_recv_groups_few[idx] = m_recv_contexts_few[idx].finish_group();
             m_recvs[idx].deallocate(m_recv_contexts_few[idx], communicator, few_aloc);
           }
 
@@ -1006,11 +1001,11 @@ struct Comm
           }
 
           if (inner_have_many && inner_have_few) {
-            con_few.persistent_launch(); con_many.persistent_launch();
+            con_few.start_group(m_recv_groups_few[0]); con_many.start_group(m_recv_groups_many[0]);
           } else if (inner_have_many) {
-            con_many.persistent_launch();
+            con_many.start_group(m_recv_groups_many[0]);
           } else if (inner_have_few) {
-            con_few.persistent_launch();
+            con_few.start_group(m_recv_groups_few[0]);
           }
 
           for (IdxT i = 0; i < num_recvd; ++i) {
@@ -1027,19 +1022,11 @@ struct Comm
           }
 
           if (inner_have_many && inner_have_few) {
-            con_few.batch_launch(); con_many.batch_launch();
+            m_recv_groups_few[0] = con_few.finish_group(); m_recv_groups_many[0] = con_many.finish_group();
           } else if (inner_have_many) {
-            con_many.batch_launch();
+            m_recv_groups_many[0] = con_many.finish_group();
           } else if (inner_have_few) {
-            con_few.batch_launch();
-          }
-
-          if (inner_have_many && inner_have_few) {
-            con_few.persistent_stop(); con_many.persistent_stop();
-          } else if (inner_have_many) {
-            con_many.persistent_stop();
-          } else if (inner_have_few) {
-            con_few.persistent_stop();
+            m_recv_groups_few[0] = con_few.finish_group();
           }
 
           for (IdxT i = 0; i < num_recvd; ++i) {
@@ -1066,11 +1053,11 @@ struct Comm
         }
 
         if (have_many && have_few) {
-          con_few.persistent_launch(); con_many.persistent_launch();
+          con_few.start_group(m_recv_groups_few[0]); con_many.start_group(m_recv_groups_many[0]);
         } else if (have_many) {
-          con_many.persistent_launch();
+          con_many.start_group(m_recv_groups_many[0]);
         } else if (have_few) {
-          con_few.persistent_launch();
+          con_few.start_group(m_recv_groups_few[0]);
         }
 
         for (int idx = 0; idx < num_recvs; ++idx) {
@@ -1087,19 +1074,11 @@ struct Comm
         }
 
         if (have_many && have_few) {
-          con_few.batch_launch(); con_many.batch_launch();
+          m_recv_groups_few[0] = con_few.finish_group(); m_recv_groups_many[0] = con_many.finish_group();
         } else if (have_many) {
-          con_many.batch_launch();
+          m_recv_groups_many[0] = con_many.finish_group();
         } else if (have_few) {
-          con_few.batch_launch();
-        }
-
-        if (have_many && have_few) {
-          con_few.persistent_stop(); con_many.persistent_stop();
-        } else if (have_many) {
-          con_many.persistent_stop();
-        } else if (have_few) {
-          con_few.persistent_stop();
+          m_recv_groups_few[0] = con_few.finish_group();
         }
 
         for (int idx = 0; idx < num_recvs; ++idx) {

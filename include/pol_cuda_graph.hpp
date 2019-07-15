@@ -26,11 +26,17 @@ struct cuda_graph_component
   void* ptr = nullptr;
 };
 
+struct cuda_graph_group
+{
+  void* ptr = nullptr;
+};
+
 struct cuda_graph_pol {
   static const bool async = true;
   static const char* get_name() { return "cudaGraph"; }
   using event_type = cuda::graph_launch::event_type;
   using component_type = cuda_graph_component;
+  using group_type = cuda_graph_group;
 };
 
 template < >
@@ -39,6 +45,7 @@ struct ExecContext<cuda_graph_pol> : CudaContext
   using pol = cuda_graph_pol;
   using event_type = typename pol::event_type;
   using component_type = typename pol::component_type;
+  using group_type = typename pol::group_type;
 
   using base = CudaContext;
 
@@ -55,17 +62,24 @@ struct ExecContext<cuda_graph_pol> : CudaContext
     cuda::graph_launch::synchronize(base::stream());
   }
 
-  void persistent_launch()
+  group_type create_group()
+  {
+    return group_type{};
+  }
+
+  void start_group(group_type)
   {
   }
 
-  void batch_launch()
+  group_type finish_group()
   {
     cuda::graph_launch::force_launch(base::stream());
+    return group_type{};
   }
 
-  void persistent_stop()
+  void destroy_group(group_type)
   {
+
   }
 
   component_type create_component()
