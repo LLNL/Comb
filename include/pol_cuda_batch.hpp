@@ -71,10 +71,9 @@ struct ExecContext<cuda_batch_pol> : CudaContext
   {
   }
 
-  group_type finish_group()
+  void finish_group()
   {
     cuda::batch_launch::force_launch(base::stream());
-    return group_type{};
   }
 
   void destroy_group(group_type)

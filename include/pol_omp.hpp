@@ -78,9 +78,8 @@ struct ExecContext<omp_pol> : CPUContext
   {
   }
 
-  group_type finish_group()
+  void finish_group()
   {
-    return group_type{};
   }
 
   void destroy_group(group_type)

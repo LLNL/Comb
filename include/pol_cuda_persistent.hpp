@@ -72,10 +72,9 @@ struct ExecContext<cuda_persistent_pol> : CudaContext
     cuda::persistent_launch::force_launch(base::stream());
   }
 
-  group_type finish_group()
+  void finish_group()
   {
     cuda::persistent_launch::force_stop(base::stream());
-    return group_type{};
   }
 
   void destroy_group(group_type)

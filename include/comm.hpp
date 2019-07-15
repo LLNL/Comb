@@ -503,7 +503,7 @@ struct Comm
             m_send_contexts_many[i].push_component(m_send_components_many[i]);
             m_sends[i].pack(m_send_contexts_many[i], communicator);
             m_send_components_many[i] = m_send_contexts_many[i].pop_component();
-            m_send_groups_many[i] = m_send_contexts_many[i].finish_group();
+            m_send_contexts_many[i].finish_group();
             m_send_contexts_many[i].synchronize();
             m_sends[i].Isend(m_send_contexts_many[i], communicator, &m_send_requests[i]);
           } else {
@@ -512,7 +512,7 @@ struct Comm
             m_send_contexts_few[i].push_component(m_send_components_few[i]);
             m_sends[i].pack(m_send_contexts_few[i], communicator);
             m_send_components_few[i] = m_send_contexts_few[i].pop_component();
-            m_send_groups_few[i] = m_send_contexts_few[i].finish_group();
+            m_send_contexts_few[i].finish_group();
             m_send_contexts_few[i].synchronize();
             m_sends[i].Isend(m_send_contexts_few[i], communicator, &m_send_requests[i]);
           }
@@ -545,14 +545,14 @@ struct Comm
               m_sends[pack_send].pack(m_send_contexts_many[pack_send], communicator);
               m_send_components_many[pack_send] = m_send_contexts_many[pack_send].pop_component();
               m_send_contexts_many[pack_send].recordEvent(m_send_events_many[pack_send]);
-              m_send_groups_many[pack_send] = m_send_contexts_many[pack_send].finish_group();
+              m_send_contexts_many[pack_send].finish_group();
             } else {
               m_send_contexts_few[pack_send].start_group(m_send_groups_few[pack_send]);
               m_send_contexts_few[pack_send].push_component(m_send_components_few[pack_send]);
               m_sends[pack_send].pack(m_send_contexts_few[pack_send], communicator);
               m_send_components_few[pack_send] = m_send_contexts_few[pack_send].pop_component();
               m_send_contexts_few[pack_send].recordEvent(m_send_events_few[pack_send]);
-              m_send_groups_few[pack_send] = m_send_contexts_few[pack_send].finish_group();
+              m_send_contexts_few[pack_send].finish_group();
             }
 
             ++pack_send;
@@ -612,7 +612,7 @@ struct Comm
             }
           }
 
-          m_send_groups_many[num_many-1] = con_many.finish_group();
+          con_many.finish_group();
 
           con_many.synchronize();
 
@@ -643,7 +643,7 @@ struct Comm
             }
           }
 
-          m_send_groups_few[num_few-1] = con_few.finish_group();
+          con_few.finish_group();
 
           con_few.synchronize();
 
@@ -688,7 +688,7 @@ struct Comm
             ++pack_many_send;
           }
 
-          m_send_groups_many[num_many-1] = con_many.finish_group();
+          con_many.finish_group();
         } else {
           pack_many_send = num_sends;
           post_many_send = num_sends;
@@ -727,7 +727,7 @@ struct Comm
             ++pack_few_send;
           }
 
-          m_send_groups_few[num_few-1] = con_few.finish_group();
+          con_few.finish_group();
         } else {
           pack_few_send = num_sends;
           post_few_send = num_sends;
@@ -801,11 +801,11 @@ struct Comm
         }
 
         if (num_many > 0 && num_few > 0) {
-          m_send_groups_few[num_few-1] = con_few.finish_group(); m_send_groups_many[num_many-1] = con_many.finish_group();
+          con_few.finish_group(); con_many.finish_group();
         } else if (num_many > 0) {
-          m_send_groups_many[num_many-1] = con_many.finish_group();
+          con_many.finish_group();
         } else if (num_few > 0) {
-          m_send_groups_few[num_few-1] = con_few.finish_group();
+          con_few.finish_group();
         }
 
         if (num_many > 0 && num_few > 0) {
@@ -864,11 +864,11 @@ struct Comm
 
         // stop persistent kernel
         if (num_many > 0 && num_few > 0) {
-          m_send_groups_few[num_few-1] = con_few.finish_group(); m_send_groups_many[num_many-1] = con_many.finish_group();
+          con_few.finish_group(); con_many.finish_group();
         } else if (num_many > 0) {
-          m_send_groups_many[num_many-1] = con_many.finish_group();
+          con_many.finish_group();
         } else if (num_few > 0) {
-          m_send_groups_few[num_few-1] = con_few.finish_group();
+          con_few.finish_group();
         }
 
         // post all sends
@@ -958,14 +958,14 @@ struct Comm
             m_recv_contexts_many[idx].push_component(m_recv_components_many[idx]);
             m_recvs[idx].unpack(m_recv_contexts_many[idx], communicator);
             m_recv_components_many[idx] = m_recv_contexts_many[idx].pop_component();
-            m_recv_groups_many[idx] = m_recv_contexts_many[idx].finish_group();
+            m_recv_contexts_many[idx].finish_group();
             m_recvs[idx].deallocate(m_recv_contexts_many[idx], communicator, many_aloc);
           } else {
             m_recv_contexts_few[idx].start_group(m_recv_groups_few[idx]);
             m_recv_contexts_few[idx].push_component(m_recv_components_few[idx]);
             m_recvs[idx].unpack(m_recv_contexts_few[idx], communicator);
             m_recv_components_few[idx] = m_recv_contexts_few[idx].pop_component();
-            m_recv_groups_few[idx] = m_recv_contexts_few[idx].finish_group();
+            m_recv_contexts_few[idx].finish_group();
             m_recvs[idx].deallocate(m_recv_contexts_few[idx], communicator, few_aloc);
           }
 
@@ -1022,11 +1022,11 @@ struct Comm
           }
 
           if (inner_num_many > 0 && inner_num_few > 0) {
-            m_recv_groups_few[inner_num_few-1] = con_few.finish_group(); m_recv_groups_many[inner_num_many-1] = con_many.finish_group();
+            con_few.finish_group(); con_many.finish_group();
           } else if (inner_num_many > 0) {
-            m_recv_groups_many[inner_num_many-1] = con_many.finish_group();
+            con_many.finish_group();
           } else if (inner_num_few > 0) {
-            m_recv_groups_few[inner_num_few-1] = con_few.finish_group();
+            con_few.finish_group();
           }
 
           for (IdxT i = 0; i < num_recvd; ++i) {
@@ -1074,11 +1074,11 @@ struct Comm
         }
 
         if (num_many > 0 && num_few > 0) {
-          m_recv_groups_few[num_few-1] = con_few.finish_group(); m_recv_groups_many[num_many-1] = con_many.finish_group();
+          con_few.finish_group(); con_many.finish_group();
         } else if (num_many > 0) {
-          m_recv_groups_many[num_many-1] = con_many.finish_group();
+          con_many.finish_group();
         } else if (num_few > 0) {
-          m_recv_groups_few[num_few-1] = con_few.finish_group();
+          con_few.finish_group();
         }
 
         for (int idx = 0; idx < num_recvs; ++idx) {

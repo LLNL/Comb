@@ -70,9 +70,8 @@ struct ExecContext<mpi_type_pol> : MPIContext
   {
   }
 
-  group_type finish_group()
+  void finish_group()
   {
-    return group_type{};
   }
 
   void destroy_group(group_type)

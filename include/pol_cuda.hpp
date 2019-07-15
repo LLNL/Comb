@@ -112,9 +112,8 @@ struct ExecContext<cuda_pol> : CudaContext
   {
   }
 
-  group_type finish_group()
+  void finish_group()
   {
-    return group_type{};
   }
 
   void destroy_group(group_type)
