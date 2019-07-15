@@ -481,14 +481,14 @@ struct Comm
 
     m_send_requests.resize(num_sends, policy_comm::send_request_null());
 
-    bool have_many = false;
-    bool have_few = false;
+    int num_many = 0;
+    int num_few = 0;
 
     for (IdxT i = 0; i < num_sends; ++i) {
       if (m_sends[i].have_many()) {
-        have_many = true;
+        num_many += 1;
       } else {
-        have_few = true;
+        num_few += 1;
       }
     }
 
@@ -593,7 +593,7 @@ struct Comm
       } break;
       case CommInfo::method::waitsome:
       {
-        if (have_many) {
+        if (num_many > 0) {
           for (IdxT i = 0; i < num_sends; ++i) {
 
             if (m_sends[i].have_many()) {
@@ -601,7 +601,7 @@ struct Comm
             }
           }
 
-          con_many.start_group(m_send_groups_many[0]);
+          con_many.start_group(m_send_groups_many[num_many-1]);
 
           for (IdxT i = 0; i < num_sends; ++i) {
 
@@ -612,7 +612,7 @@ struct Comm
             }
           }
 
-          m_send_groups_many[0] = con_many.finish_group();
+          m_send_groups_many[num_many-1] = con_many.finish_group();
 
           con_many.synchronize();
 
@@ -624,7 +624,7 @@ struct Comm
           }
         }
 
-        if (have_few) {
+        if (num_few > 0) {
           for (IdxT i = 0; i < num_sends; ++i) {
 
             if (!m_sends[i].have_many()) {
@@ -632,7 +632,7 @@ struct Comm
             }
           }
 
-          con_few.start_group(m_send_groups_few[0]);
+          con_few.start_group(m_send_groups_few[num_few-1]);
 
           for (IdxT i = 0; i < num_sends; ++i) {
 
@@ -643,7 +643,7 @@ struct Comm
             }
           }
 
-          m_send_groups_few[0] = con_few.finish_group();
+          m_send_groups_few[num_few-1] = con_few.finish_group();
 
           con_few.synchronize();
 
@@ -673,9 +673,9 @@ struct Comm
         IdxT post_few_send = 0;
 
         // pack many sends
-        if (have_many) {
+        if (num_many > 0) {
 
-          con_many.start_group(m_send_groups_many[0]);
+          con_many.start_group(m_send_groups_many[num_many-1]);
 
           while (pack_many_send < num_sends) {
 
@@ -688,7 +688,7 @@ struct Comm
             ++pack_many_send;
           }
 
-          m_send_groups_many[0] = con_many.finish_group();
+          m_send_groups_many[num_many-1] = con_many.finish_group();
         } else {
           pack_many_send = num_sends;
           post_many_send = num_sends;
@@ -711,9 +711,9 @@ struct Comm
         }
 
         // pack few sends
-        if (have_few) {
+        if (num_few > 0) {
 
-          con_few.start_group(m_send_groups_few[0]);
+          con_few.start_group(m_send_groups_few[num_few-1]);
 
           while (pack_few_send < num_sends) {
 
@@ -727,7 +727,7 @@ struct Comm
             ++pack_few_send;
           }
 
-          m_send_groups_few[0] = con_few.finish_group();
+          m_send_groups_few[num_few-1] = con_few.finish_group();
         } else {
           pack_few_send = num_sends;
           post_few_send = num_sends;
@@ -779,12 +779,12 @@ struct Comm
           }
         }
 
-        if (have_many && have_few) {
-          con_few.start_group(m_send_groups_few[0]); con_many.start_group(m_send_groups_many[0]);
-        } else if (have_many) {
-          con_many.start_group(m_send_groups_many[0]);
-        } else if (have_few) {
-          con_few.start_group(m_send_groups_few[0]);
+        if (num_many > 0 && num_few > 0) {
+          con_few.start_group(m_send_groups_few[num_few-1]); con_many.start_group(m_send_groups_many[num_many-1]);
+        } else if (num_many > 0) {
+          con_many.start_group(m_send_groups_many[num_many-1]);
+        } else if (num_few > 0) {
+          con_few.start_group(m_send_groups_few[num_few-1]);
         }
 
         for (IdxT i = 0; i < num_sends; ++i) {
@@ -800,19 +800,19 @@ struct Comm
           }
         }
 
-        if (have_many && have_few) {
-          m_send_groups_few[0] = con_few.finish_group(); m_send_groups_many[0] = con_many.finish_group();
-        } else if (have_many) {
-          m_send_groups_many[0] = con_many.finish_group();
-        } else if (have_few) {
-          m_send_groups_few[0] = con_few.finish_group();
+        if (num_many > 0 && num_few > 0) {
+          m_send_groups_few[num_few-1] = con_few.finish_group(); m_send_groups_many[num_many-1] = con_many.finish_group();
+        } else if (num_many > 0) {
+          m_send_groups_many[num_many-1] = con_many.finish_group();
+        } else if (num_few > 0) {
+          m_send_groups_few[num_few-1] = con_few.finish_group();
         }
 
-        if (have_many && have_few) {
+        if (num_many > 0 && num_few > 0) {
           con_few.synchronize(); con_many.synchronize();
-        } else if (have_many) {
+        } else if (num_many > 0) {
           con_many.synchronize();
-        } else if (have_few) {
+        } else if (num_few > 0) {
           con_few.synchronize();
         }
 
@@ -838,12 +838,12 @@ struct Comm
         }
 
         // pack and send
-        if (have_many && have_few) {
-          con_few.start_group(m_send_groups_few[0]); con_many.start_group(m_send_groups_many[0]);
-        } else if (have_many) {
-          con_many.start_group(m_send_groups_many[0]);
-        } else if (have_few) {
-          con_few.start_group(m_send_groups_few[0]);
+        if (num_many > 0 && num_few > 0) {
+          con_few.start_group(m_send_groups_few[num_few-1]); con_many.start_group(m_send_groups_many[num_many-1]);
+        } else if (num_many > 0) {
+          con_many.start_group(m_send_groups_many[num_many-1]);
+        } else if (num_few > 0) {
+          con_few.start_group(m_send_groups_few[num_few-1]);
         }
 
         for (IdxT i = 0; i < num_sends; ++i) {
@@ -863,12 +863,12 @@ struct Comm
         }
 
         // stop persistent kernel
-        if (have_many && have_few) {
-          m_send_groups_few[0] = con_few.finish_group(); m_send_groups_many[0] = con_many.finish_group();
-        } else if (have_many) {
-          m_send_groups_many[0] = con_many.finish_group();
-        } else if (have_few) {
-          m_send_groups_few[0] = con_few.finish_group();
+        if (num_many > 0 && num_few > 0) {
+          m_send_groups_few[num_few-1] = con_few.finish_group(); m_send_groups_many[num_many-1] = con_many.finish_group();
+        } else if (num_many > 0) {
+          m_send_groups_many[num_many-1] = con_many.finish_group();
+        } else if (num_few > 0) {
+          m_send_groups_few[num_few-1] = con_few.finish_group();
         }
 
         // post all sends
@@ -921,16 +921,16 @@ struct Comm
   {
     //FPRINTF(stdout, "waiting receives\n");
 
-    bool have_many = false;
-    bool have_few = false;
+    int num_many = 0;
+    int num_few = 0;
 
     IdxT num_recvs = m_recvs.size();
 
     for (IdxT i = 0; i < num_recvs; ++i) {
       if (m_recvs[i].have_many()) {
-        have_many = true;
+        num_many += 1;
       } else {
-        have_few = true;
+        num_few += 1;
       }
     }
 
@@ -989,23 +989,23 @@ struct Comm
             while( 0 == (num_recvd = message_type::test_recv_some(num_recvs, &m_recv_requests[0], &indices[0], &recv_statuses[0])) );
           }
 
-          bool inner_have_many = false;
-          bool inner_have_few = false;
+          int inner_num_many = 0;
+          int inner_num_few = 0;
 
           for (IdxT i = 0; i < num_recvd; ++i) {
             if (m_recvs[indices[i]].have_many()) {
-              inner_have_many = true;
+              inner_num_many += 1;
             } else {
-              inner_have_few = true;
+              inner_num_few += 1;
             }
           }
 
-          if (inner_have_many && inner_have_few) {
-            con_few.start_group(m_recv_groups_few[0]); con_many.start_group(m_recv_groups_many[0]);
-          } else if (inner_have_many) {
-            con_many.start_group(m_recv_groups_many[0]);
-          } else if (inner_have_few) {
-            con_few.start_group(m_recv_groups_few[0]);
+          if (inner_num_many > 0 && inner_num_few > 0) {
+            con_few.start_group(m_recv_groups_few[inner_num_few-1]); con_many.start_group(m_recv_groups_many[inner_num_many-1]);
+          } else if (inner_num_many > 0) {
+            con_many.start_group(m_recv_groups_many[inner_num_many-1]);
+          } else if (inner_num_few > 0) {
+            con_few.start_group(m_recv_groups_few[inner_num_few-1]);
           }
 
           for (IdxT i = 0; i < num_recvd; ++i) {
@@ -1021,12 +1021,12 @@ struct Comm
             }
           }
 
-          if (inner_have_many && inner_have_few) {
-            m_recv_groups_few[0] = con_few.finish_group(); m_recv_groups_many[0] = con_many.finish_group();
-          } else if (inner_have_many) {
-            m_recv_groups_many[0] = con_many.finish_group();
-          } else if (inner_have_few) {
-            m_recv_groups_few[0] = con_few.finish_group();
+          if (inner_num_many > 0 && inner_num_few > 0) {
+            m_recv_groups_few[inner_num_few-1] = con_few.finish_group(); m_recv_groups_many[inner_num_many-1] = con_many.finish_group();
+          } else if (inner_num_many > 0) {
+            m_recv_groups_many[inner_num_many-1] = con_many.finish_group();
+          } else if (inner_num_few > 0) {
+            m_recv_groups_few[inner_num_few-1] = con_few.finish_group();
           }
 
           for (IdxT i = 0; i < num_recvd; ++i) {
@@ -1052,12 +1052,12 @@ struct Comm
           while (!message_type::test_recv_all(num_recvs, &m_recv_requests[0], &recv_statuses[0]));
         }
 
-        if (have_many && have_few) {
-          con_few.start_group(m_recv_groups_few[0]); con_many.start_group(m_recv_groups_many[0]);
-        } else if (have_many) {
-          con_many.start_group(m_recv_groups_many[0]);
-        } else if (have_few) {
-          con_few.start_group(m_recv_groups_few[0]);
+        if (num_many > 0 && num_few > 0) {
+          con_few.start_group(m_recv_groups_few[num_few-1]); con_many.start_group(m_recv_groups_many[num_many-1]);
+        } else if (num_many > 0) {
+          con_many.start_group(m_recv_groups_many[num_many-1]);
+        } else if (num_few > 0) {
+          con_few.start_group(m_recv_groups_few[num_few-1]);
         }
 
         for (int idx = 0; idx < num_recvs; ++idx) {
@@ -1073,12 +1073,12 @@ struct Comm
           }
         }
 
-        if (have_many && have_few) {
-          m_recv_groups_few[0] = con_few.finish_group(); m_recv_groups_many[0] = con_many.finish_group();
-        } else if (have_many) {
-          m_recv_groups_many[0] = con_many.finish_group();
-        } else if (have_few) {
-          m_recv_groups_few[0] = con_few.finish_group();
+        if (num_many > 0 && num_few > 0) {
+          m_recv_groups_few[num_few-1] = con_few.finish_group(); m_recv_groups_many[num_many-1] = con_many.finish_group();
+        } else if (num_many > 0) {
+          m_recv_groups_many[num_many-1] = con_many.finish_group();
+        } else if (num_few > 0) {
+          m_recv_groups_few[num_few-1] = con_few.finish_group();
         }
 
         for (int idx = 0; idx < num_recvs; ++idx) {
@@ -1098,11 +1098,11 @@ struct Comm
 
     m_recv_requests.clear();
 
-    if (have_many && have_few) {
+    if (num_many > 0 && num_few > 0) {
       con_few.synchronize(); con_many.synchronize();
-    } else if (have_many) {
+    } else if (num_many > 0) {
       con_many.synchronize();
-    } else if (have_few) {
+    } else if (num_few > 0) {
       con_few.synchronize();
     }
   }
