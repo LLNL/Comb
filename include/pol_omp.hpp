@@ -28,11 +28,16 @@
 #include "utils.hpp"
 #include "memory.hpp"
 
+struct omp_component
+{
+  void* ptr = nullptr;
+}
+
 struct omp_pol {
   static const bool async = false;
   static const char* get_name() { return "omp"; }
   using event_type = int;
-  using cache_type = int;
+  using component_type = omp_component;
 };
 
 template < >
@@ -40,6 +45,7 @@ struct ExecContext<omp_pol> : CPUContext
 {
   using pol = omp_pol;
   using event_type = typename pol::event_type;
+  using component_type = typename pol::component_type;
 
   using base = CPUContext;
 

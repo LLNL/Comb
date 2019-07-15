@@ -62,11 +62,16 @@ void cuda_for_all_3d(IdxT begin0, IdxT len0, IdxT begin1, IdxT len1, IdxT begin2
   }
 }
 
+struct cuda_component
+{
+  void* ptr = nullptr;
+}
+
 struct cuda_pol {
   static const bool async = true;
   static const char* get_name() { return "cuda"; }
   using event_type = cudaEvent_t;
-  using cache_type = int;
+  using component_type = cuda_component;
 };
 
 template < >
@@ -74,6 +79,7 @@ struct ExecContext<cuda_pol> : CudaContext
 {
   using pol = cuda_pol;
   using event_type = typename pol::event_type;
+  using component_type = typename pol::component_type;
 
   using base = CudaContext;
 

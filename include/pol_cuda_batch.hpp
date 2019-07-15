@@ -21,11 +21,16 @@
 #ifdef COMB_ENABLE_CUDA
 #include "batch_launch.hpp"
 
+struct cuda_batch_component
+{
+  void* ptr = nullptr;
+}
+
 struct cuda_batch_pol {
   static const bool async = true;
   static const char* get_name() { return ( get_batch_always_grid_sync() ? "cudaBatch"      : "cudaBatch_fewgs"      ); }
   using event_type = detail::batch_event_type_ptr;
-  using cache_type = int;
+  using component_type = cuda_batch_component;
 };
 
 template < >
@@ -33,6 +38,7 @@ struct ExecContext<cuda_batch_pol> : CudaContext
 {
   using pol = cuda_batch_pol;
   using event_type = typename pol::event_type;
+  using component_type = typename pol::component_type;
 
   using base = CudaContext;
 

@@ -18,13 +18,18 @@
 
 #include "config.hpp"
 
+struct mpi_type_component
+{
+  void* ptr = nullptr;
+}
+
 // execution policy indicating that message packing/unpacking should be done
 // in MPI using MPI_Types
 struct mpi_type_pol {
   static const bool async = false;
   static const char* get_name() { return "mpi_type"; }
   using event_type = int;
-  using cache_type = int;
+  using component_type = mpi_type_component;
 };
 
 template < >
@@ -32,6 +37,7 @@ struct ExecContext<mpi_type_pol> : MPIContext
 {
   using pol = mpi_type_pol;
   using event_type = typename pol::event_type;
+  using component_type = typename pol::component_type;
 
   using base = MPIContext;
 

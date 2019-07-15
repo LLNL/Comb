@@ -20,11 +20,16 @@
 
 #include "utils.hpp"
 
+struct seq_component
+{
+  void* ptr = nullptr;
+}
+
 struct seq_pol {
   static const bool async = false;
   static const char* get_name() { return "seq"; }
   using event_type = int;
-  using cache_type = int;
+  using component_type = seq_component;
 };
 
 template < >
@@ -32,6 +37,7 @@ struct ExecContext<seq_pol> : CPUContext
 {
   using pol = seq_pol;
   using event_type = typename pol::event_type;
+  using component_type = typename pol::component_type;
 
   using base = CPUContext;
 

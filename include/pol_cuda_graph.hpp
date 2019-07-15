@@ -21,11 +21,16 @@
 #ifdef COMB_ENABLE_CUDA_GRAPH
 #include "graph_launch.hpp"
 
+struct cuda_graph_component
+{
+  void* ptr = nullptr;
+}
+
 struct cuda_graph_pol {
   static const bool async = true;
   static const char* get_name() { return "cudaGraph"; }
   using event_type = cuda::graph_launch::event_type;
-  using cache_type = int;
+  using component_type = cuda_graph_component;
 };
 
 template < >
@@ -33,6 +38,7 @@ struct ExecContext<cuda_graph_pol> : CudaContext
 {
   using pol = cuda_graph_pol;
   using event_type = typename pol::event_type;
+  using component_type = typename pol::component_type;
 
   using base = CudaContext;
 
