@@ -22,7 +22,8 @@
 
 #include "utils.hpp"
 #include "utils_cuda.hpp"
-#include <list>
+#include <vector>
+#include <assert.h>
 
 namespace cuda {
 
@@ -32,19 +33,20 @@ namespace detail {
 
 struct Graph
 {
-  cudaGraph_t graph;
-  cudaGraphExec_t graphExec;
-  cudaEvent_t event;
-  bool launched;
-  bool event_recorded;
-  int num_events;
+  struct Event
+  {
+    Graph* graph = nullptr;
+  };
 
   Graph()
-    : launched(false)
-    , event_recorded(false)
-    , num_events(0)
+    : m_launched(false)
+    , m_event_recorded(false)
+    , m_instantiated_num_nodes(false)
+    , m_num_nodes(0)
+    , m_ref(1)
+    , m_num_events(0)
   {
-    cudaCheck(cudaGraphCreate(&graph, 0));
+    cudaCheck(cudaGraphCreate(&m_graph, 0));
   }
 
   // no copy construction
@@ -55,155 +57,239 @@ struct Graph
   Graph& operator=(Graph const&) = delete;
   Graph& operator=(Graph &&) = delete;
 
-  void createRecordEvent(cudaStream_t stream)
+  int inc()
   {
-    if (!event_recorded) {
-      cudaCheck(cudaEventCreateWithFlags(&event, cudaEventDisableTiming));
-      cudaCheck(cudaEventRecord(event, stream));
-      event_recorded = true;
-    }
+    return ++m_ref;
   }
 
-  void add_event(cudaStream_t stream)
+  int dec()
   {
-    ++num_events;
-    if (launched) {
+    return --m_ref;
+  }
+
+  void add_event(Event* event, cudaStream_t stream)
+  {
+    assert(event != nullptr);
+    assert(event->graph == this);
+    inc();
+    m_num_events++;
+    assert(m_num_events > 0);
+    if (m_launched) {
       createRecordEvent(stream);
     }
   }
 
-  bool query_event()
+  bool query_event(Event* event)
   {
-    assert(num_events > 0);
-    if (!launched) return false;
-    assert(event_recorded);
-    return cudaCheckReady(cudaEventQuery(event));
+    assert(event != nullptr);
+    assert(event->graph == this);
+    assert(m_num_events > 0);
+    if (!m_launched) return false;
+    assert(m_event_recorded);
+    return cudaCheckReady(cudaEventQuery(m_event));
   }
 
-  void wait_event()
+  void wait_event(Event* event)
   {
-    assert(num_events > 0);
-    assert(launched);
-    assert(event_recorded);
-    cudaCheck(cudaEventSynchronize(event));
+    assert(event != nullptr);
+    assert(event->graph == this);
+    assert(m_num_events > 0);
+    assert(m_launched);
+    assert(m_event_recorded);
+    cudaCheck(cudaEventSynchronize(m_event));
+  }
+
+  int remove_event(Event* event)
+  {
+    assert(event != nullptr);
+    assert(event->graph == this);
+    assert(m_num_events > 0);
+    m_num_events--;
+    return dec();
+  }
+
+  void enqueue(cudaKernelNodeParams& params)
+  {
+    assert(!m_launched);
+    if (m_num_nodes < m_nodes.size()) {
+      if (m_num_nodes < m_instantiated_num_nodes) {
+        cudaCheck(cudaGraphExecKernelNodeSetParams(m_graphExec, m_nodes[m_num_nodes], &params));
+      }
+      cudaCheck(cudaGraphKernelNodeSetParams(m_nodes[m_num_nodes], &params));
+    } else {
+      assert(m_num_nodes == m_nodes.size());
+      m_nodes.emplace_back();
+      const cudaGraphNode_t* dependencies = nullptr;
+      int num_dependencies = 0;
+      cudaCheck(cudaGraphAddKernelNode(&m_nodes[m_num_nodes], m_graph, dependencies, num_dependencies, &params));
+    }
+    m_num_nodes++;
   }
 
   void launch(cudaStream_t stream)
   {
-    if (!launched) {
-      cudaGraphNode_t errorNode;
-      constexpr size_t bufferSize = 1024;
-      char logBuffer[bufferSize] = "";
-      cudaCheck(cudaGraphInstantiate(&graphExec, graph, &errorNode, logBuffer, bufferSize));
+    // NVTX_RANGE_COLOR(NVTX_CYAN)
+    if (!m_launched) {
+      if (m_instantiated_num_nodes != m_num_nodes) {
+        if (m_instantiated_num_nodes > 0) {
+          cudaCheck(cudaGraphExecDestroy(m_graphExec));
+          for (int i = m_num_nodes; i < m_nodes.size(); ++i) {
+            cudaCheck(cudaGraphDestroyNode(m_nodes[i]));
+          }
+          m_nodes.resize(m_num_nodes);
+          m_instantiated_num_nodes = 0;
+        }
+        cudaGraphNode_t errorNode;
+        constexpr size_t bufferSize = 1024;
+        char logBuffer[bufferSize] = "";
+        cudaCheck(cudaGraphInstantiate(&m_graphExec, m_graph, &errorNode, logBuffer, bufferSize));
+        m_instantiated_num_nodes = m_num_nodes;
+      }
 
-      cudaCheck(cudaGraphLaunch(graphExec, stream));
+      cudaCheck(cudaGraphLaunch(m_graphExec, stream));
 
-      if (num_events > 0) {
+      if (m_num_events > 0) {
         createRecordEvent(stream);
       }
 
-      launched = true;
+      m_launched = true;
     }
   }
 
-  void remove_event()
+  void reuse()
   {
-    --num_events;
+    assert(m_num_events == 0);
+    m_launched = false;
+    m_num_nodes = 0;
+  }
+
+  bool launchable() const
+  {
+    return !m_launched && m_num_nodes > 0;
   }
 
   ~Graph()
   {
-    if (event_recorded) {
-      cudaCheck(cudaEventDestroy(event));
+    assert(m_ref == 0);
+    assert(m_num_events == 0);
+    if (m_event_recorded) {
+      cudaCheck(cudaEventDestroy(m_event));
     }
-    if (launched) {
-      cudaCheck(cudaGraphExecDestroy(graphExec));
+    if (m_instantiated_num_nodes > 0) {
+      cudaCheck(cudaGraphExecDestroy(m_graphExec));
     }
-    cudaCheck(cudaGraphDestroy(graph));
+    for (int i = 0; i < m_nodes.size(); ++i) {
+      cudaCheck(cudaGraphDestroyNode(m_nodes[i]));
+    }
+    m_nodes.clear();
+    cudaCheck(cudaGraphDestroy(m_graph));
+  }
+private:
+  std::vector<cudaGraphNode_t> m_nodes;
+  cudaGraph_t m_graph;
+  cudaGraphExec_t m_graphExec;
+  cudaEvent_t m_event;
+
+  bool m_launched;
+  bool m_event_recorded;
+  int m_instantiated_num_nodes;
+  int m_num_nodes;
+  int m_ref;
+  int m_num_events;
+
+  void createRecordEvent(cudaStream_t stream)
+  {
+    if (!m_event_recorded) {
+      cudaCheck(cudaEventCreateWithFlags(&m_event, cudaEventDisableTiming));
+      cudaCheck(cudaEventRecord(m_event, stream));
+      m_event_recorded = true;
+    }
   }
 };
-
-inline std::list<Graph>& getGraphs()
-{
-  static std::list<Graph> graphList{};
-  return graphList;
-}
-
-struct Event
-{
-  std::list<Graph>::iterator graph_iter;
-};
-
-inline std::list<Event>& getEventList()
-{
-  static std::list<Event> list{};
-  return list;
-}
-
-inline void enqueue(std::list<Graph>& graphs, cudaKernelNodeParams& params)
-{
-  if (graphs.empty()) {
-    // list is empty
-    graphs.emplace_front();
-  } else if (graphs.front().launched) {
-    if (graphs.front().num_events == 0) {
-      // erase previous graph if it has no events
-      graphs.erase(graphs.begin());
-    }
-    // graph is already launched, make another
-    graphs.emplace_front();
-  }
-  Graph& graph = graphs.front();
-
-  const cudaGraphNode_t* dependencies = nullptr;
-  int num_dependencies = 0;
-
-  cudaGraphNode_t node;
-  cudaCheck(cudaGraphAddKernelNode(&node, graph.graph, dependencies, num_dependencies, &params));
-}
-
-
-extern void launch(Graph& graph, cudaStream_t stream);
 
 } // namespace detail
 
-using event_type = typename std::list<detail::Event>::iterator;
+struct component
+{
+  void* data = nullptr;
+};
+
+struct group
+{
+  detail::Graph* graph = nullptr;
+};
+
+inline group create_group()
+{
+  // graph starts at ref count 1
+  group g{};
+  g.graph = new detail::Graph{};
+  return g;
+}
+
+inline group& get_active_group()
+{
+  static group g = create_group();
+  return g;
+}
+
+inline void destroy_group(group g)
+{
+  if (g.graph && g.graph->dec() <= 0) {
+    delete g.graph;
+  }
+}
+
+inline void new_active_group()
+{
+  destroy_group(get_active_group());
+  get_active_group() = create_group();
+}
+
+inline void set_active_group(group g)
+{
+  if (g.graph != get_active_group().graph) {
+    destroy_group(get_active_group());
+    get_active_group() = g;
+    get_active_group().graph->inc();
+  }
+  get_active_group().graph->reuse();
+}
+
+using event_type = detail::Graph::Event*;
 
 inline event_type createEvent()
 {
   // create event pointing to invalid graph iterator
-  detail::getEventList().emplace_front(detail::Event{detail::getGraphs().end()});
-  return detail::getEventList().begin();
+  return new detail::Graph::Event();
 }
 
 inline void recordEvent(event_type event, cudaStream_t stream = 0)
 {
-  if (!detail::getGraphs().empty()) {
-    event->graph_iter = detail::getGraphs().begin();
-    event->graph_iter->add_event(stream);
-  }
+  assert(event->graph == nullptr || event->graph == get_active_group().graph);
+  event->graph = get_active_group().graph;
+  event->graph->add_event(event, stream);
 }
 
 inline bool queryEvent(event_type event)
 {
-  if (event->graph_iter == detail::getGraphs().end()) return true;
-  return event->graph_iter->query_event();
+  if (event->graph == nullptr) return true;
+  return event->graph->query_event(event);
 }
 
 inline void waitEvent(event_type event)
 {
-  if (event->graph_iter == detail::getGraphs().end()) return;
-  event->graph_iter->wait_event();
+  if (event->graph == nullptr) return;
+  event->graph->wait_event(event);
 }
 
 inline void destroyEvent(event_type event)
 {
-  if (event->graph_iter == detail::getGraphs().end()) return;
-  event->graph_iter->remove_event();
-  if (event->graph_iter->num_events == 0) {
-    detail::getGraphs().erase(event->graph_iter);
+  if (event->graph == nullptr) return;
+  if (event->graph->remove_event(event) <= 0) {
+    delete event->graph; event->graph = nullptr;
   }
-  detail::getEventList().erase(event);
+  delete event;
 }
 
 
@@ -239,7 +325,7 @@ inline void for_all(int begin, int end, body_type&& body)
   params.kernelParams = args;
   params.extra = nullptr;
 
-  detail::enqueue(detail::getGraphs(), params);
+  get_active_group().graph->enqueue(params);
 }
 
 template < typename body_type >
@@ -278,7 +364,7 @@ inline void for_all_2d(IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, body_type
   params.kernelParams = args;
   params.extra = nullptr;
 
-  detail::enqueue(detail::getGraphs(), params);
+  get_active_group().graph->enqueue(params);
 }
 
 template < typename body_type >
@@ -324,7 +410,7 @@ inline void for_all_3d(IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, IdxT begi
   params.kernelParams = args;
   params.extra = nullptr;
 
-  detail::enqueue(detail::getGraphs(), params);
+  get_active_group().graph->enqueue(params);
 }
 
 } // namespace graph_launch

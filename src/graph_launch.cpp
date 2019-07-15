@@ -23,23 +23,13 @@ namespace cuda {
 
 namespace graph_launch {
 
-namespace detail {
-
-// Launches a batch kernel and cycles to next buffer
-void launch(Graph& graph, cudaStream_t stream)
-{
-   // NVTX_RANGE_COLOR(NVTX_CYAN)
-   graph.launch(stream);
-}
-
-} // namespace detail
-
 // Ensure the current batch launched (actually launches batch)
 void force_launch(cudaStream_t stream)
 {
    // NVTX_RANGE_COLOR(NVTX_CYAN)
-   if (!detail::getGraphs().empty() && !detail::getGraphs().front().launched) {
-      detail::launch(detail::getGraphs().front(), stream);
+   if (get_active_group().graph->launchable()) {
+      get_active_group().graph->launch(stream);
+      new_active_group();
    }
 }
 

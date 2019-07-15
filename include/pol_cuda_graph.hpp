@@ -21,22 +21,12 @@
 #ifdef COMB_ENABLE_CUDA_GRAPH
 #include "graph_launch.hpp"
 
-struct cuda_graph_component
-{
-  void* ptr = nullptr;
-};
-
-struct cuda_graph_group
-{
-  void* ptr = nullptr;
-};
-
 struct cuda_graph_pol {
   static const bool async = true;
   static const char* get_name() { return "cudaGraph"; }
   using event_type = cuda::graph_launch::event_type;
-  using component_type = cuda_graph_component;
-  using group_type = cuda_graph_group;
+  using component_type = cuda::graph_launch::component;
+  using group_type = cuda::graph_launch::group;
 };
 
 template < >
@@ -64,11 +54,12 @@ struct ExecContext<cuda_graph_pol> : CudaContext
 
   group_type create_group()
   {
-    return group_type{};
+    return cuda::graph_launch::create_group();
   }
 
-  void start_group(group_type)
+  void start_group(group_type group)
   {
+    cuda::graph_launch::set_active_group(group);
   }
 
   void finish_group()
@@ -76,9 +67,9 @@ struct ExecContext<cuda_graph_pol> : CudaContext
     cuda::graph_launch::force_launch(base::stream());
   }
 
-  void destroy_group(group_type)
+  void destroy_group(group_type group)
   {
-
+    cuda::graph_launch::destroy_group(group);
   }
 
   component_type create_component()
