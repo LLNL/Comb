@@ -479,7 +479,9 @@ struct Comm
           if (m_sends[i].have_many()) {
             m_sends[i].allocate(m_send_contexts_many[i], communicator, many_aloc);
             m_send_contexts_many[i].persistent_launch();
+            m_send_contexts_many[i].push_component(m_send_components_many[i]);
             m_sends[i].pack(m_send_contexts_many[i], communicator);
+            m_send_components_many[i] = m_send_contexts_many[i].pop_component();
             m_send_contexts_many[i].batch_launch();
             m_send_contexts_many[i].persistent_stop();
             m_send_contexts_many[i].synchronize();
@@ -487,7 +489,9 @@ struct Comm
           } else {
             m_sends[i].allocate(m_send_contexts_few[i], communicator, few_aloc);
             m_send_contexts_few[i].persistent_launch();
+            m_send_contexts_few[i].push_component(m_send_components_few[i]);
             m_sends[i].pack(m_send_contexts_few[i], communicator);
+            m_send_components_few[i] = m_send_contexts_few[i].pop_component();
             m_send_contexts_few[i].batch_launch();
             m_send_contexts_few[i].persistent_stop();
             m_send_contexts_few[i].synchronize();
@@ -518,13 +522,17 @@ struct Comm
 
             if (m_sends[pack_send].have_many()) {
               m_send_contexts_many[pack_send].persistent_launch();
+              m_send_contexts_many[pack_send].push_component(m_send_components_many[pack_send]);
               m_sends[pack_send].pack(m_send_contexts_many[pack_send], communicator);
+              m_send_components_many[pack_send] = m_send_contexts_many[pack_send].pop_component();
               m_send_contexts_many[pack_send].recordEvent(m_send_events_many[pack_send]);
               m_send_contexts_many[pack_send].batch_launch();
               m_send_contexts_many[pack_send].persistent_stop();
             } else {
               m_send_contexts_few[pack_send].persistent_launch();
+              m_send_contexts_few[pack_send].push_component(m_send_components_few[pack_send]);
               m_sends[pack_send].pack(m_send_contexts_few[pack_send], communicator);
+              m_send_components_few[pack_send] = m_send_contexts_few[pack_send].pop_component();
               m_send_contexts_few[pack_send].recordEvent(m_send_events_few[pack_send]);
               m_send_contexts_few[pack_send].batch_launch();
               m_send_contexts_few[pack_send].persistent_stop();
@@ -581,7 +589,9 @@ struct Comm
           for (IdxT i = 0; i < num_sends; ++i) {
 
             if (m_sends[i].have_many()) {
+              m_send_contexts_many[i].push_component(m_send_components_many[i]);
               m_sends[i].pack(m_send_contexts_many[i], communicator);
+              m_send_components_many[i] = m_send_contexts_many[i].pop_component();
             }
           }
 
@@ -611,7 +621,9 @@ struct Comm
           for (IdxT i = 0; i < num_sends; ++i) {
 
             if (!m_sends[i].have_many()) {
+              m_send_contexts_few[i].push_component(m_send_components_few[i]);
               m_sends[i].pack(m_send_contexts_few[i], communicator);
+              m_send_components_few[i] = m_send_contexts_few[i].pop_component();
             }
           }
 
@@ -653,7 +665,9 @@ struct Comm
           while (pack_many_send < num_sends) {
 
             if (m_sends[pack_many_send].have_many()) {
+              m_send_contexts_many[pack_many_send].push_component(m_send_components_many[pack_many_send]);
               m_sends[pack_many_send].pack(m_send_contexts_many[pack_many_send], communicator);
+              m_send_components_many[pack_many_send] = m_send_contexts_many[pack_many_send].pop_component();
               m_send_contexts_many[pack_many_send].recordEvent(m_send_events_many[pack_many_send]);
             }
             ++pack_many_send;
@@ -690,7 +704,9 @@ struct Comm
           while (pack_few_send < num_sends) {
 
             if (!m_sends[pack_few_send].have_many()) {
+              m_send_contexts_few[pack_few_send].push_component(m_send_components_few[pack_few_send]);
               m_sends[pack_few_send].pack(m_send_contexts_few[pack_few_send], communicator);
+              m_send_components_few[pack_few_send] = m_send_contexts_few[pack_few_send].pop_component();
               m_send_contexts_few[pack_few_send].recordEvent(m_send_events_few[pack_few_send]);
             }
 
@@ -761,9 +777,13 @@ struct Comm
         for (IdxT i = 0; i < num_sends; ++i) {
 
           if (m_sends[i].have_many()) {
+            m_send_contexts_many[i].push_component(m_send_components_many[i]);
             m_sends[i].pack(m_send_contexts_many[i], communicator);
+            m_send_components_many[i] = m_send_contexts_many[i].pop_component();
           } else {
+            m_send_contexts_few[i].push_component(m_send_components_few[i]);
             m_sends[i].pack(m_send_contexts_few[i], communicator);
+            m_send_components_few[i] = m_send_contexts_few[i].pop_component();
           }
         }
 
@@ -825,10 +845,14 @@ struct Comm
 
           // pack and record events
           if (m_sends[i].have_many()) {
+            m_send_contexts_many[i].push_component(m_send_components_many[i]);
             m_sends[i].pack(m_send_contexts_many[i], communicator);
+            m_send_components_many[i] = m_send_contexts_many[i].pop_component();
             m_send_contexts_many[i].recordEvent(m_send_events_many[i]);
           } else {
+            m_send_contexts_few[i].push_component(m_send_components_few[i]);
             m_sends[i].pack(m_send_contexts_few[i], communicator);
+            m_send_components_few[i] = m_send_contexts_few[i].pop_component();
             m_send_contexts_few[i].recordEvent(m_send_events_few[i]);
           }
         }
@@ -934,13 +958,17 @@ struct Comm
 
           if (m_recvs[idx].have_many()) {
             m_recv_contexts_many[idx].persistent_launch();
+            m_recv_contexts_many[idx].push_component(m_recv_components_many[idx]);
             m_recvs[idx].unpack(m_recv_contexts_many[idx], communicator);
+            m_recv_components_many[idx] = m_recv_contexts_many[idx].pop_component();
             m_recv_contexts_many[idx].batch_launch();
             m_recv_contexts_many[idx].persistent_stop();
             m_recvs[idx].deallocate(m_recv_contexts_many[idx], communicator, many_aloc);
           } else {
             m_recv_contexts_few[idx].persistent_launch();
+            m_recv_contexts_few[idx].push_component(m_recv_components_few[idx]);
             m_recvs[idx].unpack(m_recv_contexts_few[idx], communicator);
+            m_recv_components_few[idx] = m_recv_contexts_few[idx].pop_component();
             m_recv_contexts_few[idx].batch_launch();
             m_recv_contexts_few[idx].persistent_stop();
             m_recvs[idx].deallocate(m_recv_contexts_few[idx], communicator, few_aloc);
@@ -988,9 +1016,13 @@ struct Comm
           for (IdxT i = 0; i < num_recvd; ++i) {
 
             if (m_recvs[indices[i]].have_many()) {
+              m_recv_contexts_many[indices[i]].push_component(m_recv_components_many[indices[i]]);
               m_recvs[indices[i]].unpack(m_recv_contexts_many[indices[i]], communicator);
+              m_recv_components_many[indices[i]] = m_recv_contexts_many[indices[i]].pop_component();
             } else {
+              m_recv_contexts_few[indices[i]].push_component(m_recv_components_few[indices[i]]);
               m_recvs[indices[i]].unpack(m_recv_contexts_few[indices[i]], communicator);
+              m_recv_components_few[indices[i]] = m_recv_contexts_few[indices[i]].pop_component();
             }
           }
 
@@ -1044,9 +1076,13 @@ struct Comm
         for (int idx = 0; idx < num_recvs; ++idx) {
 
           if (m_recvs[idx].have_many()) {
+            m_recv_contexts_many[idx].push_component(m_recv_components_many[idx]);
             m_recvs[idx].unpack(m_recv_contexts_many[idx], communicator);
+            m_recv_components_many[idx] = m_recv_contexts_many[idx].pop_component();
           } else {
+            m_recv_contexts_few[idx].push_component(m_recv_components_few[idx]);
             m_recvs[idx].unpack(m_recv_contexts_few[idx], communicator);
+            m_recv_components_few[idx] = m_recv_contexts_few[idx].pop_component();
           }
         }
 
