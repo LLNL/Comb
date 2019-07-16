@@ -233,12 +233,12 @@ struct Comm
 
   CommInfo& comminfo;
 
+  CommContext<policy_comm>& con_comm;
+
   CommInfo::method post_recv_method;
   CommInfo::method post_send_method;
   CommInfo::method wait_recv_method;
   CommInfo::method wait_send_method;
-
-  typename policy_comm::communicator_type communicator;
 
   using message_type = Message<policy_comm>;
   std::vector<message_type> m_sends;
@@ -268,16 +268,17 @@ struct Comm
   std::vector<typename policy_many::component_type> m_recv_components_many;
   std::vector<typename policy_few::component_type>  m_recv_components_few;
 
-  Comm(CommInfo& comminfo_, COMB::Allocator& mesh_aloc_, COMB::Allocator& many_aloc_, COMB::Allocator& few_aloc_)
+  Comm(CommContext<policy_comm>& con_comm_, CommInfo& comminfo_,
+       COMB::Allocator& mesh_aloc_, COMB::Allocator& many_aloc_, COMB::Allocator& few_aloc_)
     : mesh_aloc(mesh_aloc_)
     , many_aloc(many_aloc_)
     , few_aloc(few_aloc_)
     , comminfo(comminfo_)
+    , con_comm(con_comm_)
     , post_recv_method(comminfo_.post_recv_method)
     , post_send_method(comminfo_.post_send_method)
     , wait_recv_method(comminfo_.wait_recv_method)
     , wait_send_method(comminfo_.wait_send_method)
-    , communicator(policy_comm::communicator_create(comminfo_.cart.comm))
   { }
 
   void finish_populating(ExecContext<policy_many>& con_many, ExecContext<policy_few>& con_few)
@@ -312,14 +313,14 @@ struct Comm
     for(message_type& msg : m_recvs) {
       recv_ranks.push_back(msg.partner_rank());
     }
-    connect_ranks(policy_comm{}, communicator, send_ranks, recv_ranks);
+    con_comm.connect_ranks(send_ranks, recv_ranks);
 
-    message_type::setup_mempool(communicator, many_aloc, few_aloc);
+    message_type::setup_mempool(con_comm, many_aloc, few_aloc);
   }
 
   void depopulate()
   {
-    message_type::teardown_mempool(communicator);
+    message_type::teardown_mempool(con_comm);
 
     size_t num = m_send_contexts_few.size();
     for(size_t i = 0; i != num; ++i) {
@@ -367,7 +368,7 @@ struct Comm
     for(message_type& msg : m_recvs) {
       recv_ranks.push_back(msg.partner_rank());
     }
-    disconnect_ranks(policy_comm{}, communicator, send_ranks, recv_ranks);
+    con_comm.disconnect_ranks(send_ranks, recv_ranks);
 
     for(message_type& msg : m_sends) {
       msg.destroy();
@@ -379,7 +380,7 @@ struct Comm
 
   ~Comm()
   {
-    policy_comm::communicator_destroy(communicator);
+
   }
 
   bool mock_communication() const
@@ -399,7 +400,7 @@ struct Comm
 
     IdxT num_recvs = m_recvs.size();
 
-    m_recv_requests.resize(num_recvs, policy_comm::recv_request_null());
+    m_recv_requests.resize(num_recvs, con_comm.recv_request_null());
 
     switch (post_recv_method) {
       case CommInfo::method::waitany:
@@ -408,11 +409,11 @@ struct Comm
         for (IdxT i = 0; i < num_recvs; ++i) {
 
           if (m_recvs[i].have_many()) {
-            m_recvs[i].allocate(m_recv_contexts_many[i], communicator, many_aloc);
-            m_recvs[i].Irecv(m_recv_contexts_many[i], communicator, &m_recv_requests[i]);
+            m_recvs[i].allocate(m_recv_contexts_many[i], con_comm, many_aloc);
+            m_recvs[i].Irecv(m_recv_contexts_many[i], con_comm, &m_recv_requests[i]);
           } else {
-            m_recvs[i].allocate(m_recv_contexts_few[i], communicator, few_aloc);
-            m_recvs[i].Irecv(m_recv_contexts_few[i], communicator, &m_recv_requests[i]);
+            m_recvs[i].allocate(m_recv_contexts_few[i], con_comm, few_aloc);
+            m_recvs[i].Irecv(m_recv_contexts_few[i], con_comm, &m_recv_requests[i]);
           }
         }
       } break;
@@ -422,25 +423,25 @@ struct Comm
         for (IdxT i = 0; i < num_recvs; ++i) {
 
           if (m_recvs[i].have_many()) {
-            m_recvs[i].allocate(m_recv_contexts_many[i], communicator, many_aloc);
+            m_recvs[i].allocate(m_recv_contexts_many[i], con_comm, many_aloc);
           }
         }
         for (IdxT i = 0; i < num_recvs; ++i) {
 
           if (m_recvs[i].have_many()) {
-            m_recvs[i].Irecv(m_recv_contexts_many[i], communicator, &m_recv_requests[i]);
+            m_recvs[i].Irecv(m_recv_contexts_many[i], con_comm, &m_recv_requests[i]);
           }
         }
         for (IdxT i = 0; i < num_recvs; ++i) {
 
           if (!m_recvs[i].have_many()) {
-            m_recvs[i].allocate(m_recv_contexts_few[i], communicator, few_aloc);
+            m_recvs[i].allocate(m_recv_contexts_few[i], con_comm, few_aloc);
           }
         }
         for (IdxT i = 0; i < num_recvs; ++i) {
 
           if (!m_recvs[i].have_many()) {
-            m_recvs[i].Irecv(m_recv_contexts_few[i], communicator, &m_recv_requests[i]);
+            m_recvs[i].Irecv(m_recv_contexts_few[i], con_comm, &m_recv_requests[i]);
           }
         }
       } break;
@@ -450,17 +451,17 @@ struct Comm
         for (IdxT i = 0; i < num_recvs; ++i) {
 
           if (m_recvs[i].have_many()) {
-            m_recvs[i].allocate(m_recv_contexts_many[i], communicator, many_aloc);
+            m_recvs[i].allocate(m_recv_contexts_many[i], con_comm, many_aloc);
           } else {
-            m_recvs[i].allocate(m_recv_contexts_few[i], communicator, few_aloc);
+            m_recvs[i].allocate(m_recv_contexts_few[i], con_comm, few_aloc);
           }
         }
         for (IdxT i = 0; i < num_recvs; ++i) {
 
           if (m_recvs[i].have_many()) {
-            m_recvs[i].Irecv(m_recv_contexts_many[i], communicator, &m_recv_requests[i]);
+            m_recvs[i].Irecv(m_recv_contexts_many[i], con_comm, &m_recv_requests[i]);
           } else {
-            m_recvs[i].Irecv(m_recv_contexts_few[i], communicator, &m_recv_requests[i]);
+            m_recvs[i].Irecv(m_recv_contexts_few[i], con_comm, &m_recv_requests[i]);
           }
         }
       } break;
@@ -479,7 +480,7 @@ struct Comm
 
     const IdxT num_sends = m_sends.size();
 
-    m_send_requests.resize(num_sends, policy_comm::send_request_null());
+    m_send_requests.resize(num_sends, con_comm.send_request_null());
 
     int num_many = 0;
     int num_few = 0;
@@ -498,27 +499,27 @@ struct Comm
         for (IdxT i = 0; i < num_sends; ++i) {
 
           if (m_sends[i].have_many()) {
-            m_sends[i].allocate(m_send_contexts_many[i], communicator, many_aloc);
+            m_sends[i].allocate(m_send_contexts_many[i], con_comm, many_aloc);
             m_send_contexts_many[i].start_group(m_send_groups_many[i]);
             m_send_contexts_many[i].push_component(m_send_components_many[i]);
-            m_sends[i].pack(m_send_contexts_many[i], communicator);
+            m_sends[i].pack(m_send_contexts_many[i], con_comm);
             m_send_components_many[i] = m_send_contexts_many[i].pop_component();
             m_send_contexts_many[i].finish_group();
             m_send_contexts_many[i].synchronize();
-            message_type::start_Isends(m_send_contexts_many[i], communicator);
-            m_sends[i].Isend(m_send_contexts_many[i], communicator, &m_send_requests[i]);
-            message_type::finish_Isends(m_send_contexts_many[i], communicator);
+            message_type::start_Isends(m_send_contexts_many[i], con_comm);
+            m_sends[i].Isend(m_send_contexts_many[i], con_comm, &m_send_requests[i]);
+            message_type::finish_Isends(m_send_contexts_many[i], con_comm);
           } else {
-            m_sends[i].allocate(m_send_contexts_few[i], communicator, few_aloc);
+            m_sends[i].allocate(m_send_contexts_few[i], con_comm, few_aloc);
             m_send_contexts_few[i].start_group(m_send_groups_few[i]);
             m_send_contexts_few[i].push_component(m_send_components_few[i]);
-            m_sends[i].pack(m_send_contexts_few[i], communicator);
+            m_sends[i].pack(m_send_contexts_few[i], con_comm);
             m_send_components_few[i] = m_send_contexts_few[i].pop_component();
             m_send_contexts_few[i].finish_group();
             m_send_contexts_few[i].synchronize();
-            message_type::start_Isends(m_send_contexts_few[i], communicator);
-            m_sends[i].Isend(m_send_contexts_few[i], communicator, &m_send_requests[i]);
-            message_type::finish_Isends(m_send_contexts_few[i], communicator);
+            message_type::start_Isends(m_send_contexts_few[i], con_comm);
+            m_sends[i].Isend(m_send_contexts_few[i], con_comm, &m_send_requests[i]);
+            message_type::finish_Isends(m_send_contexts_few[i], con_comm);
           }
         }
       } break;
@@ -528,9 +529,9 @@ struct Comm
         for (IdxT i = 0; i < num_sends; ++i) {
 
           if (m_sends[i].have_many()) {
-            m_sends[i].allocate(m_send_contexts_many[i], communicator, many_aloc);
+            m_sends[i].allocate(m_send_contexts_many[i], con_comm, many_aloc);
           } else {
-            m_sends[i].allocate(m_send_contexts_few[i], communicator, few_aloc);
+            m_sends[i].allocate(m_send_contexts_few[i], con_comm, few_aloc);
           }
         }
 
@@ -546,14 +547,14 @@ struct Comm
             if (m_sends[pack_send].have_many()) {
               m_send_contexts_many[pack_send].start_group(m_send_groups_many[pack_send]);
               m_send_contexts_many[pack_send].push_component(m_send_components_many[pack_send]);
-              m_sends[pack_send].pack(m_send_contexts_many[pack_send], communicator);
+              m_sends[pack_send].pack(m_send_contexts_many[pack_send], con_comm);
               m_send_components_many[pack_send] = m_send_contexts_many[pack_send].pop_component();
               m_send_contexts_many[pack_send].recordEvent(m_send_events_many[pack_send]);
               m_send_contexts_many[pack_send].finish_group();
             } else {
               m_send_contexts_few[pack_send].start_group(m_send_groups_few[pack_send]);
               m_send_contexts_few[pack_send].push_component(m_send_components_few[pack_send]);
-              m_sends[pack_send].pack(m_send_contexts_few[pack_send], communicator);
+              m_sends[pack_send].pack(m_send_contexts_few[pack_send], con_comm);
               m_send_components_few[pack_send] = m_send_contexts_few[pack_send].pop_component();
               m_send_contexts_few[pack_send].recordEvent(m_send_events_few[pack_send]);
               m_send_contexts_few[pack_send].finish_group();
@@ -569,9 +570,9 @@ struct Comm
             if (m_sends[post_many_send].have_many()) {
               if (m_send_contexts_many[post_many_send].queryEvent(m_send_events_many[post_many_send])) {
 
-                message_type::start_Isends(m_send_contexts_many[post_many_send], communicator);
-                m_sends[post_many_send].Isend(m_send_contexts_many[post_many_send], communicator, &m_send_requests[post_many_send]);
-                message_type::finish_Isends(m_send_contexts_many[post_many_send], communicator);
+                message_type::start_Isends(m_send_contexts_many[post_many_send], con_comm);
+                m_sends[post_many_send].Isend(m_send_contexts_many[post_many_send], con_comm, &m_send_requests[post_many_send]);
+                message_type::finish_Isends(m_send_contexts_many[post_many_send], con_comm);
                 ++post_many_send;
               } else {
                 break;
@@ -587,9 +588,9 @@ struct Comm
             if (!m_sends[post_few_send].have_many()) {
               if (m_send_contexts_few[post_few_send].queryEvent(m_send_events_few[post_few_send])) {
 
-                message_type::start_Isends(m_send_contexts_few[post_few_send], communicator);
-                m_sends[post_few_send].Isend(m_send_contexts_few[post_few_send], communicator, &m_send_requests[post_few_send]);
-                message_type::finish_Isends(m_send_contexts_few[post_few_send], communicator);
+                message_type::start_Isends(m_send_contexts_few[post_few_send], con_comm);
+                m_sends[post_few_send].Isend(m_send_contexts_few[post_few_send], con_comm, &m_send_requests[post_few_send]);
+                message_type::finish_Isends(m_send_contexts_few[post_few_send], con_comm);
                 ++post_few_send;
               } else {
                 break;
@@ -606,7 +607,7 @@ struct Comm
           for (IdxT i = 0; i < num_sends; ++i) {
 
             if (m_sends[i].have_many()) {
-              m_sends[i].allocate(m_send_contexts_many[i], communicator, many_aloc);
+              m_sends[i].allocate(m_send_contexts_many[i], con_comm, many_aloc);
             }
           }
 
@@ -616,7 +617,7 @@ struct Comm
 
             if (m_sends[i].have_many()) {
               m_send_contexts_many[i].push_component(m_send_components_many[i]);
-              m_sends[i].pack(m_send_contexts_many[i], communicator);
+              m_sends[i].pack(m_send_contexts_many[i], con_comm);
               m_send_components_many[i] = m_send_contexts_many[i].pop_component();
             }
           }
@@ -625,21 +626,21 @@ struct Comm
 
           con_many.synchronize();
 
-          message_type::start_Isends(con_many, communicator);
+          message_type::start_Isends(con_many, con_comm);
           for (IdxT i = 0; i < num_sends; ++i) {
 
             if (m_sends[i].have_many()) {
-              m_sends[i].Isend(m_send_contexts_many[i], communicator, &m_send_requests[i]);
+              m_sends[i].Isend(m_send_contexts_many[i], con_comm, &m_send_requests[i]);
             }
           }
-          message_type::finish_Isends(con_many, communicator);
+          message_type::finish_Isends(con_many, con_comm);
         }
 
         if (num_few > 0) {
           for (IdxT i = 0; i < num_sends; ++i) {
 
             if (!m_sends[i].have_many()) {
-              m_sends[i].allocate(m_send_contexts_few[i], communicator, few_aloc);
+              m_sends[i].allocate(m_send_contexts_few[i], con_comm, few_aloc);
             }
           }
 
@@ -649,7 +650,7 @@ struct Comm
 
             if (!m_sends[i].have_many()) {
               m_send_contexts_few[i].push_component(m_send_components_few[i]);
-              m_sends[i].pack(m_send_contexts_few[i], communicator);
+              m_sends[i].pack(m_send_contexts_few[i], con_comm);
               m_send_components_few[i] = m_send_contexts_few[i].pop_component();
             }
           }
@@ -658,14 +659,14 @@ struct Comm
 
           con_few.synchronize();
 
-          message_type::start_Isends(con_few, communicator);
+          message_type::start_Isends(con_few, con_comm);
           for (IdxT i = 0; i < num_sends; ++i) {
 
             if (!m_sends[i].have_many()) {
-              m_sends[i].Isend(m_send_contexts_few[i], communicator, &m_send_requests[i]);
+              m_sends[i].Isend(m_send_contexts_few[i], con_comm, &m_send_requests[i]);
             }
           }
-          message_type::finish_Isends(con_few, communicator);
+          message_type::finish_Isends(con_few, con_comm);
         }
       } break;
       case CommInfo::method::testsome:
@@ -674,9 +675,9 @@ struct Comm
         for (IdxT i = 0; i < num_sends; ++i) {
 
           if (m_sends[i].have_many()) {
-            m_sends[i].allocate(m_send_contexts_many[i], communicator, many_aloc);
+            m_sends[i].allocate(m_send_contexts_many[i], con_comm, many_aloc);
           } else {
-            m_sends[i].allocate(m_send_contexts_few[i], communicator, few_aloc);
+            m_sends[i].allocate(m_send_contexts_few[i], con_comm, few_aloc);
           }
         }
 
@@ -694,7 +695,7 @@ struct Comm
 
             if (m_sends[pack_many_send].have_many()) {
               m_send_contexts_many[pack_many_send].push_component(m_send_components_many[pack_many_send]);
-              m_sends[pack_many_send].pack(m_send_contexts_many[pack_many_send], communicator);
+              m_sends[pack_many_send].pack(m_send_contexts_many[pack_many_send], con_comm);
               m_send_components_many[pack_many_send] = m_send_contexts_many[pack_many_send].pop_component();
               m_send_contexts_many[pack_many_send].recordEvent(m_send_events_many[pack_many_send]);
             }
@@ -714,9 +715,9 @@ struct Comm
             if (m_send_contexts_many[post_many_send].queryEvent(m_send_events_many[post_many_send])) {
 
               // TODO send in groups
-              message_type::start_Isends(m_send_contexts_many[post_many_send], communicator);
-              m_sends[post_many_send].Isend(m_send_contexts_many[post_many_send], communicator, &m_send_requests[post_many_send]);
-              message_type::start_Isends(m_send_contexts_many[post_many_send], communicator);
+              message_type::start_Isends(m_send_contexts_many[post_many_send], con_comm);
+              m_sends[post_many_send].Isend(m_send_contexts_many[post_many_send], con_comm, &m_send_requests[post_many_send]);
+              message_type::start_Isends(m_send_contexts_many[post_many_send], con_comm);
               ++post_many_send;
             } else {
               break;
@@ -735,7 +736,7 @@ struct Comm
 
             if (!m_sends[pack_few_send].have_many()) {
               m_send_contexts_few[pack_few_send].push_component(m_send_components_few[pack_few_send]);
-              m_sends[pack_few_send].pack(m_send_contexts_few[pack_few_send], communicator);
+              m_sends[pack_few_send].pack(m_send_contexts_few[pack_few_send], con_comm);
               m_send_components_few[pack_few_send] = m_send_contexts_few[pack_few_send].pop_component();
               m_send_contexts_few[pack_few_send].recordEvent(m_send_events_few[pack_few_send]);
             }
@@ -758,9 +759,9 @@ struct Comm
               if (m_send_contexts_many[post_many_send].queryEvent(m_send_events_many[post_many_send])) {
 
                 // TODO send in groups
-                message_type::start_Isends(m_send_contexts_many[post_many_send], communicator);
-                m_sends[post_many_send].Isend(m_send_contexts_many[post_many_send], communicator, &m_send_requests[post_many_send]);
-                message_type::start_Isends(m_send_contexts_many[post_many_send], communicator);
+                message_type::start_Isends(m_send_contexts_many[post_many_send], con_comm);
+                m_sends[post_many_send].Isend(m_send_contexts_many[post_many_send], con_comm, &m_send_requests[post_many_send]);
+                message_type::start_Isends(m_send_contexts_many[post_many_send], con_comm);
                 ++post_many_send;
               } else {
                 break;
@@ -776,9 +777,9 @@ struct Comm
               if (m_send_contexts_few[post_few_send].queryEvent(m_send_events_few[post_few_send])) {
 
                 // TODO send in groups
-                message_type::start_Isends(m_send_contexts_few[post_few_send], communicator);
-                m_sends[post_few_send].Isend(m_send_contexts_few[post_few_send], communicator, &m_send_requests[post_few_send]);
-                message_type::start_Isends(m_send_contexts_few[post_few_send], communicator);
+                message_type::start_Isends(m_send_contexts_few[post_few_send], con_comm);
+                m_sends[post_few_send].Isend(m_send_contexts_few[post_few_send], con_comm, &m_send_requests[post_few_send]);
+                message_type::start_Isends(m_send_contexts_few[post_few_send], con_comm);
                 ++post_few_send;
               } else {
                 break;
@@ -795,9 +796,9 @@ struct Comm
         for (IdxT i = 0; i < num_sends; ++i) {
 
           if (m_sends[i].have_many()) {
-            m_sends[i].allocate(m_send_contexts_many[i], communicator, many_aloc);
+            m_sends[i].allocate(m_send_contexts_many[i], con_comm, many_aloc);
           } else {
-            m_sends[i].allocate(m_send_contexts_few[i], communicator, few_aloc);
+            m_sends[i].allocate(m_send_contexts_few[i], con_comm, few_aloc);
           }
         }
 
@@ -813,11 +814,11 @@ struct Comm
 
           if (m_sends[i].have_many()) {
             m_send_contexts_many[i].push_component(m_send_components_many[i]);
-            m_sends[i].pack(m_send_contexts_many[i], communicator);
+            m_sends[i].pack(m_send_contexts_many[i], con_comm);
             m_send_components_many[i] = m_send_contexts_many[i].pop_component();
           } else {
             m_send_contexts_few[i].push_component(m_send_components_few[i]);
-            m_sends[i].pack(m_send_contexts_few[i], communicator);
+            m_sends[i].pack(m_send_contexts_few[i], con_comm);
             m_send_components_few[i] = m_send_contexts_few[i].pop_component();
           }
         }
@@ -839,28 +840,28 @@ struct Comm
         }
 
         if (num_many > 0 && num_few > 0) {
-          message_type::start_Isends(con_few, communicator); message_type::start_Isends(con_many, communicator);
+          message_type::start_Isends(con_few, con_comm); message_type::start_Isends(con_many, con_comm);
         } else if (num_many > 0) {
-          message_type::start_Isends(con_many, communicator);
+          message_type::start_Isends(con_many, con_comm);
         } else if (num_few > 0) {
-          message_type::start_Isends(con_few, communicator);
+          message_type::start_Isends(con_few, con_comm);
         }
 
         for (IdxT i = 0; i < num_sends; ++i) {
 
           if (m_sends[i].have_many()) {
-            m_sends[i].Isend(m_send_contexts_many[i], communicator, &m_send_requests[i]);
+            m_sends[i].Isend(m_send_contexts_many[i], con_comm, &m_send_requests[i]);
           } else {
-            m_sends[i].Isend(m_send_contexts_few[i], communicator, &m_send_requests[i]);
+            m_sends[i].Isend(m_send_contexts_few[i], con_comm, &m_send_requests[i]);
           }
         }
 
         if (num_many > 0 && num_few > 0) {
-          message_type::finish_Isends(con_few, communicator); message_type::finish_Isends(con_many, communicator);
+          message_type::finish_Isends(con_few, con_comm); message_type::finish_Isends(con_many, con_comm);
         } else if (num_many > 0) {
-          message_type::finish_Isends(con_many, communicator);
+          message_type::finish_Isends(con_many, con_comm);
         } else if (num_few > 0) {
-          message_type::finish_Isends(con_few, communicator);
+          message_type::finish_Isends(con_few, con_comm);
         }
       } break;
       case CommInfo::method::testall:
@@ -869,9 +870,9 @@ struct Comm
         for (IdxT i = 0; i < num_sends; ++i) {
 
           if (m_sends[i].have_many()) {
-            m_sends[i].allocate(m_send_contexts_many[i], communicator, many_aloc);
+            m_sends[i].allocate(m_send_contexts_many[i], con_comm, many_aloc);
           } else {
-            m_sends[i].allocate(m_send_contexts_few[i], communicator, few_aloc);
+            m_sends[i].allocate(m_send_contexts_few[i], con_comm, few_aloc);
           }
         }
 
@@ -889,12 +890,12 @@ struct Comm
           // pack and record events
           if (m_sends[i].have_many()) {
             m_send_contexts_many[i].push_component(m_send_components_many[i]);
-            m_sends[i].pack(m_send_contexts_many[i], communicator);
+            m_sends[i].pack(m_send_contexts_many[i], con_comm);
             m_send_components_many[i] = m_send_contexts_many[i].pop_component();
             m_send_contexts_many[i].recordEvent(m_send_events_many[i]);
           } else {
             m_send_contexts_few[i].push_component(m_send_components_few[i]);
-            m_sends[i].pack(m_send_contexts_few[i], communicator);
+            m_sends[i].pack(m_send_contexts_few[i], con_comm);
             m_send_components_few[i] = m_send_contexts_few[i].pop_component();
             m_send_contexts_few[i].recordEvent(m_send_events_few[i]);
           }
@@ -920,9 +921,9 @@ struct Comm
               if (m_send_contexts_many[post_many_send].queryEvent(m_send_events_many[post_many_send])) {
 
                 // TODO send in groups
-                message_type::start_Isends(m_send_contexts_many[post_many_send], communicator);
-                m_sends[post_many_send].Isend(m_send_contexts_many[post_many_send], communicator, &m_send_requests[post_many_send]);
-                message_type::start_Isends(m_send_contexts_many[post_many_send], communicator);
+                message_type::start_Isends(m_send_contexts_many[post_many_send], con_comm);
+                m_sends[post_many_send].Isend(m_send_contexts_many[post_many_send], con_comm, &m_send_requests[post_many_send]);
+                message_type::start_Isends(m_send_contexts_many[post_many_send], con_comm);
                 ++post_many_send;
               } else {
                 break;
@@ -938,9 +939,9 @@ struct Comm
               if (m_send_contexts_few[post_few_send].queryEvent(m_send_events_few[post_few_send])) {
 
                 // TODO send in groups
-                message_type::start_Isends(m_send_contexts_few[post_few_send], communicator);
-                m_sends[post_few_send].Isend(m_send_contexts_few[post_few_send], communicator, &m_send_requests[post_few_send]);
-                message_type::start_Isends(m_send_contexts_few[post_few_send], communicator);
+                message_type::start_Isends(m_send_contexts_few[post_few_send], con_comm);
+                m_sends[post_few_send].Isend(m_send_contexts_few[post_few_send], con_comm, &m_send_requests[post_few_send]);
+                message_type::start_Isends(m_send_contexts_few[post_few_send], con_comm);
                 ++post_few_send;
               } else {
                 break;
@@ -982,7 +983,7 @@ struct Comm
       case CommInfo::method::waitany:
       case CommInfo::method::testany:
       {
-        typename policy_comm::recv_status_type status = policy_comm::recv_status_null();
+        typename policy_comm::recv_status_type status = con_comm.recv_status_null();
 
         IdxT num_done = 0;
         while (num_done < num_recvs) {
@@ -1000,17 +1001,17 @@ struct Comm
           if (m_recvs[idx].have_many()) {
             m_recv_contexts_many[idx].start_group(m_recv_groups_many[idx]);
             m_recv_contexts_many[idx].push_component(m_recv_components_many[idx]);
-            m_recvs[idx].unpack(m_recv_contexts_many[idx], communicator);
+            m_recvs[idx].unpack(m_recv_contexts_many[idx], con_comm);
             m_recv_components_many[idx] = m_recv_contexts_many[idx].pop_component();
             m_recv_contexts_many[idx].finish_group();
-            m_recvs[idx].deallocate(m_recv_contexts_many[idx], communicator, many_aloc);
+            m_recvs[idx].deallocate(m_recv_contexts_many[idx], con_comm, many_aloc);
           } else {
             m_recv_contexts_few[idx].start_group(m_recv_groups_few[idx]);
             m_recv_contexts_few[idx].push_component(m_recv_components_few[idx]);
-            m_recvs[idx].unpack(m_recv_contexts_few[idx], communicator);
+            m_recvs[idx].unpack(m_recv_contexts_few[idx], con_comm);
             m_recv_components_few[idx] = m_recv_contexts_few[idx].pop_component();
             m_recv_contexts_few[idx].finish_group();
-            m_recvs[idx].deallocate(m_recv_contexts_few[idx], communicator, few_aloc);
+            m_recvs[idx].deallocate(m_recv_contexts_few[idx], con_comm, few_aloc);
           }
 
           num_done += 1;
@@ -1020,7 +1021,7 @@ struct Comm
       case CommInfo::method::waitsome:
       case CommInfo::method::testsome:
       {
-        std::vector<typename policy_comm::recv_status_type> recv_statuses(m_recv_requests.size(), policy_comm::recv_status_null());
+        std::vector<typename policy_comm::recv_status_type> recv_statuses(m_recv_requests.size(), con_comm.recv_status_null());
         std::vector<int> indices(m_recv_requests.size(), -1);
 
         IdxT num_done = 0;
@@ -1056,11 +1057,11 @@ struct Comm
 
             if (m_recvs[indices[i]].have_many()) {
               m_recv_contexts_many[indices[i]].push_component(m_recv_components_many[indices[i]]);
-              m_recvs[indices[i]].unpack(m_recv_contexts_many[indices[i]], communicator);
+              m_recvs[indices[i]].unpack(m_recv_contexts_many[indices[i]], con_comm);
               m_recv_components_many[indices[i]] = m_recv_contexts_many[indices[i]].pop_component();
             } else {
               m_recv_contexts_few[indices[i]].push_component(m_recv_components_few[indices[i]]);
-              m_recvs[indices[i]].unpack(m_recv_contexts_few[indices[i]], communicator);
+              m_recvs[indices[i]].unpack(m_recv_contexts_few[indices[i]], con_comm);
               m_recv_components_few[indices[i]] = m_recv_contexts_few[indices[i]].pop_component();
             }
           }
@@ -1076,9 +1077,9 @@ struct Comm
           for (IdxT i = 0; i < num_recvd; ++i) {
 
             if (m_recvs[indices[i]].have_many()) {
-              m_recvs[indices[i]].deallocate(m_recv_contexts_many[indices[i]], communicator, many_aloc);
+              m_recvs[indices[i]].deallocate(m_recv_contexts_many[indices[i]], con_comm, many_aloc);
             } else {
-              m_recvs[indices[i]].deallocate(m_recv_contexts_few[indices[i]], communicator, few_aloc);
+              m_recvs[indices[i]].deallocate(m_recv_contexts_few[indices[i]], con_comm, few_aloc);
             }
           }
 
@@ -1088,7 +1089,7 @@ struct Comm
       case CommInfo::method::waitall:
       case CommInfo::method::testall:
       {
-        std::vector<typename policy_comm::recv_status_type> recv_statuses(m_recv_requests.size(), policy_comm::recv_status_null());
+        std::vector<typename policy_comm::recv_status_type> recv_statuses(m_recv_requests.size(), con_comm.recv_status_null());
 
         if (wait_recv_method == CommInfo::method::waitall) {
           message_type::wait_recv_all(num_recvs, &m_recv_requests[0], &recv_statuses[0]);
@@ -1108,11 +1109,11 @@ struct Comm
 
           if (m_recvs[idx].have_many()) {
             m_recv_contexts_many[idx].push_component(m_recv_components_many[idx]);
-            m_recvs[idx].unpack(m_recv_contexts_many[idx], communicator);
+            m_recvs[idx].unpack(m_recv_contexts_many[idx], con_comm);
             m_recv_components_many[idx] = m_recv_contexts_many[idx].pop_component();
           } else {
             m_recv_contexts_few[idx].push_component(m_recv_components_few[idx]);
-            m_recvs[idx].unpack(m_recv_contexts_few[idx], communicator);
+            m_recvs[idx].unpack(m_recv_contexts_few[idx], con_comm);
             m_recv_components_few[idx] = m_recv_contexts_few[idx].pop_component();
           }
         }
@@ -1128,9 +1129,9 @@ struct Comm
         for (int idx = 0; idx < num_recvs; ++idx) {
 
           if (m_recvs[idx].have_many()) {
-            m_recvs[idx].deallocate(m_recv_contexts_many[idx], communicator, many_aloc);
+            m_recvs[idx].deallocate(m_recv_contexts_many[idx], con_comm, many_aloc);
           } else {
-            m_recvs[idx].deallocate(m_recv_contexts_few[idx], communicator, few_aloc);
+            m_recvs[idx].deallocate(m_recv_contexts_few[idx], con_comm, few_aloc);
           }
         }
       } break;
@@ -1164,7 +1165,7 @@ struct Comm
       case CommInfo::method::waitany:
       case CommInfo::method::testany:
       {
-        typename policy_comm::send_status_type status = policy_comm::send_status_null();
+        typename policy_comm::send_status_type status = con_comm.send_status_null();
 
         IdxT num_done = 0;
         while (num_done < num_sends) {
@@ -1180,9 +1181,9 @@ struct Comm
           }
 
           if (m_sends[idx].have_many()) {
-            m_sends[idx].deallocate(m_send_contexts_many[idx], communicator, many_aloc);
+            m_sends[idx].deallocate(m_send_contexts_many[idx], con_comm, many_aloc);
           } else {
-            m_sends[idx].deallocate(m_send_contexts_few[idx], communicator, few_aloc);
+            m_sends[idx].deallocate(m_send_contexts_few[idx], con_comm, few_aloc);
           }
 
           num_done += 1;
@@ -1191,7 +1192,7 @@ struct Comm
       case CommInfo::method::waitsome:
       case CommInfo::method::testsome:
       {
-        std::vector<typename policy_comm::send_status_type> send_statuses(m_send_requests.size(), policy_comm::send_status_null());
+        std::vector<typename policy_comm::send_status_type> send_statuses(m_send_requests.size(), con_comm.send_status_null());
         std::vector<int> indices(m_send_requests.size(), -1);
 
         IdxT num_done = 0;
@@ -1207,9 +1208,9 @@ struct Comm
           for (IdxT i = 0; i < num_sent; ++i) {
 
             if (m_sends[indices[i]].have_many()) {
-              m_sends[indices[i]].deallocate(m_send_contexts_many[indices[i]], communicator, many_aloc);
+              m_sends[indices[i]].deallocate(m_send_contexts_many[indices[i]], con_comm, many_aloc);
             } else {
-              m_sends[indices[i]].deallocate(m_send_contexts_few[indices[i]], communicator, few_aloc);
+              m_sends[indices[i]].deallocate(m_send_contexts_few[indices[i]], con_comm, few_aloc);
             }
           }
 
@@ -1219,7 +1220,7 @@ struct Comm
       case CommInfo::method::waitall:
       case CommInfo::method::testall:
       {
-        std::vector<typename policy_comm::send_status_type> send_statuses(m_send_requests.size(), policy_comm::send_status_null());
+        std::vector<typename policy_comm::send_status_type> send_statuses(m_send_requests.size(), con_comm.send_status_null());
 
         if (wait_send_method == CommInfo::method::waitall) {
           message_type::wait_send_all(num_sends, &m_send_requests[0], &send_statuses[0]);
@@ -1230,9 +1231,9 @@ struct Comm
         for (IdxT idx = 0; idx < num_sends; ++idx) {
 
           if (m_sends[idx].have_many()) {
-            m_sends[idx].deallocate(m_send_contexts_many[idx], communicator, many_aloc);
+            m_sends[idx].deallocate(m_send_contexts_many[idx], con_comm, many_aloc);
           } else {
-            m_sends[idx].deallocate(m_send_contexts_few[idx], communicator, few_aloc);
+            m_sends[idx].deallocate(m_send_contexts_few[idx], con_comm, few_aloc);
           }
         }
       } break;

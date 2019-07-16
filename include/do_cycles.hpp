@@ -37,7 +37,7 @@ bool should_do_cycles(CommContext<pol_comm>& con_comm,
 }
 
 template < typename pol_comm, typename pol_mesh, typename pol_many, typename pol_few >
-void do_cycles(CommContext<pol_comm>&,
+void do_cycles(CommContext<pol_comm>& con_comm_in,
                CommInfo& comm_info, MeshInfo& info,
                IdxT num_vars, IdxT ncycles,
                ExecContext<pol_mesh>& con_mesh, COMB::Allocator& aloc_mesh,
@@ -71,13 +71,15 @@ void do_cycles(CommContext<pol_comm>&,
 
     comminfo.set_name(comm_name);
 
+    CommContext<pol_comm> con_comm(con_comm_in, comminfo.cart.comm);
+
     // if policies are the same set cutoff to 0 (always use pol_many) to simplify algorithms
     if (std::is_same<pol_many, pol_few>::value) {
       comminfo.cutoff = 0;
     }
 
     // make communicator object
-    comm_type comm(comminfo, aloc_mesh, aloc_many, aloc_few);
+    comm_type comm(con_comm, comminfo, aloc_mesh, aloc_many, aloc_few);
 
     comm.barrier();
 

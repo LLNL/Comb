@@ -36,7 +36,7 @@
 struct MpRequest
 {
   int status;
-  struct mp* comm;
+  struct mp* g;
   int partner_rank;
   ContextEnum context_type;
   union context_union {
@@ -49,7 +49,7 @@ struct MpRequest
 
   MpRequest()
     : status(0)
-    , comm(nullptr)
+    , g(nullptr)
     , partner_rank(-1)
     , context_type(ContextEnum::invalid)
     , context()
@@ -59,7 +59,7 @@ struct MpRequest
 
   MpRequest(MpRequest const& other)
     : status(other.status)
-    , comm(other.comm)
+    , g(other.g)
     , partner_rank(other.partner_rank)
     , context_type(ContextEnum::invalid)
     , context()
@@ -70,7 +70,7 @@ struct MpRequest
   MpRequest& operator=(MpRequest const& other)
   {
     status = other.status;
-    comm = other.comm;
+    g = other.g;
     partner_rank = other.partner_rank;
     copy_context(other.context_type, other.context);
     return *this;
@@ -148,80 +148,98 @@ struct mp_pol {
   // compile mpi_type packing/unpacking tests for this comm policy
   static const bool use_mpi_type = false;
   static const char* get_name() { return "mp"; }
-  using communicator_type = struct mp*;
-  static inline communicator_type communicator_create(MPI_Comm comm) { return detail::mp::init(comm); }
-  static inline void communicator_destroy(communicator_type g) { detail::mp::term(g); }
   using send_request_type = MpRequest;
-  static inline send_request_type send_request_null() { return send_request_type{}; }
   using recv_request_type = MpRequest;
-  static inline recv_request_type recv_request_null() { return recv_request_type{}; }
   using send_status_type = int;
-  static inline send_status_type send_status_null() { return 0; }
   using recv_status_type = int;
-  static inline recv_status_type recv_status_null() { return 0; }
 };
 
 template < >
 struct CommContext<mp_pol> : CudaContext
 {
   using base = CudaContext;
+
+  using pol = mp_pol;
+
+  using send_request_type = typename pol::send_request_type;
+  using recv_request_type = typename pol::recv_request_type;
+  using send_status_type = typename pol::send_status_type;
+  using recv_status_type = typename pol::recv_status_type;
+
+  struct mp* g;
+
   CommContext()
     : base()
+    , g(nullptr)
   { }
+
   CommContext(base const& b)
     : base(b)
+    , g(nullptr)
   { }
+
+  CommContext(CommContext const& a_, MPI_Comm comm_)
+    : base(a_)
+    , g(detail::mp::init(comm_))
+  { }
+
+  ~CommContext()
+  {
+    if (g != nullptr) {
+      detail::mp::term(g); g = nullptr;
+    }
+  }
+
+  send_request_type send_request_null() { return send_request_type{}; }
+  recv_request_type recv_request_null() { return recv_request_type{}; }
+  send_status_type send_status_null() { return 0; }
+  recv_status_type recv_status_null() { return 0; }
+
+
+  void connect_ranks(std::vector<int> const& send_ranks,
+                     std::vector<int> const& recv_ranks)
+  {
+    std::set<int> ranks;
+    for (int rank : send_ranks) {
+      if (ranks.find(rank) == ranks.end()) {
+        ranks.insert(rank);
+      }
+    }
+    for (int rank : recv_ranks) {
+      if (ranks.find(rank) == ranks.end()) {
+        ranks.insert(rank);
+      }
+    }
+    for (int rank : ranks) {
+      detail::mp::connect_propose(g, rank);
+    }
+    for (int rank : ranks) {
+      detail::mp::connect_accept(g, rank);
+    }
+  }
+
+  void disconnect_ranks(std::vector<int> const& send_ranks,
+                        std::vector<int> const& recv_ranks)
+  {
+    std::set<int> ranks;
+    for (int rank : send_ranks) {
+      if (ranks.find(rank) != ranks.end()) {
+        ranks.insert(rank);
+      }
+    }
+    for (int rank : recv_ranks) {
+      if (ranks.find(rank) != ranks.end()) {
+        ranks.insert(rank);
+      }
+    }
+    for (int rank : ranks) {
+      detail::mp::disconnect(g, rank);
+    }
+  }
 };
-
-
-inline void connect_ranks(mp_pol const&,
-                          mp_pol::communicator_type comm,
-                          std::vector<int> const& send_ranks,
-                          std::vector<int> const& recv_ranks)
-{
-  std::set<int> ranks;
-  for (int rank : send_ranks) {
-    if (ranks.find(rank) == ranks.end()) {
-      ranks.insert(rank);
-    }
-  }
-  for (int rank : recv_ranks) {
-    if (ranks.find(rank) == ranks.end()) {
-      ranks.insert(rank);
-    }
-  }
-  for (int rank : ranks) {
-    detail::mp::connect_propose(comm, rank);
-  }
-  for (int rank : ranks) {
-    detail::mp::connect_accept(comm, rank);
-  }
-}
-
-inline void disconnect_ranks(mp_pol const&,
-                             mp_pol::communicator_type comm,
-                             std::vector<int> const& send_ranks,
-                             std::vector<int> const& recv_ranks)
-{
-  std::set<int> ranks;
-  for (int rank : send_ranks) {
-    if (ranks.find(rank) != ranks.end()) {
-      ranks.insert(rank);
-    }
-  }
-  for (int rank : recv_ranks) {
-    if (ranks.find(rank) != ranks.end()) {
-      ranks.insert(rank);
-    }
-  }
-  for (int rank : ranks) {
-    detail::mp::disconnect(comm, rank);
-  }
-}
 
 struct mp_mempool
 {
-  using communicator_type = typename mp_pol::communicator_type;
   struct ibv_ptr
   {
     struct ibv_mr* mr = nullptr;
@@ -362,7 +380,7 @@ struct Message<mp_pol> : detail::MessageBase
   using base = detail::MessageBase;
 
   using policy_comm = mp_pol;
-  using communicator_type = typename policy_comm::communicator_type;
+  using communicator_type = CommContext<policy_comm>;
   using send_request_type = typename policy_comm::send_request_type;
   using recv_request_type = typename policy_comm::recv_request_type;
   using send_status_type  = typename policy_comm::send_status_type;
@@ -375,17 +393,17 @@ struct Message<mp_pol> : detail::MessageBase
     return mempool;
   }
 
-  static void setup_mempool(communicator_type comm,
+  static void setup_mempool(communicator_type& con_comm,
                             COMB::Allocator& many_aloc,
                             COMB::Allocator& few_aloc)
   {
-    get_mempool().add_allocator(comm, many_aloc);
-    get_mempool().add_allocator(comm, few_aloc);
+    get_mempool().add_allocator(con_comm.g, many_aloc);
+    get_mempool().add_allocator(con_comm.g, few_aloc);
   }
 
-  static void teardown_mempool(communicator_type comm)
+  static void teardown_mempool(communicator_type& con_comm)
   {
-    get_mempool().remove_allocators(comm);
+    get_mempool().remove_allocators(con_comm.g);
   }
 
 
@@ -399,7 +417,7 @@ struct Message<mp_pol> : detail::MessageBase
 
 
   template < typename context >
-  void pack(context& con, communicator_type comm)
+  void pack(context& con, communicator_type& con_comm)
   {
     static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "mp_pol does not support mpi_type_pol");
     DataT* buf = m_buf;
@@ -416,7 +434,7 @@ struct Message<mp_pol> : detail::MessageBase
   }
 
   template < typename context >
-  void unpack(context& con, communicator_type comm)
+  void unpack(context& con, communicator_type& con_comm)
   {
     static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "mp_pol does not support mpi_type_pol");
     DataT const* buf = m_buf;
@@ -433,128 +451,128 @@ struct Message<mp_pol> : detail::MessageBase
   }
 
 private:
-  void start_Isend(CPUContext const&, communicator_type comm)
+  void start_Isend(CPUContext const&, communicator_type& con_comm)
   {
-    detail::mp::isend(comm, partner_rank(), m_region.mr, m_region.offset, nbytes());
+    detail::mp::isend(con_comm.g, partner_rank(), m_region.mr, m_region.offset, nbytes());
   }
 
-  void start_Isend(CudaContext const& con, communicator_type comm)
+  void start_Isend(CudaContext const& con, communicator_type& con_comm)
   {
-    detail::mp::stream_send(comm, partner_rank(), con.stream(), m_region.mr, m_region.offset, nbytes());
+    detail::mp::stream_send(con_comm.g, partner_rank(), con.stream(), m_region.mr, m_region.offset, nbytes());
   }
 
 public:
   template < typename context >
-  void Isend(context& con, communicator_type comm, send_request_type* request)
+  void Isend(context& con, communicator_type& con_comm, send_request_type* request)
   {
     static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "mp_pol does not support mpi_type_pol");
     // FPRINTF(stdout, "%p Isend %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
 
-    start_Isend(con, comm);
+    start_Isend(con, con_comm);
     request->status = 1;
-    request->comm = comm;
+    request->g = con_comm.g;
     request->partner_rank = partner_rank();
     request->setContext(con);
   }
 
 private:
-  static void cork_Isends(CPUContext const&, communicator_type comm)
+  static void cork_Isends(CPUContext const&, communicator_type& con_comm)
   {
-    COMB::ignore_unused(comm);
+    COMB::ignore_unused(con_comm);
   }
 
-  static void cork_Isends(CudaContext const&, communicator_type comm)
+  static void cork_Isends(CudaContext const&, communicator_type& con_comm)
   {
-    detail::mp::cork(comm);
+    detail::mp::cork(con_comm.g);
   }
 
-  static void uncork_Isends(CPUContext const&, communicator_type comm)
+  static void uncork_Isends(CPUContext const&, communicator_type& con_comm)
   {
-    COMB::ignore_unused(comm);
+    COMB::ignore_unused(con_comm);
   }
 
-  static void uncork_Isends(CudaContext const& con, communicator_type comm)
+  static void uncork_Isends(CudaContext const& con, communicator_type& con_comm)
   {
-    detail::mp::uncork(comm, con.stream());
+    detail::mp::uncork(con_comm.g, con.stream());
   }
 
 public:
   template < typename context >
-  static void start_Isends(context& con, communicator_type comm)
+  static void start_Isends(context& con, communicator_type& con_comm)
   {
     static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support mpi_type_pol");
     // FPRINTF(stdout, "start_Isends\n");
 
-    cork_Isends(con, comm);
+    cork_Isends(con, con_comm);
   }
 
   template < typename context >
-  static void finish_Isends(context& con, communicator_type comm)
+  static void finish_Isends(context& con, communicator_type& con_comm)
   {
     static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support mpi_type_pol");
     // FPRINTF(stdout, "finish_Isends\n");
 
-    uncork_Isends(con, comm);
+    uncork_Isends(con, con_comm);
   }
 
   template < typename context >
-  void Irecv(context& con, communicator_type comm, recv_request_type* request)
+  void Irecv(context& con, communicator_type& con_comm, recv_request_type* request)
   {
     static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "mp_pol does not support mpi_type_pol");
     // FPRINTF(stdout, "%p Irecv %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
 
-    detail::mp::receive(comm, partner_rank(), m_region.mr, m_region.offset, nbytes());
+    detail::mp::receive(con_comm.g, partner_rank(), m_region.mr, m_region.offset, nbytes());
     request->status = -1;
-    request->comm = comm;
+    request->g = con_comm.g;
     request->partner_rank = partner_rank();
     request->setContext(con);
   }
 
 
   template < typename context >
-  void allocate(context&, communicator_type comm, COMB::Allocator& buf_aloc)
+  void allocate(context&, communicator_type& con_comm, COMB::Allocator& buf_aloc)
   {
     static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "mp_pol does not support mpi_type_pol");
     if (m_buf == nullptr) {
-      m_region = get_mempool().allocate(comm, buf_aloc, nbytes());
+      m_region = get_mempool().allocate(con_comm.g, buf_aloc, nbytes());
       m_buf = (DataT*)m_region.ptr;
     }
   }
 
 private:
-  void wait_send(CPUContext const&, communicator_type comm)
+  void wait_send(CPUContext const&, communicator_type& con_comm)
   {
     // already done
   }
 
-  void wait_send(CudaContext const& con, communicator_type comm)
+  void wait_send(CudaContext const& con, communicator_type& con_comm)
   {
-    detail::mp::wait_send_complete(comm, partner_rank());
+    detail::mp::wait_send_complete(con_comm.g, partner_rank());
   }
 
-  void wait_recv(CPUContext const&, communicator_type comm)
+  void wait_recv(CPUContext const&, communicator_type& con_comm)
   {
     // already done
   }
 
-  void wait_recv(CudaContext const& con, communicator_type comm)
+  void wait_recv(CudaContext const& con, communicator_type& con_comm)
   {
-    detail::mp::wait_receive_complete(comm, partner_rank());
+    detail::mp::wait_receive_complete(con_comm.g, partner_rank());
   }
 
 public:
   template < typename context >
-  void deallocate(context& con, communicator_type comm, COMB::Allocator& buf_aloc)
+  void deallocate(context& con, communicator_type& con_comm, COMB::Allocator& buf_aloc)
   {
     static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "mp_pol does not support mpi_type_pol");
     if (m_buf != nullptr) {
 
       if (m_kind == Kind::send) {
-        wait_send(con, comm);
+        wait_send(con, con_comm);
       } else if (m_kind == Kind::recv) {
-        wait_recv(con, comm);
+        wait_recv(con, con_comm);
       }
-      get_mempool().deallocate(comm, buf_aloc, m_region);
+      get_mempool().deallocate(con_comm.g, buf_aloc, m_region);
       m_region = region_type{};
       m_buf = nullptr;
     }
@@ -565,11 +583,11 @@ private:
   static bool start_wait_send(send_request_type& request)
   {
     if (request.context_type == ContextEnum::cuda) {
-      detail::mp::stream_wait_send_complete(request.comm, request.partner_rank, request.context.cuda.stream());
+      detail::mp::stream_wait_send_complete(request.g, request.partner_rank, request.context.cuda.stream());
       return true;
     } else if (request.context_type == ContextEnum::cpu) {
-      detail::mp::cpu_ack_isend(request.comm, request.partner_rank);
-      return detail::mp::is_send_complete(request.comm, request.partner_rank);
+      detail::mp::cpu_ack_isend(request.g, request.partner_rank);
+      return detail::mp::is_send_complete(request.g, request.partner_rank);
     } else {
       assert(0);
     }
@@ -581,7 +599,7 @@ private:
     if (request.context_type == ContextEnum::cuda) {
       assert(0);
     } else if (request.context_type == ContextEnum::cpu) {
-      return detail::mp::is_send_complete(request.comm, request.partner_rank);
+      return detail::mp::is_send_complete(request.g, request.partner_rank);
     } else {
       assert(0);
     }
@@ -727,11 +745,11 @@ private:
   static bool start_wait_recv(recv_request_type& request)
   {
     if (request.context_type == ContextEnum::cuda) {
-      detail::mp::stream_wait_recv_complete(request.comm, request.partner_rank, request.context.cuda.stream());
+      detail::mp::stream_wait_recv_complete(request.g, request.partner_rank, request.context.cuda.stream());
       return true;
     } else if (request.context_type == ContextEnum::cpu) {
-      detail::mp::cpu_ack_recv(request.comm, request.partner_rank);
-      return detail::mp::is_receive_complete(request.comm, request.partner_rank);
+      detail::mp::cpu_ack_recv(request.g, request.partner_rank);
+      return detail::mp::is_receive_complete(request.g, request.partner_rank);
     } else {
       assert(0);
     }
@@ -743,7 +761,7 @@ private:
     if (request.context_type == ContextEnum::cuda) {
       assert(0);
     } else if (request.context_type == ContextEnum::cpu) {
-      return detail::mp::is_receive_complete(request.comm, request.partner_rank);
+      return detail::mp::is_receive_complete(request.g, request.partner_rank);
     } else {
       assert(0);
     }

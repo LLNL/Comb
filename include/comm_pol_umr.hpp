@@ -32,47 +32,56 @@ struct umr_pol {
   // compile mpi_type packing/unpacking tests for this comm policy
   static const bool use_mpi_type = false;
   static const char* get_name() { return "umr"; }
-  using communicator_type = UMR_Comm;
-  static inline communicator_type communicator_create(UMR_Comm comm) { return comm; }
-  static inline void communicator_destroy(communicator_type) { }
   using send_request_type = UMR_Request;
-  static inline send_request_type send_request_null() { return UMR_REQUEST_NULL; }
   using recv_request_type = UMR_Request;
-  static inline recv_request_type recv_request_null() { return UMR_REQUEST_NULL; }
   using send_status_type = UMR_Status;
-  static inline send_status_type send_status_null() { return send_status_type{}; }
   using recv_status_type = UMR_Status;
-  static inline recv_status_type recv_status_null() { return recv_status_type{}; }
 };
 
 template < >
 struct CommContext<umr_pol> : MPIContext
 {
   using base = MPIContext;
+
+  using pol = umr_pol;
+
+  using send_request_type = typename pol::send_request_type;
+  using recv_request_type = typename pol::recv_request_type;
+  using send_status_type = typename pol::send_status_type;
+  using recv_status_type = typename pol::recv_status_type;
+
+  MPI_Comm comm;
+
   CommContext()
     : base()
   { }
+
   CommContext(base const& b)
     : base(b)
   { }
+
+  CommContext(CommContext const& a_, MPI_Comm comm_)
+    : base(a_)
+    , comm(comm_)
+  { }
+
+  send_request_type send_request_null() { return UMR_REQUEST_NULL; }
+  recv_request_type recv_request_null() { return UMR_REQUEST_NULL; }
+  send_status_type send_status_null() { return send_status_type{}; }
+  recv_status_type recv_status_null() { return recv_status_type{}; }
+
+  void connect_ranks(std::vector<int> const& send_ranks,
+                     std::vector<int> const& recv_ranks)
+  {
+    COMB::ignore_unused(comm, send_ranks, recv_ranks);
+  }
+
+  void disconnect_ranks(std::vector<int> const& send_ranks,
+                        std::vector<int> const& recv_ranks)
+  {
+    COMB::ignore_unused(comm, send_ranks, recv_ranks);
+  }
 };
-
-
-inline void connect_ranks(umr_pol const&,
-                          umr_pol::communicator_type comm,
-                          std::vector<int> const& send_ranks,
-                          std::vector<int> const& recv_ranks)
-{
-  COMB::ignore_unused(comm, send_ranks, recv_ranks);
-}
-
-inline void disconnect_ranks(umr_pol const&,
-                             umr_pol::communicator_type comm,
-                             std::vector<int> const& send_ranks,
-                             std::vector<int> const& recv_ranks)
-{
-  COMB::ignore_unused(comm, send_ranks, recv_ranks);
-}
 
 
 template < >
@@ -81,22 +90,22 @@ struct Message<umr_pol> : detail::MessageBase
   using base = detail::MessageBase;
 
   using policy_comm = umr_pol;
-  using communicator_type = typename policy_comm::communicator_type;
+  using communicator_type = CommExec<policy_comm>;
   using send_request_type = typename policy_comm::send_request_type;
   using recv_request_type = typename policy_comm::recv_request_type;
   using send_status_type  = typename policy_comm::send_status_type;
   using recv_status_type  = typename policy_comm::recv_status_type;
 
-  static void setup_mempool(communicator_type comm,
+  static void setup_mempool(communicator_type& con_comm,
                             COMB::Allocator& many_aloc,
                             COMB::Allocator& few_aloc)
   {
-    COMB::ignore_unused(comm, many_aloc, few_aloc);
+    COMB::ignore_unused(con_comm, many_aloc, few_aloc);
   }
 
-  static void teardown_mempool(communicator_type comm)
+  static void teardown_mempool(communicator_type& con_comm)
   {
-    COMB::ignore_unused(comm);
+    COMB::ignore_unused(con_comm);
   }
 
 
@@ -108,7 +117,7 @@ struct Message<umr_pol> : detail::MessageBase
 
 
   template < typename context >
-  void pack(context& con, communicator_type)
+  void pack(context& con, communicator_type&)
   {
     static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "umr_pol does not support mpi_type_pol");
     DataT* buf = m_buf;
@@ -125,7 +134,7 @@ struct Message<umr_pol> : detail::MessageBase
   }
 
   template < typename context >
-  void unpack(context& con, communicator_type)
+  void unpack(context& con, communicator_type&)
   {
     static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "umr_pol does not support mpi_type_pol");
     DataT const* buf = m_buf;
@@ -143,53 +152,53 @@ struct Message<umr_pol> : detail::MessageBase
 
 
   template < typename context >
-  void Isend(context&, communicator_type comm, send_request_type* request)
+  void Isend(context&, communicator_type& con_comm, send_request_type* request)
   {
     static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "umr_pol does not support mpi_type_pol");
     // FPRINTF(stdout, "%p Isend %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
-    detail::UMR::Isend(buffer(), nbytes(), UMR_BYTE, partner_rank(), tag(), comm, request);
+    detail::UMR::Isend(buffer(), nbytes(), UMR_BYTE, partner_rank(), tag(), con_comm.comm, request);
   }
 
   template < typename context >
-  static void start_Isends(context& con, communicator_type comm)
+  static void start_Isends(context& con, communicator_type& con_comm)
   {
     static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "umr_pol does not support mpi_type_pol");
     // FPRINTF(stdout, "start_Isends\n");
-    COMB::ignore_unused(con, comm);
+    COMB::ignore_unused(con, con_comm);
   }
 
   template < typename context >
-  static void finish_Isends(context& con, communicator_type comm)
+  static void finish_Isends(context& con, communicator_type& con_comm)
   {
     static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "umr_pol does not support mpi_type_pol");
     // FPRINTF(stdout, "finish_Isends\n");
-    COMB::ignore_unused(con, comm);
+    COMB::ignore_unused(con, con_comm);
   }
 
   template < typename context >
-  void Irecv(context&, communicator_type comm, recv_request_type* request)
+  void Irecv(context&, communicator_type& con_comm, recv_request_type* request)
   {
     static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "umr_pol does not support mpi_type_pol");
     // FPRINTF(stdout, "%p Irecv %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
-    detail::UMR::Irecv(buffer(), nbytes(), UMR_BYTE, partner_rank(), tag(), comm, request);
+    detail::UMR::Irecv(buffer(), nbytes(), UMR_BYTE, partner_rank(), tag(), con_comm.comm, request);
   }
 
 
   template < typename context >
-  void allocate(context&, communicator_type comm, COMB::Allocator& buf_aloc)
+  void allocate(context&, communicator_type& con_comm, COMB::Allocator& buf_aloc)
   {
     static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "umr_pol does not support mpi_type_pol");
-    COMB::ignore_unused(comm);
+    COMB::ignore_unused(con_comm);
     if (m_buf == nullptr) {
       m_buf = (DataT*)buf_aloc.allocate(nbytes());
     }
   }
 
   template < typename context >
-  void deallocate(context&, communicator_type comm, COMB::Allocator& buf_aloc)
+  void deallocate(context&, communicator_type& con_comm, COMB::Allocator& buf_aloc)
   {
     static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "umr_pol does not support mpi_type_pol");
-    COMB::ignore_unused(comm);
+    COMB::ignore_unused(con_comm);
     if (m_buf != nullptr) {
       buf_aloc.deallocate(m_buf);
       m_buf = nullptr;
