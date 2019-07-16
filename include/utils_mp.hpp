@@ -79,6 +79,18 @@ inline void deregister_region(struct ::mp* g, struct ::ibv_mr* mr)
   mp_deregister_region(g, mr);
 }
 
+inline void cork(struct ::mp* g)
+{
+  // FPRINTF(stdout, "mp_cork(%p) rank(w%i)\n", g, MPI::Comm_rank(MPI_COMM_WORLD));
+  mp_cork(g);
+}
+
+inline void uncork(struct ::mp* g, cudaStream_t stream)
+{
+  // FPRINTF(stdout, "mp_uncork(%p) rank(w%i) stream(%p)\n", g, MPI::Comm_rank(MPI_COMM_WORLD), (void*)stream);
+  mp_uncork(g, stream);
+}
+
 inline void receive(struct ::mp* g, int src, struct ::ibv_mr* buf_mr, size_t offset, size_t size)
 {
   // FPRINTF(stdout, "mp_receive(%p) rank(w%i) %p+%zu[%zu] src(%i)\n", g, MPI::Comm_rank(MPI_COMM_WORLD), buf_mr, offset, size, src);

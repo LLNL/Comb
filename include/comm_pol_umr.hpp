@@ -151,6 +151,22 @@ struct Message<umr_pol> : detail::MessageBase
   }
 
   template < typename context >
+  static void start_Isends(context& con, communicator_type comm)
+  {
+    static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "umr_pol does not support mpi_type_pol");
+    // FPRINTF(stdout, "start_Isends\n");
+    COMB::ignore_unused(con, comm);
+  }
+
+  template < typename context >
+  static void finish_Isends(context& con, communicator_type comm)
+  {
+    static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "umr_pol does not support mpi_type_pol");
+    // FPRINTF(stdout, "finish_Isends\n");
+    COMB::ignore_unused(con, comm);
+  }
+
+  template < typename context >
   void Irecv(context&, communicator_type comm, recv_request_type* request)
   {
     static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "umr_pol does not support mpi_type_pol");

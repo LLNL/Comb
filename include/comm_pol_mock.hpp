@@ -199,6 +199,20 @@ struct Message<mock_pol> : detail::MessageBase
   }
 
   template < typename context >
+  static void start_Isends(context& con, communicator_type comm)
+  {
+    // FPRINTF(stdout, "start_Isends\n");
+    COMB::ignore_unused(con, comm);
+  }
+
+  template < typename context >
+  static void finish_Isends(context& con, communicator_type comm)
+  {
+    // FPRINTF(stdout, "finish_Isends\n");
+    COMB::ignore_unused(con, comm);
+  }
+
+  template < typename context >
   void Irecv(context&, communicator_type, recv_request_type* request)
   {
     // FPRINTF(stdout, "%p Irecv %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());

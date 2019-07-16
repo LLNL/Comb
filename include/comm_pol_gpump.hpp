@@ -444,6 +444,7 @@ private:
   }
 
 public:
+
   template < typename context >
   void Isend(context& con, communicator_type comm, send_request_type* request)
   {
@@ -455,6 +456,46 @@ public:
     request->comm = comm;
     request->partner_rank = partner_rank();
     request->setContext(con);
+  }
+
+private:
+  static void cork_Isends(CPUContext const&, communicator_type comm)
+  {
+    COMB::ignore_unused(comm);
+  }
+
+  static void cork_Isends(CudaContext const&, communicator_type comm)
+  {
+    detail::gpump::cork(comm);
+  }
+
+  static void uncork_Isends(CPUContext const&, communicator_type comm)
+  {
+    COMB::ignore_unused(comm);
+  }
+
+  static void uncork_Isends(CudaContext const& con, communicator_type comm)
+  {
+    detail::gpump::uncork(comm, con.stream());
+  }
+
+public:
+  template < typename context >
+  static void start_Isends(context& con, communicator_type comm)
+  {
+    static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support mpi_type_pol");
+    // FPRINTF(stdout, "start_Isends\n");
+
+    cork_Isends(con, comm);
+  }
+
+  template < typename context >
+  static void finish_Isends(context& con, communicator_type comm)
+  {
+    static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support mpi_type_pol");
+    // FPRINTF(stdout, "finish_Isends\n");
+
+    uncork_Isends(con, comm);
   }
 
   template < typename context >
