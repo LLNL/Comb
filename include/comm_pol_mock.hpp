@@ -59,6 +59,18 @@ struct CommContext<mock_pol> : MPIContext
     : base(a_)
   { }
 
+  void ensure_waitable()
+  {
+
+  }
+
+  template < typename context >
+  void waitOn(context& con)
+  {
+    con.ensure_waitable();
+    base::waitOn(con);
+  }
+
   send_request_type send_request_null() { return 0; }
   recv_request_type recv_request_null() { return 0; }
   send_status_type send_status_null() { return 0; }

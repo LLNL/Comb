@@ -47,6 +47,18 @@ struct ExecContext<cuda_graph_pol> : CudaContext
     : base(b)
   { }
 
+  void ensure_waitable()
+  {
+    cuda::graph_launch::force_launch(base::stream());
+  }
+
+  template < typename context >
+  void waitOn(context& con)
+  {
+    con.ensure_waitable();
+    base::waitOn(con);
+  }
+
   void synchronize()
   {
     cuda::graph_launch::synchronize(base::stream());

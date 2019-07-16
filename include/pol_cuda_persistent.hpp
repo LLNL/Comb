@@ -57,6 +57,18 @@ struct ExecContext<cuda_persistent_pol> : CudaContext
     : base(b)
   { }
 
+  void ensure_waitable()
+  {
+    cuda::persistent_launch::force_stop(base::stream());
+  }
+
+  template < typename context >
+  void waitOn(context& con)
+  {
+    con.ensure_waitable();
+    base::waitOn(con);
+  }
+
   void synchronize()
   {
     cuda::persistent_launch::synchronize(base::stream());

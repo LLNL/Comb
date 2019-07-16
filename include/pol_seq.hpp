@@ -56,6 +56,18 @@ struct ExecContext<seq_pol> : CPUContext
     : base(b)
   { }
 
+  void ensure_waitable()
+  {
+
+  }
+
+  template < typename context >
+  void waitOn(context& con)
+  {
+    con.ensure_waitable();
+    base::waitOn(con);
+  }
+
   // synchronization functions
   void synchronize()
   {

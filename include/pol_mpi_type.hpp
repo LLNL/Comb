@@ -56,6 +56,18 @@ struct ExecContext<mpi_type_pol> : MPIContext
     : base(b)
   { }
 
+  void ensure_waitable()
+  {
+
+  }
+
+  template < typename context >
+  void waitOn(context& con)
+  {
+    con.ensure_waitable();
+    base::waitOn(con);
+  }
+
   // synchronization functions
   void synchronize()
   {
