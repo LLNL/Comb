@@ -61,7 +61,7 @@ void print_timer(CommInfo& comminfo, Timer& tm, const char* prefix) {
 
     for (int i = 0; i < (int)res.size(); ++i) {
       int padding = max_name_len - res[i].name.size();
-      comminfo.print(FileGroup::summary, "%s%s:%*s num %ld sum %.9f s min %.9f s max %.9f s\n",
+      print(FileGroup::summary, "%s%s:%*s num %ld sum %.9f s min %.9f s max %.9f s\n",
                              prefix, res[i].name.c_str(), padding, "", final_nums[i], final_sums[i], final_mins[i], final_maxs[i]);
     }
 
@@ -73,7 +73,7 @@ void print_timer(CommInfo& comminfo, Timer& tm, const char* prefix) {
 
   for (int i = 0; i < (int)res.size(); ++i) {
     int padding = max_name_len - res[i].name.size();
-    comminfo.print(FileGroup::proc, "%s%s:%*s num %ld sum %.9f s min %.9f s max %.9f s\n",
+    print(FileGroup::proc, "%s%s:%*s num %ld sum %.9f s min %.9f s max %.9f s\n",
                         prefix, res[i].name.c_str(), padding, "", nums[i], sums[i], mins[i], maxs[i]);
   }
 

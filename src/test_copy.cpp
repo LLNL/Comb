@@ -38,7 +38,7 @@ void do_copy(ExecContext<pol>& con,
   tm.clear();
 
   char test_name[1024] = ""; snprintf(test_name, 1024, "memcpy %s dst %s src %s", pol::get_name(), dst_aloc.name(), src_aloc.name());
-  comminfo.print(FileGroup::all, "Starting test %s\n", test_name);
+  print(FileGroup::all, "Starting test %s\n", test_name);
 
   Range r(test_name, Range::green);
 

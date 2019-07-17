@@ -18,10 +18,8 @@
 
 #include "config.hpp"
 
-#include <cstdio>
 #include <cstdlib>
 #include <cassert>
-#include <cstdarg>
 #include <type_traits>
 #include <list>
 #include <vector>
@@ -30,30 +28,13 @@
 
 #include <mpi.h>
 
+#include "print.hpp"
 #include "memory.hpp"
 #include "for_all.hpp"
 #include "utils.hpp"
 
 #include "MessageBase.hpp"
 
-
-enum struct FileGroup
-{ out_any    // stdout, any proc
-, out_master // stdout, master only
-, err_any    // stderr, any proc
-, err_master // stderr, master only
-, proc       // per process file, any proc
-, summary    // per run summary file, master only
-, all        // out_master, proc, summary
-};
-
-extern FILE* comb_out_file;
-extern FILE* comb_err_file;
-extern FILE* comb_proc_file;
-extern FILE* comb_summary_file;
-
-extern void comb_setup_files(int rank);
-extern void comb_teardown_files();
 
 struct CartRank
 {
@@ -203,8 +184,6 @@ struct CommInfo
       detail::MPI::Comm_set_name(cart.comm, name);
     }
   }
-
-  void print(FileGroup fg, const char* fmt, ...);
 
   void abort()
   {

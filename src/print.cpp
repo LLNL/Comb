@@ -13,21 +13,32 @@
 // Please also see the LICENSE file for MIT license.
 //////////////////////////////////////////////////////////////////////////////
 
-#include "comm.hpp"
+#include "print.hpp"
+#include "utils_mpi.hpp"
+#include "utils_cuda.hpp"
 
+#include <cassert>
+#include <cstdlib>
+#include <cstdio>
+#include <cstdarg>
+#include <vector>
+
+int mpi_rank = 0;
 FILE* comb_out_file = nullptr;
 FILE* comb_err_file = nullptr;
 FILE* comb_proc_file = nullptr;
 FILE* comb_summary_file = nullptr;
 
-void comb_setup_files(int rank)
+void comb_setup_files()
 {
   comb_out_file = stdout;
   comb_err_file = stderr;
 
+  mpi_rank = detail::MPI::Comm_rank(MPI_COMM_WORLD);
+
   int run_num = 0;
 
-  if (rank == 0) {
+  if (mpi_rank == 0) {
     while (1) {
 
       char summary_fname[256];
@@ -57,7 +68,7 @@ void comb_setup_files(int rank)
   detail::MPI::Bcast(&run_num, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
   char proc_fname[256];
-  snprintf(proc_fname, 256, "Comb_%02i_proc%04i", run_num, rank);
+  snprintf(proc_fname, 256, "Comb_%02i_proc%04i", run_num, mpi_rank);
   comb_proc_file = fopen(proc_fname, "w");
   assert(comb_proc_file != nullptr);
 }
@@ -76,7 +87,7 @@ void comb_teardown_files()
   }
 }
 
-void CommInfo::print(FileGroup fg, const char* fmt, ...)
+void print(FileGroup fg, const char* fmt, ...)
 {
   va_list args1;
   va_start(args1, fmt);
@@ -93,14 +104,14 @@ void CommInfo::print(FileGroup fg, const char* fmt, ...)
 
   // print to out file
   if ( fg == FileGroup::out_any ||
-       ((fg == FileGroup::out_master || fg == FileGroup::all) && rank == 0) ) {
+       ((fg == FileGroup::out_master || fg == FileGroup::all) && mpi_rank == 0) ) {
     fprintf(comb_out_file, "%s", msg);
     fflush(comb_out_file);
   }
 
   // print to err file
   if ( fg == FileGroup::err_any ||
-       (fg == FileGroup::err_master && rank == 0) ) {
+       (fg == FileGroup::err_master && mpi_rank == 0) ) {
     fprintf(comb_err_file, "%s", msg);
     fflush(comb_err_file);
   }
@@ -113,10 +124,43 @@ void CommInfo::print(FileGroup fg, const char* fmt, ...)
   }
 
   // print to summary file
-  if ( (fg == FileGroup::summary || fg == FileGroup::all) && rank == 0 ) {
+  if ( (fg == FileGroup::summary || fg == FileGroup::all) && mpi_rank == 0 ) {
     fprintf(comb_summary_file, "%s", msg);
       fflush(comb_summary_file);
   }
 
   free(msg);
+}
+
+void print_proc_memory_stats()
+{
+  // print /proc/self/stat to per proc file
+  std::vector<char> stat;
+  const char fstat_name[] = "/proc/self/stat";
+  FILE* fstat = fopen(fstat_name, "r");
+  if (fstat) {
+    // fprintf(f, "%s ", fstat_name);
+    int c = fgetc(fstat);
+    int clast = c;
+    while(c != EOF) {
+      stat.push_back(c);
+      // fputc(c, f);
+      clast = c;
+      c = fgetc(fstat);
+    }
+    fclose(fstat);
+    if (clast != '\n') {
+      stat.push_back('\n');
+      // fprintf(f, "\n");
+    }
+    stat.push_back('\0');
+  }
+  print(FileGroup::proc, "/proc/self/stat: %s", &stat[0]);
+
+#if defined(COMB_ENABLE_CUDA)
+  // print cuda device memory usage to per proc file
+  size_t free_mem, total_mem;
+  cudaCheck(cudaMemGetInfo(&free_mem, &total_mem));
+  print(FileGroup::proc, "cuda device memory usage: %12zu\n", total_mem - free_mem);
+#endif
 }

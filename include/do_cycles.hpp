@@ -52,7 +52,7 @@ void do_cycles(CommContext<pol_comm>& con_comm_in,
                                                         pol_comm::get_name(),
                                                         pol_mesh::get_name(), aloc_mesh.name(),
                                                         pol_many::get_name(), aloc_many.name(), pol_few::get_name(), aloc_few.name());
-  comm_info.print(FileGroup::all, "Starting test %s\n", test_name);
+  print(FileGroup::all, "Starting test %s\n", test_name);
 
   {
     Range r0(test_name, Range::orange);
