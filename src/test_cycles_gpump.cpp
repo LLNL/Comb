@@ -28,7 +28,7 @@ void test_cycles_gpump(CommInfo& comminfo, MeshInfo& info,
                        COMB::ExecutorsAvailable& exec_avail,
                        IdxT num_vars, IdxT ncycles, Timer& tm, Timer& tm_total)
 {
-  CommContext<gpump_pol> con_comm;
+  CommContext<gpump_pol> con_comm{exec.base_cuda};
 
 #ifdef COMB_ENABLE_CUDA
   AllocatorInfo& cpu_many_aloc = alloc.cuda_device;

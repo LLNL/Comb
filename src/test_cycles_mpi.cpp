@@ -26,7 +26,7 @@ void test_cycles_mpi(CommInfo& comminfo, MeshInfo& info,
                      COMB::ExecutorsAvailable& exec_avail,
                      IdxT num_vars, IdxT ncycles, Timer& tm, Timer& tm_total)
 {
-  CommContext<mpi_pol> con_comm;
+  CommContext<mpi_pol> con_comm{exec.base_mpi};
 
   {
     // mpi host memory tests

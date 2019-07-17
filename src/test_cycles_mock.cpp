@@ -26,7 +26,7 @@ void test_cycles_mock(CommInfo& comminfo, MeshInfo& info,
                       COMB::ExecutorsAvailable& exec_avail,
                       IdxT num_vars, IdxT ncycles, Timer& tm, Timer& tm_total)
 {
-  CommContext<mock_pol> con_comm;
+  CommContext<mock_pol> con_comm{exec.base_mpi};
 
   {
     // mpi host memory tests

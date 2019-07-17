@@ -115,19 +115,25 @@ struct ExecutorsAvailable
 
 struct ExecContexts
 {
-  ExecContext<seq_pol> seq{};
+  CPUContext base_cpu{};
+  MPIContext base_mpi{};
+#ifdef COMB_ENABLE_CUDA
+  CudaContext base_cuda{};
+#endif
+
+  ExecContext<seq_pol> seq{base_cpu};
 #ifdef COMB_ENABLE_OPENMP
-  ExecContext<omp_pol> omp{seq};
+  ExecContext<omp_pol> omp{base_cpu};
 #endif
 #ifdef COMB_ENABLE_CUDA
-  ExecContext<cuda_pol> cuda{};
-  ExecContext<cuda_batch_pol> cuda_batch{cuda};
-  ExecContext<cuda_persistent_pol> cuda_persistent{cuda};
+  ExecContext<cuda_pol> cuda{base_cuda};
+  ExecContext<cuda_batch_pol> cuda_batch{base_cuda};
+  ExecContext<cuda_persistent_pol> cuda_persistent{base_cuda};
 #endif
 #ifdef COMB_ENABLE_CUDA_GRAPH
-  ExecContext<cuda_graph_pol> cuda_graph{cuda};
+  ExecContext<cuda_graph_pol> cuda_graph{base_cuda};
 #endif
-  ExecContext<mpi_type_pol> mpi_type{};
+  ExecContext<mpi_type_pol> mpi_type{base_mpi};
 };
 
 } // namespace COMB
