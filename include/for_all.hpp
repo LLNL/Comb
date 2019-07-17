@@ -48,7 +48,7 @@ struct adapter_2d {
     IdxT i0 = idx / len1;
     IdxT i1 = idx - i0 * len1;
 
-    //FPRINTF(stdout, "adapter_2d (%i+%i %i+%i)%i\n", i0, begin0, i1, begin1, idx);
+    //FGPRINTF(FileGroup::proc, "adapter_2d (%i+%i %i+%i)%i\n", i0, begin0, i1, begin1, idx);
     //assert(0 <= i0 + begin0 && i0 + begin0 < 3);
     //assert(0 <= i1 + begin1 && i1 + begin1 < 3);
 
@@ -79,7 +79,7 @@ struct adapter_3d {
     IdxT i1 = idx12 / len2;
     IdxT i2 = idx12 - i1 * len2;
 
-    //FPRINTF(stdout, "adapter_3d (%i+%i %i+%i %i+%i)%i\n", i0, begin0, i1, begin1, i2, begin2, idx);
+    //FGPRINTF(FileGroup::proc, "adapter_3d (%i+%i %i+%i %i+%i)%i\n", i0, begin0, i1, begin1, i2, begin2, idx);
     //assert(0 <= i0 + begin0 && i0 + begin0 < 3);
     //assert(0 <= i1 + begin1 && i1 + begin1 < 3);
     //assert(0 <= i2 + begin2 && i2 + begin2 < 13);

@@ -24,16 +24,13 @@
 #include <vector>
 
 int mpi_rank = 0;
-FILE* comb_out_file = nullptr;
-FILE* comb_err_file = nullptr;
+FILE* comb_out_file = stdout;
+FILE* comb_err_file = stderr;
 FILE* comb_proc_file = nullptr;
 FILE* comb_summary_file = nullptr;
 
 void comb_setup_files()
 {
-  comb_out_file = stdout;
-  comb_err_file = stderr;
-
   mpi_rank = detail::MPI::Comm_rank(MPI_COMM_WORLD);
 
   int run_num = 0;
@@ -75,8 +72,9 @@ void comb_setup_files()
 
 void comb_teardown_files()
 {
-  comb_out_file = nullptr;
-  comb_err_file = nullptr;
+  mpi_rank = 0;
+  comb_out_file = stdout;
+  comb_err_file = stderr;
   if (comb_proc_file != nullptr) {
     fclose(comb_proc_file);
     comb_proc_file = nullptr;
@@ -87,7 +85,7 @@ void comb_teardown_files()
   }
 }
 
-void print(FileGroup fg, const char* fmt, ...)
+void fgprintf(FileGroup fg, const char* fmt, ...)
 {
   va_list args1;
   va_start(args1, fmt);
@@ -102,31 +100,60 @@ void print(FileGroup fg, const char* fmt, ...)
   vsnprintf(msg, len+1, fmt, args2);
   va_end(args2);
 
+  bool should_have_printed = false;
+  bool printed = false;
+
   // print to out file
   if ( fg == FileGroup::out_any ||
        ((fg == FileGroup::out_master || fg == FileGroup::all) && mpi_rank == 0) ) {
-    fprintf(comb_out_file, "%s", msg);
-    fflush(comb_out_file);
+    FILE* f = (comb_out_file != nullptr) ? comb_out_file : stdout;
+    if (f != nullptr) {
+      fprintf(f, "%s", msg);
+      fflush(f);
+      printed = true;
+    }
+    should_have_printed = true;
   }
 
   // print to err file
   if ( fg == FileGroup::err_any ||
        (fg == FileGroup::err_master && mpi_rank == 0) ) {
-    fprintf(comb_err_file, "%s", msg);
-    fflush(comb_err_file);
+    FILE* f = (comb_err_file != nullptr) ? comb_err_file : stderr;
+    if (f != nullptr) {
+      fprintf(f, "%s", msg);
+      fflush(f);
+      printed = true;
+    }
+    should_have_printed = true;
   }
 
   // print to proc file
   if ( fg == FileGroup::proc ||
        fg == FileGroup::all ) {
-    fprintf(comb_proc_file, "%s", msg);
-    fflush(comb_proc_file);
+    FILE* f = comb_proc_file;
+    if (f == nullptr && !printed) f = stdout;
+    if (f != nullptr) {
+      fprintf(f, "%s", msg);
+      fflush(f);
+      printed = true;
+    }
+    should_have_printed = true;
   }
 
   // print to summary file
   if ( (fg == FileGroup::summary || fg == FileGroup::all) && mpi_rank == 0 ) {
-    fprintf(comb_summary_file, "%s", msg);
-      fflush(comb_summary_file);
+    FILE* f = comb_summary_file;
+    if (f == nullptr && !printed) f = stdout;
+    if (f != nullptr) {
+      fprintf(f, "%s", msg);
+      fflush(f);
+      printed = true;
+    }
+    should_have_printed = true;
+  }
+
+  if (should_have_printed && !printed) {
+    printf("%s", msg);
   }
 
   free(msg);
@@ -155,12 +182,12 @@ void print_proc_memory_stats()
     }
     stat.push_back('\0');
   }
-  print(FileGroup::proc, "/proc/self/stat: %s", &stat[0]);
+  fgprintf(FileGroup::proc, "/proc/self/stat: %s", &stat[0]);
 
 #if defined(COMB_ENABLE_CUDA)
   // print cuda device memory usage to per proc file
   size_t free_mem, total_mem;
   cudaCheck(cudaMemGetInfo(&free_mem, &total_mem));
-  print(FileGroup::proc, "cuda device memory usage: %12zu\n", total_mem - free_mem);
+  fgprintf(FileGroup::proc, "cuda device memory usage: %12zu\n", total_mem - free_mem);
 #endif
 }

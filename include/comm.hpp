@@ -375,7 +375,7 @@ struct Comm
   void postRecv(ExecContext<policy_many>& con_many, ExecContext<policy_few>& con_few)
   {
     COMB::ignore_unused(con_many, con_few);
-    //FPRINTF(stdout, "posting receives\n");
+    //FGPRINTF(FileGroup::proc, "posting receives\n");
 
     IdxT num_recvs = m_recvs.size();
 
@@ -455,7 +455,7 @@ struct Comm
 
   void postSend(ExecContext<policy_many>& con_many, ExecContext<policy_few>& con_few)
   {
-    //FPRINTF(stdout, "posting sends\n");
+    //FGPRINTF(FileGroup::proc, "posting sends\n");
 
     const IdxT num_sends = m_sends.size();
 
@@ -943,7 +943,7 @@ struct Comm
 
   void waitRecv(ExecContext<policy_many>& con_many, ExecContext<policy_few>& con_few)
   {
-    //FPRINTF(stdout, "waiting receives\n");
+    //FGPRINTF(FileGroup::proc, "waiting receives\n");
 
     int num_many = 0;
     int num_few = 0;
@@ -1136,7 +1136,7 @@ struct Comm
   void waitSend(ExecContext<policy_many>& con_many, ExecContext<policy_few>& con_few)
   {
     COMB::ignore_unused(con_many, con_few);
-    //FPRINTF(stdout, "posting sends\n");
+    //FGPRINTF(FileGroup::proc, "posting sends\n");
 
     IdxT num_sends = m_sends.size();
 

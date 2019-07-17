@@ -41,23 +41,23 @@ int main(int argc, char** argv)
   CommInfo comminfo;
 
   if (required != provided) {
-    print(FileGroup::err_master, "Didn't receive MPI thread support required %i provided %i.\n", required, provided);
+    fgprintf(FileGroup::err_master, "Didn't receive MPI thread support required %i provided %i.\n", required, provided);
     comminfo.abort();
   }
 
-  print(FileGroup::all, "Started rank %i of %i\n", comminfo.rank, comminfo.size);
+  fgprintf(FileGroup::all, "Started rank %i of %i\n", comminfo.rank, comminfo.size);
 
   {
     char host[256];
     gethostname(host, 256);
 
-    print(FileGroup::all, "Node %s\n", host);
+    fgprintf(FileGroup::all, "Node %s\n", host);
   }
 
-  print(FileGroup::all, "Compiler %s\n", COMB_SERIALIZE(COMB_COMPILER));
+  fgprintf(FileGroup::all, "Compiler %s\n", COMB_SERIALIZE(COMB_COMPILER));
 
 #ifdef COMB_ENABLE_CUDA
-  print(FileGroup::all, "Cuda compiler %s\n", COMB_SERIALIZE(COMB_CUDA_COMPILER));
+  fgprintf(FileGroup::all, "Cuda compiler %s\n", COMB_SERIALIZE(COMB_CUDA_COMPILER));
 
   {
     const char* visible_devices = nullptr;
@@ -69,7 +69,7 @@ int main(int argc, char** argv)
     int device = -1;
     cudaCheck(cudaGetDevice(&device));
 
-    print(FileGroup::all, "GPU %i visible %s\n", device, visible_devices);
+    fgprintf(FileGroup::all, "GPU %i visible %s\n", device, visible_devices);
   }
 
   cudaCheck(cudaDeviceSynchronize());
@@ -122,10 +122,10 @@ int main(int argc, char** argv)
               if (ret == 1) {
                 comminfo.cutoff = read_cutoff;
               } else {
-                print(FileGroup::err_master, "Invalid argument to sub-option, ignoring %s %s %s.\n", argv[i-2], argv[i-1], argv[i]);
+                fgprintf(FileGroup::err_master, "Invalid argument to sub-option, ignoring %s %s %s.\n", argv[i-2], argv[i-1], argv[i]);
               }
             } else {
-              print(FileGroup::err_master, "No argument to sub-option, ignoring %s %s.\n", argv[i-1], argv[i]);
+              fgprintf(FileGroup::err_master, "No argument to sub-option, ignoring %s %s.\n", argv[i-1], argv[i]);
             }
           } else if ( strcmp(argv[i], "post_recv") == 0
                    || strcmp(argv[i], "post_send") == 0
@@ -156,10 +156,10 @@ int main(int argc, char** argv)
               } else if (strcmp(argv[i], "test_all") == 0) {
                 *method = CommInfo::method::testall;
               } else {
-                print(FileGroup::err_master, "Invalid argument to sub-option, ignoring %s %s %s.\n", argv[i-2], argv[i-1], argv[i]);
+                fgprintf(FileGroup::err_master, "Invalid argument to sub-option, ignoring %s %s %s.\n", argv[i-2], argv[i-1], argv[i]);
               }
             } else {
-              print(FileGroup::err_master, "No argument to sub-option, ignoring %s %s.\n", argv[i-1], argv[i]);
+              fgprintf(FileGroup::err_master, "No argument to sub-option, ignoring %s %s.\n", argv[i-1], argv[i]);
             }
           } else if ( strcmp(argv[i], "enable") == 0
                    || strcmp(argv[i], "disable") == 0 ) {
@@ -200,16 +200,16 @@ int main(int argc, char** argv)
                 comm_avail.umr = enabledisable;
 #endif
               } else {
-                print(FileGroup::err_master, "Invalid argument to sub-option, ignoring %s %s %s.\n", argv[i-2], argv[i-1], argv[i]);
+                fgprintf(FileGroup::err_master, "Invalid argument to sub-option, ignoring %s %s %s.\n", argv[i-2], argv[i-1], argv[i]);
               }
             } else {
-              print(FileGroup::err_master, "No argument to sub-option, ignoring %s %s.\n", argv[i-1], argv[i]);
+              fgprintf(FileGroup::err_master, "No argument to sub-option, ignoring %s %s.\n", argv[i-1], argv[i]);
             }
           } else {
-            print(FileGroup::err_master, "Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
+            fgprintf(FileGroup::err_master, "Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
           }
         } else {
-          print(FileGroup::err_master, "No argument to option, ignoring %s.\n", argv[i]);
+          fgprintf(FileGroup::err_master, "No argument to option, ignoring %s.\n", argv[i]);
         }
       } else if (strcmp(&argv[i][1], "ghost") == 0) {
         if (i+1 < argc && argv[i+1][0] != '-') {
@@ -224,10 +224,10 @@ int main(int argc, char** argv)
             ghost_widths[1] = read_ghost_widths[1];
             ghost_widths[2] = read_ghost_widths[2];
           } else {
-            print(FileGroup::err_master, "Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
+            fgprintf(FileGroup::err_master, "Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
           }
         } else {
-          print(FileGroup::err_master, "No argument to option, ignoring %s.\n", argv[i]);
+          fgprintf(FileGroup::err_master, "No argument to option, ignoring %s.\n", argv[i]);
         }
       } else if (strcmp(&argv[i][1], "exec") == 0) {
         if (i+1 < argc && argv[i+1][0] != '-') {
@@ -292,16 +292,16 @@ int main(int argc, char** argv)
               } else if (strcmp(argv[i], "mpi_type") == 0) {
                 exec_avail.mpi_type = enabledisable;
               } else {
-                print(FileGroup::err_master, "Invalid argument to sub-option, ignoring %s %s %s.\n", argv[i-2], argv[i-1], argv[i]);
+                fgprintf(FileGroup::err_master, "Invalid argument to sub-option, ignoring %s %s %s.\n", argv[i-2], argv[i-1], argv[i]);
               }
             } else {
-              print(FileGroup::err_master, "No argument to sub-option, ignoring %s %s.\n", argv[i-1], argv[i]);
+              fgprintf(FileGroup::err_master, "No argument to sub-option, ignoring %s %s.\n", argv[i-1], argv[i]);
             }
           } else {
-            print(FileGroup::err_master, "Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
+            fgprintf(FileGroup::err_master, "Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
           }
         } else {
-          print(FileGroup::err_master, "No argument to option, ignoring %s.\n", argv[i]);
+          fgprintf(FileGroup::err_master, "No argument to option, ignoring %s.\n", argv[i]);
         }
       } else if (strcmp(&argv[i][1], "memory") == 0) {
         if (i+1 < argc && argv[i+1][0] != '-') {
@@ -358,16 +358,16 @@ int main(int argc, char** argv)
                 alloc.cuda_managed_device_preferred_host_accessed.m_available = enabledisable;
   #endif
               } else {
-                print(FileGroup::err_master, "Invalid argument to sub-option, ignoring %s %s %s.\n", argv[i-2], argv[i-1], argv[i]);
+                fgprintf(FileGroup::err_master, "Invalid argument to sub-option, ignoring %s %s %s.\n", argv[i-2], argv[i-1], argv[i]);
               }
             } else {
-              print(FileGroup::err_master, "No argument to sub-option, ignoring %s %s.\n", argv[i-1], argv[i]);
+              fgprintf(FileGroup::err_master, "No argument to sub-option, ignoring %s %s.\n", argv[i-1], argv[i]);
             }
           } else {
-            print(FileGroup::err_master, "Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
+            fgprintf(FileGroup::err_master, "Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
           }
         } else {
-          print(FileGroup::err_master, "No argument to option, ignoring %s.\n", argv[i]);
+          fgprintf(FileGroup::err_master, "No argument to option, ignoring %s.\n", argv[i]);
         }
       } else if (strcmp(&argv[i][1], "vars") == 0) {
         if (i+1 < argc && argv[i+1][0] != '-') {
@@ -376,10 +376,10 @@ int main(int argc, char** argv)
           if (ret == 1) {
             num_vars = read_num_vars;
           } else {
-            print(FileGroup::err_master, "Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
+            fgprintf(FileGroup::err_master, "Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
           }
         } else {
-          print(FileGroup::err_master, "No argument to option, ignoring %s.\n", argv[i]);
+          fgprintf(FileGroup::err_master, "No argument to option, ignoring %s.\n", argv[i]);
         }
       } else if (strcmp(&argv[i][1], "cycles") == 0) {
         if (i+1 < argc && argv[i+1][0] != '-') {
@@ -388,10 +388,10 @@ int main(int argc, char** argv)
           if (ret == 1) {
             ncycles = read_ncycles;
           } else {
-            print(FileGroup::err_master, "Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
+            fgprintf(FileGroup::err_master, "Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
           }
         } else {
-          print(FileGroup::err_master, "No argument to option, ignoring %s.\n", argv[i]);
+          fgprintf(FileGroup::err_master, "No argument to option, ignoring %s.\n", argv[i]);
         }
       } else if (strcmp(&argv[i][1], "periodic") == 0) {
         if (i+1 < argc && argv[i+1][0] != '-') {
@@ -406,10 +406,10 @@ int main(int argc, char** argv)
             periodic[1] = read_periodic[1] ? 1 : 0;
             periodic[2] = read_periodic[2] ? 1 : 0;
           } else {
-            print(FileGroup::err_master, "Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
+            fgprintf(FileGroup::err_master, "Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
           }
         } else {
-          print(FileGroup::err_master, "No argument to option, ignoring %s.\n", argv[i]);
+          fgprintf(FileGroup::err_master, "No argument to option, ignoring %s.\n", argv[i]);
         }
       } else if (strcmp(&argv[i][1], "divide") == 0) {
         if (i+1 < argc && argv[i+1][0] != '-') {
@@ -424,10 +424,10 @@ int main(int argc, char** argv)
             divisions[1] = read_divisions[1];
             divisions[2] = read_divisions[2];
           } else {
-            print(FileGroup::err_master, "Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
+            fgprintf(FileGroup::err_master, "Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
           }
         } else {
-          print(FileGroup::err_master, "No argument to option, ignoring %s.\n", argv[i]);
+          fgprintf(FileGroup::err_master, "No argument to option, ignoring %s.\n", argv[i]);
         }
       } else if (strcmp(&argv[i][1], "omp_threads") == 0) {
         if (i+1 < argc && argv[i+1][0] != '-') {
@@ -441,34 +441,34 @@ int main(int argc, char** argv)
 #ifdef COMB_ENABLE_OPENMP
             omp_threads = read_omp_threads;
 #else
-            print(FileGroup::err_master, "Not built with openmp, ignoring %s %s.\n", argv[i-1], argv[i]);
+            fgprintf(FileGroup::err_master, "Not built with openmp, ignoring %s %s.\n", argv[i-1], argv[i]);
 #endif
           } else {
-            print(FileGroup::err_master, "Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
+            fgprintf(FileGroup::err_master, "Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
           }
         } else {
-          print(FileGroup::err_master, "No argument to option, ignoring %s.\n", argv[i]);
+          fgprintf(FileGroup::err_master, "No argument to option, ignoring %s.\n", argv[i]);
         }
       } else if (strcmp(&argv[i][1], "cuda_aware_mpi") == 0) {
 #ifdef COMB_ENABLE_CUDA
         alloc.access.cuda_aware_mpi = true;
 #else
-        print(FileGroup::err_master, "Not built with cuda, ignoring %s.\n", argv[i]);
+        fgprintf(FileGroup::err_master, "Not built with cuda, ignoring %s.\n", argv[i]);
 #endif
       } else if (strcmp(&argv[i][1], "cuda_host_accessible_from_device") == 0) {
 #ifdef COMB_ENABLE_CUDA
         alloc.access.cuda_host_accessible_from_device = COMB::detail::cuda::get_host_accessible_from_device();
 #else
-        print(FileGroup::err_master, "Not built with cuda, ignoring %s.\n", argv[i]);
+        fgprintf(FileGroup::err_master, "Not built with cuda, ignoring %s.\n", argv[i]);
 #endif
       } else if (strcmp(&argv[i][1], "cuda_device_accessible_from_host") == 0) {
 #ifdef COMB_ENABLE_CUDA
         alloc.access.cuda_device_accessible_from_host = COMB::detail::cuda::get_device_accessible_from_host();
 #else
-        print(FileGroup::err_master, "Not built with cuda, ignoring %s.\n", argv[i]);
+        fgprintf(FileGroup::err_master, "Not built with cuda, ignoring %s.\n", argv[i]);
 #endif
       } else {
-        print(FileGroup::err_master, "Unknown option, ignoring %s.\n", argv[i]);
+        fgprintf(FileGroup::err_master, "Unknown option, ignoring %s.\n", argv[i]);
       }
     } else if (std::isdigit(argv[i][0]) && s < 1) {
       long read_sizes[3] {sizes[0], sizes[1], sizes[2]};
@@ -484,26 +484,26 @@ int main(int argc, char** argv)
         sizes[1] = read_sizes[1];
         sizes[2] = read_sizes[2];
       } else {
-        print(FileGroup::err_master, "Invalid argument to sizes, ignoring %s.\n", argv[i]);
+        fgprintf(FileGroup::err_master, "Invalid argument to sizes, ignoring %s.\n", argv[i]);
       }
     } else {
-      print(FileGroup::err_master, "Invalid argument, ignoring %s.\n", argv[i]);
+      fgprintf(FileGroup::err_master, "Invalid argument, ignoring %s.\n", argv[i]);
     }
   }
 
   if (ncycles <= 0) {
-    print(FileGroup::err_master, "Invalid cycles argument.\n");
+    fgprintf(FileGroup::err_master, "Invalid cycles argument.\n");
     comminfo.abort();
   } else if (num_vars <= 0) {
-    print(FileGroup::err_master, "Invalid vars argument.\n");
+    fgprintf(FileGroup::err_master, "Invalid vars argument.\n");
     comminfo.abort();
   } else if ( (ghost_widths[0] <  0 || ghost_widths[1] <  0 || ghost_widths[2] <  0)
            || (ghost_widths[0] == 0 && ghost_widths[1] == 0 && ghost_widths[2] == 0) ) {
-    print(FileGroup::err_master, "Invalid ghost widths.\n");
+    fgprintf(FileGroup::err_master, "Invalid ghost widths.\n");
     comminfo.abort();
   } else if ( (divisions[0] != 0 || divisions[1] != 0 || divisions[2] != 0)
            && (comminfo.size != divisions[0] * divisions[1] * divisions[2]) ) {
-    print(FileGroup::err_master, "Invalid mesh divisions\n");
+    fgprintf(FileGroup::err_master, "Invalid mesh divisions\n");
     comminfo.abort();
   }
 
@@ -523,7 +523,7 @@ int main(int argc, char** argv)
     }
 
     long print_omp_threads = omp_threads;
-    print(FileGroup::all, "OMP num threads %5li\n", print_omp_threads);
+    fgprintf(FileGroup::all, "OMP num threads %5li\n", print_omp_threads);
 
 #ifdef PRINT_THREAD_MAP
     {
@@ -538,13 +538,13 @@ int main(int argc, char** argv)
 
       int i = 0;
       if (i < omp_threads) {
-        print(FileGroup::all, "OMP thread map %6i", thread_cpu_id[i]);
+        fgprintf(FileGroup::all, "OMP thread map %6i", thread_cpu_id[i]);
         for (++i; i < omp_threads; ++i) {
-          print(FileGroup::all, " %8i", thread_cpu_id[i]);
+          fgprintf(FileGroup::all, " %8i", thread_cpu_id[i]);
         }
       }
 
-      print(FileGroup::all, "\n");
+      fgprintf(FileGroup::all, "\n");
 
       delete[] thread_cpu_id;
 
@@ -572,42 +572,42 @@ int main(int argc, char** argv)
     long print_divisions[3]    = {comminfo.cart.divisions[0], comminfo.cart.divisions[1], comminfo.cart.divisions[2]};
     long print_periodic[3]     = {comminfo.cart.periodic[0],  comminfo.cart.periodic[1],  comminfo.cart.periodic[2] };
 
-    print(FileGroup::all, "Cart coords  %8li %8li %8li\n", print_coords[0],       print_coords[1],       print_coords[2]      );
-    print(FileGroup::all, "Message policy cutoff %li\n",   print_cutoff                                                       );
-    print(FileGroup::all, "Post Recv using %s method\n",   CommInfo::method_str(comminfo.post_recv_method)                    );
-    print(FileGroup::all, "Post Send using %s method\n",   CommInfo::method_str(comminfo.post_send_method)                    );
-    print(FileGroup::all, "Wait Recv using %s method\n",   CommInfo::method_str(comminfo.wait_recv_method)                    );
-    print(FileGroup::all, "Wait Send using %s method\n",   CommInfo::method_str(comminfo.wait_send_method)                    );
-    print(FileGroup::all, "Num cycles   %8li\n",           print_ncycles                                                      );
-    print(FileGroup::all, "Num vars     %8li\n",           print_num_vars                                                     );
-    print(FileGroup::all, "ghost_widths %8li %8li %8li\n", print_ghost_widths[0], print_ghost_widths[1], print_ghost_widths[2]);
-    print(FileGroup::all, "sizes        %8li %8li %8li\n", print_sizes[0],        print_sizes[1],        print_sizes[2]       );
-    print(FileGroup::all, "divisions    %8li %8li %8li\n", print_divisions[0],    print_divisions[1],    print_divisions[2]   );
-    print(FileGroup::all, "periodic     %8li %8li %8li\n", print_periodic[0],     print_periodic[1],     print_periodic[2]    );
-    print(FileGroup::all, "division map\n");
+    fgprintf(FileGroup::all, "Cart coords  %8li %8li %8li\n", print_coords[0],       print_coords[1],       print_coords[2]      );
+    fgprintf(FileGroup::all, "Message policy cutoff %li\n",   print_cutoff                                                       );
+    fgprintf(FileGroup::all, "Post Recv using %s method\n",   CommInfo::method_str(comminfo.post_recv_method)                    );
+    fgprintf(FileGroup::all, "Post Send using %s method\n",   CommInfo::method_str(comminfo.post_send_method)                    );
+    fgprintf(FileGroup::all, "Wait Recv using %s method\n",   CommInfo::method_str(comminfo.wait_recv_method)                    );
+    fgprintf(FileGroup::all, "Wait Send using %s method\n",   CommInfo::method_str(comminfo.wait_send_method)                    );
+    fgprintf(FileGroup::all, "Num cycles   %8li\n",           print_ncycles                                                      );
+    fgprintf(FileGroup::all, "Num vars     %8li\n",           print_num_vars                                                     );
+    fgprintf(FileGroup::all, "ghost_widths %8li %8li %8li\n", print_ghost_widths[0], print_ghost_widths[1], print_ghost_widths[2]);
+    fgprintf(FileGroup::all, "sizes        %8li %8li %8li\n", print_sizes[0],        print_sizes[1],        print_sizes[2]       );
+    fgprintf(FileGroup::all, "divisions    %8li %8li %8li\n", print_divisions[0],    print_divisions[1],    print_divisions[2]   );
+    fgprintf(FileGroup::all, "periodic     %8li %8li %8li\n", print_periodic[0],     print_periodic[1],     print_periodic[2]    );
+    fgprintf(FileGroup::all, "division map\n");
     // print division map
     IdxT max_cuts = std::max(std::max(comminfo.cart.divisions[0], comminfo.cart.divisions[1]), comminfo.cart.divisions[2]);
     for (IdxT ci = 0; ci <= max_cuts; ++ci) {
-      print(FileGroup::all, "map         ");
+      fgprintf(FileGroup::all, "map         ");
       if (ci <= comminfo.cart.divisions[0]) {
         long print_division_coord = ci * (sizes[0] / comminfo.cart.divisions[0]) + std::min(ci, sizes[0] % comminfo.cart.divisions[0]);
-        print(FileGroup::all, " %8li", print_division_coord);
+        fgprintf(FileGroup::all, " %8li", print_division_coord);
       } else {
-        print(FileGroup::all, " %8s", "");
+        fgprintf(FileGroup::all, " %8s", "");
       }
       if (ci <= comminfo.cart.divisions[1]) {
         long print_division_coord = ci * (sizes[1] / comminfo.cart.divisions[1]) + std::min(ci, sizes[1] % comminfo.cart.divisions[1]);
-        print(FileGroup::all, " %8li", print_division_coord);
+        fgprintf(FileGroup::all, " %8li", print_division_coord);
       } else {
-        print(FileGroup::all, " %8s", "");
+        fgprintf(FileGroup::all, " %8s", "");
       }
       if (ci <= comminfo.cart.divisions[2]) {
         long print_division_coord = ci * (sizes[2] / comminfo.cart.divisions[2]) + std::min(ci, sizes[2] % comminfo.cart.divisions[2]);
-        print(FileGroup::all, " %8li", print_division_coord);
+        fgprintf(FileGroup::all, " %8li", print_division_coord);
       } else {
-        print(FileGroup::all, " %8s", "");
+        fgprintf(FileGroup::all, " %8s", "");
       }
-      print(FileGroup::all, "\n");
+      fgprintf(FileGroup::all, "\n");
     }
   }
 

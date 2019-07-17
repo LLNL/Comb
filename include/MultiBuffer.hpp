@@ -76,7 +76,7 @@ public:
 
       if (m_info_cur->buffer_pos + aligned_nbytes <= useable_capacity) {
 
-         //FPRINTF(stdout, "pack writing fnc %p\n", fnc);
+         //FGPRINTF(FileGroup::proc, "pack writing fnc %p\n", fnc);
          m_info_cur->buffer_pos += aligned_nbytes;
          assert(m_info_cur->buffer_pos <= useable_capacity);
          bool success = m_info_cur->buffer_device->write( buffer_type::dynamic_buffer_type<device_wrapper_ptr>(1, &fnc)
@@ -88,7 +88,7 @@ public:
 
          continue_and_next_buffer();
 
-         //FPRINTF(stdout, "pack writing fnc %p\n", fnc);
+         //FGPRINTF(FileGroup::proc, "pack writing fnc %p\n", fnc);
          m_info_cur->buffer_pos += aligned_nbytes;
          assert(m_info_cur->buffer_pos <= useable_capacity);
          bool success = m_info_cur->buffer_device->write( buffer_type::dynamic_buffer_type<device_wrapper_ptr>(1, &fnc)
@@ -116,7 +116,7 @@ public:
          return true;
       } else if (m_info_cur->buffer_pos == buffer_capacity) {
          if (m_info_cur->buffer_device->reinit()) {
-           //FPRINTF(stdout, "cur_buffer_empty reinit-ed %p\n", m_info_cur->buffer_device);
+           //FGPRINTF(FileGroup::proc, "cur_buffer_empty reinit-ed %p\n", m_info_cur->buffer_device);
            m_info_cur->buffer_pos = 0;
            return true;
          }
@@ -140,7 +140,7 @@ private:
          return true;
       } else if (m_info_cur->buffer_pos == buffer_capacity) {
          if (m_info_cur->buffer_device->reinit()) {
-           //FPRINTF(stdout, "cur_buffer_writeable reinit-ed %p\n", m_info_cur->buffer_device);
+           //FGPRINTF(FileGroup::proc, "cur_buffer_writeable reinit-ed %p\n", m_info_cur->buffer_device);
            m_info_cur->buffer_pos = 0;
            return true;
          }
@@ -156,7 +156,7 @@ private:
          return true;
       } else if (m_info_cur->next->buffer_pos == buffer_capacity) {
          if (m_info_cur->next->buffer_device->reinit()) {
-           //FPRINTF(stdout, "next_buffer_empty reinit-ed %p\n", m_info_cur->next->buffer_device);
+           //FGPRINTF(FileGroup::proc, "next_buffer_empty reinit-ed %p\n", m_info_cur->next->buffer_device);
            m_info_cur->next->buffer_pos = 0;
            return true;
          }
@@ -169,7 +169,7 @@ private:
    buffer_type* stop_and_next_buffer()
    {
       void* ptrs[2] {(void*)comb_detail_fnc_null_val, nullptr};
-      //FPRINTF(stdout, "stop_and_next_buffer cur %p writing %p %p\n", m_info_cur->buffer_device, ptrs[0], ptrs[1]);
+      //FGPRINTF(FileGroup::proc, "stop_and_next_buffer cur %p writing %p %p\n", m_info_cur->buffer_device, ptrs[0], ptrs[1]);
       m_info_cur->buffer_pos = buffer_capacity;
       bool wrote = m_info_cur->buffer_device->write( buffer_type::dynamic_buffer_type<void*>(2, &ptrs[0]) );
       assert(wrote);
@@ -182,7 +182,7 @@ private:
    void continue_and_next_buffer()
    {
       void* ptrs[2] {(void*)comb_detail_fnc_null_val, (void*)m_info_cur->next->buffer_device};
-      //FPRINTF(stdout, "continue_and_next_buffer cur %p writing %p %p\n", m_info_cur->buffer_device, ptrs[0], ptrs[1]);
+      //FGPRINTF(FileGroup::proc, "continue_and_next_buffer cur %p writing %p %p\n", m_info_cur->buffer_device, ptrs[0], ptrs[1]);
       m_info_cur->buffer_pos = buffer_capacity;
       bool wrote = m_info_cur->buffer_device->write( buffer_type::dynamic_buffer_type<void*>(2, &ptrs[0]) );
       assert(wrote);
@@ -209,7 +209,7 @@ private:
 
    void print_state(const char* func)
    {
-      // FPRINTF(stdout, "MultiBuffer(%p) %20s\tpos %4i max_n %7i\n", m_info->buffer_host, func, m_info->buffer_pos);
+      // FGPRINTF(FileGroup::proc, "MultiBuffer(%p) %20s\tpos %4i max_n %7i\n", m_info->buffer_host, func, m_info->buffer_pos);
    }
 };
 

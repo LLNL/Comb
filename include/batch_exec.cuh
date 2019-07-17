@@ -78,7 +78,7 @@ void block_read_device(typename shared_buffer_type::buffer_type volatile* arg_bu
   /*
   if (threadIdx.x+1 == blockDim.x) {
     // inform host that device is done reading this block
-    FPRINTF(stdout, "block %6i thread %6i Device Buffer get %p\n", blockIdx.x, threadIdx.x, dev_buf);
+    FGPRINTF(FileGroup::proc, "block %6i thread %6i Device Buffer get %p\n", blockIdx.x, threadIdx.x, dev_buf);
   }
   */
 
@@ -101,7 +101,7 @@ void block_read_device(typename shared_buffer_type::buffer_type volatile* arg_bu
         fnc = ((const volatile device_wrapper_ptr*)shr_ptr)[0];
         /*
         if (threadIdx.x+1 == blockDim.x) {
-          FPRINTF(stdout, "block %6i thread %6i read fnc %p\n", blockIdx.x, threadIdx.x, fnc);
+          FGPRINTF(FileGroup::proc, "block %6i thread %6i read fnc %p\n", blockIdx.x, threadIdx.x, fnc);
         }
         */
         // Decide2:
@@ -123,7 +123,7 @@ void block_read_device(typename shared_buffer_type::buffer_type volatile* arg_bu
               fnc = ((const volatile device_wrapper_ptr*)shr_ptr)[0];
               /*
               if (threadIdx.x+1 == blockDim.x) {
-                FPRINTF(stdout, "block %6i thread %6i read fnc %p\n", blockIdx.x, threadIdx.x, fnc);
+                FGPRINTF(FileGroup::proc, "block %6i thread %6i read fnc %p\n", blockIdx.x, threadIdx.x, fnc);
               }
               */
               // Decide1:
@@ -155,7 +155,7 @@ void block_read_device(typename shared_buffer_type::buffer_type volatile* arg_bu
         } else if (fnc != comb_detail_fnc_null_val) {
           /*
           if (threadIdx.x+1 == blockDim.x) {
-            FPRINTF(stdout, "block %6i thread %6i grid sync\n", blockIdx.x, threadIdx.x);
+            FGPRINTF(FileGroup::proc, "block %6i thread %6i grid sync\n", blockIdx.x, threadIdx.x);
           }
           */
           // GridSync: synchronize before run function
@@ -180,7 +180,7 @@ void block_read_device(typename shared_buffer_type::buffer_type volatile* arg_bu
             }
             /*
             if (threadIdx.x+1 == blockDim.x) {
-              FPRINTF(stdout, "block %6i thread %6i grid sync\n", blockIdx.x, threadIdx.x);
+              FGPRINTF(FileGroup::proc, "block %6i thread %6i grid sync\n", blockIdx.x, threadIdx.x);
             }
             */
             // EventStart: ensure memory writes in all threads readable everywhere
@@ -199,11 +199,11 @@ void block_read_device(typename shared_buffer_type::buffer_type volatile* arg_bu
             /*
             if (threadIdx.x+1 == blockDim.x) {
               // inform host that device is done reading this block
-              FPRINTF(stdout, "block %6i thread %6i Device Buffer read %p\n", blockIdx.x, threadIdx.x, dev_buf);
+              FGPRINTF(FileGroup::proc, "block %6i thread %6i Device Buffer read %p\n", blockIdx.x, threadIdx.x, dev_buf);
             }
 
             if (threadIdx.x+1 == blockDim.x) {
-              FPRINTF(stdout, "block %6i thread %6i grid sync\n", blockIdx.x, threadIdx.x);
+              FGPRINTF(FileGroup::proc, "block %6i thread %6i grid sync\n", blockIdx.x, threadIdx.x);
             }
 
             { cooperative_groups::this_grid().sync(); }
@@ -244,7 +244,7 @@ void block_read_device_few_grid_sync(typename shared_buffer_type::buffer_type vo
   /*
   if (threadIdx.x+1 == blockDim.x) {
     // inform host that device is done reading this block
-    FPRINTF(stdout, "block %6i thread %6i Device Buffer get %p\n", blockIdx.x, threadIdx.x, dev_buf);
+    FGPRINTF(FileGroup::proc, "block %6i thread %6i Device Buffer get %p\n", blockIdx.x, threadIdx.x, dev_buf);
   }
   */
 
@@ -267,7 +267,7 @@ void block_read_device_few_grid_sync(typename shared_buffer_type::buffer_type vo
         fnc = ((const volatile device_wrapper_ptr*)shr_ptr)[0];
         /*
         if (threadIdx.x+1 == blockDim.x) {
-          FPRINTF(stdout, "block %6i thread %6i read fnc %p\n", blockIdx.x, threadIdx.x, fnc);
+          FGPRINTF(FileGroup::proc, "block %6i thread %6i read fnc %p\n", blockIdx.x, threadIdx.x, fnc);
         }
         */
         // Decide2:
@@ -289,7 +289,7 @@ void block_read_device_few_grid_sync(typename shared_buffer_type::buffer_type vo
               fnc = ((const volatile device_wrapper_ptr*)shr_ptr)[0];
               /*
               if (threadIdx.x+1 == blockDim.x) {
-                FPRINTF(stdout, "block %6i thread %6i read fnc %p\n", blockIdx.x, threadIdx.x, fnc);
+                FGPRINTF(FileGroup::proc, "block %6i thread %6i read fnc %p\n", blockIdx.x, threadIdx.x, fnc);
               }
               */
               // Decide1:
@@ -321,7 +321,7 @@ void block_read_device_few_grid_sync(typename shared_buffer_type::buffer_type vo
         } else if (fnc != comb_detail_fnc_null_val) {
           /*
           if (threadIdx.x+1 == blockDim.x) {
-            FPRINTF(stdout, "block %6i thread %6i grid sync\n", blockIdx.x, threadIdx.x);
+            FGPRINTF(FileGroup::proc, "block %6i thread %6i grid sync\n", blockIdx.x, threadIdx.x);
           }
           */
           // GridSync: synchronize before run function
@@ -346,7 +346,7 @@ void block_read_device_few_grid_sync(typename shared_buffer_type::buffer_type vo
             }
             /*
             if (threadIdx.x+1 == blockDim.x) {
-              FPRINTF(stdout, "block %6i thread %6i grid sync\n", blockIdx.x, threadIdx.x);
+              FGPRINTF(FileGroup::proc, "block %6i thread %6i grid sync\n", blockIdx.x, threadIdx.x);
             }
             */
             // EventStart: ensure memory writes in all threads readable everywhere
@@ -365,11 +365,11 @@ void block_read_device_few_grid_sync(typename shared_buffer_type::buffer_type vo
             /*
             if (threadIdx.x+1 == blockDim.x) {
               // inform host that device is done reading this block
-              FPRINTF(stdout, "block %6i thread %6i Device Buffer read %p\n", blockIdx.x, threadIdx.x, dev_buf);
+              FGPRINTF(FileGroup::proc, "block %6i thread %6i Device Buffer read %p\n", blockIdx.x, threadIdx.x, dev_buf);
             }
 
             if (threadIdx.x+1 == blockDim.x) {
-              FPRINTF(stdout, "block %6i thread %6i grid sync\n", blockIdx.x, threadIdx.x);
+              FGPRINTF(FileGroup::proc, "block %6i thread %6i grid sync\n", blockIdx.x, threadIdx.x);
             }
 
             { cooperative_groups::this_grid().sync(); }

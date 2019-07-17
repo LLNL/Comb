@@ -139,7 +139,7 @@ struct Message<umr_pol> : detail::MessageBase
       DataT const* src = i->data;
       LidxT const* indices = i->indices;
       IdxT len = i->size;
-      // FPRINTF(stdout, "%p pack %p = %p[%p] len %d\n", this, buf, src, indices, len);
+      // FGPRINTF(FileGroup::proc, "%p pack %p = %p[%p] len %d\n", this, buf, src, indices, len);
       con.for_all(0, len, make_copy_idxr_idxr(src, detail::indexer_list_idx{indices}, buf, detail::indexer_idx{}));
       buf += len;
     }
@@ -156,7 +156,7 @@ struct Message<umr_pol> : detail::MessageBase
       DataT* dst = i->data;
       LidxT const* indices = i->indices;
       IdxT len = i->size;
-      // FPRINTF(stdout, "%p unpack %p[%p] = %p len %d\n", this, dst, indices, buf, len);
+      // FGPRINTF(FileGroup::proc, "%p unpack %p[%p] = %p len %d\n", this, dst, indices, buf, len);
       con.for_all(0, len, make_copy_idxr_idxr(buf, detail::indexer_idx{}, dst, detail::indexer_list_idx{indices}));
       buf += len;
     }
@@ -167,7 +167,7 @@ struct Message<umr_pol> : detail::MessageBase
   void Isend(context&, communicator_type& con_comm, send_request_type* request)
   {
     static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "umr_pol does not support mpi_type_pol");
-    // FPRINTF(stdout, "%p Isend %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
+    // FGPRINTF(FileGroup::proc, "%p Isend %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
     detail::UMR::Isend(buffer(), nbytes(), UMR_BYTE, partner_rank(), tag(), con_comm.comm, request);
   }
 
@@ -175,7 +175,7 @@ struct Message<umr_pol> : detail::MessageBase
   static void start_Isends(context& con, communicator_type& con_comm)
   {
     static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "umr_pol does not support mpi_type_pol");
-    // FPRINTF(stdout, "start_Isends\n");
+    // FGPRINTF(FileGroup::proc, "start_Isends\n");
     COMB::ignore_unused(con, con_comm);
   }
 
@@ -183,7 +183,7 @@ struct Message<umr_pol> : detail::MessageBase
   static void finish_Isends(context& con, communicator_type& con_comm)
   {
     static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "umr_pol does not support mpi_type_pol");
-    // FPRINTF(stdout, "finish_Isends\n");
+    // FGPRINTF(FileGroup::proc, "finish_Isends\n");
     COMB::ignore_unused(con, con_comm);
   }
 
@@ -191,7 +191,7 @@ struct Message<umr_pol> : detail::MessageBase
   void Irecv(context&, communicator_type& con_comm, recv_request_type* request)
   {
     static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "umr_pol does not support mpi_type_pol");
-    // FPRINTF(stdout, "%p Irecv %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
+    // FGPRINTF(FileGroup::proc, "%p Irecv %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
     detail::UMR::Irecv(buffer(), nbytes(), UMR_BYTE, partner_rank(), tag(), con_comm.comm, request);
   }
 

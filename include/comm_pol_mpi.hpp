@@ -136,7 +136,7 @@ struct Message<mpi_pol> : detail::MessageBase
       DataT const* src = i->data;
       LidxT const* indices = i->indices;
       IdxT len = i->size;
-      // FPRINTF(stdout, "%p pack %p = %p[%p] len %d\n", this, buf, src, indices, len);
+      // FGPRINTF(FileGroup::proc, "%p pack %p = %p[%p] len %d\n", this, buf, src, indices, len);
       con.for_all(0, len, make_copy_idxr_idxr(src, detail::indexer_list_idx{indices}, buf, detail::indexer_idx{}));
       buf += len;
     }
@@ -155,7 +155,7 @@ struct Message<mpi_pol> : detail::MessageBase
       for (auto i = std::begin(items); i != end; ++i) {
         DataT const* src = i->data;
         MPI_Datatype mpi_type = i->mpi_type;
-        // FPRINTF(stdout, "%p pack %p[%i] = %p\n", this, buf, pos, src);
+        // FGPRINTF(FileGroup::proc, "%p pack %p[%i] = %p\n", this, buf, pos, src);
         detail::MPI::Pack(src, 1, mpi_type, buf, buf_max_nbytes, &pos, con_comm.comm);
       }
       // set nbytes to actual value
@@ -173,7 +173,7 @@ struct Message<mpi_pol> : detail::MessageBase
       DataT* dst = i->data;
       LidxT const* indices = i->indices;
       IdxT len = i->size;
-      // FPRINTF(stdout, "%p unpack %p[%p] = %p len %d\n", this, dst, indices, buf, len);
+      // FGPRINTF(FileGroup::proc, "%p unpack %p[%p] = %p len %d\n", this, dst, indices, buf, len);
       con.for_all(0, len, make_copy_idxr_idxr(buf, detail::indexer_idx{}, dst, detail::indexer_list_idx{indices}));
       buf += len;
     }
@@ -192,7 +192,7 @@ struct Message<mpi_pol> : detail::MessageBase
       for (auto i = std::begin(items); i != end; ++i) {
         DataT* dst = i->data;
         MPI_Datatype mpi_type = i->mpi_type;
-        // FPRINTF(stdout, "%p unpack %p = %p[%i]\n", this, dst, buf, pos);
+        // FGPRINTF(FileGroup::proc, "%p unpack %p = %p[%i]\n", this, dst, buf, pos);
         detail::MPI::Unpack(buf, buf_max_nbytes, &pos, dst, 1, mpi_type, con_comm.comm);
       }
     }
@@ -202,7 +202,7 @@ struct Message<mpi_pol> : detail::MessageBase
   template < typename context >
   void Isend(context&, communicator_type& con_comm, send_request_type* request)
   {
-    // FPRINTF(stdout, "%p Isend %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
+    // FGPRINTF(FileGroup::proc, "%p Isend %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
     detail::MPI::Isend(buffer(), nbytes(), MPI_BYTE, partner_rank(), tag(), con_comm.comm, request);
   }
 
@@ -211,10 +211,10 @@ struct Message<mpi_pol> : detail::MessageBase
     if (items.size() == 1) {
       DataT const* src = items.front().data;
       MPI_Datatype mpi_type = items.front().mpi_type;
-      // FPRINTF(stdout, "%p Isend %p to %i tag %i\n", this, src, partner_rank(), tag());
+      // FGPRINTF(FileGroup::proc, "%p Isend %p to %i tag %i\n", this, src, partner_rank(), tag());
       detail::MPI::Isend((void*)src, 1, mpi_type, partner_rank(), tag(), con_comm.comm, request);
     } else {
-      // FPRINTF(stdout, "%p Isend %p nbytes %i to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
+      // FGPRINTF(FileGroup::proc, "%p Isend %p nbytes %i to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
       detail::MPI::Isend(buffer(), nbytes(), MPI_PACKED, partner_rank(), tag(), con_comm.comm, request);
     }
   }
@@ -222,21 +222,21 @@ struct Message<mpi_pol> : detail::MessageBase
   template < typename context >
   static void start_Isends(context& con, communicator_type& con_comm)
   {
-    // FPRINTF(stdout, "start_Isends\n");
+    // FGPRINTF(FileGroup::proc, "start_Isends\n");
     COMB::ignore_unused(con, con_comm);
   }
 
   template < typename context >
   static void finish_Isends(context& con, communicator_type& con_comm)
   {
-    // FPRINTF(stdout, "finish_Isends\n");
+    // FGPRINTF(FileGroup::proc, "finish_Isends\n");
     COMB::ignore_unused(con, con_comm);
   }
 
   template < typename context >
   void Irecv(context&, communicator_type& con_comm, recv_request_type* request)
   {
-    // FPRINTF(stdout, "%p Irecv %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
+    // FGPRINTF(FileGroup::proc, "%p Irecv %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
     detail::MPI::Irecv(buffer(), nbytes(), MPI_BYTE, partner_rank(), tag(), con_comm.comm, request);
   }
 
@@ -245,10 +245,10 @@ struct Message<mpi_pol> : detail::MessageBase
     if (items.size() == 1) {
       DataT* dst = items.front().data;
       MPI_Datatype mpi_type = items.front().mpi_type;
-      // FPRINTF(stdout, "%p Irecv %p to %i tag %i\n", this, dst, partner_rank(), tag());
+      // FGPRINTF(FileGroup::proc, "%p Irecv %p to %i tag %i\n", this, dst, partner_rank(), tag());
       detail::MPI::Irecv(dst, 1, mpi_type, partner_rank(), tag(), con_comm.comm, request);
     } else {
-      // FPRINTF(stdout, "%p Irecv %p maxnbytes %i to %i tag %i\n", this, dst, max_nbytes(), partner_rank(), tag());
+      // FGPRINTF(FileGroup::proc, "%p Irecv %p maxnbytes %i to %i tag %i\n", this, dst, max_nbytes(), partner_rank(), tag());
       detail::MPI::Irecv(buffer(), max_nbytes(), MPI_PACKED, partner_rank(), tag(), con_comm.comm, request);
     }
   }

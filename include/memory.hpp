@@ -140,12 +140,12 @@ struct Allocator
   {
     COMB::ignore_unused(nbytes);
     void* ptr = nullptr;
-    // FPRINTF(stdout, "allocated %p nbytes %zu\n", ptr, nbytes);
+    // FGPRINTF(FileGroup::proc, "allocated %p nbytes %zu\n", ptr, nbytes);
     return ptr;
   }
   virtual void deallocate(void* ptr)
   {
-    // FPRINTF(stdout, "deallocating %p\n", ptr);
+    // FGPRINTF(FileGroup::proc, "deallocating %p\n", ptr);
     assert(ptr == nullptr);
   }
 };
@@ -156,12 +156,12 @@ struct HostAllocator : Allocator
   void* allocate(size_t nbytes) override
   {
     void* ptr = malloc(nbytes);
-    // FPRINTF(stdout, "allocated %p nbytes %zu\n", ptr, nbytes);
+    // FGPRINTF(FileGroup::proc, "allocated %p nbytes %zu\n", ptr, nbytes);
     return ptr;
   }
   void deallocate(void* ptr) override
   {
-    // FPRINTF(stdout, "deallocating %p\n", ptr);
+    // FGPRINTF(FileGroup::proc, "deallocating %p\n", ptr);
     free(ptr);
   }
 };

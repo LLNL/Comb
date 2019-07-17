@@ -48,7 +48,7 @@ namespace detail {
      void operator()(IdxT i, IdxT) const {
        IdxT zone = i;
        DataT next = other[zone];
-       // FPRINTF(stdout, "%p[%i] = %f\n", data, zone, next);
+       // FGPRINTF(FileGroup::proc, "%p[%i] = %f\n", data, zone, next);
        data[zone] = next;
      }
   };
@@ -60,7 +60,7 @@ namespace detail {
      void operator()(IdxT i, IdxT) const {
        IdxT zone = i;
        DataT next = 0.0;
-       // FPRINTF(stdout, "%p[%i] = %f\n", data, zone, next);
+       // FGPRINTF(FileGroup::proc, "%p[%i] = %f\n", data, zone, next);
        data[zone] = next;
      }
   };
@@ -72,7 +72,7 @@ namespace detail {
      void operator()(IdxT i, IdxT) const {
        IdxT zone = i;
        DataT next = -1.0;
-       // FPRINTF(stdout, "%p[%i] = %f\n", data, zone, next);
+       // FGPRINTF(FileGroup::proc, "%p[%i] = %f\n", data, zone, next);
        data[zone] = next;
      }
   };
@@ -86,7 +86,7 @@ namespace detail {
        COMB::ignore_unused(idx);
        IdxT zone = i + j * ilen + k * ijlen;
        DataT next = 1.0;
-       // FPRINTF(stdout, "%p[%i] = %f\n", data, zone, next);
+       // FGPRINTF(FileGroup::proc, "%p[%i] = %f\n", data, zone, next);
        data[zone] = next;
      }
   };
@@ -114,9 +114,9 @@ namespace detail {
        //   expected = 0.0; found = data[zone]; next = -1.0;
        // }
        // if (found != expected) {
-       //   FPRINTF(stdout, "zone %i(%i %i %i) = %f expected %f\n", zone, i, j, k, found, expected);
+       //   FGPRINTF(FileGroup::proc, "zone %i(%i %i %i) = %f expected %f\n", zone, i, j, k, found, expected);
        // }
-       //FPRINTF(stdout, "%p[%i] = %f\n", data, zone, 1.0);
+       //FGPRINTF(FileGroup::proc, "%p[%i] = %f\n", data, zone, 1.0);
        DataT next = 1.0;
        data[zone] = next;
      }

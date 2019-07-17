@@ -18,6 +18,8 @@
 
 #include "config.hpp"
 
+#include "print.hpp"
+
 #include <cassert>
 #include <cstdio>
 
@@ -35,9 +37,9 @@ using DataT = double;
 #endif
 
 #ifdef __CUDA_ARCH__
-#define FPRINTF(f, ...) printf(__VA_ARGS__), FFLUSH(f)
+#define FGPRINTF(fg, ...) printf(__VA_ARGS__)
 #else
-#define FPRINTF(f, ...) fprintf(f, __VA_ARGS__), FFLUSH(f)
+#define FGPRINTF(fg, ...) fgprintf(fg, __VA_ARGS__)
 #endif
 
 
@@ -131,7 +133,7 @@ struct copy_idxr_idxr {
   {
     IdxT dst_i = idxr_dst(args...);
     IdxT src_i = idxr_src(args...);
-    // FPRINTF(stdout, "copy_idxr_idxr %p[%i]{%f} = %p[%i]{%f} (%i)%i\n", ptr_dst, dst_i, (double)ptr_dst[dst_i],
+    // FGPRINTF(FileGroup::proc, "copy_idxr_idxr %p[%i]{%f} = %p[%i]{%f} (%i)%i\n", ptr_dst, dst_i, (double)ptr_dst[dst_i],
     //                                                                    ptr_src, src_i, (double)ptr_src[src_i], args...);
     ptr_dst[dst_i] = ptr_src[src_i];
   }
@@ -157,7 +159,7 @@ struct set_idxr_idxr {
   {
     IdxT dst_i = idxr_dst(args...);
     IdxT src_i = idxr_src(args...);
-    // FPRINTF(stdout, "set_idxr_idxr %p[%i]{%f} = %i (%i %i %i)%i\n", ptr_dst, dst_i, (double)ptr_dst[dst_i], src_i, args...);
+    // FGPRINTF(FileGroup::proc, "set_idxr_idxr %p[%i]{%f} = %i (%i %i %i)%i\n", ptr_dst, dst_i, (double)ptr_dst[dst_i], src_i, args...);
     ptr_dst[dst_i] = src_i;
   }
 };

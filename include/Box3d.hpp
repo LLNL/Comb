@@ -70,13 +70,13 @@ struct Box3d
            , local_max[1] - local_min[1]
            , local_max[2] - local_min[2] }
   {
-    //FPRINTF(stdout, "Box3d i %d %d j %d %d k %d %d\n", min[0], max[0], min[1], max[1], min[2], max[2]);
+    //FGPRINTF(FileGroup::proc, "Box3d i %d %d j %d %d k %d %d\n", min[0], max[0], min[1], max[1], min[2], max[2]);
     //assert((imax-imin)*(jmax-jmin)*(kmax-kmin) <= 13*3*3);
   }
 
   void print(const char* name) const
   {
-    FPRINTF(stdout, "Box3d %32s local (%i %i %i)-(%i %i %i) info (%i %i %i)-(%i %i %i) global (%i %i %i)-(%i %i %i)\n",
+    FGPRINTF(FileGroup::proc, "Box3d %32s local (%i %i %i)-(%i %i %i) info (%i %i %i)-(%i %i %i) global (%i %i %i)-(%i %i %i)\n",
                      name,
                      min[0], min[1], min[2], min[0]+sizes[0], min[1]+sizes[1], min[2]+sizes[2],
                      info.min[0], info.min[1], info.min[2], info.max[0], info.max[1], info.max[2],
@@ -268,7 +268,7 @@ struct Box3d
     IdxT kmax = min[2] + sizes[2];
     con.for_all_3d(kmin, kmax, jmin, jmax, imin, imax, make_set_idxr_idxr(detail::indexer_kji{info.len[0]*info.len[1], info.len[0]}, index_list, detail::indexer_idx{}));
     //for(IdxT idx = 0; idx < (imax-imin)*(jmax-jmin)*(kmax-kmin); ++idx) {
-    //  FPRINTF(stdout, "indices[%i] = %i\n", idx, index_list[idx]);
+    //  FGPRINTF(FileGroup::proc, "indices[%i] = %i\n", idx, index_list[idx]);
     //  assert(0 <= index_list[idx] && index_list[idx] < (imax-imin)*(jmax-jmin)*(kmax-kmin));
     //}
     con.synchronize();

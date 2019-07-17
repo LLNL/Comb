@@ -439,7 +439,7 @@ struct Message<gpump_pol> : detail::MessageBase
       DataT const* src = i->data;
       LidxT const* indices = i->indices;
       IdxT len = i->size;
-      // FPRINTF(stdout, "%p pack %p = %p[%p] len %d\n", this, buf, src, indices, len);
+      // FGPRINTF(FileGroup::proc, "%p pack %p = %p[%p] len %d\n", this, buf, src, indices, len);
       con.for_all(0, len, make_copy_idxr_idxr(src, detail::indexer_list_idx{indices}, buf, detail::indexer_idx{}));
       buf += len;
     }
@@ -456,7 +456,7 @@ struct Message<gpump_pol> : detail::MessageBase
       DataT* dst = i->data;
       LidxT const* indices = i->indices;
       IdxT len = i->size;
-      // FPRINTF(stdout, "%p unpack %p[%p] = %p len %d\n", this, dst, indices, buf, len);
+      // FGPRINTF(FileGroup::proc, "%p unpack %p[%p] = %p len %d\n", this, dst, indices, buf, len);
       con.for_all(0, len, make_copy_idxr_idxr(buf, detail::indexer_idx{}, dst, detail::indexer_list_idx{indices}));
       buf += len;
     }
@@ -479,7 +479,7 @@ public:
   void Isend(context& con, communicator_type& con_comm, send_request_type* request)
   {
     static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support mpi_type_pol");
-    // FPRINTF(stdout, "%p Isend %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
+    // FGPRINTF(FileGroup::proc, "%p Isend %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
 
     start_Isend(con, con_comm);
     request->status = 1;
@@ -514,7 +514,7 @@ public:
   static void start_Isends(context& con, communicator_type& con_comm)
   {
     static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support mpi_type_pol");
-    // FPRINTF(stdout, "start_Isends\n");
+    // FGPRINTF(FileGroup::proc, "start_Isends\n");
 
     cork_Isends(con, con_comm);
   }
@@ -523,7 +523,7 @@ public:
   static void finish_Isends(context& con, communicator_type& con_comm)
   {
     static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support mpi_type_pol");
-    // FPRINTF(stdout, "finish_Isends\n");
+    // FGPRINTF(FileGroup::proc, "finish_Isends\n");
 
     uncork_Isends(con, con_comm);
   }
@@ -532,7 +532,7 @@ public:
   void Irecv(context& con, communicator_type& con_comm, recv_request_type* request)
   {
     static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support mpi_type_pol");
-    // FPRINTF(stdout, "%p Irecv %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
+    // FGPRINTF(FileGroup::proc, "%p Irecv %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
 
     detail::gpump::receive(con_comm.g, partner_rank(), m_region.mr, m_region.offset, nbytes());
     request->status = -1;

@@ -39,7 +39,7 @@ extern FILE* comb_summary_file;
 extern void comb_setup_files();
 extern void comb_teardown_files();
 
-extern void print(FileGroup fg, const char* fmt, ...);
+extern void fgprintf(FileGroup fg, const char* fmt, ...);
 extern void print_proc_memory_stats();
 
 #endif // _PRINT_HPP
