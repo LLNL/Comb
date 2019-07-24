@@ -515,8 +515,28 @@ struct Comm
         }
 
         IdxT pack_send = 0;
+
+        // start post_many_send at first index that have_many
+        // this avoid empty start finish Isends
         IdxT post_many_send = 0;
+        while (post_many_send < num_sends) {
+          if (m_sends[post_many_send].have_many()) {
+            break;
+          } else {
+            ++post_many_send;
+          }
+        }
+
+        // start post_many_send at first index that have_few
+        // this avoid empty start finish Isends
         IdxT post_few_send = 0;
+        while (post_few_send < num_sends) {
+          if (m_sends[post_few_send].have_many()) {
+            break;
+          } else {
+            ++post_few_send;
+          }
+        }
 
         while (post_many_send < num_sends || post_few_send < num_sends) {
 
@@ -542,41 +562,64 @@ struct Comm
             ++pack_send;
           }
 
+          int next_post_many_send = post_many_send;
 
-          // have_many query events and isend
-          while (post_many_send < pack_send) {
+          // have_many query events
+          while (next_post_many_send < pack_send) {
 
-            if (m_sends[post_many_send].have_many()) {
-              if (m_send_contexts_many[post_many_send].queryEvent(m_send_events_many[post_many_send])) {
-
-                message_type::start_Isends(m_send_contexts_many[post_many_send], con_comm);
-                m_sends[post_many_send].Isend(m_send_contexts_many[post_many_send], con_comm, &m_send_requests[post_many_send]);
-                message_type::finish_Isends(m_send_contexts_many[post_many_send], con_comm);
-                ++post_many_send;
+            if (m_sends[next_post_many_send].have_many()) {
+              if (m_send_contexts_many[next_post_many_send].queryEvent(m_send_events_many[next_post_many_send])) {
+                ++next_post_many_send;
               } else {
                 break;
               }
             } else {
-              ++post_many_send;
+              ++next_post_many_send;
             }
           }
 
-          // have_few query events and isend
-          while (post_few_send < pack_send) {
+          // have_many isends
+          if (post_many_send < next_post_many_send) {
+            message_type::start_Isends(con_many, con_comm);
+            while (post_many_send < next_post_many_send) {
 
-            if (!m_sends[post_few_send].have_many()) {
-              if (m_send_contexts_few[post_few_send].queryEvent(m_send_events_few[post_few_send])) {
+              if (m_sends[post_many_send].have_many()) {
 
-                message_type::start_Isends(m_send_contexts_few[post_few_send], con_comm);
-                m_sends[post_few_send].Isend(m_send_contexts_few[post_few_send], con_comm, &m_send_requests[post_few_send]);
-                message_type::finish_Isends(m_send_contexts_few[post_few_send], con_comm);
-                ++post_few_send;
+                m_sends[post_many_send].Isend(m_send_contexts_many[post_many_send], con_comm, &m_send_requests[post_many_send]);
+              }
+              ++post_many_send;
+            }
+            message_type::finish_Isends(con_many, con_comm);
+          }
+
+          int next_post_few_send = post_few_send;
+
+          // have_few query events
+          while (next_post_few_send < pack_send) {
+
+            if (!m_sends[next_post_few_send].have_many()) {
+              if (m_send_contexts_few[next_post_few_send].queryEvent(m_send_events_few[next_post_few_send])) {
+                ++next_post_few_send;
               } else {
                 break;
               }
             } else {
+              ++next_post_few_send;
+            }
+          }
+
+          // have_few isends
+          if (post_few_send < next_post_few_send) {
+            message_type::start_Isends(con_few, con_comm);
+            while (post_few_send < next_post_few_send) {
+
+              if (!m_sends[post_few_send].have_many()) {
+
+                m_sends[post_few_send].Isend(m_send_contexts_few[post_few_send], con_comm, &m_send_requests[post_few_send]);
+              }
               ++post_few_send;
             }
+            message_type::finish_Isends(con_few, con_comm);
           }
         }
       } break;
@@ -662,8 +705,28 @@ struct Comm
 
         IdxT pack_many_send = 0;
         IdxT pack_few_send = 0;
+
+        // start post_many_send at first index that have_many
+        // this avoid empty start finish Isends
         IdxT post_many_send = 0;
+        while (post_many_send < num_sends) {
+          if (m_sends[post_many_send].have_many()) {
+            break;
+          } else {
+            ++post_many_send;
+          }
+        }
+
+        // start post_many_send at first index that have_few
+        // this avoid empty start finish Isends
         IdxT post_few_send = 0;
+        while (post_few_send < num_sends) {
+          if (m_sends[post_few_send].have_many()) {
+            break;
+          } else {
+            ++post_few_send;
+          }
+        }
 
         // pack many sends
         if (num_many > 0) {
@@ -688,22 +751,34 @@ struct Comm
         }
 
         // post more sends if possible
-        while (post_many_send < pack_many_send) {
+        int next_post_many_send = post_many_send;
 
-          if (m_sends[post_many_send].have_many()) {
-            if (m_send_contexts_many[post_many_send].queryEvent(m_send_events_many[post_many_send])) {
+        // have_many query events
+        while (next_post_many_send < pack_many_send) {
 
-              // TODO send in groups
-              message_type::start_Isends(m_send_contexts_many[post_many_send], con_comm);
-              m_sends[post_many_send].Isend(m_send_contexts_many[post_many_send], con_comm, &m_send_requests[post_many_send]);
-              message_type::finish_Isends(m_send_contexts_many[post_many_send], con_comm);
-              ++post_many_send;
+          if (m_sends[next_post_many_send].have_many()) {
+            if (m_send_contexts_many[next_post_many_send].queryEvent(m_send_events_many[next_post_many_send])) {
+              ++next_post_many_send;
             } else {
               break;
             }
           } else {
+            ++next_post_many_send;
+          }
+        }
+
+        // have_many isends
+        if (post_many_send < next_post_many_send) {
+          message_type::start_Isends(con_many, con_comm);
+          while (post_many_send < next_post_many_send) {
+
+            if (m_sends[post_many_send].have_many()) {
+
+              m_sends[post_many_send].Isend(m_send_contexts_many[post_many_send], con_comm, &m_send_requests[post_many_send]);
+            }
             ++post_many_send;
           }
+          message_type::finish_Isends(con_many, con_comm);
         }
 
         // pack few sends
@@ -732,42 +807,65 @@ struct Comm
         // finish posting sends
         while (post_many_send < num_sends || post_few_send < num_sends) {
 
-          while (post_many_send < pack_many_send) {
+          int next_post_many_send = post_many_send;
 
-            if (m_sends[post_many_send].have_many()) {
-              if (m_send_contexts_many[post_many_send].queryEvent(m_send_events_many[post_many_send])) {
+          // have_many query events
+          while (next_post_many_send < pack_many_send) {
 
-                // TODO send in groups
-                message_type::start_Isends(m_send_contexts_many[post_many_send], con_comm);
-                m_sends[post_many_send].Isend(m_send_contexts_many[post_many_send], con_comm, &m_send_requests[post_many_send]);
-                message_type::finish_Isends(m_send_contexts_many[post_many_send], con_comm);
-                ++post_many_send;
+            if (m_sends[next_post_many_send].have_many()) {
+              if (m_send_contexts_many[next_post_many_send].queryEvent(m_send_events_many[next_post_many_send])) {
+                ++next_post_many_send;
               } else {
                 break;
               }
             } else {
+              ++next_post_many_send;
+            }
+          }
+
+          // have_many isends
+          if (post_many_send < next_post_many_send) {
+            message_type::start_Isends(con_many, con_comm);
+            while (post_many_send < next_post_many_send) {
+
+              if (m_sends[post_many_send].have_many()) {
+
+                m_sends[post_many_send].Isend(m_send_contexts_many[post_many_send], con_comm, &m_send_requests[post_many_send]);
+              }
               ++post_many_send;
             }
+            message_type::finish_Isends(con_many, con_comm);
           }
 
-          while (post_few_send < pack_few_send) {
+          int next_post_few_send = post_few_send;
 
-            if (!m_sends[post_few_send].have_many()) {
-              if (m_send_contexts_few[post_few_send].queryEvent(m_send_events_few[post_few_send])) {
+          // have_few query events
+          while (next_post_few_send < pack_few_send) {
 
-                // TODO send in groups
-                message_type::start_Isends(m_send_contexts_few[post_few_send], con_comm);
-                m_sends[post_few_send].Isend(m_send_contexts_few[post_few_send], con_comm, &m_send_requests[post_few_send]);
-                message_type::finish_Isends(m_send_contexts_few[post_few_send], con_comm);
-                ++post_few_send;
+            if (!m_sends[next_post_few_send].have_many()) {
+              if (m_send_contexts_few[next_post_few_send].queryEvent(m_send_events_few[next_post_few_send])) {
+                ++next_post_few_send;
               } else {
                 break;
               }
             } else {
-              ++post_few_send;
+              ++next_post_few_send;
             }
           }
 
+          // have_few isends
+          if (post_few_send < next_post_few_send) {
+            message_type::start_Isends(con_few, con_comm);
+            while (post_few_send < next_post_few_send) {
+
+              if (!m_sends[post_few_send].have_many()) {
+
+                m_sends[post_few_send].Isend(m_send_contexts_few[post_few_send], con_comm, &m_send_requests[post_few_send]);
+              }
+              ++post_few_send;
+            }
+            message_type::finish_Isends(con_few, con_comm);
+          }
         }
       } break;
       case CommInfo::method::waitall:
@@ -889,47 +987,90 @@ struct Comm
           con_few.finish_group();
         }
 
-        // post all sends
+        // start post_many_send at first index that have_many
+        // this avoid empty start finish Isends
         IdxT post_many_send = 0;
+        while (post_many_send < num_sends) {
+          if (m_sends[post_many_send].have_many()) {
+            break;
+          } else {
+            ++post_many_send;
+          }
+        }
+
+        // start post_many_send at first index that have_few
+        // this avoid empty start finish Isends
         IdxT post_few_send = 0;
+        while (post_few_send < num_sends) {
+          if (m_sends[post_few_send].have_many()) {
+            break;
+          } else {
+            ++post_few_send;
+          }
+        }
+
+        // post all sends
         while (post_many_send < num_sends || post_few_send < num_sends) {
 
-          while (post_many_send < num_sends) {
+          int next_post_many_send = post_many_send;
 
-            if (m_sends[post_many_send].have_many()) {
-              if (m_send_contexts_many[post_many_send].queryEvent(m_send_events_many[post_many_send])) {
+          // have_many query events
+          while (next_post_many_send < num_sends) {
 
-                // TODO send in groups
-                message_type::start_Isends(m_send_contexts_many[post_many_send], con_comm);
-                m_sends[post_many_send].Isend(m_send_contexts_many[post_many_send], con_comm, &m_send_requests[post_many_send]);
-                message_type::finish_Isends(m_send_contexts_many[post_many_send], con_comm);
-                ++post_many_send;
+            if (m_sends[next_post_many_send].have_many()) {
+              if (m_send_contexts_many[next_post_many_send].queryEvent(m_send_events_many[next_post_many_send])) {
+                ++next_post_many_send;
               } else {
                 break;
               }
             } else {
+              ++next_post_many_send;
+            }
+          }
+
+          // have_many isends
+          if (post_many_send < next_post_many_send) {
+            message_type::start_Isends(con_many, con_comm);
+            while (post_many_send < next_post_many_send) {
+
+              if (m_sends[post_many_send].have_many()) {
+
+                m_sends[post_many_send].Isend(m_send_contexts_many[post_many_send], con_comm, &m_send_requests[post_many_send]);
+              }
               ++post_many_send;
             }
+            message_type::finish_Isends(con_many, con_comm);
           }
 
-          while (post_few_send < num_sends) {
+          int next_post_few_send = post_few_send;
 
-            if (!m_sends[post_few_send].have_many()) {
-              if (m_send_contexts_few[post_few_send].queryEvent(m_send_events_few[post_few_send])) {
+          // have_few query events
+          while (next_post_few_send < num_sends) {
 
-                // TODO send in groups
-                message_type::start_Isends(m_send_contexts_few[post_few_send], con_comm);
-                m_sends[post_few_send].Isend(m_send_contexts_few[post_few_send], con_comm, &m_send_requests[post_few_send]);
-                message_type::finish_Isends(m_send_contexts_few[post_few_send], con_comm);
-                ++post_few_send;
+            if (!m_sends[next_post_few_send].have_many()) {
+              if (m_send_contexts_few[next_post_few_send].queryEvent(m_send_events_few[next_post_few_send])) {
+                ++next_post_few_send;
               } else {
                 break;
               }
             } else {
-              ++post_few_send;
+              ++next_post_few_send;
             }
           }
 
+          // have_few isends
+          if (post_few_send < next_post_few_send) {
+            message_type::start_Isends(con_few, con_comm);
+            while (post_few_send < next_post_few_send) {
+
+              if (!m_sends[post_few_send].have_many()) {
+
+                m_sends[post_few_send].Isend(m_send_contexts_few[post_few_send], con_comm, &m_send_requests[post_few_send]);
+              }
+              ++post_few_send;
+            }
+            message_type::finish_Isends(con_few, con_comm);
+          }
         }
       } break;
       default:
