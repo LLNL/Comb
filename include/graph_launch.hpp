@@ -285,9 +285,12 @@ inline event_type createEvent()
 
 inline void recordEvent(event_type event, cudaStream_t stream = 0)
 {
-  assert(event->graph == nullptr || event->graph == get_active_group().graph);
-  event->graph = get_active_group().graph;
-  event->graph->add_event(event, stream);
+  assert(get_group().graph != nullptr);
+  assert(event->graph == nullptr || event->graph == get_group().graph);
+  event->graph = get_group().graph;
+  if (event->graph) {
+    event->graph->add_event(event, stream);
+  }
 }
 
 inline bool queryEvent(event_type event)
