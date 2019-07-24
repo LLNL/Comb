@@ -696,7 +696,7 @@ struct Comm
               // TODO send in groups
               message_type::start_Isends(m_send_contexts_many[post_many_send], con_comm);
               m_sends[post_many_send].Isend(m_send_contexts_many[post_many_send], con_comm, &m_send_requests[post_many_send]);
-              message_type::start_Isends(m_send_contexts_many[post_many_send], con_comm);
+              message_type::finish_Isends(m_send_contexts_many[post_many_send], con_comm);
               ++post_many_send;
             } else {
               break;
@@ -740,7 +740,7 @@ struct Comm
                 // TODO send in groups
                 message_type::start_Isends(m_send_contexts_many[post_many_send], con_comm);
                 m_sends[post_many_send].Isend(m_send_contexts_many[post_many_send], con_comm, &m_send_requests[post_many_send]);
-                message_type::start_Isends(m_send_contexts_many[post_many_send], con_comm);
+                message_type::finish_Isends(m_send_contexts_many[post_many_send], con_comm);
                 ++post_many_send;
               } else {
                 break;
@@ -758,7 +758,7 @@ struct Comm
                 // TODO send in groups
                 message_type::start_Isends(m_send_contexts_few[post_few_send], con_comm);
                 m_sends[post_few_send].Isend(m_send_contexts_few[post_few_send], con_comm, &m_send_requests[post_few_send]);
-                message_type::start_Isends(m_send_contexts_few[post_few_send], con_comm);
+                message_type::finish_Isends(m_send_contexts_few[post_few_send], con_comm);
                 ++post_few_send;
               } else {
                 break;
@@ -902,7 +902,7 @@ struct Comm
                 // TODO send in groups
                 message_type::start_Isends(m_send_contexts_many[post_many_send], con_comm);
                 m_sends[post_many_send].Isend(m_send_contexts_many[post_many_send], con_comm, &m_send_requests[post_many_send]);
-                message_type::start_Isends(m_send_contexts_many[post_many_send], con_comm);
+                message_type::finish_Isends(m_send_contexts_many[post_many_send], con_comm);
                 ++post_many_send;
               } else {
                 break;
@@ -920,7 +920,7 @@ struct Comm
                 // TODO send in groups
                 message_type::start_Isends(m_send_contexts_few[post_few_send], con_comm);
                 m_sends[post_few_send].Isend(m_send_contexts_few[post_few_send], con_comm, &m_send_requests[post_few_send]);
-                message_type::start_Isends(m_send_contexts_few[post_few_send], con_comm);
+                message_type::finish_Isends(m_send_contexts_few[post_few_send], con_comm);
                 ++post_few_send;
               } else {
                 break;
