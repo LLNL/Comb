@@ -20,6 +20,10 @@
 
 #include <cstdio>
 
+
+#define COMB_SERIALIZE_HELPER(a) #a
+#define COMB_SERIALIZE(a) COMB_SERIALIZE_HELPER(a)
+
 enum struct FileGroup
 { out_any    // stdout, any proc
 , out_master // stdout, master only
@@ -41,6 +45,18 @@ extern void comb_teardown_files();
 
 extern void fgprintf(FileGroup fg, const char* fmt, ...);
 extern void print_proc_memory_stats();
+
+#ifdef __CUDA_ARCH__
+#define FFLUSH(f) static_cast<void>(0)
+#else
+#define FFLUSH(f) fflush(f)
+#endif
+
+#ifdef __CUDA_ARCH__
+#define FGPRINTF(fg, ...) printf(__VA_ARGS__)
+#else
+#define FGPRINTF(fg, ...) fgprintf(fg, __VA_ARGS__)
+#endif
 
 #endif // _PRINT_HPP
 
