@@ -233,12 +233,6 @@ inline group create_group()
   return g;
 }
 
-inline group& get_active_group()
-{
-  static group g = create_group();
-  return g;
-}
-
 inline void destroy_group(group g)
 {
   if (g.graph && g.graph->dec() <= 0) {
@@ -246,20 +240,39 @@ inline void destroy_group(group g)
   }
 }
 
+inline group& get_group()
+{
+  static group g{};
+  return g;
+}
+
+inline group& get_active_group()
+{
+  group& g = get_group();
+  if (g.graph == nullptr) {
+    g = create_group();
+  }
+  return g;
+}
+
 inline void new_active_group()
 {
-  destroy_group(get_active_group());
-  get_active_group() = create_group();
+  destroy_group(get_group());
+  get_group().graph = nullptr;
 }
 
 inline void set_active_group(group g)
 {
-  if (g.graph != get_active_group().graph) {
-    destroy_group(get_active_group());
-    get_active_group() = g;
-    get_active_group().graph->inc();
+  if (g.graph != get_group().graph) {
+    destroy_group(get_group());
+    get_group() = g;
+    if (get_group().graph != nullptr) {
+      get_group().graph->inc();
+    }
   }
-  get_active_group().graph->reuse();
+  if (get_group().graph != nullptr) {
+    get_group().graph->reuse();
+  }
 }
 
 using event_type = detail::Graph::Event*;
