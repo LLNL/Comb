@@ -119,7 +119,10 @@ void do_cycles(CommContext<pol_comm>& con_comm_in,
 
     tm_total.start("test-comm");
 
-    { // test comm
+    IdxT ntestcycles = std::max(IdxT{1}, ncycles/IdxT{10});
+    for (IdxT test_cycle = 0; test_cycle < ntestcycles; ++test_cycle) { // test comm
+
+      Range r2("cycle", Range::cyan);
 
       bool mock_communication = comm.mock_communication();
       IdxT imin = info.min[0];
@@ -147,7 +150,7 @@ void do_cycles(CommContext<pol_comm>& con_comm_in,
       IdxT ijlen_global = ilen_global * jlen_global;
 
 
-      Range r2("pre-comm", Range::red);
+      Range r3("pre-comm", Range::red);
       // tm.start("pre-comm");
 
       for (IdxT i = 0; i < num_vars; ++i) {
@@ -218,19 +221,19 @@ void do_cycles(CommContext<pol_comm>& con_comm_in,
       con_mesh.synchronize();
 
       // tm.stop();
-      r2.restart("post-recv", Range::pink);
+      r3.restart("post-recv", Range::pink);
       // tm.start("post-recv");
 
       comm.postRecv(con_many, con_few);
 
       // tm.stop();
-      r2.restart("post-send", Range::pink);
+      r3.restart("post-send", Range::pink);
       // tm.start("post-send");
 
       comm.postSend(con_many, con_few);
 
       // tm.stop();
-      r2.stop();
+      r3.stop();
 
       // for (IdxT i = 0; i < num_vars; ++i) {
 
@@ -283,19 +286,19 @@ void do_cycles(CommContext<pol_comm>& con_comm_in,
       // con_mesh.synchronize();
 
 
-      r2.start("wait-recv", Range::pink);
+      r3.start("wait-recv", Range::pink);
       // tm.start("wait-recv");
 
       comm.waitRecv(con_many, con_few);
 
       // tm.stop();
-      r2.restart("wait-send", Range::pink);
+      r3.restart("wait-send", Range::pink);
       // tm.start("wait-send");
 
       comm.waitSend(con_many, con_few);
 
       // tm.stop();
-      r2.restart("post-comm", Range::red);
+      r3.restart("post-comm", Range::red);
       // tm.start("post-comm");
 
       for (IdxT i = 0; i < num_vars; ++i) {
@@ -331,13 +334,13 @@ void do_cycles(CommContext<pol_comm>& con_comm_in,
               j >= jmin+jghost_width && j < jmax-jghost_width &&
               i >= imin+ighost_width && i < imax-ighost_width) {
             // interior non-communicated zones should not have changed value
-            expected =-(zone_global+var_i); found = data[zone]; next = 1.0;
+            expected =-(zone_global+var_i); found = data[zone]; next = -1.0;
             branchid = 0;
           } else if (k >= kmin && k < kmax &&
                      j >= jmin && j < jmax &&
                      i >= imin && i < imax) {
             // interior communicated zones should not have changed value
-            expected = zone_global + var_i; found = data[zone]; next = 1.0;
+            expected = zone_global + var_i; found = data[zone]; next = -1.0;
             branchid = 1;
           } else if (iglobal < 0 || iglobal >= ilen_global ||
                      jglobal < 0 || jglobal >= jlen_global ||
@@ -366,6 +369,8 @@ void do_cycles(CommContext<pol_comm>& con_comm_in,
       con_mesh.synchronize();
 
       // tm.stop();
+      r3.stop();
+
       r2.stop();
     }
 
