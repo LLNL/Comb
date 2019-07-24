@@ -41,6 +41,7 @@ struct Graph
   Graph()
     : m_launched(false)
     , m_event_recorded(false)
+    , m_event_created(false)
     , m_instantiated_num_nodes(false)
     , m_num_nodes(0)
     , m_ref(1)
@@ -159,6 +160,7 @@ struct Graph
   void reuse()
   {
     assert(m_num_events == 0);
+    m_event_recorded = false;
     m_launched = false;
     m_num_nodes = 0;
   }
@@ -172,7 +174,7 @@ struct Graph
   {
     assert(m_ref == 0);
     assert(m_num_events == 0);
-    if (m_event_recorded) {
+    if (m_event_created) {
       cudaCheck(cudaEventDestroy(m_event));
     }
     if (m_instantiated_num_nodes > 0) {
@@ -192,6 +194,7 @@ private:
 
   bool m_launched;
   bool m_event_recorded;
+  bool m_event_created;
   int m_instantiated_num_nodes;
   int m_num_nodes;
   int m_ref;
@@ -199,8 +202,11 @@ private:
 
   void createRecordEvent(cudaStream_t stream)
   {
-    if (!m_event_recorded) {
+    if (!m_event_created) {
       cudaCheck(cudaEventCreateWithFlags(&m_event, cudaEventDisableTiming));
+      m_event_created = true;
+    }
+    if (!m_event_recorded) {
       cudaCheck(cudaEventRecord(m_event, stream));
       m_event_recorded = true;
     }
@@ -274,21 +280,33 @@ inline void recordEvent(event_type event, cudaStream_t stream = 0)
 inline bool queryEvent(event_type event)
 {
   if (event->graph == nullptr) return true;
-  return event->graph->query_event(event);
+  bool done = event->graph->query_event(event);
+  if (done) {
+    if (event->graph->remove_event(event) <= 0) {
+      delete event->graph;
+    }
+    event->graph = nullptr;
+  }
+  return done;
 }
 
 inline void waitEvent(event_type event)
 {
   if (event->graph == nullptr) return;
   event->graph->wait_event(event);
+  if (event->graph->remove_event(event) <= 0) {
+    delete event->graph;
+  }
+  event->graph = nullptr;
 }
 
 inline void destroyEvent(event_type event)
 {
   if (event->graph == nullptr) return;
   if (event->graph->remove_event(event) <= 0) {
-    delete event->graph; event->graph = nullptr;
+    delete event->graph;
   }
+  event->graph = nullptr;
   delete event;
 }
 
