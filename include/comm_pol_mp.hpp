@@ -588,11 +588,8 @@ private:
     bool done = false;
     if (request.context_type == ContextEnum::cuda) {
       detail::mp::stream_wait_send_complete(request.g, request.partner_rank, request.context.cuda.stream());
-      done = true;
     } else if (request.context_type == ContextEnum::cpu) {
       detail::mp::cpu_ack_isend(request.g, request.partner_rank);
-      done = detail::mp::is_send_complete(request.g, request.partner_rank);
-      request.completed = done;
     } else {
       assert(0 && (request.context_type == ContextEnum::cuda || request.context_type == ContextEnum::cpu));
     }
@@ -605,7 +602,10 @@ private:
     assert(!request.completed);
     bool done = false;
     if (request.context_type == ContextEnum::cuda) {
-      assert(0 && (request.context_type != ContextEnum::cuda));
+      done = detail::mp::is_send_complete(request.g, request.partner_rank);
+      request.completed = done;
+      // do one test to get things moving, then allow something else to be enqueued
+      done = true;
     } else if (request.context_type == ContextEnum::cpu) {
       done = detail::mp::is_send_complete(request.g, request.partner_rank);
       request.completed = done;
@@ -768,11 +768,8 @@ private:
     bool done = false;
     if (request.context_type == ContextEnum::cuda) {
       detail::mp::stream_wait_recv_complete(request.g, request.partner_rank, request.context.cuda.stream());
-      done = true;
     } else if (request.context_type == ContextEnum::cpu) {
       detail::mp::cpu_ack_recv(request.g, request.partner_rank);
-      done = detail::mp::is_receive_complete(request.g, request.partner_rank);
-      request.completed = done;
     } else {
       assert(0 && (request.context_type == ContextEnum::cuda || request.context_type == ContextEnum::cpu));
     }
@@ -785,7 +782,10 @@ private:
     assert(!request.completed);
     bool done = false;
     if (request.context_type == ContextEnum::cuda) {
-      assert(0 && (request.context_type != ContextEnum::cuda));
+      done = detail::mp::is_receive_complete(request.g, request.partner_rank);
+      request.completed = done;
+      // do one test to get things moving, then allow the packs to be enqueued
+      done = true;
     } else if (request.context_type == ContextEnum::cpu) {
       done = detail::mp::is_receive_complete(request.g, request.partner_rank);
       request.completed = done;
