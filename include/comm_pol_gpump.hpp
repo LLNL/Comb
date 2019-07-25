@@ -486,6 +486,7 @@ public:
     request->g = con_comm.g;
     request->partner_rank = partner_rank();
     request->setContext(con);
+    m_send_request = request;
   }
 
 private:
@@ -539,6 +540,7 @@ public:
     request->g = con_comm.g;
     request->partner_rank = partner_rank();
     request->setContext(con);
+    m_recv_request = request;
   }
 
 
@@ -552,38 +554,19 @@ public:
     }
   }
 
-private:
-  void wait_send(CPUContext const&, communicator_type& con_comm)
-  {
-    // already done
-  }
-
-  void wait_send(CudaContext const& con, communicator_type& con_comm)
-  {
-    detail::gpump::wait_send_complete(con_comm.g, partner_rank());
-  }
-
-  void wait_recv(CPUContext const&, communicator_type& con_comm)
-  {
-    // already done
-  }
-
-  void wait_recv(CudaContext const& con, communicator_type& con_comm)
-  {
-    detail::gpump::wait_receive_complete(con_comm.g, partner_rank());
-  }
-
-public:
   template < typename context >
   void deallocate(context& con, communicator_type& con_comm, COMB::Allocator& buf_aloc)
   {
     static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support mpi_type_pol");
     if (m_buf != nullptr) {
 
-      if (m_kind == Kind::send) {
-        wait_send(con, con_comm);
-      } else if (m_kind == Kind::recv) {
-        wait_recv(con, con_comm);
+      if (m_send_request) {
+        finish_send(con_comm, *m_send_request);
+        m_send_request = nullptr;
+      }
+      if (m_recv_request) {
+        finish_recv(con_comm, *m_recv_request);
+        m_recv_request = nullptr;
       }
       get_mempool().deallocate(con_comm.g, buf_aloc, m_region);
       m_region = region_type{};
@@ -619,6 +602,24 @@ private:
       assert(0);
     }
     return false;
+  }
+
+  static void finish_send(communicator_type&,
+                          send_request_type& request)
+  {
+    if (request.status == 2) {
+      if (request.context_type == ContextEnum::cuda) {
+        assert(0);
+      } else if (request.context_type == ContextEnum::cpu) {
+        detail::gpump::wait_send_complete(request.g, request.partner_rank);
+      } else {
+        assert(0);
+      }
+    } else if (request.status == 3) {
+      // already done
+    } else {
+      assert(0);
+    }
   }
 
 public:
@@ -809,6 +810,24 @@ private:
     return false;
   }
 
+  static void finish_recv(communicator_type&,
+                          recv_request_type& request)
+  {
+    if (request.status == -2) {
+      if (request.context_type == ContextEnum::cuda) {
+        assert(0);
+      } else if (request.context_type == ContextEnum::cpu) {
+        detail::gpump::wait_receive_complete(request.g, request.partner_rank);
+      } else {
+        assert(0);
+      }
+    } else if (request.status == -3) {
+      // already done
+    } else {
+      assert(0);
+    }
+  }
+
 public:
   static int test_recv_any(communicator_type& con_comm,
                            int count, recv_request_type* requests,
@@ -969,6 +988,8 @@ public:
 
 private:
   region_type m_region;
+  send_request_type* m_send_request = nullptr;
+  recv_request_type* m_recv_request = nullptr;
 };
 
 #endif // COMB_ENABLE_GPUMP
