@@ -594,7 +594,7 @@ private:
       done = detail::mp::is_send_complete(request.g, request.partner_rank);
       request.completed = done;
     } else {
-      assert(0);
+      assert(0 && (request.context_type == ContextEnum::cuda || request.context_type == ContextEnum::cpu));
     }
     return done;
   }
@@ -605,12 +605,12 @@ private:
     assert(!request.completed);
     bool done = false;
     if (request.context_type == ContextEnum::cuda) {
-      assert(0);
+      assert(0 && (request.context_type != ContextEnum::cuda));
     } else if (request.context_type == ContextEnum::cpu) {
       done = detail::mp::is_send_complete(request.g, request.partner_rank);
       request.completed = done;
     } else {
-      assert(0);
+      assert(0 && (request.context_type == ContextEnum::cuda || request.context_type == ContextEnum::cpu));
     }
     return done;
   }
@@ -635,7 +635,7 @@ private:
   {
     if (request.status == 0) {
       // not sent
-      assert(0);
+      assert(0 && (request.status != 0));
     } else if (request.status == 1) {
       // sent, start waiting
       if (start_wait_send(con_comm, request)) {
@@ -657,7 +657,7 @@ private:
     } else if (request.status == 4) {
       // still done
     } else {
-      assert(0);
+      assert(0 && (0 <= request.status && request.status <= 4));
     }
     return request.status;
   }
@@ -774,7 +774,7 @@ private:
       done = detail::mp::is_receive_complete(request.g, request.partner_rank);
       request.completed = done;
     } else {
-      assert(0);
+      assert(0 && (request.context_type == ContextEnum::cuda || request.context_type == ContextEnum::cpu));
     }
     return done;
   }
@@ -785,12 +785,12 @@ private:
     assert(!request.completed);
     bool done = false;
     if (request.context_type == ContextEnum::cuda) {
-      assert(0);
+      assert(0 && (request.context_type != ContextEnum::cuda));
     } else if (request.context_type == ContextEnum::cpu) {
       done = detail::mp::is_receive_complete(request.g, request.partner_rank);
       request.completed = done;
     } else {
-      assert(0);
+      assert(0 && (request.context_type == ContextEnum::cuda || request.context_type == ContextEnum::cpu));
     }
     return done;
   }
@@ -815,7 +815,7 @@ private:
   {
     if (request.status == 0) {
       // not received
-      assert(0);
+      assert(0 && (request.status != 0));
     } else if (request.status == -1) {
       // received, start waiting
       if (start_wait_recv(con_comm, request)) {
@@ -837,7 +837,7 @@ private:
     } else if (request.status == -4) {
       // still done
     } else {
-      assert(0);
+      assert(0 && (-4 <= request.status && request.status <= 0));
     }
     return request.status;
   }
