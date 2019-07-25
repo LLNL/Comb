@@ -512,7 +512,7 @@ public:
   template < typename context >
   static void start_Isends(context& con, communicator_type& con_comm)
   {
-    static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support mpi_type_pol");
+    static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "mp_pol does not support mpi_type_pol");
     // FGPRINTF(FileGroup::proc, "start_Isends\n");
 
     cork_Isends(con, con_comm);
@@ -521,7 +521,7 @@ public:
   template < typename context >
   static void finish_Isends(context& con, communicator_type& con_comm)
   {
-    static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support mpi_type_pol");
+    static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "mp_pol does not support mpi_type_pol");
     // FGPRINTF(FileGroup::proc, "finish_Isends\n");
 
     uncork_Isends(con, con_comm);
