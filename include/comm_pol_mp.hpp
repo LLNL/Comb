@@ -672,32 +672,41 @@ public:
                             int* indices, send_status_type* statuses)
   {
     int done = 0;
-    for (int i = 0; i < count; ++i) {
-      if (requests[i].status != 3) {
-        if (requests[i].status == 1) {
-          // haven't seen this request yet, start it
-          if (start_wait_send(con_comm, requests[i])) {
-            // done
-            requests[i].status = 3;
+    if (count > 0) {
+      bool new_requests = (requests[0].status == 1);
+      if (new_requests) {
+        detail::mp::cork(con_comm.g);
+      }
+      for (int i = 0; i < count; ++i) {
+        if (requests[i].status != 3) {
+          if (requests[i].status == 1) {
+            // haven't seen this request yet, start it
+            if (start_wait_send(con_comm, requests[i])) {
+              // done
+              requests[i].status = 3;
+            } else {
+              // test again later
+              requests[i].status = 2;
+              continue;
+            }
+          } else if (requests[i].status == 2) {
+            // have seen this one before, test it
+            if (test_waiting_send(con_comm, requests[i])) {
+              // done
+              requests[i].status = 3;
+            } else {
+              // test again later
+              continue;
+            }
           } else {
-            // test again later
-            requests[i].status = 2;
-            continue;
+            assert(0);
           }
-        } else if (requests[i].status == 2) {
-          // have seen this one before, test it
-          if (test_waiting_send(con_comm, requests[i])) {
-            // done
-            requests[i].status = 3;
-          } else {
-            // test again later
-            continue;
-          }
-        } else {
-          assert(0);
+          statuses[i] = 1;
+          indices[done++] = i;
         }
-        statuses[i] = 1;
-        indices[done++] = i;
+      }
+      if (new_requests) {
+        detail::mp::uncork(con_comm.g, con_comm.stream());
       }
     }
     return done;
@@ -719,33 +728,42 @@ public:
                             send_status_type* statuses)
   {
     int done = 0;
-    for (int i = 0; i < count; ++i) {
-      if (requests[i].status != 3) {
-        if (requests[i].status == 1) {
-          // haven't seen this request yet, start it
-          if (start_wait_send(con_comm, requests[i])) {
-            // done
-            requests[i].status = 3;
-          } else {
-            // test again later
-            requests[i].status = 2;
-            continue;
-          }
-        } else if (requests[i].status == 2) {
-          // have seen this one before, test it
-          if (test_waiting_send(con_comm, requests[i])) {
-            // done
-            requests[i].status = 3;
-          } else {
-            // test again later
-            continue;
-          }
-        } else {
-          assert(0);
-        }
-        statuses[i] = 1;
+    if (count > 0) {
+      bool new_requests = (requests[0].status == 1);
+      if (new_requests) {
+        detail::mp::cork(con_comm.g);
       }
-      done++;
+      for (int i = 0; i < count; ++i) {
+        if (requests[i].status != 3) {
+          if (requests[i].status == 1) {
+            // haven't seen this request yet, start it
+            if (start_wait_send(con_comm, requests[i])) {
+              // done
+              requests[i].status = 3;
+            } else {
+              // test again later
+              requests[i].status = 2;
+              continue;
+            }
+          } else if (requests[i].status == 2) {
+            // have seen this one before, test it
+            if (test_waiting_send(con_comm, requests[i])) {
+              // done
+              requests[i].status = 3;
+            } else {
+              // test again later
+              continue;
+            }
+          } else {
+            assert(0);
+          }
+          statuses[i] = 1;
+        }
+        done++;
+      }
+      if (new_requests) {
+        detail::mp::uncork(con_comm.g, con_comm.stream());
+      }
     }
     return done == count;
   }
@@ -842,32 +860,41 @@ public:
                             int* indices, recv_status_type* statuses)
   {
     int done = 0;
-    for (int i = 0; i < count; ++i) {
-      if (requests[i].status != -3) {
-        if (requests[i].status == -1) {
-          // haven't seen this request yet, start it
-          if (start_wait_recv(con_comm, requests[i])) {
-            // done
-            requests[i].status = -3;
+    if (count > 0) {
+      bool new_requests = (requests[0].status == -1);
+      if (new_requests) {
+        detail::mp::cork(con_comm.g);
+      }
+      for (int i = 0; i < count; ++i) {
+        if (requests[i].status != -3) {
+          if (requests[i].status == -1) {
+            // haven't seen this request yet, start it
+            if (start_wait_recv(con_comm, requests[i])) {
+              // done
+              requests[i].status = -3;
+            } else {
+              // test again later
+              requests[i].status = -2;
+              continue;
+            }
+          } else if (requests[i].status == -2) {
+            // have seen this one before, test it
+            if (test_waiting_recv(con_comm, requests[i])) {
+              // done
+              requests[i].status = -3;
+            } else {
+              // test again later
+              continue;
+            }
           } else {
-            // test again later
-            requests[i].status = -2;
-            continue;
+            assert(0);
           }
-        } else if (requests[i].status == -2) {
-          // have seen this one before, test it
-          if (test_waiting_recv(con_comm, requests[i])) {
-            // done
-            requests[i].status = -3;
-          } else {
-            // test again later
-            continue;
-          }
-        } else {
-          assert(0);
+          statuses[i] = 1;
+          indices[done++] = i;
         }
-        statuses[i] = 1;
-        indices[done++] = i;
+      }
+      if (new_requests) {
+        detail::mp::uncork(con_comm.g, con_comm.stream());
       }
     }
     return done;
@@ -889,33 +916,42 @@ public:
                             recv_status_type* statuses)
   {
     int done = 0;
-    for (int i = 0; i < count; ++i) {
-      if (requests[i].status != -3) {
-        if (requests[i].status == -1) {
-          // haven't seen this request yet, start it
-          if (start_wait_recv(con_comm, requests[i])) {
-            // done
-            requests[i].status = -3;
-          } else {
-            // test again later
-            requests[i].status = -2;
-            continue;
-          }
-        } else if (requests[i].status == -2) {
-          // have seen this one before, test it
-          if (test_waiting_recv(con_comm, requests[i])) {
-            // done
-            requests[i].status = -3;
-          } else {
-            // test again later
-            continue;
-          }
-        } else {
-          assert(0);
-        }
-        statuses[i] = 1;
+    if (count > 0) {
+      bool new_requests = (requests[0].status == -1);
+      if (new_requests) {
+        detail::mp::cork(con_comm.g);
       }
-      done++;
+      for (int i = 0; i < count; ++i) {
+        if (requests[i].status != -3) {
+          if (requests[i].status == -1) {
+            // haven't seen this request yet, start it
+            if (start_wait_recv(con_comm, requests[i])) {
+              // done
+              requests[i].status = -3;
+            } else {
+              // test again later
+              requests[i].status = -2;
+              continue;
+            }
+          } else if (requests[i].status == -2) {
+            // have seen this one before, test it
+            if (test_waiting_recv(con_comm, requests[i])) {
+              // done
+              requests[i].status = -3;
+            } else {
+              // test again later
+              continue;
+            }
+          } else {
+            assert(0);
+          }
+          statuses[i] = 1;
+        }
+        done++;
+      }
+      if (new_requests) {
+        detail::mp::uncork(con_comm.g, con_comm.stream());
+      }
     }
     return done == count;
   }
