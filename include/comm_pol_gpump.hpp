@@ -615,11 +615,49 @@ private:
       } else {
         assert(0);
       }
-    } else if (request.status == 3) {
+    } else if (request.status == 3 || request.status == 4) {
       // already done
     } else {
       assert(0);
     }
+  }
+
+  // possible status values
+  // 0 - not ready to wait, not sent
+  // 1 - ready to wait, first wait
+  // 2 - ready to wait, waited before
+  // 3 - ready, first ready
+  // 4 - ready, ready before
+  static int handle_send_request(communicator_type& con_comm,
+                                 send_request_type& request)
+  {
+    if (request.status == 0) {
+      // not sent
+      assert(0);
+    } else if (request.status == 1) {
+      // sent, start waiting
+      if (start_wait_send(con_comm, request)) {
+        // done
+        request.status = 3;
+      } else {
+        // wait again later
+        request.status = 2;
+      }
+    } else if (request.status == 2) {
+      // still waiting, keep waiting
+      if (test_waiting_send(con_comm, request)) {
+        // done
+        request.status = 3;
+      }
+    } else if (request.status == 3) {
+      // already done
+      request.status = 4;
+    } else if (request.status == 4) {
+      // still done
+    } else {
+      assert(0);
+    }
+    return request.status;
   }
 
 public:
@@ -628,29 +666,8 @@ public:
                            send_status_type* statuses)
   {
     for (int i = 0; i < count; ++i) {
-      if (requests[i].status != 3) {
-        if (requests[i].status == 1) {
-          // haven't seen this request yet, start it
-          if (start_wait_send(con_comm, requests[i])) {
-            // done
-            requests[i].status = 3;
-          } else {
-            // test again later
-            requests[i].status = 2;
-            continue;
-          }
-        } else if (requests[i].status == 2) {
-          // have seen this one before, test it
-          if (test_waiting_send(con_comm, requests[i])) {
-            // done
-            requests[i].status = 3;
-          } else {
-            // test again later
-            continue;
-          }
-        } else {
-          assert(0);
-        }
+      int status = handle_send_request(con_comm, requests[i]);
+      if (status == 3) {
         statuses[i] = 1;
         return i;
       }
@@ -680,29 +697,8 @@ public:
         detail::gpump::cork(con_comm.g);
       }
       for (int i = 0; i < count; ++i) {
-        if (requests[i].status != 3) {
-          if (requests[i].status == 1) {
-            // haven't seen this request yet, start it
-            if (start_wait_send(con_comm, requests[i])) {
-              // done
-              requests[i].status = 3;
-            } else {
-              // test again later
-              requests[i].status = 2;
-              continue;
-            }
-          } else if (requests[i].status == 2) {
-            // have seen this one before, test it
-            if (test_waiting_send(con_comm, requests[i])) {
-              // done
-              requests[i].status = 3;
-            } else {
-              // test again later
-              continue;
-            }
-          } else {
-            assert(0);
-          }
+        int status = handle_send_request(con_comm, requests[i]);
+        if (status == 3) {
           statuses[i] = 1;
           indices[done++] = i;
         }
@@ -736,32 +732,13 @@ public:
         detail::gpump::cork(con_comm.g);
       }
       for (int i = 0; i < count; ++i) {
-        if (requests[i].status != 3) {
-          if (requests[i].status == 1) {
-            // haven't seen this request yet, start it
-            if (start_wait_send(con_comm, requests[i])) {
-              // done
-              requests[i].status = 3;
-            } else {
-              // test again later
-              requests[i].status = 2;
-              continue;
-            }
-          } else if (requests[i].status == 2) {
-            // have seen this one before, test it
-            if (test_waiting_send(con_comm, requests[i])) {
-              // done
-              requests[i].status = 3;
-            } else {
-              // test again later
-              continue;
-            }
-          } else {
-            assert(0);
-          }
+        int status = handle_send_request(con_comm, requests[i]);
+        if (status == 3) {
           statuses[i] = 1;
         }
-        done++;
+        if (status == 3 || status == 4) {
+          done++;
+        }
       }
       if (new_requests) {
         detail::gpump::uncork(con_comm.g, con_comm.stream());
@@ -821,11 +798,49 @@ private:
       } else {
         assert(0);
       }
-    } else if (request.status == -3) {
+    } else if (request.status == -3 || request.status == -4) {
       // already done
     } else {
       assert(0);
     }
+  }
+
+  // possible status values
+  //  0 - not ready to wait, not received
+  // -1 - ready to wait, first wait
+  // -2 - ready to wait, waited before
+  // -3 - ready, first ready
+  // -4 - ready, ready before
+  static int handle_recv_request(communicator_type& con_comm,
+                                 recv_request_type& request)
+  {
+    if (request.status == 0) {
+      // not received
+      assert(0);
+    } else if (request.status == -1) {
+      // received, start waiting
+      if (start_wait_recv(con_comm, request)) {
+        // done
+        request.status = -3;
+      } else {
+        // wait again later
+        request.status = -2;
+      }
+    } else if (request.status == -2) {
+      // still waiting, keep waiting
+      if (test_waiting_recv(con_comm, request)) {
+        // done
+        request.status = -3;
+      }
+    } else if (request.status == -3) {
+      // already done
+      request.status = -4;
+    } else if (request.status == -4) {
+      // still done
+    } else {
+      assert(0);
+    }
+    return request.status;
   }
 
 public:
@@ -834,29 +849,8 @@ public:
                            recv_status_type* statuses)
   {
     for (int i = 0; i < count; ++i) {
-      if (requests[i].status != -3) {
-        if (requests[i].status == -1) {
-          // haven't seen this request yet, start it
-          if (start_wait_recv(con_comm, requests[i])) {
-            // done
-            requests[i].status = -3;
-          } else {
-            // test again later
-            requests[i].status = -2;
-            continue;
-          }
-        } else if (requests[i].status == -2) {
-          // have seen this one before, test it
-          if (test_waiting_recv(con_comm, requests[i])) {
-            // done
-            requests[i].status = -3;
-          } else {
-            // test again later
-            continue;
-          }
-        } else {
-          assert(0);
-        }
+      int status = handle_recv_request(con_comm, requests[i]);
+      if (status == -3) {
         statuses[i] = 1;
         return i;
       }
@@ -886,29 +880,8 @@ public:
         detail::gpump::cork(con_comm.g);
       }
       for (int i = 0; i < count; ++i) {
-        if (requests[i].status != -3) {
-          if (requests[i].status == -1) {
-            // haven't seen this request yet, start it
-            if (start_wait_recv(con_comm, requests[i])) {
-              // done
-              requests[i].status = -3;
-            } else {
-              // test again later
-              requests[i].status = -2;
-              continue;
-            }
-          } else if (requests[i].status == -2) {
-            // have seen this one before, test it
-            if (test_waiting_recv(con_comm, requests[i])) {
-              // done
-              requests[i].status = -3;
-            } else {
-              // test again later
-              continue;
-            }
-          } else {
-            assert(0);
-          }
+        int status = handle_recv_request(con_comm, requests[i]);
+        if (status == -3) {
           statuses[i] = 1;
           indices[done++] = i;
         }
@@ -942,32 +915,13 @@ public:
         detail::gpump::cork(con_comm.g);
       }
       for (int i = 0; i < count; ++i) {
-        if (requests[i].status != -3) {
-          if (requests[i].status == -1) {
-            // haven't seen this request yet, start it
-            if (start_wait_recv(con_comm, requests[i])) {
-              // done
-              requests[i].status = -3;
-            } else {
-              // test again later
-              requests[i].status = -2;
-              continue;
-            }
-          } else if (requests[i].status == -2) {
-            // have seen this one before, test it
-            if (test_waiting_recv(con_comm, requests[i])) {
-              // done
-              requests[i].status = -3;
-            } else {
-              // test again later
-              continue;
-            }
-          } else {
-            assert(0);
-          }
+        int status = handle_recv_request(con_comm, requests[i]);
+        if (status == -3) {
           statuses[i] = 1;
         }
-        done++;
+        if (status == -3 || status == -4) {
+          done++;
+        }
       }
       if (new_requests) {
         detail::gpump::uncork(con_comm.g, con_comm.stream());
