@@ -593,7 +593,8 @@ public:
 
 
 private:
-  static bool start_wait_send(send_request_type& request)
+  static bool start_wait_send(communicator_type&,
+                              send_request_type& request)
   {
     if (request.context_type == ContextEnum::cuda) {
       detail::gpump::stream_wait_send_complete(request.g, request.partner_rank, request.context.cuda.stream());
@@ -607,7 +608,8 @@ private:
     return false;
   }
 
-  static bool test_waiting_send(send_request_type& request)
+  static bool test_waiting_send(communicator_type&,
+                                send_request_type& request)
   {
     if (request.context_type == ContextEnum::cuda) {
       assert(0);
@@ -620,14 +622,15 @@ private:
   }
 
 public:
-  static int test_send_any(int count, send_request_type* requests,
+  static int test_send_any(communicator_type& con_comm,
+                           int count, send_request_type* requests,
                            send_status_type* statuses)
   {
     for (int i = 0; i < count; ++i) {
       if (requests[i].status != 3) {
         if (requests[i].status == 1) {
           // haven't seen this request yet, start it
-          if (start_wait_send(requests[i])) {
+          if (start_wait_send(con_comm, requests[i])) {
             // done
             requests[i].status = 3;
           } else {
@@ -637,7 +640,7 @@ public:
           }
         } else if (requests[i].status == 2) {
           // have seen this one before, test it
-          if (test_waiting_send(requests[i])) {
+          if (test_waiting_send(con_comm, requests[i])) {
             // done
             requests[i].status = 3;
           } else {
@@ -654,17 +657,19 @@ public:
     return -1;
   }
 
-  static int wait_send_any(int count, send_request_type* requests,
+  static int wait_send_any(communicator_type& con_comm,
+                           int count, send_request_type* requests,
                            send_status_type* statuses)
   {
     int ready = -1;
     do {
-      ready = test_send_any(count, requests, statuses);
+      ready = test_send_any(con_comm, count, requests, statuses);
     } while (ready == -1);
     return ready;
   }
 
-  static int test_send_some(int count, send_request_type* requests,
+  static int test_send_some(communicator_type& con_comm,
+                            int count, send_request_type* requests,
                             int* indices, send_status_type* statuses)
   {
     int done = 0;
@@ -672,7 +677,7 @@ public:
       if (requests[i].status != 3) {
         if (requests[i].status == 1) {
           // haven't seen this request yet, start it
-          if (start_wait_send(requests[i])) {
+          if (start_wait_send(con_comm, requests[i])) {
             // done
             requests[i].status = 3;
           } else {
@@ -682,7 +687,7 @@ public:
           }
         } else if (requests[i].status == 2) {
           // have seen this one before, test it
-          if (test_waiting_send(requests[i])) {
+          if (test_waiting_send(con_comm, requests[i])) {
             // done
             requests[i].status = 3;
           } else {
@@ -699,17 +704,19 @@ public:
     return done;
   }
 
-  static int wait_send_some(int count, send_request_type* requests,
+  static int wait_send_some(communicator_type& con_comm,
+                            int count, send_request_type* requests,
                             int* indices, send_status_type* statuses)
   {
     int done = 0;
     do {
-      done = test_send_some(count, requests, indices, statuses);
+      done = test_send_some(con_comm, count, requests, indices, statuses);
     } while (done == 0);
     return done;
   }
 
-  static bool test_send_all(int count, send_request_type* requests,
+  static bool test_send_all(communicator_type& con_comm,
+                            int count, send_request_type* requests,
                             send_status_type* statuses)
   {
     int done = 0;
@@ -717,7 +724,7 @@ public:
       if (requests[i].status != 3) {
         if (requests[i].status == 1) {
           // haven't seen this request yet, start it
-          if (start_wait_send(requests[i])) {
+          if (start_wait_send(con_comm, requests[i])) {
             // done
             requests[i].status = 3;
           } else {
@@ -727,7 +734,7 @@ public:
           }
         } else if (requests[i].status == 2) {
           // have seen this one before, test it
-          if (test_waiting_send(requests[i])) {
+          if (test_waiting_send(con_comm, requests[i])) {
             // done
             requests[i].status = 3;
           } else {
@@ -744,18 +751,20 @@ public:
     return done == count;
   }
 
-  static void wait_send_all(int count, send_request_type* requests,
+  static void wait_send_all(communicator_type& con_comm,
+                            int count, send_request_type* requests,
                             send_status_type* statuses)
   {
     bool done = false;
     do {
-      done = test_send_all(count, requests, statuses);
+      done = test_send_all(con_comm, count, requests, statuses);
     } while (!done);
   }
 
 
 private:
-  static bool start_wait_recv(recv_request_type& request)
+  static bool start_wait_recv(communicator_type&,
+                              recv_request_type& request)
   {
     if (request.context_type == ContextEnum::cuda) {
       detail::gpump::stream_wait_recv_complete(request.g, request.partner_rank, request.context.cuda.stream());
@@ -769,7 +778,8 @@ private:
     return false;
   }
 
-  static bool test_waiting_recv(recv_request_type& request)
+  static bool test_waiting_recv(communicator_type&,
+                                recv_request_type& request)
   {
     if (request.context_type == ContextEnum::cuda) {
       assert(0);
@@ -782,14 +792,15 @@ private:
   }
 
 public:
-  static int test_recv_any(int count, recv_request_type* requests,
+  static int test_recv_any(communicator_type& con_comm,
+                           int count, recv_request_type* requests,
                            recv_status_type* statuses)
   {
     for (int i = 0; i < count; ++i) {
       if (requests[i].status != -3) {
         if (requests[i].status == -1) {
           // haven't seen this request yet, start it
-          if (start_wait_recv(requests[i])) {
+          if (start_wait_recv(con_comm, requests[i])) {
             // done
             requests[i].status = -3;
           } else {
@@ -799,7 +810,7 @@ public:
           }
         } else if (requests[i].status == -2) {
           // have seen this one before, test it
-          if (test_waiting_recv(requests[i])) {
+          if (test_waiting_recv(con_comm, requests[i])) {
             // done
             requests[i].status = -3;
           } else {
@@ -816,17 +827,19 @@ public:
     return -1;
   }
 
-  static int wait_recv_any(int count, recv_request_type* requests,
+  static int wait_recv_any(communicator_type& con_comm,
+                           int count, recv_request_type* requests,
                            recv_status_type* statuses)
   {
     int ready = -1;
     do {
-      ready = test_recv_any(count, requests, statuses);
+      ready = test_recv_any(con_comm, count, requests, statuses);
     } while (ready == -1);
     return ready;
   }
 
-  static int test_recv_some(int count, recv_request_type* requests,
+  static int test_recv_some(communicator_type& con_comm,
+                            int count, recv_request_type* requests,
                             int* indices, recv_status_type* statuses)
   {
     int done = 0;
@@ -834,7 +847,7 @@ public:
       if (requests[i].status != -3) {
         if (requests[i].status == -1) {
           // haven't seen this request yet, start it
-          if (start_wait_recv(requests[i])) {
+          if (start_wait_recv(con_comm, requests[i])) {
             // done
             requests[i].status = -3;
           } else {
@@ -844,7 +857,7 @@ public:
           }
         } else if (requests[i].status == -2) {
           // have seen this one before, test it
-          if (test_waiting_recv(requests[i])) {
+          if (test_waiting_recv(con_comm, requests[i])) {
             // done
             requests[i].status = -3;
           } else {
@@ -861,17 +874,19 @@ public:
     return done;
   }
 
-  static int wait_recv_some(int count, recv_request_type* requests,
+  static int wait_recv_some(communicator_type& con_comm,
+                            int count, recv_request_type* requests,
                             int* indices, recv_status_type* statuses)
   {
     int done = 0;
     do {
-      done = test_recv_some(count, requests, indices, statuses);
+      done = test_recv_some(con_comm, count, requests, indices, statuses);
     } while (done == 0);
     return done;
   }
 
-  static bool test_recv_all(int count, recv_request_type* requests,
+  static bool test_recv_all(communicator_type& con_comm,
+                            int count, recv_request_type* requests,
                             recv_status_type* statuses)
   {
     int done = 0;
@@ -879,7 +894,7 @@ public:
       if (requests[i].status != -3) {
         if (requests[i].status == -1) {
           // haven't seen this request yet, start it
-          if (start_wait_recv(requests[i])) {
+          if (start_wait_recv(con_comm, requests[i])) {
             // done
             requests[i].status = -3;
           } else {
@@ -889,7 +904,7 @@ public:
           }
         } else if (requests[i].status == -2) {
           // have seen this one before, test it
-          if (test_waiting_recv(requests[i])) {
+          if (test_waiting_recv(con_comm, requests[i])) {
             // done
             requests[i].status = -3;
           } else {
@@ -906,12 +921,13 @@ public:
     return done == count;
   }
 
-  static void wait_recv_all(int count, recv_request_type* requests,
+  static void wait_recv_all(communicator_type& con_comm,
+                            int count, recv_request_type* requests,
                             recv_status_type* statuses)
   {
     bool done = false;
     do {
-      done = test_recv_all(count, requests, statuses);
+      done = test_recv_all(con_comm, count, requests, statuses);
     } while (!done);
   }
 

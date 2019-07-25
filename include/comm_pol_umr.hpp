@@ -218,74 +218,86 @@ struct Message<umr_pol> : detail::MessageBase
   }
 
 
-  static int wait_send_any(int count, send_request_type* requests,
+  static int wait_send_any(communicator_type& con_comm,
+                           int count, send_request_type* requests,
                            send_status_type* statuses)
   {
     return detail::UMR::Waitany(count, requests, statuses);
   }
 
-  static int test_send_any(int count, send_request_type* requests,
+  static int test_send_any(communicator_type& con_comm,
+                           int count, send_request_type* requests,
                            send_status_type* statuses)
   {
     return detail::UMR::Testany(count, requests, statuses);
   }
 
-  static int wait_send_some(int count, send_request_type* requests,
+  static int wait_send_some(communicator_type& con_comm,
+                            int count, send_request_type* requests,
                             int* indices, send_status_type* statuses)
   {
     return detail::UMR::Waitsome(count, requests, indices, statuses);
   }
 
-  static int test_send_some(int count, send_request_type* requests,
+  static int test_send_some(communicator_type& con_comm,
+                            int count, send_request_type* requests,
                             int* indices, send_status_type* statuses)
   {
     return detail::UMR::Testsome(count, requests, indices, statuses);
   }
 
-  static void wait_send_all(int count, send_request_type* requests,
+  static void wait_send_all(communicator_type& con_comm,
+                            int count, send_request_type* requests,
                             send_status_type* statuses)
   {
     detail::UMR::Waitall(count, requests, statuses);
   }
 
-  static bool test_send_all(int count, send_request_type* requests,
+  static bool test_send_all(communicator_type& con_comm,
+                           int count, send_request_type* requests,
                             send_status_type* statuses)
   {
     return detail::UMR::Testall(count, requests, statuses);
   }
 
 
-  static int wait_recv_any(int count, recv_request_type* requests,
+  static int wait_recv_any(communicator_type& con_comm,
+                           int count, recv_request_type* requests,
                            recv_status_type* statuses)
   {
     return detail::UMR::Waitany(count, requests, statuses);
   }
 
-  static int test_recv_any(int count, recv_request_type* requests,
+  static int test_recv_any(communicator_type& con_comm,
+                           int count, recv_request_type* requests,
                            recv_status_type* statuses)
   {
     return detail::UMR::Testany(count, requests, statuses);
   }
 
-  static int wait_recv_some(int count, recv_request_type* requests,
+  static int wait_recv_some(communicator_type& con_comm,
+                            int count, recv_request_type* requests,
                             int* indices, recv_status_type* statuses)
   {
     return detail::UMR::Waitsome(count, requests, indices, statuses);
   }
 
-  static int test_recv_some(int count, recv_request_type* requests,
+  static int test_recv_some(communicator_type& con_comm,
+                            int count, recv_request_type* requests,
                             int* indices, recv_status_type* statuses)
   {
     return detail::UMR::Testsome(count, requests, indices, statuses);
   }
 
-  static void wait_recv_all(int count, recv_request_type* requests,
+  static void wait_recv_all(communicator_type& con_comm,
+                            int count, recv_request_type* requests,
                             recv_status_type* statuses)
   {
     detail::UMR::Waitall(count, requests, statuses);
   }
 
-  static bool test_recv_all(int count, recv_request_type* requests,
+  static bool test_recv_all(communicator_type& con_comm,
+                            int count, recv_request_type* requests,
                             recv_status_type* statuses)
   {
     return detail::UMR::Testall(count, requests, statuses);

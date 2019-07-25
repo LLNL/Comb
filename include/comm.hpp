@@ -1110,11 +1110,11 @@ struct Comm
 
           IdxT idx = num_done;
           if (wait_recv_method == CommInfo::method::waitany) {
-            idx = message_type::wait_recv_any(num_recvs, &m_recv_requests[0], &status);
+            idx = message_type::wait_recv_any(con_comm, num_recvs, &m_recv_requests[0], &status);
           } else {
             idx = -1;
             while(idx < 0 || idx >= num_recvs) {
-              idx = message_type::test_recv_any(num_recvs, &m_recv_requests[0], &status);
+              idx = message_type::test_recv_any(con_comm, num_recvs, &m_recv_requests[0], &status);
             }
           }
 
@@ -1149,9 +1149,9 @@ struct Comm
 
           IdxT num_recvd = num_recvs;
           if (wait_recv_method == CommInfo::method::waitsome) {
-            num_recvd = message_type::wait_recv_some(num_recvs, &m_recv_requests[0], &indices[0], &recv_statuses[0]);
+            num_recvd = message_type::wait_recv_some(con_comm, num_recvs, &m_recv_requests[0], &indices[0], &recv_statuses[0]);
           } else {
-            while( 0 == (num_recvd = message_type::test_recv_some(num_recvs, &m_recv_requests[0], &indices[0], &recv_statuses[0])) );
+            while( 0 == (num_recvd = message_type::test_recv_some(con_comm, num_recvs, &m_recv_requests[0], &indices[0], &recv_statuses[0])) );
           }
 
           int inner_num_many = 0;
@@ -1212,9 +1212,9 @@ struct Comm
         std::vector<typename policy_comm::recv_status_type> recv_statuses(m_recv_requests.size(), con_comm.recv_status_null());
 
         if (wait_recv_method == CommInfo::method::waitall) {
-          message_type::wait_recv_all(num_recvs, &m_recv_requests[0], &recv_statuses[0]);
+          message_type::wait_recv_all(con_comm, num_recvs, &m_recv_requests[0], &recv_statuses[0]);
         } else {
-          while (!message_type::test_recv_all(num_recvs, &m_recv_requests[0], &recv_statuses[0]));
+          while (!message_type::test_recv_all(con_comm, num_recvs, &m_recv_requests[0], &recv_statuses[0]));
         }
 
         if (num_many > 0 && num_few > 0) {
@@ -1292,11 +1292,11 @@ struct Comm
 
           IdxT idx = num_done;
           if (wait_send_method == CommInfo::method::waitany) {
-            idx = message_type::wait_send_any(num_sends, &m_send_requests[0], &status);
+            idx = message_type::wait_send_any(con_comm, num_sends, &m_send_requests[0], &status);
           } else {
             idx = -1;
             while(idx < 0 || idx >= num_sends) {
-              idx = message_type::test_send_any(num_sends, &m_send_requests[0], &status);
+              idx = message_type::test_send_any(con_comm, num_sends, &m_send_requests[0], &status);
             }
           }
 
@@ -1320,9 +1320,9 @@ struct Comm
 
           IdxT num_sent = num_sends;
           if (wait_send_method == CommInfo::method::waitsome) {
-            num_sent = message_type::wait_send_some(num_sends, &m_send_requests[0], &indices[0], &send_statuses[0]);
+            num_sent = message_type::wait_send_some(con_comm, num_sends, &m_send_requests[0], &indices[0], &send_statuses[0]);
           } else {
-            num_sent = message_type::test_send_some(num_sends, &m_send_requests[0], &indices[0], &send_statuses[0]);
+            num_sent = message_type::test_send_some(con_comm, num_sends, &m_send_requests[0], &indices[0], &send_statuses[0]);
           }
 
           for (IdxT i = 0; i < num_sent; ++i) {
@@ -1343,9 +1343,9 @@ struct Comm
         std::vector<typename policy_comm::send_status_type> send_statuses(m_send_requests.size(), con_comm.send_status_null());
 
         if (wait_send_method == CommInfo::method::waitall) {
-          message_type::wait_send_all(num_sends, &m_send_requests[0], &send_statuses[0]);
+          message_type::wait_send_all(con_comm, num_sends, &m_send_requests[0], &send_statuses[0]);
         } else {
-          while(!message_type::test_send_all(num_sends, &m_send_requests[0], &send_statuses[0]));
+          while(!message_type::test_send_all(con_comm, num_sends, &m_send_requests[0], &send_statuses[0]));
         }
 
         for (IdxT idx = 0; idx < num_sends; ++idx) {
