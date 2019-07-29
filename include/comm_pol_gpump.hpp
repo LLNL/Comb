@@ -43,6 +43,7 @@ struct GpumpRequest
   union context_union {
     int invalid;
     CPUContext cpu;
+    MPIContext mpi;
     CudaContext cuda;
     context_union() : invalid(-1) {}
     ~context_union() {}
@@ -96,6 +97,17 @@ struct GpumpRequest
     }
   }
 
+  void setContext(MPIContext const& con)
+  {
+    if (context_type == ContextEnum::mpi) {
+      context.mpi = con;
+    } else {
+      destroy_context();
+      new(&context.mpi) MPIContext(con);
+      context_type = ContextEnum::mpi;
+    }
+  }
+
   void setContext(CudaContext const& con)
   {
     if (context_type == ContextEnum::cuda) {
@@ -119,6 +131,10 @@ private:
       {
         setContext(other_context.cpu);
       } break;
+      case (ContextEnum::mpi):
+      {
+        setContext(other_context.mpi);
+      } break;
       case (ContextEnum::cuda):
       {
         setContext(other_context.cuda);
@@ -136,6 +152,10 @@ private:
       case (ContextEnum::cpu):
       {
         context.cpu.~CPUContext();
+      } break;
+      case (ContextEnum::mpi):
+      {
+        context.mpi.~MPIContext();
       } break;
       case (ContextEnum::cuda):
       {
