@@ -474,7 +474,7 @@ private:
 
   void start_Isend(CudaContext const& con, communicator_type& con_comm)
   {
-    detail::gpump::stream_send(con_comm.g, partner_rank(), con.stream(), m_region.mr, m_region.offset, nbytes());
+    detail::gpump::stream_send(con_comm.g, partner_rank(), con.stream_launch(), m_region.mr, m_region.offset, nbytes());
   }
 
 public:
@@ -512,7 +512,7 @@ private:
 
   static void uncork_Isends(CudaContext const&, communicator_type& con_comm)
   {
-    detail::gpump::uncork(con_comm.g, con_comm.stream());
+    detail::gpump::uncork(con_comm.g, con_comm.stream_launch());
   }
 
 public:
@@ -588,7 +588,7 @@ private:
     assert(!request.completed);
     bool done = false;
     if (request.context_type == ContextEnum::cuda) {
-      detail::gpump::stream_wait_send_complete(request.g, request.partner_rank, request.context.cuda.stream());
+      detail::gpump::stream_wait_send_complete(request.g, request.partner_rank, request.context.cuda.stream_launch());
     } else if (request.context_type == ContextEnum::cpu) {
       detail::gpump::cpu_ack_isend(request.g, request.partner_rank);
     } else {
@@ -707,7 +707,7 @@ public:
         }
       }
       if (new_requests) {
-        detail::gpump::uncork(con_comm.g, con_comm.stream());
+        detail::gpump::uncork(con_comm.g, con_comm.stream_launch());
       }
     }
     return done;
@@ -744,7 +744,7 @@ public:
         }
       }
       if (new_requests) {
-        detail::gpump::uncork(con_comm.g, con_comm.stream());
+        detail::gpump::uncork(con_comm.g, con_comm.stream_launch());
       }
     }
     return done == count;
@@ -768,7 +768,7 @@ private:
     assert(!request.completed);
     bool done = false;
     if (request.context_type == ContextEnum::cuda) {
-      detail::gpump::stream_wait_recv_complete(request.g, request.partner_rank, request.context.cuda.stream());
+      detail::gpump::stream_wait_recv_complete(request.g, request.partner_rank, request.context.cuda.stream_launch());
     } else if (request.context_type == ContextEnum::cpu) {
       detail::gpump::cpu_ack_recv(request.g, request.partner_rank);
     } else {
@@ -887,7 +887,7 @@ public:
         }
       }
       if (new_requests) {
-        detail::gpump::uncork(con_comm.g, con_comm.stream());
+        detail::gpump::uncork(con_comm.g, con_comm.stream_launch());
       }
     }
     return done;
@@ -924,7 +924,7 @@ public:
         }
       }
       if (new_requests) {
-        detail::gpump::uncork(con_comm.g, con_comm.stream());
+        detail::gpump::uncork(con_comm.g, con_comm.stream_launch());
       }
     }
     return done == count;

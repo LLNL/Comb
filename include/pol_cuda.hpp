@@ -195,7 +195,7 @@ struct ExecContext<cuda_pol> : CudaContext
     dim3 blockDim(threads);
     void* args[]{&begin, &len, &body};
     size_t sharedMem = 0;
-    cudaStream_t stream = base::stream();
+    cudaStream_t stream = base::stream_launch();
 
     cudaCheck(cudaLaunchKernel(func, gridDim, blockDim, args, sharedMem, stream));
     // base::synchronize();
@@ -219,7 +219,7 @@ struct ExecContext<cuda_pol> : CudaContext
     dim3 blockDim(threads1, threads0, 1);
     void* args[]{&begin0, &len0, &begin1, &len1, &body};
     size_t sharedMem = 0;
-    cudaStream_t stream = base::stream();
+    cudaStream_t stream = base::stream_launch();
 
     cudaCheck(cudaLaunchKernel(func, gridDim, blockDim, args, sharedMem, stream));
     // base::synchronize();
@@ -247,7 +247,7 @@ struct ExecContext<cuda_pol> : CudaContext
     dim3 blockDim(threads2, threads1, threads0);
     void* args[]{&begin0, &len0, &begin1, &len1, &begin2, &len2, &len12, &body};
     size_t sharedMem = 0;
-    cudaStream_t stream = base::stream();
+    cudaStream_t stream = base::stream_launch();
 
     cudaCheck(cudaLaunchKernel(func, gridDim, blockDim, args, sharedMem, stream));
     // base::synchronize();

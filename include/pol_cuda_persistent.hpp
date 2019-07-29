@@ -59,7 +59,7 @@ struct ExecContext<cuda_persistent_pol> : CudaContext
 
   void ensure_waitable()
   {
-    cuda::persistent_launch::force_stop(base::stream());
+    cuda::persistent_launch::force_stop(base::stream_launch());
   }
 
   template < typename context >
@@ -71,7 +71,7 @@ struct ExecContext<cuda_persistent_pol> : CudaContext
 
   void synchronize()
   {
-    cuda::persistent_launch::synchronize(base::stream());
+    cuda::persistent_launch::synchronize(base::stream_launch());
   }
 
   group_type create_group()
@@ -86,7 +86,7 @@ struct ExecContext<cuda_persistent_pol> : CudaContext
 
   void finish_group()
   {
-    cuda::persistent_launch::force_stop(base::stream());
+    cuda::persistent_launch::force_stop(base::stream_launch());
   }
 
   void destroy_group(group_type)

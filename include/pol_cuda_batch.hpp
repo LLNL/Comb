@@ -59,7 +59,7 @@ struct ExecContext<cuda_batch_pol> : CudaContext
 
   void ensure_waitable()
   {
-    cuda::batch_launch::force_launch(base::stream());
+    cuda::batch_launch::force_launch(base::stream_launch());
   }
 
   template < typename context >
@@ -71,7 +71,7 @@ struct ExecContext<cuda_batch_pol> : CudaContext
 
   void synchronize()
   {
-    cuda::batch_launch::synchronize(base::stream());
+    cuda::batch_launch::synchronize(base::stream_launch());
   }
 
   group_type create_group()
@@ -85,7 +85,7 @@ struct ExecContext<cuda_batch_pol> : CudaContext
 
   void finish_group()
   {
-    cuda::batch_launch::force_launch(base::stream());
+    cuda::batch_launch::force_launch(base::stream_launch());
   }
 
   void destroy_group(group_type)

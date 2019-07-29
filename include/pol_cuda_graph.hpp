@@ -49,7 +49,7 @@ struct ExecContext<cuda_graph_pol> : CudaContext
 
   void ensure_waitable()
   {
-    cuda::graph_launch::force_launch(base::stream());
+    cuda::graph_launch::force_launch(base::stream_launch());
   }
 
   template < typename context >
@@ -61,7 +61,7 @@ struct ExecContext<cuda_graph_pol> : CudaContext
 
   void synchronize()
   {
-    cuda::graph_launch::synchronize(base::stream());
+    cuda::graph_launch::synchronize(base::stream_launch());
   }
 
   group_type create_group()
@@ -76,7 +76,7 @@ struct ExecContext<cuda_graph_pol> : CudaContext
 
   void finish_group()
   {
-    cuda::graph_launch::force_launch(base::stream());
+    cuda::graph_launch::force_launch(base::stream_launch());
   }
 
   void destroy_group(group_type group)
