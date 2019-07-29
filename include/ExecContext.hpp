@@ -25,6 +25,7 @@ enum struct ContextEnum
   invalid = 0
  ,cpu = 1
  ,cuda = 2
+ ,mpi = 3
 };
 
 struct CPUContext;
