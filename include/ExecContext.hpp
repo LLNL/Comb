@@ -40,6 +40,9 @@ struct CudaStream
 {
   CudaStream()
     : m_ref(0)
+    , m_launch(0)
+    , m_record(0)
+    , m_sync(0)
   {
     cudaCheck(cudaStreamCreateWithFlags(&m_stream, cudaStreamDefault));
     cudaCheck(cudaEventCreateWithFlags(&m_event, cudaEventDisableTiming));
@@ -51,19 +54,41 @@ struct CudaStream
     cudaCheck(cudaStreamDestroy(m_stream));
   }
 
+  void recordEvent()
+  {
+    if (m_record != m_launch) {
+      cudaCheck(cudaEventRecord(m_event, m_stream));
+      m_record = m_launch;
+    }
+  }
+
+  void waitEvent(CudaStream& other)
+  {
+    cudaCheck(cudaStreamWaitEvent(m_stream, other.m_event, 0));
+  }
+
   void waitOn(CudaStream& other)
   {
-    cudaCheck(cudaEventRecord(other.m_event, other.m_stream));
-    cudaCheck(cudaStreamWaitEvent(m_stream, other.m_event, 0));
+    other.recordEvent();
+    waitEvent(other);
   }
 
   void synchronize()
   {
-    cudaCheck(cudaStreamSynchronize(m_stream));
+    if (m_sync != m_launch) {
+      cudaCheck(cudaStreamSynchronize(m_stream));
+      m_sync = m_launch;
+    }
   }
 
   cudaStream_t stream()
   {
+    return m_stream;
+  }
+
+  cudaStream_t stream_launch()
+  {
+    m_launch++;
     return m_stream;
   }
 
@@ -80,6 +105,9 @@ private:
   cudaStream_t m_stream;
   cudaEvent_t m_event;
   size_t m_ref;
+  size_t m_launch;
+  size_t m_record;
+  size_t m_sync;
 };
 
 } // namesapce detail
@@ -134,6 +162,11 @@ struct CudaContext
   cudaStream_t stream() const
   {
     return s->stream();
+  }
+
+  cudaStream_t stream_launch() const
+  {
+    return s->stream_launch();
   }
 
   void waitOn(CPUContext const&) const
