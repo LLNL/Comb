@@ -154,9 +154,7 @@ struct CudaContext
 
   ~CudaContext()
   {
-    if (s != nullptr) {
-      dec_ref();
-    }
+    dec_ref();
   }
 
   cudaStream_t stream() const
@@ -181,6 +179,8 @@ struct CudaContext
 
   void waitOn(CudaContext const& other) const
   {
+    assert(s != nullptr);
+    assert(other.s != nullptr);
     if (s != other.s) {
       s->waitOn(*other.s);
     }
@@ -196,12 +196,14 @@ private:
 
   void inc_ref()
   {
-    s->inc();
+    if (s != nullptr) {
+      s->inc();
+    }
   }
 
   void dec_ref()
   {
-    if (s->dec() == 0) {
+    if (s != nullptr && s->dec() == 0) {
       delete s;
       s = nullptr;
     }
