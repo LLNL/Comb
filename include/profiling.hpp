@@ -110,18 +110,14 @@ struct Timer {
     long   num;
   };
 
-  TimePoint* times;
-  const char** names;
+  std::vector<TimePoint> times;
+  std::vector<const char*> names;
   IdxT idx;
-  IdxT size;
 
-  Timer(IdxT size_)
-    : times(nullptr)
-    , names(nullptr)
-    , idx(0)
-    , size(0)
+  Timer(IdxT size)
+    : idx(0)
   {
-    resize(size_);
+    resize(size);
   }
 
   Timer(const Timer&) = delete;
@@ -129,29 +125,23 @@ struct Timer {
 
   template < typename Context >
   void start(Context const& con, const char* str) {
-    if (idx < size) {
-      times[idx].record(con);
-      names[idx] = str;
-      ++idx;
+    if (idx >= times.size()) {
+      resize(2*idx+2);
+      assert(idx < times.size());
     }
+    times[idx].record(con);
+    names[idx] = str;
+    ++idx;
   }
 
   template < typename Context >
   void restart(Context const& con, const char* str) {
-    if (idx < size) {
-      start(con, str);
-    } else if (idx == size) {
-      stop(con);
-    }
+    start(con, str);
   }
 
   template < typename Context >
   void stop(Context const& con) {
-    if (idx <= size) {
-      times[idx].record(con);
-      if (idx < size) names[idx] = nullptr;
-      ++idx;
-    }
+    start(con, nullptr);
   }
 
   std::vector<std::pair<std::string, double>> get_times()
@@ -222,11 +212,10 @@ struct Timer {
     }
   }
 
-  void resize(IdxT size_) {
-    clean();
-    times = new TimePoint[size_+1];
-    names = new const char*[size_];
-    size = size_;
+  void resize(IdxT size) {
+    if (idx > size) idx = size;
+    times.resize(size);
+    names.resize(size);
   }
 
   void clear() {
@@ -235,8 +224,8 @@ struct Timer {
 
   void clean() {
     clear();
-    if (times != nullptr) { delete[] times; times = nullptr; }
-    if (names != nullptr) { delete[] names; names = nullptr; }
+    times.clear();
+    names.clear();
   }
 
   ~Timer() { clean(); }
