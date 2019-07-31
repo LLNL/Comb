@@ -27,13 +27,12 @@
 #include <utility>
 #include <atomic>
 
+#include "utils_mpi.hpp"
+#include "utils_cuda.hpp"
+
 #ifdef COMB_ENABLE_CUDA
-#include <cuda.h>
-#include <nvToolsExt.h>
-#include <nvToolsExtCuda.h>
 #endif
 
-#include <mpi.h>
 
 struct Timer {
 

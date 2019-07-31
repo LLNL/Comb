@@ -24,6 +24,8 @@
 #include <cstdio>
 
 #include <cuda.h>
+#include <nvToolsExt.h>
+#include <nvToolsExtCuda.h>
 // #include <mpi.h>
 
 namespace COMB {
