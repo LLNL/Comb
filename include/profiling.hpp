@@ -154,8 +154,8 @@ struct Timer {
 
     for (auto& stat : res) {
       int padding = max_name_len - stat.name.size();
-      FGPRINTF(FileGroup::proc, "%s%s:%*s num %ld sum %.9f s min %.9f s max %.9f s\n",
-                    prefix, stat.name.c_str(), padding, "", stat.num, stat.sum, stat.min, stat.max);
+      FGPRINTF(FileGroup::proc, "%s%s:%*s num %ld avg %.9f s min %.9f s max %.9f s\n",
+                    prefix, stat.name.c_str(), padding, "", stat.num, stat.sum/stat.num, stat.min, stat.max);
     }
   }
 

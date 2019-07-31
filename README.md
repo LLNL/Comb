@@ -140,11 +140,11 @@ The files contain the argument and code setup information and the results of mul
 The first set of tests are memory copy tests with names of the following form.
 
     Starting test memcpy (execution policy) dst (destination memory space) src (source memory space)"
-    copy_sync-(number of variables)-(elements per variable)-(bytes per element): num (number of repeats) sum (time) s min (time) s max (time) s
+    copy_sync-(number of variables)-(elements per variable)-(bytes per element): num (number of repeats) avg (time) s min (time) s max (time) s
 Example:
 
     Starting test memcpy seq dst Host src Host
-    copy_sync-3-1061208-8: num 200 sum 0.123456789 s min 0.123456789 s max 0.123456789 s
+    copy_sync-3-1061208-8: num 200 avg 0.123456789 s min 0.123456789 s max 0.123456789 s
 This is a test in which memory is copied via sequential cpu execution to one host memory buffer from another host memory buffer.
 The test involves one measurement.
 
@@ -153,20 +153,20 @@ The test involves one measurement.
 The second set of tests are the message passing tests with names of the following form.
 
     Comm (message passing execution policy) Mesh (physics execution policy) (mesh memory space) Buffers (large message execution policy) (large message memory space) (small message execution policy) (small message memory space)
-    (test phase): num (number of repeats) sum (time) s min (time) s max (time) s
+    (test phase): num (number of repeats) avg (time) s min (time) s max (time) s
     ...
 Example
 
     Comm mpi Mesh seq Host Buffers seq Host seq Host
-    pre-comm:  num 200 sum 0.123456789 s min 0.123456789 s max 0.123456789 s
-    post-recv: num 200 sum 0.123456789 s min 0.123456789 s max 0.123456789 s
-    post-send: num 200 sum 0.123456789 s min 0.123456789 s max 0.123456789 s
-    wait-recv: num 200 sum 0.123456789 s min 0.123456789 s max 0.123456789 s
-    wait-send: num 200 sum 0.123456789 s min 0.123456789 s max 0.123456789 s
-    post-comm: num 200 sum 0.123456789 s min 0.123456789 s max 0.123456789 s
-    start-up:   num 8 sum 0.123456789 s min 0.123456789 s max 0.123456789 s
-    test-comm:  num 8 sum 0.123456789 s min 0.123456789 s max 0.123456789 s
-    bench-comm: num 8 sum 0.123456789 s min 0.123456789 s max 0.123456789 s
+    pre-comm:  num 200 avg 0.123456789 s min 0.123456789 s max 0.123456789 s
+    post-recv: num 200 avg 0.123456789 s min 0.123456789 s max 0.123456789 s
+    post-send: num 200 avg 0.123456789 s min 0.123456789 s max 0.123456789 s
+    wait-recv: num 200 avg 0.123456789 s min 0.123456789 s max 0.123456789 s
+    wait-send: num 200 avg 0.123456789 s min 0.123456789 s max 0.123456789 s
+    post-comm: num 200 avg 0.123456789 s min 0.123456789 s max 0.123456789 s
+    start-up:   num 8 avg 0.123456789 s min 0.123456789 s max 0.123456789 s
+    test-comm:  num 8 avg 0.123456789 s min 0.123456789 s max 0.123456789 s
+    bench-comm: num 8 avg 0.123456789 s min 0.123456789 s max 0.123456789 s
 This is a test in which a mesh is updated with physics running via sequential cpu execution using memory allocated in host memory. The buffers used for large messages are packed/unpacked via sequential cpu execution and allocated in host memory and the buffers used with MPI for small messages are packed/unpacked via sequential cpu execution and allocated in host memory.
 This test involves multiple measurements, the first six time individual parts of the physics cycle and communication.
   - pre-comm "Physics" before point-to-point communication, in this case setting memory to initial values.
