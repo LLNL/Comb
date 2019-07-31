@@ -25,20 +25,81 @@
 #include <vector>
 #include <string>
 #include <utility>
-#include <atomic>
 
 #include "utils_mpi.hpp"
 #include "utils_cuda.hpp"
 
-#ifdef COMB_ENABLE_CUDA
-#endif
-
+#include "ExecContext.hpp"
 
 struct Timer {
 
-  struct TimePoint {
-    using type = std::chrono::high_resolution_clock::time_point;
-    type tp;
+  enum {
+    unused
+   ,cpu
+#ifdef COMB_ENABLE_CUDA
+   ,cuda
+#endif
+  };
+
+  struct TimePoint
+  {
+    static double duration(TimePoint const& t0, TimePoint const& t1)
+    {
+      double time = -1.0;
+      if (t0.type == cpu && t1.type == cpu) {
+        time = std::chrono::duration<double>(t1.tp_cpu - t0.tp_cpu).count();
+#ifdef COMB_ENABLE_CUDA
+      } else if (t0.type == cuda && t1.type == cuda) {
+        float ms;
+        cudaCheck(cudaEventElapsedTime(&ms, t0.tp_cuda, t1.tp_cuda));
+        time = static_cast<double>(ms) / 1000.0;
+#endif
+      } else {
+        assert(0 && "TimePoint::duration type mismatch");
+      }
+      return time;
+    }
+
+    std::chrono::high_resolution_clock::time_point tp_cpu;
+#ifdef COMB_ENABLE_CUDA
+    cudaEvent_t tp_cuda;
+#endif
+    int type;
+
+    TimePoint()
+      : type(unused)
+    {
+#ifdef COMB_ENABLE_CUDA
+      cudaCheck(cudaEventCreateWithFlags(&tp_cuda, cudaEventDefault));
+#endif
+    }
+
+    void record(CPUContext const&)
+    {
+      tp_cpu = std::chrono::high_resolution_clock::now();
+      type = cpu;
+    }
+
+    void record(MPIContext const&)
+    {
+      tp_cpu = std::chrono::high_resolution_clock::now();
+      type = cpu;
+    }
+
+#ifdef COMB_ENABLE_CUDA
+    void record(CudaContext const& con)
+    {
+      cudaCheck(cudaEventRecord(tp_cuda, con.stream()));
+      type = cuda;
+    }
+#endif
+
+    ~TimePoint()
+    {
+#ifdef COMB_ENABLE_CUDA
+      cudaCheck(cudaEventDestroy(tp_cuda));
+#endif
+    }
   };
 
   struct Stats {
@@ -66,25 +127,28 @@ struct Timer {
   Timer(const Timer&) = delete;
   Timer& operator=(const Timer&) = delete;
 
-  void start(const char* str) {
+  template < typename Context >
+  void start(Context const& con, const char* str) {
     if (idx < size) {
-      record_time();
+      times[idx].record(con);
       names[idx] = str;
       ++idx;
     }
   }
 
-  void restart(const char* str) {
+  template < typename Context >
+  void restart(Context const& con, const char* str) {
     if (idx < size) {
-      start(str);
+      start(con, str);
     } else if (idx == size) {
-      stop();
+      stop(con);
     }
   }
 
-  void stop() {
+  template < typename Context >
+  void stop(Context const& con) {
     if (idx <= size) {
-      record_time();
+      times[idx].record(con);
       if (idx < size) names[idx] = nullptr;
       ++idx;
     }
@@ -98,7 +162,7 @@ struct Timer {
       if (names[i-1] != nullptr) {
 
         std::string name{names[i-1]};
-        double time = std::chrono::duration<double>(times[i].tp - times[i-1].tp).count();
+        double time = TimePoint::duration(times[i-1], times[i]);
 
         items.emplace_back(std::pair<std::string, double>{name, time});
       }
@@ -160,35 +224,22 @@ struct Timer {
 
   void resize(IdxT size_) {
     clean();
-    times = (TimePoint*)malloc((size_+1)*sizeof(TimePoint));
-    names = (const char**)malloc(size_*sizeof(const char*));
+    times = new TimePoint[size_+1];
+    names = new const char*[size_];
     size = size_;
   }
 
   void clear() {
-    for (IdxT i = 0; i < idx; ++i) {
-      times[i].~TimePoint();
-    }
     idx = 0;
   }
 
   void clean() {
     clear();
-    if (times != nullptr) { free(times); times = nullptr; }
-    if (names != nullptr) { free(names); names = nullptr; }
+    if (times != nullptr) { delete[] times; times = nullptr; }
+    if (names != nullptr) { delete[] names; names = nullptr; }
   }
 
   ~Timer() { clean(); }
-private:
-  void record_time() {
-
-    std::atomic_thread_fence(std::memory_order_release);
-
-    new(&times[idx]) TimePoint{std::chrono::high_resolution_clock::now()};
-
-    std::atomic_thread_fence(std::memory_order_acquire);
-
-  }
 };
 
 struct Range {

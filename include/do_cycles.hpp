@@ -45,6 +45,7 @@ void do_cycles(CommContext<pol_comm>& con_comm_in,
                ExecContext<pol_few>& con_few,  COMB::Allocator& aloc_few,
                Timer& tm, Timer& tm_total)
 {
+  ExecContext<seq_pol> tm_con;
   tm_total.clear();
   tm.clear();
 
@@ -83,7 +84,7 @@ void do_cycles(CommContext<pol_comm>& con_comm_in,
 
     comm.barrier();
 
-    tm_total.start("start-up");
+    tm_total.start(tm_con, "start-up");
 
     std::vector<MeshData> vars;
     vars.reserve(num_vars);
@@ -111,13 +112,13 @@ void do_cycles(CommContext<pol_comm>& con_comm_in,
       factory.populate(comm, con_many, con_few);
     }
 
-    tm_total.stop();
+    tm_total.stop(tm_con);
 
     comm.barrier();
 
     Range r1("test comm", Range::indigo);
 
-    tm_total.start("test-comm");
+    tm_total.start(tm_con, "test-comm");
 
     IdxT ntestcycles = std::max(IdxT{1}, ncycles/IdxT{10});
     for (IdxT test_cycle = 0; test_cycle < ntestcycles; ++test_cycle) { // test comm
@@ -151,7 +152,7 @@ void do_cycles(CommContext<pol_comm>& con_comm_in,
 
 
       Range r3("pre-comm", Range::red);
-      // tm.start("pre-comm");
+      // tm.start(tm_con, "pre-comm");
 
       for (IdxT i = 0; i < num_vars; ++i) {
 
@@ -220,19 +221,19 @@ void do_cycles(CommContext<pol_comm>& con_comm_in,
 
       con_mesh.synchronize();
 
-      // tm.stop();
+      // tm.stop(tm_con);
       r3.restart("post-recv", Range::pink);
-      // tm.start("post-recv");
+      // tm.start(tm_con, "post-recv");
 
       comm.postRecv(con_many, con_few);
 
-      // tm.stop();
+      // tm.stop(tm_con);
       r3.restart("post-send", Range::pink);
-      // tm.start("post-send");
+      // tm.start(tm_con, "post-send");
 
       comm.postSend(con_many, con_few);
 
-      // tm.stop();
+      // tm.stop(tm_con);
       r3.stop();
 
       // for (IdxT i = 0; i < num_vars; ++i) {
@@ -287,19 +288,19 @@ void do_cycles(CommContext<pol_comm>& con_comm_in,
 
 
       r3.start("wait-recv", Range::pink);
-      // tm.start("wait-recv");
+      // tm.start(tm_con, "wait-recv");
 
       comm.waitRecv(con_many, con_few);
 
-      // tm.stop();
+      // tm.stop(tm_con);
       r3.restart("wait-send", Range::pink);
-      // tm.start("wait-send");
+      // tm.start(tm_con, "wait-send");
 
       comm.waitSend(con_many, con_few);
 
-      // tm.stop();
+      // tm.stop(tm_con);
       r3.restart("post-comm", Range::red);
-      // tm.start("post-comm");
+      // tm.start(tm_con, "post-comm");
 
       for (IdxT i = 0; i < num_vars; ++i) {
 
@@ -368,7 +369,7 @@ void do_cycles(CommContext<pol_comm>& con_comm_in,
 
       con_mesh.synchronize();
 
-      // tm.stop();
+      // tm.stop(tm_con);
       r3.stop();
 
       r2.stop();
@@ -376,11 +377,11 @@ void do_cycles(CommContext<pol_comm>& con_comm_in,
 
     comm.barrier();
 
-    tm_total.stop();
+    tm_total.stop(tm_con);
 
     r1.restart("bench comm", Range::magenta);
 
-    tm_total.start("bench-comm");
+    tm_total.start(tm_con, "bench-comm");
 
     for(IdxT cycle = 0; cycle < ncycles; cycle++) {
 
@@ -399,7 +400,7 @@ void do_cycles(CommContext<pol_comm>& con_comm_in,
 
 
       Range r3("pre-comm", Range::red);
-      tm.start("pre-comm");
+      tm.start(tm_con, "pre-comm");
 
       for (IdxT i = 0; i < num_vars; ++i) {
 
@@ -413,19 +414,19 @@ void do_cycles(CommContext<pol_comm>& con_comm_in,
 
       con_mesh.synchronize();
 
-      tm.stop();
+      tm.stop(tm_con);
       r3.restart("post-recv", Range::pink);
-      tm.start("post-recv");
+      tm.start(tm_con, "post-recv");
 
       comm.postRecv(con_many, con_few);
 
-      tm.stop();
+      tm.stop(tm_con);
       r3.restart("post-send", Range::pink);
-      tm.start("post-send");
+      tm.start(tm_con, "post-send");
 
       comm.postSend(con_many, con_few);
 
-      tm.stop();
+      tm.stop(tm_con);
       r3.stop();
 
       /*
@@ -456,19 +457,19 @@ void do_cycles(CommContext<pol_comm>& con_comm_in,
       */
 
       r3.start("wait-recv", Range::pink);
-      tm.start("wait-recv");
+      tm.start(tm_con, "wait-recv");
 
       comm.waitRecv(con_many, con_few);
 
-      tm.stop();
+      tm.stop(tm_con);
       r3.restart("wait-send", Range::pink);
-      tm.start("wait-send");
+      tm.start(tm_con, "wait-send");
 
       comm.waitSend(con_many, con_few);
 
-      tm.stop();
+      tm.stop(tm_con);
       r3.restart("post-comm", Range::red);
-      tm.start("post-comm");
+      tm.start(tm_con, "post-comm");
 
       for (IdxT i = 0; i < num_vars; ++i) {
 
@@ -482,7 +483,7 @@ void do_cycles(CommContext<pol_comm>& con_comm_in,
 
       con_mesh.synchronize();
 
-      tm.stop();
+      tm.stop(tm_con);
       r3.stop();
 
       r2.stop();
@@ -491,7 +492,7 @@ void do_cycles(CommContext<pol_comm>& con_comm_in,
 
     comm.barrier();
 
-    tm_total.stop();
+    tm_total.stop(tm_con);
 
     r1.stop();
 
