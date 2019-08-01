@@ -30,9 +30,10 @@ enum struct ContextEnum
 
 struct CPUContext;
 struct MPIContext;
-struct CudaContext;
 
 #ifdef COMB_ENABLE_CUDA
+
+struct CudaContext;
 
 namespace detail {
 
