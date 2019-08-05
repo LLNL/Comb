@@ -4,14 +4,18 @@ nodes=$1
 procs=$2
 procs_per_side=$3
 
+# extra arguments to comb (always starts with a space or is empty)
+comb_xargs=""
+
 # Choose a command to run mpi based on the system being used
 if [[ ! "x" == "x$SYS_TYPE" ]]; then
    if [[ "x$SYS_TYPE" =~ xblueos.*_p9 ]]; then
       # Command used to run mpi on sierra systems
       run_mpi="lrun -N$nodes -p$procs"
       # add arguments to turn on cuda aware mpi (optionally disable gpu direct)
-      run_mpi="${run_mpi} --smpiargs \"-gpu\""
+      # run_mpi="${run_mpi} --smpiargs \"-gpu\""
       # run_mpi="${run_mpi} --smpiargs \"-gpu -disable_gdr\""
+      comb_xargs="${comb_xargs} -cuda_aware_mpi"
    elif [[ "x$SYS_TYPE" =~ xblueos.* ]]; then
       # Command used to run mpi on EA systems
       run_mpi="mpirun -np $procs /usr/tcetmp/bin/mpibind"
@@ -64,8 +68,6 @@ comb_args="${comb_args} -cycles 100"
 comb_args="${comb_args} -comm cutoff 250"
 # set the number of omp threads per process
 comb_args="${comb_args} -omp_threads 10"
-# enable tests passing cuda device or managed memory to mpi
-comb_args="${comb_args} -cuda_aware_mpi"
 # enable all execution tests
 comb_args="${comb_args} -exec enable all"
 # enable all memory tests
@@ -74,6 +76,9 @@ comb_args="${comb_args} -memory enable all"
 comb_args="${comb_args} -comm enable all"
 # disable mpi_type execution tests (MPI Packing)
 # comb_args="${comb_args} -exec disable mpi_type"
+
+# add extra arguments for features enabled outside of the comb args block
+# comb_args="${comb_args}${comb_xargs}"
 
 # set up arguments for a variety of communication methods
 wait_all_method="-comm post_recv wait_all -comm post_send wait_all -comm wait_recv wait_all -comm wait_send wait_all"
