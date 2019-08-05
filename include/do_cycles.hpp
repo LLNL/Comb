@@ -379,6 +379,8 @@ void do_cycles(CommContext<pol_comm>& con_comm_in,
 
     tm_total.stop(tm_con);
 
+    tm.clear();
+
     r1.restart("bench comm", Range::magenta);
 
     tm_total.start(tm_con, "bench-comm");
