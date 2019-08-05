@@ -112,7 +112,7 @@ struct Timer {
 
   std::vector<TimePoint> times;
   std::vector<const char*> names;
-  IdxT idx;
+  size_t idx;
 
   Timer(IdxT size)
     : idx(0)
@@ -148,7 +148,7 @@ struct Timer {
   {
     std::vector<std::pair<std::string, double>> items;
 
-    for (int i = 1; i < idx; ++i) {
+    for (size_t i = 1; i < idx; ++i) {
       if (names[i-1] != nullptr) {
 
         std::string name{names[i-1]};
@@ -212,7 +212,7 @@ struct Timer {
     }
   }
 
-  void resize(IdxT size) {
+  void resize(size_t size) {
     if (idx > size) idx = size;
     times.resize(size);
     names.resize(size);
