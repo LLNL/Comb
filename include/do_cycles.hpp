@@ -88,6 +88,8 @@ void do_cycles(CommContext<pol_comm>& con_comm_in,
     // make communicator object
     comm_type comm(con_comm, comminfo, aloc_mesh, aloc_many, aloc_few);
 
+    comm.set_timer(tm);
+
     comm.barrier();
 
     tm_total.start(tm_con, "start-up");

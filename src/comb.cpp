@@ -654,7 +654,7 @@ int main(int argc, char** argv)
     }
   }
 
-  Timer tm(2*6*ncycles);
+  Timer tm(2*8*ncycles);
   Timer tm_total(1024);
 
   // warm-up memory pools

@@ -34,6 +34,7 @@
 #include "memory.hpp"
 #include "for_all.hpp"
 #include "utils.hpp"
+#include "profiling.hpp"
 
 #include "MessageBase.hpp"
 
@@ -414,6 +415,18 @@ struct Comm
   void barrier()
   {
     comminfo.barrier();
+  }
+
+  Timer* m_tm;
+
+  void set_timer(Timer& tm)
+  {
+    m_tm = &tm;
+  }
+
+  Timer& get_timer()
+  {
+    return *m_tm;
   }
 
   void postRecv(ExecContext<policy_many>& con_many, ExecContext<policy_few>& con_few)
@@ -940,6 +953,8 @@ struct Comm
           }
         }
 
+        get_timer().restart(ExecContext<seq_pol>{}, "post-send2");
+
         if (num_many > 0 && num_few > 0) {
           con_few.finish_group(m_send_groups_few[num_few-1]); con_many.finish_group(m_send_groups_many[num_many-1]);
         } else if (num_many > 0) {
@@ -1275,6 +1290,9 @@ struct Comm
             m_recv_contexts_few[idx].finish_component(m_recv_groups_few[num_few-1], m_recv_components_few[idx]);
           }
         }
+
+
+        get_timer().restart(ExecContext<seq_pol>{}, "wait-recv2");
 
         if (num_many > 0 && num_few > 0) {
           con_few.finish_group(m_recv_groups_few[num_few-1]); con_many.finish_group(m_recv_groups_many[num_many-1]);
