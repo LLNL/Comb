@@ -963,6 +963,8 @@ struct Comm
           con_few.finish_group(m_send_groups_few[num_few-1]);
         }
 
+        get_timer().restart(ExecContext<seq_pol>{}, "post-send3");
+
         if (num_many > 0 && num_few > 0) {
           message_type::wait_pack_complete(con_few, con_comm); message_type::wait_pack_complete(con_many, con_comm);
         } else if (num_many > 0) {
@@ -1301,6 +1303,8 @@ struct Comm
         } else if (num_few > 0) {
           con_few.finish_group(m_recv_groups_few[num_few-1]);
         }
+
+        get_timer().restart(ExecContext<seq_pol>{}, "wait-recv3");
 
         for (int idx = 0; idx < num_recvs; ++idx) {
 
