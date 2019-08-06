@@ -1272,6 +1272,8 @@ struct Comm
           while (!message_type::test_recv_all(con_comm, num_recvs, &m_recv_requests[0], &recv_statuses[0]));
         }
 
+        get_timer().restart(ExecContext<seq_pol>{}, "wait-recv2");
+
         if (num_many > 0 && num_few > 0) {
           con_few.start_group(m_recv_groups_few[num_few-1]); con_many.start_group(m_recv_groups_many[num_many-1]);
         } else if (num_many > 0) {
@@ -1293,8 +1295,7 @@ struct Comm
           }
         }
 
-
-        get_timer().restart(ExecContext<seq_pol>{}, "wait-recv2");
+        get_timer().restart(ExecContext<seq_pol>{}, "wait-recv3");
 
         if (num_many > 0 && num_few > 0) {
           con_few.finish_group(m_recv_groups_few[num_few-1]); con_many.finish_group(m_recv_groups_many[num_many-1]);
@@ -1304,7 +1305,7 @@ struct Comm
           con_few.finish_group(m_recv_groups_few[num_few-1]);
         }
 
-        get_timer().restart(ExecContext<seq_pol>{}, "wait-recv3");
+        get_timer().restart(ExecContext<seq_pol>{}, "wait-recv4");
 
         for (int idx = 0; idx < num_recvs; ++idx) {
 
