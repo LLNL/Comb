@@ -55,7 +55,7 @@ struct GpumpRequest
     , partner_rank(-1)
     , context_type(ContextEnum::invalid)
     , context()
-    , completed(false)
+    , completed(true)
   {
 
   }
@@ -442,15 +442,30 @@ struct Message<gpump_pol> : detail::MessageBase
     get_mempool().remove_allocators(con_comm.g);
   }
 
+  static inline std::unordered_multimap<int, Message*>& get_messages()
+  {
+    static std::unordered_multimap<int, Message*> messages;
+    return messages;
+  }
 
-  Message(Kind _kind, int partner_rank, int tag, bool have_many)
-    : base(_kind, partner_rank, tag, have_many)
+  Message(Kind _kind, int _partner_rank, int tag, bool have_many)
+    : base(_kind, _partner_rank, tag, have_many)
     , m_region()
     , m_request()
-  { }
+  {
+    get_messages().emplace(partner_rank(), this);
+  }
 
   ~Message()
-  { }
+  {
+    auto range = get_messages().equal_range(partner_rank());
+    for (auto iter = range.first; iter != range.second; ++iter) {
+      if (iter->second == this) {
+        get_messages().erase(iter);
+        break;
+      }
+    }
+  }
 
 
   template < typename context >
@@ -588,9 +603,9 @@ public:
     if (m_buf != nullptr) {
 
       if (m_kind == Kind::send) {
-        finish_send(con_comm, &m_request);
+        finish_send(con_comm);
       } else if (m_kind == Kind::recv) {
-        finish_recv(con_comm, &m_request);
+        finish_recv(con_comm);
       } else {
         assert(0 && (m_kind == Kind::send || m_kind == Kind::recv));
       }
@@ -602,6 +617,27 @@ public:
 
 
 private:
+  // returns when msg has completed
+  static void wait_request(communicator_type&, Message* msg)
+  {
+    // loop over all messages to check if they are done
+    // this allows all messages to make progress
+    auto end = get_messages().end();
+    for(auto iter = get_messages().begin(); iter != end; ++iter) {
+      GpumpRequest& req = iter->second->m_request;
+      if (!req.completed) {
+        if (iter->second->m_kind == Kind::send) {
+          req.completed = detail::gpump::is_send_complete(req.g, req.partner_rank);
+        } else if (iter->second->m_kind == Kind::recv) {
+          req.completed = detail::gpump::is_receive_complete(req.g, req.partner_rank);
+        } else {
+          assert(0 && (iter->second->m_kind == Kind::send || iter->second->m_kind == Kind::recv));
+        }
+      }
+      if (iter->second == msg && req.completed) return;
+    }
+  }
+
   static bool start_wait_send(communicator_type&,
                               send_request_type& request)
   {
@@ -636,12 +672,14 @@ private:
     return done;
   }
 
-  static void finish_send(communicator_type&,
-                          send_request_type request)
+  void finish_send(communicator_type& con_comm)
   {
-    if (!request->completed) {
-      detail::gpump::wait_send_complete(request->g, request->partner_rank);
-      request->completed = true;
+    if (!m_request.completed) {
+      m_request.completed = detail::gpump::is_send_complete(m_request.g, m_request.partner_rank);
+
+      if (!m_request.completed) {
+        wait_request(con_comm, this);
+      }
     }
   }
 
@@ -816,12 +854,14 @@ private:
     return done;
   }
 
-  static void finish_recv(communicator_type&,
-                          recv_request_type request)
+  void finish_recv(communicator_type& con_comm)
   {
-    if (!request->completed) {
-      detail::gpump::wait_receive_complete(request->g, request->partner_rank);
-      request->completed = true;
+    if (!m_request.completed) {
+      m_request.completed = detail::gpump::is_receive_complete(m_request.g, m_request.partner_rank);
+
+      if (!m_request.completed) {
+        wait_request(con_comm, this);
+      }
     }
   }
 
