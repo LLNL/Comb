@@ -172,8 +172,8 @@ struct gpump_pol {
   // compile mpi_type packing/unpacking tests for this comm policy
   static const bool use_mpi_type = false;
   static const char* get_name() { return "gpump"; }
-  using send_request_type = GpumpRequest;
-  using recv_request_type = GpumpRequest;
+  using send_request_type = GpumpRequest*;
+  using recv_request_type = GpumpRequest*;
   using send_status_type = int;
   using recv_status_type = int;
 };
@@ -226,8 +226,8 @@ struct CommContext<gpump_pol> : CudaContext
     base::waitOn(con);
   }
 
-  send_request_type send_request_null() { return send_request_type{}; }
-  recv_request_type recv_request_null() { return recv_request_type{}; }
+  send_request_type send_request_null() { return nullptr; }
+  recv_request_type recv_request_null() { return nullptr; }
   send_status_type send_status_null() { return 0; }
   recv_status_type recv_status_null() { return 0; }
 
@@ -446,6 +446,7 @@ struct Message<gpump_pol> : detail::MessageBase
   Message(Kind _kind, int partner_rank, int tag, bool have_many)
     : base(_kind, partner_rank, tag, have_many)
     , m_region()
+    , m_request()
   { }
 
   ~Message()
@@ -506,12 +507,12 @@ public:
     // FGPRINTF(FileGroup::proc, "%p Isend %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
 
     start_Isend(con, con_comm);
-    request->status = 1;
-    request->g = con_comm.g;
-    request->partner_rank = partner_rank();
-    request->setContext(con);
-    request->completed = false;
-    m_send_request = request;
+    m_request.status = 1;
+    m_request.g = con_comm.g;
+    m_request.partner_rank = partner_rank();
+    m_request.setContext(con);
+    m_request.completed = false;
+    *request = &m_request;
   }
 
 private:
@@ -561,12 +562,12 @@ public:
     // FGPRINTF(FileGroup::proc, "%p Irecv %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
 
     detail::gpump::receive(con_comm.g, partner_rank(), m_region.mr, m_region.offset, nbytes());
-    request->status = -1;
-    request->g = con_comm.g;
-    request->partner_rank = partner_rank();
-    request->setContext(con);
-    request->completed = false;
-    m_recv_request = request;
+    m_request.status = -1;
+    m_request.g = con_comm.g;
+    m_request.partner_rank = partner_rank();
+    m_request.setContext(con);
+    m_request.completed = false;
+    *request = &m_request;
   }
 
 
@@ -586,13 +587,12 @@ public:
     static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support mpi_type_pol");
     if (m_buf != nullptr) {
 
-      if (m_send_request) {
-        finish_send(con_comm, *m_send_request);
-        m_send_request = nullptr;
-      }
-      if (m_recv_request) {
-        finish_recv(con_comm, *m_recv_request);
-        m_recv_request = nullptr;
+      if (m_kind == Kind::send) {
+        finish_send(con_comm, &m_request);
+      } else if (m_kind == Kind::recv) {
+        finish_recv(con_comm, &m_request);
+      } else {
+        assert(0 && (m_kind == Kind::send || m_kind == Kind::recv));
       }
       get_mempool().deallocate(con_comm.g, buf_aloc, m_region);
       m_region = region_type{};
@@ -605,14 +605,14 @@ private:
   static bool start_wait_send(communicator_type&,
                               send_request_type& request)
   {
-    assert(!request.completed);
+    assert(!request->completed);
     bool done = false;
-    if (request.context_type == ContextEnum::cuda) {
-      detail::gpump::stream_wait_send_complete(request.g, request.partner_rank, request.context.cuda.stream_launch());
-    } else if (request.context_type == ContextEnum::cpu) {
-      detail::gpump::cpu_ack_isend(request.g, request.partner_rank);
+    if (request->context_type == ContextEnum::cuda) {
+      detail::gpump::stream_wait_send_complete(request->g, request->partner_rank, request->context.cuda.stream_launch());
+    } else if (request->context_type == ContextEnum::cpu) {
+      detail::gpump::cpu_ack_isend(request->g, request->partner_rank);
     } else {
-      assert(0 && (request.context_type == ContextEnum::cuda || request.context_type == ContextEnum::cpu));
+      assert(0 && (request->context_type == ContextEnum::cuda || request->context_type == ContextEnum::cpu));
     }
     return done;
   }
@@ -620,28 +620,28 @@ private:
   static bool test_waiting_send(communicator_type&,
                                 send_request_type& request)
   {
-    assert(!request.completed);
+    assert(!request->completed);
     bool done = false;
-    if (request.context_type == ContextEnum::cuda) {
-      done = detail::gpump::is_send_complete(request.g, request.partner_rank);
-      request.completed = done;
+    if (request->context_type == ContextEnum::cuda) {
+      done = detail::gpump::is_send_complete(request->g, request->partner_rank);
+      request->completed = done;
       // do one test to get things moving, then allow something else to be enqueued
       done = true;
-    } else if (request.context_type == ContextEnum::cpu) {
-      done = detail::gpump::is_send_complete(request.g, request.partner_rank);
-      request.completed = done;
+    } else if (request->context_type == ContextEnum::cpu) {
+      done = detail::gpump::is_send_complete(request->g, request->partner_rank);
+      request->completed = done;
     } else {
-      assert(0 && (request.context_type == ContextEnum::cuda || request.context_type == ContextEnum::cpu));
+      assert(0 && (request->context_type == ContextEnum::cuda || request->context_type == ContextEnum::cpu));
     }
     return done;
   }
 
   static void finish_send(communicator_type&,
-                          send_request_type& request)
+                          send_request_type request)
   {
-    if (!request.completed) {
-      detail::gpump::wait_send_complete(request.g, request.partner_rank);
-      request.completed = true;
+    if (!request->completed) {
+      detail::gpump::wait_send_complete(request->g, request->partner_rank);
+      request->completed = true;
     }
   }
 
@@ -654,33 +654,33 @@ private:
   static int handle_send_request(communicator_type& con_comm,
                                  send_request_type& request)
   {
-    if (request.status == 0) {
+    if (request->status == 0) {
       // not sent
-      assert(0 && (request.status != 0));
-    } else if (request.status == 1) {
+      assert(0 && (request->status != 0));
+    } else if (request->status == 1) {
       // sent, start waiting
       if (start_wait_send(con_comm, request)) {
         // done
-        request.status = 3;
+        request->status = 3;
       } else {
         // wait again later
-        request.status = 2;
+        request->status = 2;
       }
-    } else if (request.status == 2) {
+    } else if (request->status == 2) {
       // still waiting, keep waiting
       if (test_waiting_send(con_comm, request)) {
         // done
-        request.status = 3;
+        request->status = 3;
       }
-    } else if (request.status == 3) {
+    } else if (request->status == 3) {
       // already done
-      request.status = 4;
-    } else if (request.status == 4) {
+      request->status = 4;
+    } else if (request->status == 4) {
       // still done
     } else {
-      assert(0 && (0 <= request.status && request.status <= 4));
+      assert(0 && (0 <= request->status && request->status <= 4));
     }
-    return request.status;
+    return request->status;
   }
 
 public:
@@ -715,7 +715,7 @@ public:
   {
     int done = 0;
     if (count > 0) {
-      bool new_requests = (requests[0].status == 1);
+      bool new_requests = (requests[0]->status == 1);
       if (new_requests) {
         detail::gpump::cork(con_comm.g);
       }
@@ -750,7 +750,7 @@ public:
   {
     int done = 0;
     if (count > 0) {
-      bool new_requests = (requests[0].status == 1);
+      bool new_requests = (requests[0]->status == 1);
       if (new_requests) {
         detail::gpump::cork(con_comm.g);
       }
@@ -785,14 +785,14 @@ private:
   static bool start_wait_recv(communicator_type&,
                               recv_request_type& request)
   {
-    assert(!request.completed);
+    assert(!request->completed);
     bool done = false;
-    if (request.context_type == ContextEnum::cuda) {
-      detail::gpump::stream_wait_recv_complete(request.g, request.partner_rank, request.context.cuda.stream_launch());
-    } else if (request.context_type == ContextEnum::cpu) {
-      detail::gpump::cpu_ack_recv(request.g, request.partner_rank);
+    if (request->context_type == ContextEnum::cuda) {
+      detail::gpump::stream_wait_recv_complete(request->g, request->partner_rank, request->context.cuda.stream_launch());
+    } else if (request->context_type == ContextEnum::cpu) {
+      detail::gpump::cpu_ack_recv(request->g, request->partner_rank);
     } else {
-      assert(0 && (request.context_type == ContextEnum::cuda || request.context_type == ContextEnum::cpu));
+      assert(0 && (request->context_type == ContextEnum::cuda || request->context_type == ContextEnum::cpu));
     }
     return done;
   }
@@ -800,28 +800,28 @@ private:
   static bool test_waiting_recv(communicator_type&,
                                 recv_request_type& request)
   {
-    assert(!request.completed);
+    assert(!request->completed);
     bool done = false;
-    if (request.context_type == ContextEnum::cuda) {
-      done = detail::gpump::is_receive_complete(request.g, request.partner_rank);
-      request.completed = done;
+    if (request->context_type == ContextEnum::cuda) {
+      done = detail::gpump::is_receive_complete(request->g, request->partner_rank);
+      request->completed = done;
       // do one test to get things moving, then allow the packs to be enqueued
       done = true;
-    } else if (request.context_type == ContextEnum::cpu) {
-      done = detail::gpump::is_receive_complete(request.g, request.partner_rank);
-      request.completed = done;
+    } else if (request->context_type == ContextEnum::cpu) {
+      done = detail::gpump::is_receive_complete(request->g, request->partner_rank);
+      request->completed = done;
     } else {
-      assert(0 && (request.context_type == ContextEnum::cuda || request.context_type == ContextEnum::cpu));
+      assert(0 && (request->context_type == ContextEnum::cuda || request->context_type == ContextEnum::cpu));
     }
     return done;
   }
 
   static void finish_recv(communicator_type&,
-                          recv_request_type& request)
+                          recv_request_type request)
   {
-    if (!request.completed) {
-      detail::gpump::wait_receive_complete(request.g, request.partner_rank);
-      request.completed = true;
+    if (!request->completed) {
+      detail::gpump::wait_receive_complete(request->g, request->partner_rank);
+      request->completed = true;
     }
   }
 
@@ -834,33 +834,33 @@ private:
   static int handle_recv_request(communicator_type& con_comm,
                                  recv_request_type& request)
   {
-    if (request.status == 0) {
+    if (request->status == 0) {
       // not received
-      assert(0 && (request.status != 0));
-    } else if (request.status == -1) {
+      assert(0 && (request->status != 0));
+    } else if (request->status == -1) {
       // received, start waiting
       if (start_wait_recv(con_comm, request)) {
         // done
-        request.status = -3;
+        request->status = -3;
       } else {
         // wait again later
-        request.status = -2;
+        request->status = -2;
       }
-    } else if (request.status == -2) {
+    } else if (request->status == -2) {
       // still waiting, keep waiting
       if (test_waiting_recv(con_comm, request)) {
         // done
-        request.status = -3;
+        request->status = -3;
       }
-    } else if (request.status == -3) {
+    } else if (request->status == -3) {
       // already done
-      request.status = -4;
-    } else if (request.status == -4) {
+      request->status = -4;
+    } else if (request->status == -4) {
       // still done
     } else {
-      assert(0 && (-4 <= request.status && request.status <= 0));
+      assert(0 && (-4 <= request->status && request->status <= 0));
     }
-    return request.status;
+    return request->status;
   }
 
 public:
@@ -895,7 +895,7 @@ public:
   {
     int done = 0;
     if (count > 0) {
-      bool new_requests = (requests[0].status == -1);
+      bool new_requests = (requests[0]->status == -1);
       if (new_requests) {
         detail::gpump::cork(con_comm.g);
       }
@@ -930,7 +930,7 @@ public:
   {
     int done = 0;
     if (count > 0) {
-      bool new_requests = (requests[0].status == -1);
+      bool new_requests = (requests[0]->status == -1);
       if (new_requests) {
         detail::gpump::cork(con_comm.g);
       }
@@ -962,8 +962,7 @@ public:
 
 private:
   region_type m_region;
-  send_request_type* m_send_request = nullptr;
-  recv_request_type* m_recv_request = nullptr;
+  GpumpRequest m_request;
 };
 
 #endif // COMB_ENABLE_GPUMP
