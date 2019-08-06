@@ -130,9 +130,11 @@ struct Graph
       if (m_num_nodes < m_instantiated_num_nodes) {
         // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).enqueue cudaGraphExecKernelNodeSetParams(%p, %p)\n", this, &m_graphExec, &m_nodes[m_num_nodes] );
         cudaCheck(cudaGraphExecKernelNodeSetParams(m_graphExec, m_nodes[m_num_nodes], &params));
+      } else {
+        assert(0 && (m_num_nodes < m_instantiated_num_nodes));
       }
       // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).enqueue cudaGraphKernelNodeSetParams(%p, %p)\n", this, &m_graph, &m_nodes[m_num_nodes] );
-      cudaCheck(cudaGraphKernelNodeSetParams(m_nodes[m_num_nodes], &params));
+      // cudaCheck(cudaGraphKernelNodeSetParams(m_nodes[m_num_nodes], &params));
     } else {
       assert(m_num_nodes == m_nodes.size());
       m_nodes.emplace_back();
