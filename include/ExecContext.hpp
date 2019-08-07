@@ -41,9 +41,8 @@ struct CudaStream
 {
   CudaStream()
     : m_ref(0)
-    , m_launch(0)
-    , m_record(0)
-    , m_sync(0)
+    , m_record_current(false)
+    , m_sync(true)
   {
     cudaCheck(cudaStreamCreateWithFlags(&m_stream, cudaStreamDefault));
     cudaCheck(cudaEventCreateWithFlags(&m_event, cudaEventDisableTiming));
@@ -57,15 +56,17 @@ struct CudaStream
 
   void recordEvent()
   {
-    if (m_record != m_launch) {
+    if (!m_record_current) {
       cudaCheck(cudaEventRecord(m_event, m_stream));
-      m_record = m_launch;
+      m_record_current = true;
     }
   }
 
   void waitEvent(CudaStream& other)
   {
     cudaCheck(cudaStreamWaitEvent(m_stream, other.m_event, 0));
+    m_record_current = false;
+    m_sync = false;
   }
 
   void waitOn(CudaStream& other)
@@ -76,9 +77,9 @@ struct CudaStream
 
   void synchronize()
   {
-    if (m_sync != m_launch) {
+    if (!m_sync) {
       cudaCheck(cudaStreamSynchronize(m_stream));
-      m_sync = m_launch;
+      m_sync = true;
     }
   }
 
@@ -89,7 +90,8 @@ struct CudaStream
 
   cudaStream_t stream_launch()
   {
-    m_launch++;
+    m_record_current = false;
+    m_sync = false;
     return m_stream;
   }
 
@@ -106,9 +108,8 @@ private:
   cudaStream_t m_stream;
   cudaEvent_t m_event;
   size_t m_ref;
-  size_t m_launch;
-  size_t m_record;
-  size_t m_sync;
+  bool m_record_current;
+  bool m_sync;
 };
 
 } // namesapce detail
