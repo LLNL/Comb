@@ -264,33 +264,33 @@ struct Comm
   {
     size_t num_sends = m_sends.size();
     for(size_t i = 0; i != num_sends; ++i) {
-      m_send_contexts_many.push_back( con_many );
-      m_send_contexts_few.push_back( con_few );
-      m_send_events_many.push_back( m_send_contexts_many.back().createEvent() );
-      m_send_events_few.push_back( m_send_contexts_few.back().createEvent() );
-      m_send_groups_many.push_back( m_send_contexts_many.back().create_group() );
-      m_send_groups_few.push_back( m_send_contexts_few.back().create_group() );
-      m_send_components_many.push_back( m_send_contexts_many.back().create_component() );
-      m_send_components_few.push_back( m_send_contexts_few.back().create_component() );
+      m_send_contexts_many.emplace_back( con_many );
+      m_send_contexts_few.emplace_back( con_few );
+      m_send_events_many.emplace_back( m_send_contexts_many.back().createEvent() );
+      m_send_events_few.emplace_back( m_send_contexts_few.back().createEvent() );
+      m_send_groups_many.emplace_back( m_send_contexts_many.back().create_group() );
+      m_send_groups_few.emplace_back( m_send_contexts_few.back().create_group() );
+      m_send_components_many.emplace_back( m_send_contexts_many.back().create_component() );
+      m_send_components_few.emplace_back( m_send_contexts_few.back().create_component() );
     }
 
     size_t num_recvs = m_recvs.size();
     for(size_t i = 0; i != num_recvs; ++i) {
-      m_recv_contexts_many.push_back( con_many );
-      m_recv_contexts_few.push_back( con_few );
-      m_recv_groups_many.push_back( m_recv_contexts_many.back().create_group() );
-      m_recv_groups_few.push_back( m_recv_contexts_few.back().create_group() );
-      m_recv_components_many.push_back( m_recv_contexts_many.back().create_component() );
-      m_recv_components_few.push_back( m_recv_contexts_few.back().create_component() );
+      m_recv_contexts_many.emplace_back( con_many );
+      m_recv_contexts_few.emplace_back( con_few );
+      m_recv_groups_many.emplace_back( m_recv_contexts_many.back().create_group() );
+      m_recv_groups_few.emplace_back( m_recv_contexts_few.back().create_group() );
+      m_recv_components_many.emplace_back( m_recv_contexts_many.back().create_component() );
+      m_recv_components_few.emplace_back( m_recv_contexts_few.back().create_component() );
     }
 
     std::vector<int> send_ranks;
     std::vector<int> recv_ranks;
     for(message_type& msg : m_sends) {
-      send_ranks.push_back(msg.partner_rank());
+      send_ranks.emplace_back(msg.partner_rank());
     }
     for(message_type& msg : m_recvs) {
-      recv_ranks.push_back(msg.partner_rank());
+      recv_ranks.emplace_back(msg.partner_rank());
     }
     con_comm.connect_ranks(send_ranks, recv_ranks);
 
@@ -342,10 +342,10 @@ struct Comm
     std::vector<int> send_ranks;
     std::vector<int> recv_ranks;
     for(message_type& msg : m_sends) {
-      send_ranks.push_back(msg.partner_rank());
+      send_ranks.emplace_back(msg.partner_rank());
     }
     for(message_type& msg : m_recvs) {
-      recv_ranks.push_back(msg.partner_rank());
+      recv_ranks.emplace_back(msg.partner_rank());
     }
     con_comm.disconnect_ranks(send_ranks, recv_ranks);
 
