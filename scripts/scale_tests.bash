@@ -15,7 +15,7 @@ if [[ ! "x" == "x$SYS_TYPE" ]]; then
       # add arguments to turn on cuda aware mpi (optionally disable gpu direct)
       # run_mpi="${run_mpi} --smpiargs \"-gpu\""
       # run_mpi="${run_mpi} --smpiargs \"-gpu -disable_gdr\""
-      comb_xargs="${comb_xargs} -cuda_aware_mpi"
+      # comb_xargs="${comb_xargs} -cuda_aware_mpi"
    elif [[ "x$SYS_TYPE" =~ xblueos.* ]]; then
       # Command used to run mpi on EA systems
       run_mpi="mpirun -np $procs /usr/tcetmp/bin/mpibind"
@@ -78,7 +78,7 @@ comb_args="${comb_args} -comm enable all"
 # comb_args="${comb_args} -exec disable mpi_type"
 
 # add extra arguments for features enabled outside of the comb args block
-# comb_args="${comb_args}${comb_xargs}"
+comb_args="${comb_args}${comb_xargs}"
 
 # set up arguments for a variety of communication methods
 wait_all_method="-comm post_recv wait_all -comm post_send wait_all -comm wait_recv wait_all -comm wait_send wait_all"
