@@ -645,6 +645,7 @@ private:
     bool done = false;
     if (request->context_type == ContextEnum::cuda) {
       detail::gpump::stream_wait_send_complete(request->g, request->partner_rank, request->context.cuda.stream_launch());
+      done = true;
     } else if (request->context_type == ContextEnum::cpu) {
       detail::gpump::cpu_ack_isend(request->g, request->partner_rank);
     } else {
@@ -827,6 +828,7 @@ private:
     bool done = false;
     if (request->context_type == ContextEnum::cuda) {
       detail::gpump::stream_wait_recv_complete(request->g, request->partner_rank, request->context.cuda.stream_launch());
+      done = true;
     } else if (request->context_type == ContextEnum::cpu) {
       detail::gpump::cpu_ack_recv(request->g, request->partner_rank);
     } else {
