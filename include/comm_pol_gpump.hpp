@@ -625,7 +625,7 @@ private:
     auto end = get_messages().end();
     for(auto iter = get_messages().begin(); iter != end; ++iter) {
       GpumpRequest& req = iter->second->m_request;
-      if (!req.completed) {
+      if (!req.completed && iter->second->m_kind == msg->m_kind) {
         if (iter->second->m_kind == Kind::send) {
           req.completed = detail::gpump::is_send_complete(req.g, req.partner_rank);
         } else if (iter->second->m_kind == Kind::recv) {
