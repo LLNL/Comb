@@ -756,7 +756,7 @@ public:
     if (count > 0) {
       bool new_requests = (requests[0]->status == 1);
       if (new_requests) {
-        detail::gpump::cork(con_comm.g);
+        // detail::gpump::cork(con_comm.g);
       }
       for (int i = 0; i < count; ++i) {
         int status = handle_send_request(con_comm, requests[i]);
@@ -766,7 +766,7 @@ public:
         }
       }
       if (new_requests) {
-        detail::gpump::uncork(con_comm.g, con_comm.stream_launch());
+        // detail::gpump::uncork(con_comm.g, con_comm.stream_launch());
       }
     }
     return done;
@@ -791,7 +791,7 @@ public:
     if (count > 0) {
       bool new_requests = (requests[0]->status == 1);
       if (new_requests) {
-        detail::gpump::cork(con_comm.g);
+        // detail::gpump::cork(con_comm.g);
       }
       for (int i = 0; i < count; ++i) {
         int status = handle_send_request(con_comm, requests[i]);
@@ -803,7 +803,7 @@ public:
         }
       }
       if (new_requests) {
-        detail::gpump::uncork(con_comm.g, con_comm.stream_launch());
+        // detail::gpump::uncork(con_comm.g, con_comm.stream_launch());
       }
     }
     return done == count;
@@ -939,7 +939,7 @@ public:
     if (count > 0) {
       bool new_requests = (requests[0]->status == -1);
       if (new_requests) {
-        detail::gpump::cork(con_comm.g);
+        // detail::gpump::cork(con_comm.g);
       }
       for (int i = 0; i < count; ++i) {
         int status = handle_recv_request(con_comm, requests[i]);
@@ -949,7 +949,7 @@ public:
         }
       }
       if (new_requests) {
-        detail::gpump::uncork(con_comm.g, con_comm.stream_launch());
+        // detail::gpump::uncork(con_comm.g, con_comm.stream_launch());
       }
     }
     return done;
@@ -974,7 +974,7 @@ public:
     if (count > 0) {
       bool new_requests = (requests[0]->status == -1);
       if (new_requests) {
-        detail::gpump::cork(con_comm.g);
+        // detail::gpump::cork(con_comm.g);
       }
       for (int i = 0; i < count; ++i) {
         int status = handle_recv_request(con_comm, requests[i]);
@@ -986,7 +986,7 @@ public:
         }
       }
       if (new_requests) {
-        detail::gpump::uncork(con_comm.g, con_comm.stream_launch());
+        // detail::gpump::uncork(con_comm.g, con_comm.stream_launch());
       }
     }
     return done == count;
