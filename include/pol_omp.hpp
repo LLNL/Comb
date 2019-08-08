@@ -90,7 +90,7 @@ struct ExecContext<omp_pol> : CPUContext
   {
   }
 
-  void finish_group()
+  void finish_group(group_type)
   {
   }
 
@@ -104,14 +104,14 @@ struct ExecContext<omp_pol> : CPUContext
     return component_type{};
   }
 
-  void push_component(component_type)
+  void start_component(component_type)
   {
 
   }
 
-  component_type pop_component()
+  void finish_component(component_type)
   {
-    return component_type{};
+
   }
 
   void destroy_component(component_type)

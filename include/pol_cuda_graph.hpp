@@ -74,7 +74,7 @@ struct ExecContext<cuda_graph_pol> : CudaContext
     cuda::graph_launch::set_active_group(group);
   }
 
-  void finish_group()
+  void finish_group(group_type)
   {
     cuda::graph_launch::force_launch(base::stream_launch());
   }
@@ -89,14 +89,14 @@ struct ExecContext<cuda_graph_pol> : CudaContext
     return component_type{};
   }
 
-  void push_component(component_type)
+  void start_component(component_type)
   {
 
   }
 
-  component_type pop_component()
+  void finish_component(component_type)
   {
-    return component_type{};
+
   }
 
   void destroy_component(component_type)

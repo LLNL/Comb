@@ -70,7 +70,7 @@ void do_copy(ExecContext<pol>& con,
     for (IdxT i = 0; i < num_vars; ++i) {
       con.for_all(0, len, detail::set_copy{src[i], dst[i]});
     }
-    con.finish_group();
+    con.finish_group(g);
 
     con.synchronize();
 
@@ -80,7 +80,7 @@ void do_copy(ExecContext<pol>& con,
     for (IdxT i = 0; i < num_vars; ++i) {
       con.for_all(0, len, detail::set_copy{dst[i], src[i]});
     }
-    con.finish_group();
+    con.finish_group(g);
 
     con.synchronize();
 

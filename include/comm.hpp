@@ -480,10 +480,10 @@ struct Comm
           if (m_sends[i].have_many()) {
             m_sends[i].allocate(m_send_contexts_many[i], con_comm, many_aloc);
             con_many.start_group(m_send_groups_many[i]);
-            m_send_contexts_many[i].push_component(m_send_components_many[i]);
+            m_send_contexts_many[i].start_component(m_send_components_many[i]);
             m_sends[i].pack(m_send_contexts_many[i], con_comm);
-            m_send_components_many[i] = m_send_contexts_many[i].pop_component();
-            con_many.finish_group();
+            m_send_contexts_many[i].finish_component(m_send_components_many[i]);
+            con_many.finish_group(m_send_groups_many[i]);
             con_comm.waitOn(m_send_contexts_many[i]);
             message_type::start_Isends(con_many, con_comm);
             m_sends[i].Isend(m_send_contexts_many[i], con_comm, &m_send_requests[i]);
@@ -491,10 +491,10 @@ struct Comm
           } else {
             m_sends[i].allocate(m_send_contexts_few[i], con_comm, few_aloc);
             con_few.start_group(m_send_groups_few[i]);
-            m_send_contexts_few[i].push_component(m_send_components_few[i]);
+            m_send_contexts_few[i].start_component(m_send_components_few[i]);
             m_sends[i].pack(m_send_contexts_few[i], con_comm);
-            m_send_components_few[i] = m_send_contexts_few[i].pop_component();
-            con_few.finish_group();
+            m_send_contexts_few[i].finish_component(m_send_components_few[i]);
+            con_few.finish_group(m_send_groups_few[i]);
             con_comm.waitOn(m_send_contexts_few[i]);
             message_type::start_Isends(con_few, con_comm);
             m_sends[i].Isend(m_send_contexts_few[i], con_comm, &m_send_requests[i]);
@@ -545,18 +545,18 @@ struct Comm
 
             if (m_sends[pack_send].have_many()) {
               con_many.start_group(m_send_groups_many[pack_send]);
-              m_send_contexts_many[pack_send].push_component(m_send_components_many[pack_send]);
+              m_send_contexts_many[pack_send].start_component(m_send_components_many[pack_send]);
               m_sends[pack_send].pack(m_send_contexts_many[pack_send], con_comm);
-              m_send_components_many[pack_send] = m_send_contexts_many[pack_send].pop_component();
+              m_send_contexts_many[pack_send].finish_component(m_send_components_many[pack_send]);
               m_send_contexts_many[pack_send].recordEvent(m_send_events_many[pack_send]);
-              con_many.finish_group();
+              con_many.finish_group(m_send_groups_many[pack_send]);
             } else {
               con_few.start_group(m_send_groups_few[pack_send]);
-              m_send_contexts_few[pack_send].push_component(m_send_components_few[pack_send]);
+              m_send_contexts_few[pack_send].start_component(m_send_components_few[pack_send]);
               m_sends[pack_send].pack(m_send_contexts_few[pack_send], con_comm);
-              m_send_components_few[pack_send] = m_send_contexts_few[pack_send].pop_component();
+              m_send_contexts_few[pack_send].finish_component(m_send_components_few[pack_send]);
               m_send_contexts_few[pack_send].recordEvent(m_send_events_few[pack_send]);
-              con_few.finish_group();
+              con_few.finish_group(m_send_groups_few[pack_send]);
             }
 
             ++pack_send;
@@ -638,13 +638,13 @@ struct Comm
           for (IdxT i = 0; i < num_sends; ++i) {
 
             if (m_sends[i].have_many()) {
-              m_send_contexts_many[i].push_component(m_send_components_many[i]);
+              m_send_contexts_many[i].start_component(m_send_components_many[i]);
               m_sends[i].pack(m_send_contexts_many[i], con_comm);
-              m_send_components_many[i] = m_send_contexts_many[i].pop_component();
+              m_send_contexts_many[i].finish_component(m_send_components_many[i]);
             }
           }
 
-          con_many.finish_group();
+          con_many.finish_group(m_send_groups_many[num_many-1]);
 
           con_comm.waitOn(con_many);
 
@@ -671,13 +671,13 @@ struct Comm
           for (IdxT i = 0; i < num_sends; ++i) {
 
             if (!m_sends[i].have_many()) {
-              m_send_contexts_few[i].push_component(m_send_components_few[i]);
+              m_send_contexts_few[i].start_component(m_send_components_few[i]);
               m_sends[i].pack(m_send_contexts_few[i], con_comm);
-              m_send_components_few[i] = m_send_contexts_few[i].pop_component();
+              m_send_contexts_few[i].finish_component(m_send_components_few[i]);
             }
           }
 
-          con_few.finish_group();
+          con_few.finish_group(m_send_groups_few[num_few-1]);
 
           con_comm.waitOn(con_few);
 
@@ -736,15 +736,15 @@ struct Comm
           while (pack_many_send < num_sends) {
 
             if (m_sends[pack_many_send].have_many()) {
-              m_send_contexts_many[pack_many_send].push_component(m_send_components_many[pack_many_send]);
+              m_send_contexts_many[pack_many_send].start_component(m_send_components_many[pack_many_send]);
               m_sends[pack_many_send].pack(m_send_contexts_many[pack_many_send], con_comm);
-              m_send_components_many[pack_many_send] = m_send_contexts_many[pack_many_send].pop_component();
+              m_send_contexts_many[pack_many_send].finish_component(m_send_components_many[pack_many_send]);
               m_send_contexts_many[pack_many_send].recordEvent(m_send_events_many[pack_many_send]);
             }
             ++pack_many_send;
           }
 
-          con_many.finish_group();
+          con_many.finish_group(m_send_groups_many[num_many-1]);
         } else {
           pack_many_send = num_sends;
           post_many_send = num_sends;
@@ -789,16 +789,16 @@ struct Comm
           while (pack_few_send < num_sends) {
 
             if (!m_sends[pack_few_send].have_many()) {
-              m_send_contexts_few[pack_few_send].push_component(m_send_components_few[pack_few_send]);
+              m_send_contexts_few[pack_few_send].start_component(m_send_components_few[pack_few_send]);
               m_sends[pack_few_send].pack(m_send_contexts_few[pack_few_send], con_comm);
-              m_send_components_few[pack_few_send] = m_send_contexts_few[pack_few_send].pop_component();
+              m_send_contexts_few[pack_few_send].finish_component(m_send_components_few[pack_few_send]);
               m_send_contexts_few[pack_few_send].recordEvent(m_send_events_few[pack_few_send]);
             }
 
             ++pack_few_send;
           }
 
-          con_few.finish_group();
+          con_few.finish_group(m_send_groups_few[num_few-1]);
         } else {
           pack_few_send = num_sends;
           post_few_send = num_sends;
@@ -890,22 +890,22 @@ struct Comm
         for (IdxT i = 0; i < num_sends; ++i) {
 
           if (m_sends[i].have_many()) {
-            m_send_contexts_many[i].push_component(m_send_components_many[i]);
+            m_send_contexts_many[i].start_component(m_send_components_many[i]);
             m_sends[i].pack(m_send_contexts_many[i], con_comm);
-            m_send_components_many[i] = m_send_contexts_many[i].pop_component();
+            m_send_contexts_many[i].finish_component(m_send_components_many[i]);
           } else {
-            m_send_contexts_few[i].push_component(m_send_components_few[i]);
+            m_send_contexts_few[i].start_component(m_send_components_few[i]);
             m_sends[i].pack(m_send_contexts_few[i], con_comm);
-            m_send_components_few[i] = m_send_contexts_few[i].pop_component();
+            m_send_contexts_few[i].finish_component(m_send_components_few[i]);
           }
         }
 
         if (num_many > 0 && num_few > 0) {
-          con_few.finish_group(); con_many.finish_group();
+          con_few.finish_group(m_send_groups_few[num_few-1]); con_many.finish_group(m_send_groups_many[num_many-1]);
         } else if (num_many > 0) {
-          con_many.finish_group();
+          con_many.finish_group(m_send_groups_many[num_many-1]);
         } else if (num_few > 0) {
-          con_few.finish_group();
+          con_few.finish_group(m_send_groups_few[num_few-1]);
         }
 
         if (num_many > 0 && num_few > 0) {
@@ -966,25 +966,25 @@ struct Comm
 
           // pack and record events
           if (m_sends[i].have_many()) {
-            m_send_contexts_many[i].push_component(m_send_components_many[i]);
+            m_send_contexts_many[i].start_component(m_send_components_many[i]);
             m_sends[i].pack(m_send_contexts_many[i], con_comm);
-            m_send_components_many[i] = m_send_contexts_many[i].pop_component();
+            m_send_contexts_many[i].finish_component(m_send_components_many[i]);
             m_send_contexts_many[i].recordEvent(m_send_events_many[i]);
           } else {
-            m_send_contexts_few[i].push_component(m_send_components_few[i]);
+            m_send_contexts_few[i].start_component(m_send_components_few[i]);
             m_sends[i].pack(m_send_contexts_few[i], con_comm);
-            m_send_components_few[i] = m_send_contexts_few[i].pop_component();
+            m_send_contexts_few[i].finish_component(m_send_components_few[i]);
             m_send_contexts_few[i].recordEvent(m_send_events_few[i]);
           }
         }
 
         // stop persistent kernel
         if (num_many > 0 && num_few > 0) {
-          con_few.finish_group(); con_many.finish_group();
+          con_few.finish_group(m_send_groups_few[num_few-1]); con_many.finish_group(m_send_groups_many[num_many-1]);
         } else if (num_many > 0) {
-          con_many.finish_group();
+          con_many.finish_group(m_send_groups_many[num_many-1]);
         } else if (num_few > 0) {
-          con_few.finish_group();
+          con_few.finish_group(m_send_groups_few[num_few-1]);
         }
 
         // start post_many_send at first index that have_many
@@ -1120,17 +1120,17 @@ struct Comm
 
           if (m_recvs[idx].have_many()) {
             con_many.start_group(m_recv_groups_many[idx]);
-            m_recv_contexts_many[idx].push_component(m_recv_components_many[idx]);
+            m_recv_contexts_many[idx].start_component(m_recv_components_many[idx]);
             m_recvs[idx].unpack(m_recv_contexts_many[idx], con_comm);
-            m_recv_components_many[idx] = m_recv_contexts_many[idx].pop_component();
-            con_many.finish_group();
+            m_recv_contexts_many[idx].finish_component(m_recv_components_many[idx]);
+            con_many.finish_group(m_recv_groups_many[idx]);
             m_recvs[idx].deallocate(m_recv_contexts_many[idx], con_comm, many_aloc);
           } else {
             con_few.start_group(m_recv_groups_few[idx]);
-            m_recv_contexts_few[idx].push_component(m_recv_components_few[idx]);
+            m_recv_contexts_few[idx].start_component(m_recv_components_few[idx]);
             m_recvs[idx].unpack(m_recv_contexts_few[idx], con_comm);
-            m_recv_components_few[idx] = m_recv_contexts_few[idx].pop_component();
-            con_few.finish_group();
+            m_recv_contexts_few[idx].finish_component(m_recv_components_few[idx]);
+            con_few.finish_group(m_recv_groups_few[idx]);
             m_recvs[idx].deallocate(m_recv_contexts_few[idx], con_comm, few_aloc);
           }
 
@@ -1176,22 +1176,22 @@ struct Comm
           for (IdxT i = 0; i < num_recvd; ++i) {
 
             if (m_recvs[indices[i]].have_many()) {
-              m_recv_contexts_many[indices[i]].push_component(m_recv_components_many[indices[i]]);
+              m_recv_contexts_many[indices[i]].start_component(m_recv_components_many[indices[i]]);
               m_recvs[indices[i]].unpack(m_recv_contexts_many[indices[i]], con_comm);
-              m_recv_components_many[indices[i]] = m_recv_contexts_many[indices[i]].pop_component();
+              m_recv_contexts_many[indices[i]].finish_component(m_recv_components_many[indices[i]]);
             } else {
-              m_recv_contexts_few[indices[i]].push_component(m_recv_components_few[indices[i]]);
+              m_recv_contexts_few[indices[i]].start_component(m_recv_components_few[indices[i]]);
               m_recvs[indices[i]].unpack(m_recv_contexts_few[indices[i]], con_comm);
-              m_recv_components_few[indices[i]] = m_recv_contexts_few[indices[i]].pop_component();
+              m_recv_contexts_few[indices[i]].finish_component(m_recv_components_few[indices[i]]);
             }
           }
 
           if (inner_num_many > 0 && inner_num_few > 0) {
-            con_few.finish_group(); con_many.finish_group();
+            con_few.finish_group(m_recv_groups_few[inner_num_few-1]); con_many.finish_group(m_recv_groups_many[inner_num_many-1]);
           } else if (inner_num_many > 0) {
-            con_many.finish_group();
+            con_many.finish_group(m_recv_groups_many[inner_num_many-1]);
           } else if (inner_num_few > 0) {
-            con_few.finish_group();
+            con_few.finish_group(m_recv_groups_few[inner_num_few-1]);
           }
 
           for (IdxT i = 0; i < num_recvd; ++i) {
@@ -1228,22 +1228,22 @@ struct Comm
         for (int idx = 0; idx < num_recvs; ++idx) {
 
           if (m_recvs[idx].have_many()) {
-            m_recv_contexts_many[idx].push_component(m_recv_components_many[idx]);
+            m_recv_contexts_many[idx].start_component(m_recv_components_many[idx]);
             m_recvs[idx].unpack(m_recv_contexts_many[idx], con_comm);
-            m_recv_components_many[idx] = m_recv_contexts_many[idx].pop_component();
+            m_recv_contexts_many[idx].finish_component(m_recv_components_many[idx]);
           } else {
-            m_recv_contexts_few[idx].push_component(m_recv_components_few[idx]);
+            m_recv_contexts_few[idx].start_component(m_recv_components_few[idx]);
             m_recvs[idx].unpack(m_recv_contexts_few[idx], con_comm);
-            m_recv_components_few[idx] = m_recv_contexts_few[idx].pop_component();
+            m_recv_contexts_few[idx].finish_component(m_recv_components_few[idx]);
           }
         }
 
         if (num_many > 0 && num_few > 0) {
-          con_few.finish_group(); con_many.finish_group();
+          con_few.finish_group(m_recv_groups_few[num_few-1]); con_many.finish_group(m_recv_groups_many[num_many-1]);
         } else if (num_many > 0) {
-          con_many.finish_group();
+          con_many.finish_group(m_recv_groups_many[num_many-1]);
         } else if (num_few > 0) {
-          con_few.finish_group();
+          con_few.finish_group(m_recv_groups_few[num_few-1]);
         }
 
         for (int idx = 0; idx < num_recvs; ++idx) {
