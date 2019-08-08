@@ -484,6 +484,7 @@ struct Comm
             m_sends[i].pack(m_send_contexts_many[i], con_comm);
             m_send_contexts_many[i].finish_component(m_send_groups_many[i], m_send_components_many[i]);
             con_many.finish_group(m_send_groups_many[i]);
+            message_type::wait_pack_complete(con_many, con_comm);
             message_type::start_Isends(con_many, con_comm);
             m_sends[i].Isend(m_send_contexts_many[i], con_comm, &m_send_requests[i]);
             message_type::finish_Isends(con_many, con_comm);
@@ -494,6 +495,7 @@ struct Comm
             m_sends[i].pack(m_send_contexts_few[i], con_comm);
             m_send_contexts_few[i].finish_component(m_send_groups_few[i], m_send_components_few[i]);
             con_few.finish_group(m_send_groups_few[i]);
+            message_type::wait_pack_complete(con_few, con_comm);
             message_type::start_Isends(con_few, con_comm);
             m_sends[i].Isend(m_send_contexts_few[i], con_comm, &m_send_requests[i]);
             message_type::finish_Isends(con_few, con_comm);
@@ -642,6 +644,8 @@ struct Comm
 
           con_many.finish_group(m_send_groups_many[num_many-1]);
 
+          message_type::wait_pack_complete(con_many, con_comm);
+
           message_type::start_Isends(con_many, con_comm);
           for (IdxT i = 0; i < num_sends; ++i) {
 
@@ -672,6 +676,8 @@ struct Comm
           }
 
           con_few.finish_group(m_send_groups_few[num_few-1]);
+
+          message_type::wait_pack_complete(con_few, con_comm);
 
           message_type::start_Isends(con_few, con_comm);
           for (IdxT i = 0; i < num_sends; ++i) {
@@ -896,6 +902,14 @@ struct Comm
           con_many.finish_group(m_send_groups_many[num_many-1]);
         } else if (num_few > 0) {
           con_few.finish_group(m_send_groups_few[num_few-1]);
+        }
+
+        if (num_many > 0 && num_few > 0) {
+          message_type::wait_pack_complete(con_few, con_comm); message_type::wait_pack_complete(con_many, con_comm);
+        } else if (num_many > 0) {
+          message_type::wait_pack_complete(con_many, con_comm);
+        } else if (num_few > 0) {
+          message_type::wait_pack_complete(con_few, con_comm);
         }
 
         if (num_many > 0 && num_few > 0) {

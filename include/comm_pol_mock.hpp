@@ -219,10 +219,17 @@ struct Message<mock_pol> : detail::MessageBase
   }
 
   template < typename context >
+  static void wait_pack_complete(context& con, communicator_type& con_comm)
+  {
+    // FGPRINTF(FileGroup::proc, "wait_pack_complete\n");
+    con_comm.waitOn(con);
+  }
+
+  template < typename context >
   static void start_Isends(context& con, communicator_type& con_comm)
   {
     // FGPRINTF(FileGroup::proc, "start_Isends\n");
-    con_comm.waitOn(con);
+    COMB::ignore_unused(con, con_comm);
   }
 
   template < typename context >

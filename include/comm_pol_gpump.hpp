@@ -553,13 +553,20 @@ private:
 
 public:
   template < typename context >
+  static void wait_pack_complete(context& con, communicator_type& con_comm)
+  {
+    static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support mpi_type_pol");
+    // FGPRINTF(FileGroup::proc, "wait_pack_complete\n");
+
+    // gpump isends use message packing context and don't need synchronization
+    COMB::ignore_unused(con, con_comm);
+  }
+
+  template < typename context >
   static void start_Isends(context& con, communicator_type& con_comm)
   {
     static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "gpump_pol does not support mpi_type_pol");
     // FGPRINTF(FileGroup::proc, "start_Isends\n");
-
-    // gpump isends use message packing context and don't need synchronization
-    // con_comm.waitOn(con);
 
     cork_Isends(con, con_comm);
   }
