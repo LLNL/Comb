@@ -41,6 +41,8 @@ void do_copy(ExecContext<pol>& con,
   char test_name[1024] = ""; snprintf(test_name, 1024, "memcpy %s dst %s src %s", pol::get_name(), dst_aloc.name(), src_aloc.name());
   fgprintf(FileGroup::all, "Starting test %s\n", test_name);
 
+  char sub_test_name[1024] = ""; snprintf(sub_test_name, 1024, "copy_sync-%d-%d-%zu", num_vars, len, sizeof(DataT));
+
   Range r(test_name, Range::green);
 
   DataT** src = new DataT*[num_vars];
@@ -60,40 +62,70 @@ void do_copy(ExecContext<pol>& con,
 
   con.synchronize();
 
-  char sub_test_name[1024] = ""; snprintf(sub_test_name, 1024, "copy_sync-%d-%d-%zu", num_vars, len, sizeof(DataT));
+  auto g1 = con.create_group();
+  auto g2 = con.create_group();
+  auto c1 = con.create_component();
+  auto c2 = con.create_component();
 
-  auto g = con.create_group();
-  auto c = con.create_component();
+  IdxT ntestrepeats = std::max(IdxT{1}, nrepeats/IdxT{10});
+  for (IdxT rep = 0; rep < ntestrepeats; ++rep) { // test comm
 
-  for (IdxT rep = 0; rep < nrepeats; ++rep) {
-
-    con.start_group(g);
-    con.start_component(g, c);
+    con.start_group(g1);
+    con.start_component(g1, c1);
     for (IdxT i = 0; i < num_vars; ++i) {
       con.for_all(0, len, detail::set_copy{src[i], dst[i]});
     }
-    con.finish_component(g, c);
-    con.finish_group(g);
+    con.finish_component(g1, c1);
+    con.finish_group(g1);
+
+    con.synchronize();
+
+    // tm.start(tm_con, sub_test_name);
+
+    con.start_group(g2);
+    con.start_component(g2, c2);
+    for (IdxT i = 0; i < num_vars; ++i) {
+      con.for_all(0, len, detail::set_copy{dst[i], src[i]});
+    }
+    con.finish_component(g2, c2);
+    con.finish_group(g2);
+
+    con.synchronize();
+
+    // tm.stop(tm_con);
+  }
+
+  for (IdxT rep = 0; rep < nrepeats; ++rep) {
+
+    con.start_group(g1);
+    con.start_component(g1, c1);
+    for (IdxT i = 0; i < num_vars; ++i) {
+      con.for_all(0, len, detail::set_copy{src[i], dst[i]});
+    }
+    con.finish_component(g1, c1);
+    con.finish_group(g1);
 
     con.synchronize();
 
     tm.start(tm_con, sub_test_name);
 
-    con.start_group(g);
-    con.start_component(g, c);
+    con.start_group(g2);
+    con.start_component(g2, c2);
     for (IdxT i = 0; i < num_vars; ++i) {
       con.for_all(0, len, detail::set_copy{dst[i], src[i]});
     }
-    con.finish_component(g, c);
-    con.finish_group(g);
+    con.finish_component(g2, c2);
+    con.finish_group(g2);
 
     con.synchronize();
 
     tm.stop(tm_con);
   }
 
-  con.destroy_component(c);
-  con.destroy_group(g);
+  con.destroy_component(c2);
+  con.destroy_component(c1);
+  con.destroy_group(g2);
+  con.destroy_group(g1);
 
   print_timer(comminfo, tm);
   tm.clear();
