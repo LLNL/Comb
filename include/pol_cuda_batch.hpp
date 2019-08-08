@@ -123,6 +123,11 @@ struct ExecContext<cuda_batch_pol> : CudaContext
     return cuda::batch_launch::recordEvent(event, base::stream());
   }
 
+  void recordEvent(component_type, event_type event)
+  {
+    recordEvent(event);
+  }
+
   bool queryEvent(event_type event)
   {
     return cuda::batch_launch::queryEvent(event);

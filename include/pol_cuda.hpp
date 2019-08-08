@@ -165,6 +165,11 @@ struct ExecContext<cuda_pol> : CudaContext
     cudaCheck(cudaEventRecord(event, base::stream()));
   }
 
+  void recordEvent(component_type, event_type event)
+  {
+    recordEvent(event);
+  }
+
   bool queryEvent(event_type event)
   {
     return cudaCheckReady(cudaEventQuery(event));

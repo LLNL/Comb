@@ -130,6 +130,11 @@ struct ExecContext<omp_pol> : CPUContext
   {
   }
 
+  void recordEvent(component_type, event_type event)
+  {
+    recordEvent(event);
+  }
+
   // event query functions
   bool queryEvent(event_type)
   {

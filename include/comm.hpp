@@ -545,15 +545,15 @@ struct Comm
               con_many.start_group(m_send_groups_many[pack_send]);
               m_send_contexts_many[pack_send].start_component(m_send_components_many[pack_send]);
               m_sends[pack_send].pack(m_send_contexts_many[pack_send], con_comm);
+              m_send_contexts_many[pack_send].recordEvent(m_send_components_many[pack_send], m_send_events_many[pack_send]);
               m_send_contexts_many[pack_send].finish_component(m_send_components_many[pack_send]);
-              m_send_contexts_many[pack_send].recordEvent(m_send_events_many[pack_send]);
               con_many.finish_group(m_send_groups_many[pack_send]);
             } else {
               con_few.start_group(m_send_groups_few[pack_send]);
               m_send_contexts_few[pack_send].start_component(m_send_components_few[pack_send]);
               m_sends[pack_send].pack(m_send_contexts_few[pack_send], con_comm);
+              m_send_contexts_few[pack_send].recordEvent(m_send_components_few[pack_send], m_send_events_few[pack_send]);
               m_send_contexts_few[pack_send].finish_component(m_send_components_few[pack_send]);
-              m_send_contexts_few[pack_send].recordEvent(m_send_events_few[pack_send]);
               con_few.finish_group(m_send_groups_few[pack_send]);
             }
 
@@ -732,8 +732,8 @@ struct Comm
             if (m_sends[pack_many_send].have_many()) {
               m_send_contexts_many[pack_many_send].start_component(m_send_components_many[pack_many_send]);
               m_sends[pack_many_send].pack(m_send_contexts_many[pack_many_send], con_comm);
+              m_send_contexts_many[pack_many_send].recordEvent(m_send_components_many[pack_many_send], m_send_events_many[pack_many_send]);
               m_send_contexts_many[pack_many_send].finish_component(m_send_components_many[pack_many_send]);
-              m_send_contexts_many[pack_many_send].recordEvent(m_send_events_many[pack_many_send]);
             }
             ++pack_many_send;
           }
@@ -785,8 +785,8 @@ struct Comm
             if (!m_sends[pack_few_send].have_many()) {
               m_send_contexts_few[pack_few_send].start_component(m_send_components_few[pack_few_send]);
               m_sends[pack_few_send].pack(m_send_contexts_few[pack_few_send], con_comm);
+              m_send_contexts_few[pack_few_send].recordEvent(m_send_components_few[pack_few_send], m_send_events_few[pack_few_send]);
               m_send_contexts_few[pack_few_send].finish_component(m_send_components_few[pack_few_send]);
-              m_send_contexts_few[pack_few_send].recordEvent(m_send_events_few[pack_few_send]);
             }
 
             ++pack_few_send;
@@ -954,13 +954,13 @@ struct Comm
           if (m_sends[i].have_many()) {
             m_send_contexts_many[i].start_component(m_send_components_many[i]);
             m_sends[i].pack(m_send_contexts_many[i], con_comm);
+            m_send_contexts_many[i].recordEvent(m_send_components_many[i], m_send_events_many[i]);
             m_send_contexts_many[i].finish_component(m_send_components_many[i]);
-            m_send_contexts_many[i].recordEvent(m_send_events_many[i]);
           } else {
             m_send_contexts_few[i].start_component(m_send_components_few[i]);
             m_sends[i].pack(m_send_contexts_few[i], con_comm);
+            m_send_contexts_few[i].recordEvent(m_send_components_few[i], m_send_events_few[i]);
             m_send_contexts_few[i].finish_component(m_send_components_few[i]);
-            m_send_contexts_few[i].recordEvent(m_send_events_few[i]);
           }
         }
 

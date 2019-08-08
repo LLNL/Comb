@@ -114,6 +114,11 @@ struct ExecContext<cuda_graph_pol> : CudaContext
     return cuda::graph_launch::recordEvent(event, base::stream());
   }
 
+  void recordEvent(component_type, event_type event)
+  {
+    recordEvent(event);
+  }
+
   bool queryEvent(event_type event)
   {
     return cuda::graph_launch::queryEvent(event);
