@@ -63,13 +63,16 @@ void do_copy(ExecContext<pol>& con,
   char sub_test_name[1024] = ""; snprintf(sub_test_name, 1024, "copy_sync-%d-%d-%zu", num_vars, len, sizeof(DataT));
 
   auto g = con.create_group();
+  auto c = con.create_component();
 
   for (IdxT rep = 0; rep < nrepeats; ++rep) {
 
     con.start_group(g);
+    con.start_component(g, c);
     for (IdxT i = 0; i < num_vars; ++i) {
       con.for_all(0, len, detail::set_copy{src[i], dst[i]});
     }
+    con.finish_component(g, c);
     con.finish_group(g);
 
     con.synchronize();
@@ -77,9 +80,11 @@ void do_copy(ExecContext<pol>& con,
     tm.start(tm_con, sub_test_name);
 
     con.start_group(g);
+    con.start_component(g, c);
     for (IdxT i = 0; i < num_vars; ++i) {
       con.for_all(0, len, detail::set_copy{dst[i], src[i]});
     }
+    con.finish_component(g, c);
     con.finish_group(g);
 
     con.synchronize();
@@ -87,6 +92,7 @@ void do_copy(ExecContext<pol>& con,
     tm.stop(tm_con);
   }
 
+  con.destroy_component(c);
   con.destroy_group(g);
 
   print_timer(comminfo, tm);
