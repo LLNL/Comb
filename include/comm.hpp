@@ -479,26 +479,26 @@ struct Comm
 
           if (m_sends[i].have_many()) {
             m_sends[i].allocate(m_send_contexts_many[i], con_comm, many_aloc);
-            m_send_contexts_many[i].start_group(m_send_groups_many[i]);
+            con_many.start_group(m_send_groups_many[i]);
             m_send_contexts_many[i].push_component(m_send_components_many[i]);
             m_sends[i].pack(m_send_contexts_many[i], con_comm);
             m_send_components_many[i] = m_send_contexts_many[i].pop_component();
-            m_send_contexts_many[i].finish_group();
+            con_many.finish_group();
             con_comm.waitOn(m_send_contexts_many[i]);
-            message_type::start_Isends(m_send_contexts_many[i], con_comm);
+            message_type::start_Isends(con_many, con_comm);
             m_sends[i].Isend(m_send_contexts_many[i], con_comm, &m_send_requests[i]);
-            message_type::finish_Isends(m_send_contexts_many[i], con_comm);
+            message_type::finish_Isends(con_many, con_comm);
           } else {
             m_sends[i].allocate(m_send_contexts_few[i], con_comm, few_aloc);
-            m_send_contexts_few[i].start_group(m_send_groups_few[i]);
+            con_few.start_group(m_send_groups_few[i]);
             m_send_contexts_few[i].push_component(m_send_components_few[i]);
             m_sends[i].pack(m_send_contexts_few[i], con_comm);
             m_send_components_few[i] = m_send_contexts_few[i].pop_component();
-            m_send_contexts_few[i].finish_group();
+            con_few.finish_group();
             con_comm.waitOn(m_send_contexts_few[i]);
-            message_type::start_Isends(m_send_contexts_few[i], con_comm);
+            message_type::start_Isends(con_few, con_comm);
             m_sends[i].Isend(m_send_contexts_few[i], con_comm, &m_send_requests[i]);
-            message_type::finish_Isends(m_send_contexts_few[i], con_comm);
+            message_type::finish_Isends(con_few, con_comm);
           }
         }
       } break;
@@ -544,19 +544,19 @@ struct Comm
           if (pack_send < num_sends) {
 
             if (m_sends[pack_send].have_many()) {
-              m_send_contexts_many[pack_send].start_group(m_send_groups_many[pack_send]);
+              con_many.start_group(m_send_groups_many[pack_send]);
               m_send_contexts_many[pack_send].push_component(m_send_components_many[pack_send]);
               m_sends[pack_send].pack(m_send_contexts_many[pack_send], con_comm);
               m_send_components_many[pack_send] = m_send_contexts_many[pack_send].pop_component();
               m_send_contexts_many[pack_send].recordEvent(m_send_events_many[pack_send]);
-              m_send_contexts_many[pack_send].finish_group();
+              con_many.finish_group();
             } else {
-              m_send_contexts_few[pack_send].start_group(m_send_groups_few[pack_send]);
+              con_few.start_group(m_send_groups_few[pack_send]);
               m_send_contexts_few[pack_send].push_component(m_send_components_few[pack_send]);
               m_sends[pack_send].pack(m_send_contexts_few[pack_send], con_comm);
               m_send_components_few[pack_send] = m_send_contexts_few[pack_send].pop_component();
               m_send_contexts_few[pack_send].recordEvent(m_send_events_few[pack_send]);
-              m_send_contexts_few[pack_send].finish_group();
+              con_few.finish_group();
             }
 
             ++pack_send;
@@ -1119,18 +1119,18 @@ struct Comm
           }
 
           if (m_recvs[idx].have_many()) {
-            m_recv_contexts_many[idx].start_group(m_recv_groups_many[idx]);
+            con_many.start_group(m_recv_groups_many[idx]);
             m_recv_contexts_many[idx].push_component(m_recv_components_many[idx]);
             m_recvs[idx].unpack(m_recv_contexts_many[idx], con_comm);
             m_recv_components_many[idx] = m_recv_contexts_many[idx].pop_component();
-            m_recv_contexts_many[idx].finish_group();
+            con_many.finish_group();
             m_recvs[idx].deallocate(m_recv_contexts_many[idx], con_comm, many_aloc);
           } else {
-            m_recv_contexts_few[idx].start_group(m_recv_groups_few[idx]);
+            con_few.start_group(m_recv_groups_few[idx]);
             m_recv_contexts_few[idx].push_component(m_recv_components_few[idx]);
             m_recvs[idx].unpack(m_recv_contexts_few[idx], con_comm);
             m_recv_components_few[idx] = m_recv_contexts_few[idx].pop_component();
-            m_recv_contexts_few[idx].finish_group();
+            con_few.finish_group();
             m_recvs[idx].deallocate(m_recv_contexts_few[idx], con_comm, few_aloc);
           }
 
