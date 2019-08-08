@@ -123,8 +123,9 @@ struct ExecContext<cuda_batch_pol> : CudaContext
     return cuda::batch_launch::recordEvent(event, base::stream());
   }
 
-  void recordEvent(component_type, event_type event)
+  void finish_component_recordEvent(group_type group, component_type component, event_type event)
   {
+    finish_component(group, component);
     recordEvent(event);
   }
 
