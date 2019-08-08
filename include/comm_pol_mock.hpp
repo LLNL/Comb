@@ -222,7 +222,7 @@ struct Message<mock_pol> : detail::MessageBase
   static void start_Isends(context& con, communicator_type& con_comm)
   {
     // FGPRINTF(FileGroup::proc, "start_Isends\n");
-    COMB::ignore_unused(con, con_comm);
+    con_comm.waitOn(con);
   }
 
   template < typename context >

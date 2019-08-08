@@ -176,7 +176,7 @@ struct Message<umr_pol> : detail::MessageBase
   {
     static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "umr_pol does not support mpi_type_pol");
     // FGPRINTF(FileGroup::proc, "start_Isends\n");
-    COMB::ignore_unused(con, con_comm);
+    con_comm.waitOn(con);
   }
 
   template < typename context >

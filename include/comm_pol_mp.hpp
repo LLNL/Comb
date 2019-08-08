@@ -541,6 +541,9 @@ public:
     static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "mp_pol does not support mpi_type_pol");
     // FGPRINTF(FileGroup::proc, "start_Isends\n");
 
+    // mp isends use message packing context and don't need synchronization
+    // con_comm.waitOn(con);
+
     cork_Isends(con, con_comm);
   }
 

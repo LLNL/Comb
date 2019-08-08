@@ -484,7 +484,6 @@ struct Comm
             m_sends[i].pack(m_send_contexts_many[i], con_comm);
             m_send_contexts_many[i].finish_component(m_send_components_many[i]);
             con_many.finish_group(m_send_groups_many[i]);
-            con_comm.waitOn(m_send_contexts_many[i]);
             message_type::start_Isends(con_many, con_comm);
             m_sends[i].Isend(m_send_contexts_many[i], con_comm, &m_send_requests[i]);
             message_type::finish_Isends(con_many, con_comm);
@@ -495,7 +494,6 @@ struct Comm
             m_sends[i].pack(m_send_contexts_few[i], con_comm);
             m_send_contexts_few[i].finish_component(m_send_components_few[i]);
             con_few.finish_group(m_send_groups_few[i]);
-            con_comm.waitOn(m_send_contexts_few[i]);
             message_type::start_Isends(con_few, con_comm);
             m_sends[i].Isend(m_send_contexts_few[i], con_comm, &m_send_requests[i]);
             message_type::finish_Isends(con_few, con_comm);
@@ -646,8 +644,6 @@ struct Comm
 
           con_many.finish_group(m_send_groups_many[num_many-1]);
 
-          con_comm.waitOn(con_many);
-
           message_type::start_Isends(con_many, con_comm);
           for (IdxT i = 0; i < num_sends; ++i) {
 
@@ -678,8 +674,6 @@ struct Comm
           }
 
           con_few.finish_group(m_send_groups_few[num_few-1]);
-
-          con_comm.waitOn(con_few);
 
           message_type::start_Isends(con_few, con_comm);
           for (IdxT i = 0; i < num_sends; ++i) {
@@ -906,14 +900,6 @@ struct Comm
           con_many.finish_group(m_send_groups_many[num_many-1]);
         } else if (num_few > 0) {
           con_few.finish_group(m_send_groups_few[num_few-1]);
-        }
-
-        if (num_many > 0 && num_few > 0) {
-          con_comm.waitOn(con_few); con_comm.waitOn(con_many);
-        } else if (num_many > 0) {
-          con_comm.waitOn(con_many);
-        } else if (num_few > 0) {
-          con_comm.waitOn(con_few);
         }
 
         if (num_many > 0 && num_few > 0) {
