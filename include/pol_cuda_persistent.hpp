@@ -99,12 +99,12 @@ struct ExecContext<cuda_persistent_pol> : CudaContext
     return component_type{};
   }
 
-  void start_component(component_type)
+  void start_component(group_type, component_type)
   {
 
   }
 
-  void finish_component(component_type)
+  void finish_component(group_type, component_type)
   {
 
   }
