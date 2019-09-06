@@ -86,6 +86,16 @@ inline cudaDeviceProp get_properties() {
   return p;
 }
 
+inline int get_concurrent_managed_access() {
+  static int accessible =
+#if defined(CUDART_VERSION) && CUDART_VERSION >= 8000
+    get_properties().concurrentManagedAccess;
+#else
+    false;
+#endif
+  return accessible;
+}
+
 inline int get_host_accessible_from_device() {
   static int accessible =
 #if defined(CUDART_VERSION) && CUDART_VERSION >= 9000

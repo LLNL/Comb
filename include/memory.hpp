@@ -371,7 +371,7 @@ struct ManagedHostPreferredAllocatorInfo : AllocatorInfo
 {
   ManagedHostPreferredAllocatorInfo(AllocatorAccessibilityFlags& a) : AllocatorInfo(a) { }
   Allocator& allocator() override { return m_allocator; }
-  bool available() override { return m_available; }
+  bool available() override { return m_available && detail::cuda::get_concurrent_managed_access(); }
   bool accessible(CPUContext const&) override { return true; }
   bool accessible(MPIContext const&) override { return m_accessFlags.cuda_aware_mpi; }
   bool accessible(CudaContext const&) override { return true; }
@@ -383,7 +383,7 @@ struct ManagedHostPreferredDeviceAccessedAllocatorInfo : AllocatorInfo
 {
   ManagedHostPreferredDeviceAccessedAllocatorInfo(AllocatorAccessibilityFlags& a) : AllocatorInfo(a) { }
   Allocator& allocator() override { return m_allocator; }
-  bool available() override { return m_available; }
+  bool available() override { return m_available && detail::cuda::get_concurrent_managed_access(); }
   bool accessible(CPUContext const&) override { return true; }
   bool accessible(MPIContext const&) override { return m_accessFlags.cuda_aware_mpi; }
   bool accessible(CudaContext const&) override { return true; }
@@ -395,7 +395,7 @@ struct ManagedDevicePreferredAllocatorInfo : AllocatorInfo
 {
   ManagedDevicePreferredAllocatorInfo(AllocatorAccessibilityFlags& a) : AllocatorInfo(a) { }
   Allocator& allocator() override { return m_allocator; }
-  bool available() override { return m_available; }
+  bool available() override { return m_available && detail::cuda::get_concurrent_managed_access(); }
   bool accessible(CPUContext const&) override { return true; }
   bool accessible(MPIContext const&) override { return m_accessFlags.cuda_aware_mpi; }
   bool accessible(CudaContext const&) override { return true; }
@@ -407,7 +407,7 @@ struct ManagedDevicePreferredHostAccessedAllocatorInfo : AllocatorInfo
 {
   ManagedDevicePreferredHostAccessedAllocatorInfo(AllocatorAccessibilityFlags& a) : AllocatorInfo(a) { }
   Allocator& allocator() override { return m_allocator; }
-  bool available() override { return m_available; }
+  bool available() override { return m_available && detail::cuda::get_concurrent_managed_access(); }
   bool accessible(CPUContext const&) override { return true; }
   bool accessible(MPIContext const&) override { return m_accessFlags.cuda_aware_mpi; }
   bool accessible(CudaContext const&) override { return true; }
