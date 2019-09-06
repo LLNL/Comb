@@ -55,7 +55,8 @@
 #if defined(CUDART_VERSION) && CUDART_VERSION >= 10000
 #define COMB_ENABLE_CUDA_GRAPH
 #endif
-#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 600
+#if defined(CUDART_VERSION) && CUDART_VERSION >= 9000 && \
+     (!defined(__CUDA_ARCH__) || __CUDA_ARCH__ >= 600)
 #define COMB_ENABLE_CUDA_BASIL_BATCH
 #endif
 #endif

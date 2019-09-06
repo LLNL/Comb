@@ -20,7 +20,7 @@ BUILD_SUFFIX=lc_toss3_nvcc_8_0_gcc_4_9_3
 rm -rf build_${BUILD_SUFFIX} 2>/dev/null
 mkdir build_${BUILD_SUFFIX} && cd build_${BUILD_SUFFIX}
 
-module load cmake/3.9.2 gcc/4.9.3
+module load cmake/3.9.2 gcc/4.9.3 cuda/8.0
 
 cmake \
   -DCMAKE_BUILD_TYPE=Release \

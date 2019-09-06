@@ -21,7 +21,9 @@
 
 #include "utils_cuda.hpp"
 
+#ifdef COMB_ENABLE_CUDA_BASIL_BATCH
 #include <cooperative_groups.h>
+#endif
 
 namespace cuda {
 
@@ -35,6 +37,7 @@ namespace detail {
 // Launches a batch kernel and cycles to next buffer
 void launch(::detail::MultiBuffer& mb, cudaStream_t stream)
 {
+#ifdef COMB_ENABLE_CUDA_BASIL_BATCH
    // NVTX_RANGE_COLOR(NVTX_CYAN)
    if (!getLaunched()) {
 
@@ -79,14 +82,17 @@ void launch(::detail::MultiBuffer& mb, cudaStream_t stream)
                                             args, 0, stream));
       getLaunched() = true;
    }
+#endif
 }
 
 void stop(::detail::MultiBuffer& mb, cudaStream_t stream)
 {
+#ifdef COMB_ENABLE_CUDA_BASIL_BATCH
    if (getLaunched()) {
      mb.done_packing();
      getLaunched() = false;
    }
+#endif
 }
 
 } // namespace detail

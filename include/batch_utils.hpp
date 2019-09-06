@@ -27,7 +27,9 @@
 #include <type_traits>
 
 #include <cuda.h>
+#ifdef COMB_ENABLE_CUDA_BASIL_BATCH
 #include <cooperative_groups.h>
+#endif
 #include <mpi.h>
 
 #include "utils.hpp"
@@ -287,7 +289,9 @@ __device__ const volatile void* device_wrapper_fnc(const volatile void* ptr)
 template<typename kernel_type>
 __global__ void write_device_wrapper_ptr(device_wrapper_ptr* out)
 {
+#ifdef COMB_ENABLE_CUDA_BASIL_BATCH
    *out = &device_wrapper_fnc<kernel_type>;
+#endif
 }
 
 // Function to allocate a permanent pinned memory buffer
@@ -326,6 +330,7 @@ inline device_wrapper_ptr get_device_wrapper_ptr()
   static_assert(alignof(kernel_type) <= sizeof(device_wrapper_ptr),
            "kernel_type has excessive alignment requirements");
   static device_wrapper_ptr ptr = nullptr;
+#ifdef COMB_ENABLE_CUDA_BASIL_BATCH
   if (ptr == nullptr) {
      device_wrapper_ptr* pinned_buf = get_pinned_device_wrapper_ptr_buf();
 
@@ -336,6 +341,7 @@ inline device_wrapper_ptr get_device_wrapper_ptr()
      cudaCheck(cudaStreamSynchronize(stream));
      ptr = *pinned_buf;
   }
+#endif
   return ptr;
 }
 
