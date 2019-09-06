@@ -43,6 +43,7 @@ void do_warmup(ExecContext<pol>& con, COMB::Allocator& aloc, Timer& tm, IdxT num
 
 void warmup(COMB::ExecContexts& exec,
             COMB::Allocators& alloc,
+            COMB::ExecutorsAvailable& exec_avail,
             Timer& tm, IdxT num_vars, IdxT len)
 {
   // warm-up memory pools
@@ -61,19 +62,35 @@ void warmup(COMB::ExecContexts& exec,
   do_warmup(exec.cuda, alloc.cuda_managed.allocator(), tm, num_vars, len);
 
   do_warmup(exec.seq,        alloc.cuda_managed_host_preferred.allocator(), tm, num_vars, len);
-  do_warmup(exec.cuda_batch, alloc.cuda_managed_host_preferred.allocator(), tm, num_vars, len);
+  if (exec_avail.cuda_batch) {
+    do_warmup(exec.cuda_batch, alloc.cuda_managed_host_preferred.allocator(), tm, num_vars, len);
+  } else {
+    do_warmup(exec.cuda,       alloc.cuda_managed_host_preferred.allocator(), tm, num_vars, len);
+  }
 
   do_warmup(exec.seq,             alloc.cuda_managed_host_preferred_device_accessed.allocator(), tm, num_vars, len);
-  do_warmup(exec.cuda_persistent, alloc.cuda_managed_host_preferred_device_accessed.allocator(), tm, num_vars, len);
+  if (exec_avail.cuda_persistent) {
+    do_warmup(exec.cuda_persistent, alloc.cuda_managed_host_preferred_device_accessed.allocator(), tm, num_vars, len);
+  } else {
+    do_warmup(exec.cuda,            alloc.cuda_managed_host_preferred_device_accessed.allocator(), tm, num_vars, len);
+  }
 
   {
     SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
     do_warmup(exec.seq,        alloc.cuda_managed_device_preferred.allocator(), tm, num_vars, len);
-    do_warmup(exec.cuda_batch, alloc.cuda_managed_device_preferred.allocator(), tm, num_vars, len);
+    if (exec_avail.cuda_batch_fewgs) {
+      do_warmup(exec.cuda_batch, alloc.cuda_managed_device_preferred.allocator(), tm, num_vars, len);
+    } else {
+      do_warmup(exec.cuda,       alloc.cuda_managed_device_preferred.allocator(), tm, num_vars, len);
+    }
 
     do_warmup(exec.seq,             alloc.cuda_managed_device_preferred_host_accessed.allocator(), tm, num_vars, len);
-    do_warmup(exec.cuda_persistent, alloc.cuda_managed_device_preferred_host_accessed.allocator(), tm, num_vars, len);
+    if (exec_avail.cuda_persistent_fewgs) {
+      do_warmup(exec.cuda_persistent, alloc.cuda_managed_device_preferred_host_accessed.allocator(), tm, num_vars, len);
+    } else {
+      do_warmup(exec.cuda,            alloc.cuda_managed_device_preferred_host_accessed.allocator(), tm, num_vars, len);
+    }
   }
 #endif
 

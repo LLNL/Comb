@@ -14,6 +14,8 @@
 //////////////////////////////////////////////////////////////////////////////
 
 #include "comb.hpp"
+#include "batch_launch.hpp"
+#include "persistent_launch.hpp"
 
 #include <cstdio>
 #include <cstdlib>
@@ -249,10 +251,10 @@ int main(int argc, char** argv)
   #endif
   #ifdef COMB_ENABLE_CUDA
                 exec_avail.cuda = enabledisable;
-                exec_avail.cuda_batch = enabledisable;
-                exec_avail.cuda_persistent = enabledisable;
-                exec_avail.cuda_batch_fewgs = enabledisable;
-                exec_avail.cuda_persistent_fewgs = enabledisable;
+                exec_avail.cuda_batch = enabledisable && cuda::batch_launch::available();
+                exec_avail.cuda_persistent = enabledisable && cuda::persistent_launch::available();
+                exec_avail.cuda_batch_fewgs = enabledisable && cuda::batch_launch::available();
+                exec_avail.cuda_persistent_fewgs = enabledisable && cuda::persistent_launch::available();
   #endif
   #ifdef COMB_ENABLE_CUDA_GRAPH
                 exec_avail.cuda_graph = enabledisable;
@@ -271,19 +273,19 @@ int main(int argc, char** argv)
   #endif
               } else if (strcmp(argv[i], "cuda_batch") == 0) {
   #ifdef COMB_ENABLE_CUDA
-                exec_avail.cuda_batch = enabledisable;
+                exec_avail.cuda_batch = enabledisable && cuda::batch_launch::available();
   #endif
               } else if (strcmp(argv[i], "cuda_persistent") == 0) {
   #ifdef COMB_ENABLE_CUDA
-                exec_avail.cuda_persistent = enabledisable;
+                exec_avail.cuda_persistent = enabledisable && cuda::persistent_launch::available();
   #endif
               } else if (strcmp(argv[i], "cuda_batch_fewgs") == 0) {
   #ifdef COMB_ENABLE_CUDA
-                exec_avail.cuda_batch_fewgs = enabledisable;
+                exec_avail.cuda_batch_fewgs = enabledisable && cuda::persistent_launch::available();
   #endif
               } else if (strcmp(argv[i], "cuda_persistent_fewgs") == 0) {
   #ifdef COMB_ENABLE_CUDA
-                exec_avail.cuda_persistent_fewgs = enabledisable;
+                exec_avail.cuda_persistent_fewgs = enabledisable && cuda::persistent_launch::available();
   #endif
               } else if (strcmp(argv[i], "cuda_graph") == 0) {
   #ifdef COMB_ENABLE_CUDA_GRAPH
@@ -615,7 +617,7 @@ int main(int argc, char** argv)
   Timer tm_total(1024);
 
   // warm-up memory pools
-  COMB::warmup(exec, alloc, tm, num_vars+1, info.totallen);
+  COMB::warmup(exec, alloc, exec_avail, tm, num_vars+1, info.totallen);
 
   COMB::test_copy(comminfo, exec, alloc, exec_avail, tm, num_vars, info.totallen, ncycles);
 

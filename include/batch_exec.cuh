@@ -64,6 +64,7 @@ template < typename shared_buffer_type >
 __global__
 void block_read_device(typename shared_buffer_type::buffer_type volatile* arg_buf)
 {
+#ifdef COMB_ENABLE_CUDA_BASIL_BATCH
   using ::detail::device_wrapper_ptr;
   using ::detail::event_complete;
   // Start:
@@ -224,12 +225,14 @@ void block_read_device(typename shared_buffer_type::buffer_type volatile* arg_bu
   }
 
   // Stop:
+#endif
 }
 ///
 template < typename shared_buffer_type >
 __global__
 void block_read_device_few_grid_sync(typename shared_buffer_type::buffer_type volatile* arg_buf)
 {
+#ifdef COMB_ENABLE_CUDA_BASIL_BATCH
   using ::detail::device_wrapper_ptr;
   using ::detail::event_complete;
   // Start:
@@ -390,6 +393,7 @@ void block_read_device_few_grid_sync(typename shared_buffer_type::buffer_type vo
   }
 
   // Stop:
+#endif
 }
 
 #endif // _BATCH_EXEC_CUH

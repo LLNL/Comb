@@ -103,6 +103,11 @@ void synchronize(cudaStream_t stream)
    cudaCheck(cudaDeviceSynchronize());
 }
 
+bool available()
+{
+   return ::detail::batch_implementation_available();
+}
+
 } // namespace batch_launch
 
 } // namespace cuda

@@ -384,6 +384,46 @@ inline const volatile device_wrapper_ptr* event_complete(const volatile device_w
   return (const volatile device_wrapper_ptr*)( event_ptr_ptr + 1 );
 }
 
+
+// cuda global function that writes the device wrapper function pointer
+// for the template type to the pointer provided.
+template<int>
+__global__ void write_batch_implementation_available(bool* out)
+{
+#ifdef COMB_ENABLE_CUDA_BASIL_BATCH
+  *out = true;
+#else
+  *out = false;
+#endif
+}
+
+// Function to allocate a permanent pinned memory buffer
+inline bool get_batch_implementation_available()
+{
+  bool res = false;
+
+  device_wrapper_ptr* pinned_buf;
+  cudaCheck(cudaHostAlloc(&pinned_buf, sizeof(bool), cudaHostAllocDefault));
+
+  cudaStream_t stream = 0;
+  void* func = (void*)&write_batch_implementation_available<0>;
+  void* args[] = {&pinned_buf};
+  cudaCheck(cudaLaunchKernel(func, 1, 1, args, 0, stream));
+  cudaCheck(cudaStreamSynchronize(stream));
+
+  res = *pinned_buf;
+  cudaCheck(cudaFreeHost(pinned_buf));
+
+  return res;
+}
+
+// Function to cache availability of the batched/persistent kernel implementation
+inline bool batch_implementation_available()
+{
+  static bool available = get_batch_implementation_available();
+  return available;
+}
+
 // be sure to #include "batch_exec.cuh" in an appropriate namespace
 
 } // namespace detail

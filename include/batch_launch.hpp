@@ -137,6 +137,8 @@ inline void for_all(int begin, int end, kernel_type_in&& kernel_in, cudaStream_t
    }
 }
 
+extern bool available();
+
 } // namespace batch_launch
 
 } // namespace cuda

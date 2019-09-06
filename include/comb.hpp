@@ -129,6 +129,7 @@ extern void print_timer(CommInfo& comminfo, Timer& tm, const char* prefix = "");
 
 extern void warmup(COMB::ExecContexts& exec,
                    COMB::Allocators& alloc,
+                   COMB::ExecutorsAvailable& exec_avail,
                    Timer& tm, IdxT num_vars, IdxT len);
 
 extern void test_copy(CommInfo& comminfo,
