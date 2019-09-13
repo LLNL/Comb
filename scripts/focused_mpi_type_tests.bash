@@ -9,9 +9,12 @@ if [[ ! "x" == "x$SYS_TYPE" ]]; then
    if [[ "x$SYS_TYPE" =~ xblueos.*_p9 ]]; then
       # Command used to run mpi on sierra systems
       run_mpi="lrun -N$nodes -p$procs"
-      # add arguments to turn on cuda aware mpi (optionally disable gpu direct)
-      run_mpi="${run_mpi} --smpiargs \"-gpu\""
-      # run_mpi="${run_mpi} --smpiargs \"-gpu -disable_gdr\""
+      # Additional options may be required for SpectrumMPI that are meaningless for MVAPICH2
+      if [[ ! $USE_MVAPICH2 -eq 1 ]]; then
+          # add arguments to turn on cuda aware mpi (optionally disable gpu direct)
+          run_mpi="${run_mpi} --smpiargs \"-gpu\""
+          # run_mpi="${run_mpi} --smpiargs \"-gpu -disable_gdr\""
+      fi
    elif [[ "x$SYS_TYPE" =~ xblueos.* ]]; then
       # Command used to run mpi on EA systems
       run_mpi="mpirun -np $procs /usr/tcetmp/bin/mpibind"
@@ -26,10 +29,21 @@ else
    # --host=hostname0,hostname1,... https://www.open-mpi.org/faq/?category=running#mpirun-hostfile
    # --hostfile my_hosts            https://www.open-mpi.org/faq/?category=running#mpirun-host
    run_mpi="mpirun -np $procs"
+   # Use following for SpectrumMPI on systems, which don't have lrun
+   #run_mpi="mpirun -gpu -np $procs -N $ppn"
 
    # Command used to run mpi with mpiexec
    # https://www.mpich.org/static/docs/v3.1/www1/mpiexec.html
    # run_mpi="mpiexec -n $procs"
+fi
+
+# Use mpirun_rsh launcher in MVAPICH2
+if [[ $USE_MVAPICH2_RSH -eq 1 ]]; then
+   # Facilitate jsrun to generate proper hostfile to use mpirun_rsh when MVAPICH2 does not support jsrun
+   HFILE=./hf-$LSB_JOBID
+   jsrun -r $ppn hostname | sort > $HFILE
+   cat $HFILE
+   run_mpi="mpirun_rsh -export-all -np $procs --hostfile $HFILE LD_PRELOAD=$MPI_HOME/lib64/libmpi.so "
 fi
 
 # Note: you may need to bind processes to cores to get reasonable openmp behavior
