@@ -37,6 +37,11 @@
 #ifndef COMB_config_HPP
 #define COMB_config_HPP
 
+// disallow NDEBUG so asserts work
+#ifdef NDEBUG
+#undef NDEBUG
+#endif
+
 /*!
  ******************************************************************************
  *
