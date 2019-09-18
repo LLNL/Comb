@@ -38,6 +38,14 @@
 
 #include "MessageBase.hpp"
 
+using timer_pol = seq_pol;
+template <typename policy>
+inline ExecContext<policy>*& get_timer_context()
+{
+  static ExecContext<policy>* s_context = nullptr;
+  return s_context;
+}
+#define TIMER_CONTEXT *get_timer_context<timer_pol>()
 
 struct CartRank
 {
@@ -953,7 +961,7 @@ struct Comm
           }
         }
 
-        get_timer().restart(ExecContext<seq_pol>{}, "post-send2");
+        get_timer().restart(TIMER_CONTEXT, "post-send2");
 
         if (num_many > 0 && num_few > 0) {
           con_few.finish_group(m_send_groups_few[num_few-1]); con_many.finish_group(m_send_groups_many[num_many-1]);
@@ -963,7 +971,7 @@ struct Comm
           con_few.finish_group(m_send_groups_few[num_few-1]);
         }
 
-        get_timer().restart(ExecContext<seq_pol>{}, "post-send3");
+        get_timer().restart(TIMER_CONTEXT, "post-send3");
 
         if (num_many > 0 && num_few > 0) {
           message_type::wait_pack_complete(con_few, con_comm); message_type::wait_pack_complete(con_many, con_comm);
@@ -972,6 +980,8 @@ struct Comm
         } else if (num_few > 0) {
           message_type::wait_pack_complete(con_few, con_comm);
         }
+
+        get_timer().restart(TIMER_CONTEXT, "post-send4");
 
         if (num_many > 0 && num_few > 0) {
           message_type::start_Isends(con_few, con_comm); message_type::start_Isends(con_many, con_comm);
@@ -1272,7 +1282,7 @@ struct Comm
           while (!message_type::test_recv_all(con_comm, num_recvs, &m_recv_requests[0], &recv_statuses[0]));
         }
 
-        get_timer().restart(ExecContext<seq_pol>{}, "wait-recv2");
+        get_timer().restart(TIMER_CONTEXT, "wait-recv2");
 
         if (num_many > 0 && num_few > 0) {
           con_few.start_group(m_recv_groups_few[num_few-1]); con_many.start_group(m_recv_groups_many[num_many-1]);
@@ -1295,7 +1305,7 @@ struct Comm
           }
         }
 
-        get_timer().restart(ExecContext<seq_pol>{}, "wait-recv3");
+        get_timer().restart(TIMER_CONTEXT, "wait-recv3");
 
         if (num_many > 0 && num_few > 0) {
           con_few.finish_group(m_recv_groups_few[num_few-1]); con_many.finish_group(m_recv_groups_many[num_many-1]);
@@ -1305,7 +1315,7 @@ struct Comm
           con_few.finish_group(m_recv_groups_few[num_few-1]);
         }
 
-        get_timer().restart(ExecContext<seq_pol>{}, "wait-recv4");
+        get_timer().restart(TIMER_CONTEXT, "wait-recv4");
 
         for (int idx = 0; idx < num_recvs; ++idx) {
 

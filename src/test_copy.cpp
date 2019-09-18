@@ -35,7 +35,6 @@ void do_copy(ExecContext<pol>& con,
              COMB::Allocator& src_aloc,
              Timer& tm, IdxT num_vars, IdxT len, IdxT nrepeats)
 {
-  ExecContext<seq_pol> tm_con;
   tm.clear();
 
   char test_name[1024] = ""; snprintf(test_name, 1024, "memcpy %s dst %s src %s", pol::get_name(), dst_aloc.name(), src_aloc.name());
@@ -80,7 +79,7 @@ void do_copy(ExecContext<pol>& con,
 
     con.synchronize();
 
-    // tm.start(tm_con, sub_test_name);
+    // tm.start(TIMER_CONTEXT, sub_test_name);
 
     con.start_group(g2);
     con.start_component(g2, c2);
@@ -92,7 +91,7 @@ void do_copy(ExecContext<pol>& con,
 
     con.synchronize();
 
-    // tm.stop(tm_con);
+    // tm.stop(TIMER_CONTEXT);
   }
 
   for (IdxT rep = 0; rep < nrepeats; ++rep) {
@@ -107,7 +106,7 @@ void do_copy(ExecContext<pol>& con,
 
     con.synchronize();
 
-    tm.start(tm_con, sub_test_name);
+    tm.start(TIMER_CONTEXT, sub_test_name);
 
     con.start_group(g2);
     con.start_component(g2, c2);
@@ -119,7 +118,7 @@ void do_copy(ExecContext<pol>& con,
 
     con.synchronize();
 
-    tm.stop(tm_con);
+    tm.stop(TIMER_CONTEXT);
   }
 
   con.destroy_component(c2);

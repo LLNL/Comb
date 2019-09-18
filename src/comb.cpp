@@ -657,6 +657,8 @@ int main(int argc, char** argv)
   Timer tm(2*9*ncycles);
   Timer tm_total(1024);
 
+  get_timer_context<timer_pol>() = &exec.seq;
+
   // warm-up memory pools
   COMB::warmup(exec, alloc, exec_avail, tm, num_vars+1, info.totallen);
 
