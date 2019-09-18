@@ -277,31 +277,91 @@ struct CommFactory
   }
 
 
-  struct message_info_item_type
+  struct message_info_data_type
   {
     MeshData const* data;
-    Box3d const& box;
+    std::list<Box3d> boxes;
 
-    message_info_item_type(MeshData const* data_, Box3d const& box_)
-      : data(data_), box(box_)
+    message_info_data_type(MeshData const* data_)
+      : data(data_)
     { }
+
+    void add_box(Box3d const& msg_box)
+    {
+      boxes.emplace_back(msg_box);
+    }
+
+    IdxT total_size() const
+    {
+      IdxT mysize = 0;
+      for (Box3d const& box : boxes) {
+        mysize += box.size();
+      }
+      return mysize;
+    }
   };
 
   struct message_info_type
   {
     int partner_rank;
     int msg_tag;
-    IdxT total_size;
-    std::list<message_info_item_type> items;
+    std::list<message_info_data_type> data_items;
 
     message_info_type(int partner_rank_, int msg_tag_)
-      : partner_rank(partner_rank_), msg_tag(msg_tag_), total_size(0), items()
+      : partner_rank(partner_rank_), msg_tag(msg_tag_)
     { }
 
-    void add_item(MeshData const* msg_data, Box3d const& msg_box)
+    message_info_data_type& add_data(MeshData const* msg_data)
     {
-      total_size += msg_box.size();
-      items.emplace_back(msg_data, msg_box);
+      for (message_info_data_type& data : data_items) {
+        if (data.data == msg_data) {
+          // found data item
+          return data;
+        }
+      }
+      // add data item
+      data_items.emplace_back(msg_data);
+      return data_items.back();
+    }
+
+    // get average of total size of boxes, all data (rounded up)
+    IdxT average_data_size() const
+    {
+      IdxT mysize = 0;
+      IdxT num_data = 0;
+      for (message_info_data_type const& data : data_items) {
+        for (Box3d const& box : data.boxes) {
+          mysize += box.size();
+        }
+        num_data += 1;
+      }
+      return (mysize + num_data - 1) / num_data;
+    }
+
+    // get average of all size of boxes, all data (rounded up)
+    IdxT average_item_size() const
+    {
+      IdxT mysize = 0;
+      IdxT num_boxes = 0;
+      for (message_info_data_type const& data : data_items) {
+        for (Box3d const& box : data.boxes) {
+          mysize += box.size();
+          num_boxes += 1;
+        }
+      }
+      return (mysize + num_boxes - 1) / num_boxes;
+    }
+
+    // get total size with boxes, all data
+    IdxT total_size() const
+    {
+      IdxT mysize = 0;
+      for (message_info_data_type const& data : data_items) {
+        for (Box3d const& box : data.boxes) {
+          mysize += box.size();
+        }
+      }
+      return mysize;
     }
   };
 
@@ -355,6 +415,13 @@ struct CommFactory
   }
 
 private:
+  struct msg_info_type {
+    LidxT* indices = nullptr;
+    IdxT len = 0;
+    MPI_Datatype mpi_type = MPI_DATATYPE_NULL;
+    IdxT mpi_pack_nbytes = 0;
+  };
+
   void populate_msg_info_map(msg_info_map_type& msg_info_map, Box3d const& msg_box, int partner_rank, int msg_tag) const
   {
     auto msg_data_list_iter = data_map.find(msg_box.info);
@@ -375,32 +442,98 @@ private:
         for (auto msg_data_iter = msg_data_list.begin(); msg_data_iter != msg_data_end; ++msg_data_iter) {
           MeshData const* msg_data = *msg_data_iter;
 
-          msginfo.add_item(msg_data, msg_box);
+          message_info_data_type& data_info = msginfo.add_data(msg_data);
+
+          data_info.add_box(msg_box);
         }
       }
     }
   }
 
   template < typename context >
-  void populate_msg_info(context& con, MPI_Comm comm, MeshData const* msg_data, Box3d const& msg_box,
-                         LidxT*& indices, IdxT& len,
-                         MPI_Datatype& mpi_type, IdxT& mpi_pack_nbytes) const
+  bool msg_info_items_combineable(context& con) const
   {
-    COMB::ignore_unused(comm, mpi_type, mpi_pack_nbytes);
-    len = msg_box.size();
-    indices = (LidxT*)msg_data->aloc.allocate(sizeof(LidxT)*len);
-    msg_box.set_indices(con, indices);
+    return true;
   }
 
-  void populate_msg_info(ExecContext<mpi_type_pol>&, MPI_Comm comm, MeshData const* msg_data, Box3d const& msg_box,
-                         LidxT*& indices, IdxT& len,
-                         MPI_Datatype& mpi_type, IdxT& mpi_pack_nbytes) const
+  bool msg_info_items_combineable(ExecContext<mpi_type_pol>&) const
   {
-    COMB::ignore_unused(msg_data, indices);
-    len = msg_box.size();
-    mpi_type = msg_box.get_type_subarray();
-    detail::MPI::Type_commit(&mpi_type);
-    mpi_pack_nbytes = detail::MPI::Pack_size(1, mpi_type, comm);
+    return false;
+  }
+
+  template < typename context >
+  std::list<msg_info_type> populate_msg_info(context& con, bool combineable, MPI_Comm comm,
+                                             message_info_data_type const& data_item) const
+  {
+    COMB::ignore_unused(comm);
+    MeshData const* msg_data = data_item.data;
+
+    std::list<msg_info_type> msg_info_list;
+
+    IdxT offset = 0;
+
+    if (combineable) {
+      msg_info_list.emplace_back();
+      msg_info_type& msg_info = msg_info_list.back();
+
+      msg_info.len = data_item.total_size();
+      msg_info.indices = (LidxT*)msg_data->aloc.allocate(sizeof(LidxT)*msg_info.len);
+    }
+
+    for (Box3d const& msg_box : data_item.boxes) {
+
+      if (!combineable) {
+
+        // add new item
+        msg_info_list.emplace_back();
+        msg_info_type& msg_info = msg_info_list.back();
+
+        // fill item data
+        msg_info.len = msg_box.size();
+        msg_info.indices = (LidxT*)msg_data->aloc.allocate(sizeof(LidxT)*msg_info.len);
+        msg_box.set_indices(con, msg_info.indices);
+
+      } else {
+        msg_info_type& msg_info = msg_info_list.back();
+
+        // append data
+        msg_box.set_indices(con, msg_info.indices + offset);
+        offset += msg_box.size();
+      }
+    }
+
+    return msg_info_list;
+  }
+
+  std::list<msg_info_type> populate_msg_info(ExecContext<mpi_type_pol>&, bool combineable, MPI_Comm comm,
+                                             message_info_data_type const& data_item) const
+  {
+    std::list<msg_info_type> msg_info_list;
+
+    if (combineable) {
+      assert(0);
+    }
+
+    for (Box3d const& msg_box : data_item.boxes) {
+
+      if (!combineable) {
+
+        // add new item
+        msg_info_list.emplace_back();
+        msg_info_type& msg_info = msg_info_list.back();
+
+        // fill item data
+        msg_info.len = msg_box.size();
+        msg_info.mpi_type = msg_box.get_type_subarray();
+        detail::MPI::Type_commit(&msg_info.mpi_type);
+        msg_info.mpi_pack_nbytes = detail::MPI::Pack_size(1, msg_info.mpi_type, comm);
+
+      } else {
+        assert(0);
+      }
+    }
+
+    return msg_info_list;
   }
 
   template < typename comm_type, typename msg_list_type >
@@ -412,32 +545,32 @@ private:
   {
     auto lambda = [&](message_info_type& msginfo) {
 
-      IdxT total_size = msginfo.total_size;
-      IdxT num_items = msginfo.items.size();
-      bool have_many = ((total_size + num_items - 1) / num_items) >= comm.comminfo.cutoff;
+      // TODO: handle many,few separately
+      bool combineable = msg_info_items_combineable(con_many) &&
+                         msg_info_items_combineable(con_few);
+
+      bool have_many = combineable
+                         ? msginfo.average_data_size() >= comm.comminfo.cutoff
+                         : msginfo.average_item_size() >= comm.comminfo.cutoff;
 
       // add a new message to the message list
       msg_list.emplace_back(kind, msginfo.partner_rank, msginfo.msg_tag, have_many);
       typename comm_type::message_type& msg = msg_list.back();
 
-      auto msginfo_items_end = msginfo.items.end();
-      for (auto msginfo_items_iter = msginfo.items.begin(); msginfo_items_iter != msginfo_items_end; ++msginfo_items_iter) {
-        MeshData const* msg_data = msginfo_items_iter->data;
-        Box3d const& msg_box = msginfo_items_iter->box;
+      for (message_info_data_type const& data_item : msginfo.data_items) {
+        MeshData const* msg_data = data_item.data;
 
-        LidxT* indices = nullptr;
-        IdxT len = 0;
-        MPI_Datatype mpi_type = MPI_DATATYPE_NULL;
-        IdxT mpi_pack_nbytes = 0;
+        std::list<msg_info_type> msg_info_list;
+
         if (have_many) {
-          populate_msg_info(con_many, comm.comminfo.cart.comm, msg_data, msg_box, indices, len, mpi_type, mpi_pack_nbytes);
+          msg_info_list = populate_msg_info(con_many, combineable, comm.comminfo.cart.comm, data_item);
         } else {
-          populate_msg_info(con_few, comm.comminfo.cart.comm, msg_data, msg_box, indices, len, mpi_type, mpi_pack_nbytes);
+          msg_info_list = populate_msg_info(con_few, combineable, comm.comminfo.cart.comm, data_item);
         }
 
-        // add an item to the message
-        // give ownership of indices to the msg
-        msg.add(msg_data->data(), indices, msg_data->aloc, len, mpi_type, mpi_pack_nbytes);
+        for (msg_info_type& msg_info : msg_info_list) {
+          msg.add(msg_data->data(), msg_info.indices, msg_data->aloc, msg_info.len, msg_info.mpi_type, msg_info.mpi_pack_nbytes);
+        }
       }
     };
 
