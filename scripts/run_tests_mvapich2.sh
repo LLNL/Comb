@@ -77,9 +77,9 @@ if [ $run_mv2 -eq 1 ]; then
     fi
 
     ### check if COMB executable exists
-    BUILD_PATH=$COMB_PATH/build_nvcc_9_2_gcc_$MPI_NAME
+    BUILD_PATH=$COMB_PATH/build_nvcc_9_2_gcc_7_3_1_$MPI_NAME
     if [ ! -f "$BUILD_PATH/bin/comb" ]; then
-        echo "Error: COMB build with $MPI_NAME is not found!"
+        echo "Error: COMB build with $MPI_NAME is not found in $BUILD_PATH"
         exit;
     fi
 

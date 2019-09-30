@@ -4,6 +4,8 @@ nodes=$1
 procs=$2
 procs_per_side=$3
 
+ppn=`expr $procs / $nodes`
+
 # Choose a command to run mpi based on the system being used
 if [[ ! "x" == "x$SYS_TYPE" ]]; then
    if [[ "x$SYS_TYPE" =~ xblueos.*_p9 ]]; then
