@@ -27,6 +27,11 @@ You can also create your own script and host-config provided you have a C++ comp
     cd build_my_compiler_version
     make
 
+To run basic tests make a directory and make symlinks to the comb executable and scripts. The scripts expect a symlink to comb to exist in the run directory. The run_tests.bash script runs the basic_tests.bash script in 2^3 processes.
+
+    ln -s /path/to/comb/build_my_compiler_version/bin/comb .
+    ln -s /path/to/comb/scripts/* .
+    ./run_tests.bash 2 basic_tests.bash
 
 ## User Documentation
 
