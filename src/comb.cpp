@@ -97,6 +97,8 @@ int main(int argc, char** argv)
   IdxT num_vars = 1;
   IdxT ncycles = 5;
 
+  bool do_basic_only = false;
+
   // stores whether each comm policy is available for use
   COMB::CommunicatorsAvailable comm_avail;
   comm_avail.mock = true;
@@ -451,6 +453,8 @@ int main(int argc, char** argv)
         } else {
           fgprintf(FileGroup::err_master, "No argument to option, ignoring %s.\n", argv[i]);
         }
+      } else if (strcmp(&argv[i][1], "basic_only") == 0) {
+        do_basic_only = true;
       } else if (strcmp(&argv[i][1], "cuda_aware_mpi") == 0) {
 #ifdef COMB_ENABLE_CUDA
         alloc.access.cuda_aware_mpi = true;
@@ -621,26 +625,34 @@ int main(int argc, char** argv)
 
   COMB::test_copy(comminfo, exec, alloc, exec_avail, tm, num_vars, info.totallen, ncycles);
 
-  if (comm_avail.mock)
-    COMB::test_cycles_mock(comminfo, info, exec, alloc, exec_avail, num_vars, ncycles, tm, tm_total);
+  if (do_basic_only) {
 
-  if (comm_avail.mpi)
-    COMB::test_cycles_mpi(comminfo, info, exec, alloc, exec_avail, num_vars, ncycles, tm, tm_total);
+    COMB::do_cycles_basic(comminfo, info, exec, alloc, exec_avail, num_vars, ncycles, tm, tm_total);
+
+  } else {
+
+    if (comm_avail.mock)
+      COMB::test_cycles_mock(comminfo, info, exec, alloc, exec_avail, num_vars, ncycles, tm, tm_total);
+
+    if (comm_avail.mpi)
+      COMB::test_cycles_mpi(comminfo, info, exec, alloc, exec_avail, num_vars, ncycles, tm, tm_total);
 
 #ifdef COMB_ENABLE_GPUMP
-  if (comm_avail.gpump)
-    COMB::test_cycles_gpump(comminfo, info, exec, alloc, exec_avail, num_vars, ncycles, tm, tm_total);
+    if (comm_avail.gpump)
+      COMB::test_cycles_gpump(comminfo, info, exec, alloc, exec_avail, num_vars, ncycles, tm, tm_total);
 #endif
 
 #ifdef COMB_ENABLE_MP
-  if (comm_avail.mp)
-    COMB::test_cycles_mp(comminfo, info, exec, alloc, exec_avail, num_vars, ncycles, tm, tm_total);
+    if (comm_avail.mp)
+      COMB::test_cycles_mp(comminfo, info, exec, alloc, exec_avail, num_vars, ncycles, tm, tm_total);
 #endif
 
 #ifdef COMB_ENABLE_UMR
-  if (comm_avail.umr)
-    COMB::test_cycles_umr(comminfo, info, exec, alloc, exec_avail, num_vars, ncycles, tm, tm_total);
+    if (comm_avail.umr)
+      COMB::test_cycles_umr(comminfo, info, exec, alloc, exec_avail, num_vars, ncycles, tm, tm_total);
 #endif
+
+  }
 
   } // end region MPI communication via comminfo
 

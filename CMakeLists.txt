@@ -83,7 +83,8 @@ set(comb_sources
   src/test_cycles_mpi.cpp
   src/test_cycles_gpump.cpp
   src/test_cycles_mp.cpp
-  src/test_cycles_umr.cpp)
+  src/test_cycles_umr.cpp
+  src/test_cycles_basic.cpp)
 
 set(comb_depends )
 
