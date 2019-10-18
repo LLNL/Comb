@@ -451,7 +451,7 @@ private:
   }
 
   template < typename context >
-  bool msg_info_items_combineable(context& con) const
+  bool msg_info_items_combineable(context&) const
   {
     return true;
   }
