@@ -627,7 +627,7 @@ int main(int argc, char** argv)
 
   if (do_basic_only) {
 
-    COMB::do_cycles_basic(comminfo, info, exec, alloc, exec_avail, num_vars, ncycles, tm, tm_total);
+    COMB::test_cycles_basic(comminfo, info, exec, alloc, exec_avail, num_vars, ncycles, tm, tm_total);
 
   } else {
 

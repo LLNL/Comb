@@ -174,11 +174,11 @@ extern void test_cycles_umr(CommInfo& comminfo, MeshInfo& info,
                             IdxT num_vars, IdxT ncycles, Timer& tm, Timer& tm_total);
 #endif
 
-extern void do_cycles_basic(CommInfo& comm_info, MeshInfo& info,
-                            COMB::ExecContexts& exec,
-                            COMB::Allocators& alloc,
-                            COMB::ExecutorsAvailable& exec_avail,
-                            IdxT num_vars, IdxT ncycles, Timer& tm, Timer& tm_total);
+extern void test_cycles_basic(CommInfo& comm_info, MeshInfo& info,
+                              COMB::ExecContexts& exec,
+                              COMB::Allocators& alloc,
+                              COMB::ExecutorsAvailable& exec_avail,
+                              IdxT num_vars, IdxT ncycles, Timer& tm, Timer& tm_total);
 
 } // namespace COMB
 

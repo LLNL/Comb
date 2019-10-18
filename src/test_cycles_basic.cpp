@@ -20,30 +20,17 @@
 
 namespace COMB {
 
-void do_cycles_basic(CommInfo& comm_info, MeshInfo& info,
-                     COMB::ExecContexts& exec,
-                     COMB::Allocators& alloc,
-                     COMB::ExecutorsAvailable& /* exec_avail */,
-                     IdxT num_vars, IdxT ncycles, Timer& tm, Timer& tm_total)
+template < typename pol_comm, typename pol_mesh, typename pol_many, typename pol_few >
+void do_cycles_basic(CommContext<pol_comm>& con_comm_in,
+                     CommInfo& comm_info, MeshInfo& info,
+                     IdxT num_vars, IdxT ncycles,
+                     ExecContext<pol_mesh>& con_mesh, COMB::Allocator& aloc_mesh,
+                     ExecContext<pol_many>& con_many, COMB::Allocator& aloc_many,
+                     ExecContext<pol_few>& con_few,  COMB::Allocator& aloc_few,
+                     Timer& tm, Timer& tm_total)
 {
-  using pol_comm = mpi_pol;
-  using pol_mesh = seq_pol;
-  using pol_many = seq_pol;
-  using pol_few  = seq_pol;
-
   static_assert(std::is_same<pol_many, pol_few>::value, "do_cycles_basic expects pol_many and pol_few to be the same");
-  static_assert(std::is_same<pol_many, seq_pol>::value, "do_cycles_basic expects pol_many to be seq_pol");
-
-  CommContext<pol_comm> con_comm_in{exec.base_mpi};
-
-  ExecContext<pol_mesh>& con_mesh = exec.seq;
-  COMB::Allocator& aloc_mesh = alloc.host.allocator();
-
-  ExecContext<pol_many>& con_many = exec.seq;
-  COMB::Allocator& aloc_many = alloc.host.allocator();
-
-  ExecContext<pol_few>& con_few = exec.seq;
-  COMB::Allocator& aloc_few = alloc.host.allocator();
+  static_assert(std::is_same<pol_many, seq_pol>::value || std::is_same<pol_many, cuda_pol>::value, "do_cycles_basic expects pol_many to be seq_pol or cuda_pol");
 
   ExecContext<seq_pol> tm_con;
   tm_total.clear();
@@ -646,6 +633,43 @@ void do_cycles_basic(CommInfo& comm_info, MeshInfo& info,
   tm_total.clear();
 
   // print_proc_memory_stats(comminfo);
+}
+
+
+void test_cycles_basic(CommInfo& comminfo, MeshInfo& info,
+                       COMB::ExecContexts& exec,
+                       COMB::Allocators& alloc,
+                       COMB::ExecutorsAvailable& /* exec_avail */,
+                       IdxT num_vars, IdxT ncycles, Timer& tm, Timer& tm_total)
+{
+  CommContext<mpi_pol> con_comm{exec.base_mpi};
+
+  {
+    // mpi sequential exec host memory test
+
+    do_cycles_basic(con_comm,
+                    comminfo, info,
+                    num_vars, ncycles,
+                    exec.seq, alloc.host.allocator(),
+                    exec.seq, alloc.host.allocator(),
+                    exec.seq, alloc.host.allocator(),
+                    tm, tm_total);
+  }
+
+#ifdef COMB_ENABLE_CUDA
+  {
+    // mpi cuda exec cuda memory test
+
+    do_cycles_basic(con_comm,
+                    comminfo, info,
+                    num_vars, ncycles,
+                    exec.cuda, alloc.cuda_managed.allocator(),
+                    exec.cuda, alloc.cuda_hostpinned.allocator(),
+                    exec.cuda, alloc.cuda_hostpinned.allocator(),
+                    tm, tm_total);
+  }
+#endif
+
 }
 
 } // namespace COMB
