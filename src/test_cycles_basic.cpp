@@ -470,8 +470,8 @@ void do_cycles_basic(CommContext<pol_comm>& con_comm_in,
 
         for (IdxT i = 0; i < num_recvs; ++i) {
 
-          comm.m_recvs[i].allocate(comm.m_recv_contexts_many[i], comm.con_comm, comm.many_aloc);
-          comm.m_recvs[i].Irecv(comm.m_recv_contexts_many[i], comm.con_comm, &comm.m_recv_requests[i]);
+          comm.m_recvs[i].allocate(con_many, comm.con_comm, aloc_many);
+          comm.m_recvs[i].Irecv(con_many, comm.con_comm, &comm.m_recv_requests[i]);
         }
       }
 
@@ -494,10 +494,10 @@ void do_cycles_basic(CommContext<pol_comm>& con_comm_in,
 
         for (IdxT i = 0; i < num_sends; ++i) {
 
-          comm.m_sends[i].allocate(comm.m_send_contexts_many[i], comm.con_comm, comm.many_aloc);
-          comm.m_sends[i].pack(comm.m_send_contexts_many[i], comm.con_comm);
+          comm.m_sends[i].allocate(con_many, comm.con_comm, aloc_many);
+          comm.m_sends[i].pack(con_many, comm.con_comm);
           message_type::wait_pack_complete(con_many, comm.con_comm);
-          comm.m_sends[i].Isend(comm.m_send_contexts_many[i], comm.con_comm, &comm.m_send_requests[i]);
+          comm.m_sends[i].Isend(con_many, comm.con_comm, &comm.m_send_requests[i]);
         }
       }
 
@@ -552,8 +552,8 @@ void do_cycles_basic(CommContext<pol_comm>& con_comm_in,
 
           IdxT idx = message_type::wait_recv_any(comm.con_comm, num_recvs, &comm.m_recv_requests[0], &status);
 
-          comm.m_recvs[idx].unpack(comm.m_recv_contexts_many[idx], comm.con_comm);
-          comm.m_recvs[idx].deallocate(comm.m_recv_contexts_many[idx], comm.con_comm, comm.many_aloc);
+          comm.m_recvs[idx].unpack(con_many, comm.con_comm);
+          comm.m_recvs[idx].deallocate(con_many, comm.con_comm, aloc_many);
 
           num_done += 1;
 
@@ -586,7 +586,7 @@ void do_cycles_basic(CommContext<pol_comm>& con_comm_in,
 
           IdxT idx = message_type::wait_send_any(comm.con_comm, num_sends, &comm.m_send_requests[0], &status);
 
-          comm.m_sends[idx].deallocate(comm.m_send_contexts_many[idx], comm.con_comm, comm.many_aloc);
+          comm.m_sends[idx].deallocate(con_many, comm.con_comm, aloc_many);
 
           num_done += 1;
         }
