@@ -242,6 +242,37 @@ struct CommInfo
   }
 };
 
+enum class CommPhase {
+  INVALID,
+  POST_RECV,
+  POST_SEND,
+  WAIT_RECV,
+  WAIT_SEND,
+};
+
+inline CommPhase& active_CommPhase()
+{
+  static CommPhase phase = CommPhase::INVALID;
+  return phase;
+}
+
+#define PREPEND_COMMPHASE(commPhase, string_literal) \
+  ( ( commPhase == CommPhase::POST_RECV ) \
+      ? "post-recv-" string_literal \
+      : ( ( commPhase == CommPhase::POST_SEND ) \
+            ? "post-send-" string_literal \
+            : ( ( commPhase == CommPhase::WAIT_RECV ) \
+                ? "wait-recv-" string_literal \
+                : ( ( commPhase == CommPhase::WAIT_SEND ) \
+                      ? "wait-send-" string_literal \
+                      : string_literal ) ) ) )
+
+inline Timer*& active_Timer()
+{
+  static Timer* tm = nullptr;
+  return tm;
+}
+
 template < typename policy_many_, typename policy_few_, typename policy_comm_ >
 struct Comm
 {
@@ -412,7 +443,7 @@ struct Comm
 
   ~Comm()
   {
-
+    active_Timer() = nullptr;
   }
 
   bool mock_communication() const
@@ -430,6 +461,7 @@ struct Comm
   void set_timer(Timer& tm)
   {
     m_tm = &tm;
+    active_Timer() = m_tm;
   }
 
   Timer& get_timer()
@@ -441,6 +473,7 @@ struct Comm
   {
     COMB::ignore_unused(con_many, con_few);
     //FGPRINTF(FileGroup::proc, "posting receives\n");
+    active_CommPhase() = CommPhase::POST_RECV;
 
     IdxT num_recvs = m_recvs.size();
 
@@ -514,6 +547,7 @@ struct Comm
         assert(0);
       } break;
     }
+    active_CommPhase() = CommPhase::INVALID;
   }
 
 
@@ -521,6 +555,7 @@ struct Comm
   void postSend(ExecContext<policy_many>& con_many, ExecContext<policy_few>& con_few)
   {
     //FGPRINTF(FileGroup::proc, "posting sends\n");
+    active_CommPhase() = CommPhase::POST_SEND;
 
     const IdxT num_sends = m_sends.size();
 
@@ -1143,6 +1178,7 @@ struct Comm
        assert(0);
       } break;
     }
+    active_CommPhase() = CommPhase::INVALID;
   }
 
 
@@ -1150,6 +1186,7 @@ struct Comm
   void waitRecv(ExecContext<policy_many>& con_many, ExecContext<policy_few>& con_few)
   {
     //FGPRINTF(FileGroup::proc, "waiting receives\n");
+    active_CommPhase() = CommPhase::WAIT_RECV;
 
     int num_many = 0;
     int num_few = 0;
@@ -1341,6 +1378,7 @@ struct Comm
     } else if (num_few > 0) {
       con_few.synchronize();
     }
+    active_CommPhase() = CommPhase::INVALID;
   }
 
 
@@ -1349,6 +1387,7 @@ struct Comm
   {
     COMB::ignore_unused(con_many, con_few);
     //FGPRINTF(FileGroup::proc, "posting sends\n");
+    active_CommPhase() = CommPhase::WAIT_SEND;
 
     IdxT num_sends = m_sends.size();
 
@@ -1435,6 +1474,7 @@ struct Comm
     }
 
     m_send_requests.clear();
+    active_CommPhase() = CommPhase::INVALID;
   }
 };
 
