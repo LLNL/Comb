@@ -18,6 +18,7 @@
 #ifdef COMB_ENABLE_CUDA_GRAPH
 
 #include "graph_launch.hpp"
+#include "comm.hpp"
 
 namespace cuda {
 
@@ -29,9 +30,15 @@ void force_launch(cudaStream_t stream)
    // NVTX_RANGE_COLOR(NVTX_CYAN)
    if (get_group().graph != nullptr && get_group().graph->launchable()) {
 
+      if (active_Timer()) active_Timer()->restart(TIMER_CONTEXT, PREPEND_COMMPHASE(active_CommPhase(), "graph-update"));
+
       get_group().graph->update(stream);
 
+      if (active_Timer()) active_Timer()->restart(TIMER_CONTEXT, PREPEND_COMMPHASE(active_CommPhase(), "graph-launch"));
+
       get_group().graph->launch(stream);
+
+      if (active_Timer()) active_Timer()->restart(TIMER_CONTEXT, PREPEND_COMMPHASE(active_CommPhase(), "graph-afterlaunch"));
 
       new_active_group();
    }

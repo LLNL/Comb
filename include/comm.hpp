@@ -533,6 +533,7 @@ struct Comm
             m_recvs[i].allocate(m_recv_contexts_few[i], con_comm, few_aloc);
           }
         }
+        get_timer().restart(TIMER_CONTEXT, "post-recv2");
         for (IdxT i = 0; i < num_recvs; ++i) {
 
           if (m_recvs[i].have_many()) {
@@ -975,6 +976,8 @@ struct Comm
           }
         }
 
+        get_timer().restart(TIMER_CONTEXT, "post-send2");
+
         if (num_many > 0 && num_few > 0) {
           con_few.start_group(m_send_groups_few[num_few-1]); con_many.start_group(m_send_groups_many[num_many-1]);
         } else if (num_many > 0) {
@@ -996,7 +999,7 @@ struct Comm
           }
         }
 
-        get_timer().restart(TIMER_CONTEXT, "post-send2");
+        get_timer().restart(TIMER_CONTEXT, "post-send3");
 
         if (num_many > 0 && num_few > 0) {
           con_few.finish_group(m_send_groups_few[num_few-1]); con_many.finish_group(m_send_groups_many[num_many-1]);
@@ -1006,7 +1009,7 @@ struct Comm
           con_few.finish_group(m_send_groups_few[num_few-1]);
         }
 
-        get_timer().restart(TIMER_CONTEXT, "post-send3");
+        get_timer().restart(TIMER_CONTEXT, "post-send4");
 
         if (num_many > 0 && num_few > 0) {
           message_type::wait_pack_complete(con_few, con_comm); message_type::wait_pack_complete(con_many, con_comm);
@@ -1016,7 +1019,7 @@ struct Comm
           message_type::wait_pack_complete(con_few, con_comm);
         }
 
-        get_timer().restart(TIMER_CONTEXT, "post-send4");
+        get_timer().restart(TIMER_CONTEXT, "post-send5");
 
         if (num_many > 0 && num_few > 0) {
           message_type::start_Isends(con_few, con_comm); message_type::start_Isends(con_many, con_comm);
@@ -1362,6 +1365,9 @@ struct Comm
             m_recvs[idx].deallocate(m_recv_contexts_few[idx], con_comm, few_aloc);
           }
         }
+
+        get_timer().restart(TIMER_CONTEXT, "wait-recv5");
+
       } break;
       default:
       {
@@ -1457,6 +1463,8 @@ struct Comm
         } else {
           while(!message_type::test_send_all(con_comm, num_sends, &m_send_requests[0], &send_statuses[0]));
         }
+
+        get_timer().restart(TIMER_CONTEXT, "wait-send2");
 
         for (IdxT idx = 0; idx < num_sends; ++idx) {
 

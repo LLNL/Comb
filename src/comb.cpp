@@ -654,7 +654,7 @@ int main(int argc, char** argv)
     }
   }
 
-  Timer tm(2*9*ncycles);
+  Timer tm(2*19*ncycles);
   Timer tm_total(1024);
 
   get_timer_context<timer_pol>() = &exec.seq;
