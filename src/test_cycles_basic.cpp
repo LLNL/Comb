@@ -15,6 +15,7 @@
 
 #include "comb.hpp"
 
+#include "comm_pol_mock.hpp"
 #include "comm_pol_mpi.hpp"
 #include "do_cycles.hpp"
 
@@ -30,7 +31,11 @@ void do_cycles_basic(CommContext<pol_comm>& con_comm_in,
                      Timer& tm, Timer& tm_total)
 {
   static_assert(std::is_same<pol_many, pol_few>::value, "do_cycles_basic expects pol_many and pol_few to be the same");
-  static_assert(std::is_same<pol_many, seq_pol>::value || std::is_same<pol_many, cuda_pol>::value, "do_cycles_basic expects pol_many to be seq_pol or cuda_pol");
+  static_assert(std::is_same<pol_many, seq_pol>::value
+#ifdef COMB_ENABLE_CUDA
+             || std::is_same<pol_many, cuda_pol>::value
+#endif
+               ,"do_cycles_basic expects pol_many to be seq_pol or cuda_pol");
 
   ExecContext<seq_pol> tm_con;
   tm_total.clear();
@@ -52,6 +57,7 @@ void do_cycles_basic(CommContext<pol_comm>& con_comm_in,
     using message_type = typename comm_type::message_type;
     using policy_comm  = typename comm_type::policy_comm;
 
+#ifdef COMB_ENABLE_MPI
     // set name of communicator
     // include name of memory space if using mpi datatypes for pack/unpack
     char comm_name[MPI_MAX_OBJECT_NAME] = "";
@@ -60,8 +66,13 @@ void do_cycles_basic(CommContext<pol_comm>& con_comm_in,
         (comm_type::use_mpi_type) ? aloc_mesh.name() : "");
 
     comminfo.set_name(comm_name);
+#endif
 
-    CommContext<pol_comm> con_comm(con_comm_in, comminfo.cart.comm);
+    CommContext<pol_comm> con_comm(con_comm_in
+#ifdef COMB_ENABLE_MPI
+                                  ,comminfo.cart.comm
+#endif
+                                   );
 
     // if policies are the same set cutoff to 0 (always use pol_many) to simplify algorithms
     if (std::is_same<pol_many, pol_few>::value) {
@@ -642,10 +653,14 @@ void test_cycles_basic(CommInfo& comminfo, MeshInfo& info,
                        COMB::ExecutorsAvailable& /* exec_avail */,
                        IdxT num_vars, IdxT ncycles, Timer& tm, Timer& tm_total)
 {
+#ifdef COMB_ENABLE_MPI
   CommContext<mpi_pol> con_comm{exec.base_mpi};
+#else
+  CommContext<mock_pol> con_comm{exec.base_cpu};
+#endif
 
   {
-    // mpi sequential exec host memory test
+    // mpi/mock sequential exec host memory test
 
     do_cycles_basic(con_comm,
                     comminfo, info,

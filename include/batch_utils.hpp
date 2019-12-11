@@ -30,7 +30,6 @@
 #ifdef COMB_ENABLE_CUDA_BASIL_BATCH
 #include <cooperative_groups.h>
 #endif
-#include <mpi.h>
 
 #include "utils.hpp"
 #include "utils_cuda.hpp"

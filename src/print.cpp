@@ -31,7 +31,9 @@ FILE* comb_summary_file = nullptr;
 
 void comb_setup_files()
 {
+#ifdef COMB_ENABLE_MPI
   mpi_rank = detail::MPI::Comm_rank(MPI_COMM_WORLD);
+#endif
 
   int run_num = 0;
 
@@ -62,7 +64,9 @@ void comb_setup_files()
     }
   }
 
+#ifdef COMB_ENABLE_MPI
   detail::MPI::Bcast(&run_num, 1, MPI_INT, 0, MPI_COMM_WORLD);
+#endif
 
   char proc_fname[256];
   snprintf(proc_fname, 256, "Comb_%02i_proc%04i", run_num, mpi_rank);

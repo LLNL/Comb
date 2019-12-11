@@ -18,6 +18,8 @@
 
 #include "config.hpp"
 
+#ifdef COMB_ENABLE_MPI
+
 #include "for_all.hpp"
 #include "utils.hpp"
 #include "utils_mpi.hpp"
@@ -378,5 +380,7 @@ struct Message<mpi_pol> : detail::MessageBase
     return detail::MPI::Testall(count, requests, statuses);
   }
 };
+
+#endif
 
 #endif // _COMM_POL_MPI_HPP

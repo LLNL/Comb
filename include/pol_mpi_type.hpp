@@ -18,6 +18,8 @@
 
 #include "config.hpp"
 
+#ifdef COMB_ENABLE_MPI
+
 struct mpi_type_component
 {
   void* ptr = nullptr;
@@ -166,5 +168,7 @@ struct ExecContext<mpi_type_pol> : MPIContext
   // }
 
 };
+
+#endif
 
 #endif // _POL_MPI_TYPE_HPP

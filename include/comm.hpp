@@ -26,7 +26,9 @@
 #include <map>
 #include <utility>
 
+#ifdef COMB_ENABLE_MPI
 #include <mpi.h>
+#endif
 
 #include "print.hpp"
 #include "memory.hpp"
@@ -44,24 +46,36 @@ struct CartRank
   CartRank() : rank(-1), coords{-1, -1, -1} {}
   CartRank(int rank_, int coords_[]) : rank(rank_), coords{coords_[0], coords_[1], coords_[2]} {}
 
-  CartRank& setup(int rank_, MPI_Comm cartcomm)
+  CartRank& setup(int rank_
+#ifdef COMB_ENABLE_MPI
+                 ,MPI_Comm cartcomm
+#endif
+                  )
   {
     rank = rank_;
+#ifdef COMB_ENABLE_MPI
     detail::MPI::Cart_coords(cartcomm, rank, 3, coords);
+#else
+    coords[0] = 0; coords[1] = 0; coords[2] = 0;
+#endif
     return *this;
   }
 };
 
 struct CartComm : CartRank
 {
+#ifdef COMB_ENABLE_MPI
   MPI_Comm comm;
+#endif
   int size;
   int divisions[3];
   int periodic[3];
 
   explicit CartComm()
     : CartRank()
+#ifdef COMB_ENABLE_MPI
     , comm(MPI_COMM_NULL)
+#endif
     , size(0)
     , divisions{0, 0, 0}
     , periodic{0, 0, 0}
@@ -70,7 +84,9 @@ struct CartComm : CartRank
 
   CartComm(CartComm const& other)
     : CartRank(other)
+#ifdef COMB_ENABLE_MPI
     , comm(other.comm != MPI_COMM_NULL ? detail::MPI::Comm_dup(other.comm) : MPI_COMM_NULL)
+#endif
     , size(other.size)
     , divisions{other.divisions[0], other.divisions[1], other.divisions[2]}
     , periodic{other.periodic[0], other.periodic[1], other.periodic[2]}
@@ -90,9 +106,14 @@ struct CartComm : CartRank
     periodic[1] = periodic_[1];
     periodic[2] = periodic_[2];
 
+#ifdef COMB_ENABLE_MPI
     comm = detail::MPI::Cart_create(MPI_COMM_WORLD, 3, divisions, periodic, 1);
     size = detail::MPI::Comm_size(comm);
     setup(detail::MPI::Comm_rank(comm), comm);
+#else
+    size = 1;
+    setup(0);
+#endif
   }
 
   int get_rank(const int arg_coords[]) const
@@ -107,15 +128,21 @@ struct CartComm : CartRank
       }
       assert(0 <= input_coords[dim] && input_coords[dim] < divisions[dim]);
     }
+#ifdef COMB_ENABLE_MPI
     output_rank = detail::MPI::Cart_rank(comm, input_coords);
+#else
+    output_rank = 0;
+#endif
     return output_rank;
   }
 
   ~CartComm()
   {
+#ifdef COMB_ENABLE_MPI
     if (comm != MPI_COMM_NULL) {
       detail::MPI::Comm_free(&comm);
     }
+#endif
   }
 };
 
@@ -165,29 +192,44 @@ struct CommInfo
     , wait_send_method(method::waitall)
     , wait_recv_method(method::waitall)
   {
+#ifdef COMB_ENABLE_MPI
     rank = detail::MPI::Comm_rank(MPI_COMM_WORLD);
     size = detail::MPI::Comm_size(MPI_COMM_WORLD);
+#else
+    rank = 0;
+    size = 1;
+#endif
   }
 
   void barrier()
   {
+#ifdef COMB_ENABLE_MPI
     if (cart.comm != MPI_COMM_NULL) {
       detail::MPI::Barrier(cart.comm);
     } else {
       detail::MPI::Barrier(MPI_COMM_WORLD);
     }
+#endif
   }
 
   void set_name(const char* name)
   {
+#ifdef COMB_ENABLE_MPI
     if (cart.comm != MPI_COMM_NULL) {
       detail::MPI::Comm_set_name(cart.comm, name);
     }
+#else
+    COMB::ignore_unused(name);
+#endif
   }
 
   void abort()
   {
+#ifdef COMB_ENABLE_MPI
     detail::MPI::Abort(MPI_COMM_WORLD, 1);
+#else
+    std::abort();
+#endif
   }
 };
 
@@ -198,6 +240,7 @@ struct Comm
   using policy_few  = policy_few_;
   using policy_comm  = policy_comm_;
 
+#ifdef COMB_ENABLE_MPI
   static constexpr bool pol_many_is_mpi_type = std::is_same<policy_many, mpi_type_pol>::value;
   static constexpr bool pol_few_is_mpi_type  = std::is_same<policy_few,  mpi_type_pol>::value;
   static constexpr bool use_mpi_type = pol_many_is_mpi_type && pol_few_is_mpi_type;
@@ -205,6 +248,7 @@ struct Comm
   // check policies are consistent
   static_assert(pol_many_is_mpi_type == pol_few_is_mpi_type,
       "pol_many and pol_few must both be mpi_type_pol if either is mpi_type_pol");
+#endif
 
   COMB::Allocator& mesh_aloc;
   COMB::Allocator& many_aloc;

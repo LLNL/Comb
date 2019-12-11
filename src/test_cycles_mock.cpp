@@ -26,10 +26,10 @@ void test_cycles_mock(CommInfo& comminfo, MeshInfo& info,
                       COMB::ExecutorsAvailable& exec_avail,
                       IdxT num_vars, IdxT ncycles, Timer& tm, Timer& tm_total)
 {
-  CommContext<mock_pol> con_comm{exec.base_mpi};
+  CommContext<mock_pol> con_comm{exec.base_cpu};
 
   {
-    // mpi host memory tests
+    // mock host memory tests
     AllocatorInfo& cpu_many_aloc = alloc.host;
     AllocatorInfo& cpu_few_aloc  = alloc.host;
 
@@ -53,7 +53,7 @@ void test_cycles_mock(CommInfo& comminfo, MeshInfo& info,
 
 #ifdef COMB_ENABLE_CUDA
   {
-    // mpi cuda memory tests
+    // mock cuda memory tests
     AllocatorInfo& cpu_many_aloc = alloc.cuda_device;
     AllocatorInfo& cpu_few_aloc  = alloc.cuda_device;
 

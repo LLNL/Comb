@@ -52,10 +52,21 @@ void print_timer(CommInfo& comminfo, Timer& tm, const char* prefix) {
     final_nums = new long  [res.size()];
   }
 
+#ifdef COMB_ENABLE_MPI
   MPI_Reduce(sums, final_sums, res.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(mins, final_mins, res.size(), MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
   MPI_Reduce(maxs, final_maxs, res.size(), MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
   MPI_Reduce(nums, final_nums, res.size(), MPI_LONG,   MPI_SUM, 0, MPI_COMM_WORLD);
+#else
+  if (comminfo.rank == 0) {
+    for (int i = 0; i < (int)res.size(); ++i) {
+      final_sums[i] = sums[i];
+      final_mins[i] = mins[i];
+      final_maxs[i] = maxs[i];
+      final_nums[i] = nums[i];
+    }
+  }
+#endif
 
   if (comminfo.rank == 0) {
 

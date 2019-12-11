@@ -63,6 +63,7 @@ void do_cycles(CommContext<pol_comm>& con_comm_in,
 
     using comm_type = Comm<pol_many, pol_few, pol_comm>;
 
+#ifdef COMB_ENABLE_MPI
     // set name of communicator
     // include name of memory space if using mpi datatypes for pack/unpack
     char comm_name[MPI_MAX_OBJECT_NAME] = "";
@@ -71,8 +72,13 @@ void do_cycles(CommContext<pol_comm>& con_comm_in,
         (comm_type::use_mpi_type) ? aloc_mesh.name() : "");
 
     comminfo.set_name(comm_name);
+#endif
 
-    CommContext<pol_comm> con_comm(con_comm_in, comminfo.cart.comm);
+    CommContext<pol_comm> con_comm(con_comm_in
+#ifdef COMB_ENABLE_MPI
+                                  ,comminfo.cart.comm
+#endif
+                                   );
 
     // if policies are the same set cutoff to 0 (always use pol_many) to simplify algorithms
     if (std::is_same<pol_many, pol_few>::value) {
@@ -511,6 +517,8 @@ void do_cycles(CommContext<pol_comm>& con_comm_in,
 }
 
 
+#ifdef COMB_ENABLE_MPI
+
 template < typename comm_pol >
 void do_cycles_mpi_type(std::true_type const&,
                         CommContext<comm_pol>& con_comm,
@@ -544,6 +552,8 @@ void do_cycles_mpi_type(std::false_type const&,
                         IdxT, IdxT, Timer&, Timer&)
 {
 }
+
+#endif
 
 template < typename comm_pol >
 void do_cycles_allocator(CommContext<comm_pol>& con_comm,
@@ -630,8 +640,10 @@ void do_cycles_allocator(CommContext<comm_pol>& con_comm,
   COMB::ignore_unused(cuda_many_aloc, cuda_few_aloc);
 #endif
 
+#ifdef COMB_ENABLE_MPI
   do_cycles_mpi_type(typename std::conditional<comm_pol::use_mpi_type, std::true_type, std::false_type>::type{},
       con_comm, comminfo, info, exec, mesh_aloc, exec_avail, num_vars, ncycles, tm, tm_total);
+#endif
 }
 
 

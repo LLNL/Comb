@@ -26,8 +26,10 @@
 struct mock_pol {
   // static const bool async = false;
   static const bool mock = true;
+#ifdef COMB_ENABLE_MPI
   // compile mpi_type packing/unpacking tests for this comm policy
   static const bool use_mpi_type = true;
+#endif
   static const char* get_name() { return "mock"; }
   using send_request_type = int;
   using recv_request_type = int;
@@ -36,9 +38,9 @@ struct mock_pol {
 };
 
 template < >
-struct CommContext<mock_pol> : MPIContext
+struct CommContext<mock_pol> : CPUContext
 {
-  using base = MPIContext;
+  using base = CPUContext;
 
   using pol = mock_pol;
 
@@ -55,7 +57,11 @@ struct CommContext<mock_pol> : MPIContext
     : base(b)
   { }
 
-  CommContext(CommContext const& a_, MPI_Comm)
+  CommContext(CommContext const& a_
+#ifdef COMB_ENABLE_MPI
+             ,MPI_Comm
+#endif
+              )
     : base(a_)
   { }
 
@@ -140,6 +146,7 @@ struct Message<mock_pol> : detail::MessageBase
     }
   }
 
+#ifdef COMB_ENABLE_MPI
   void pack(ExecContext<mpi_type_pol>&, communicator_type& /*con_comm*/)
   {
     if (items.size() == 1) {
@@ -160,6 +167,7 @@ struct Message<mock_pol> : detail::MessageBase
       m_nbytes = pos;
     }
   }
+#endif
 
   template < typename context >
   void unpack(context& con, communicator_type&)
@@ -177,6 +185,7 @@ struct Message<mock_pol> : detail::MessageBase
     }
   }
 
+#ifdef COMB_ENABLE_MPI
   void unpack(ExecContext<mpi_type_pol>&, communicator_type& /*con_comm*/)
   {
     if (items.size() == 1) {
@@ -195,6 +204,7 @@ struct Message<mock_pol> : detail::MessageBase
       }
     }
   }
+#endif
 
 
   template < typename context >
@@ -204,6 +214,7 @@ struct Message<mock_pol> : detail::MessageBase
     *request = 1;
   }
 
+#ifdef COMB_ENABLE_MPI
   void Isend(ExecContext<mpi_type_pol>&, communicator_type&, send_request_type* request)
   {
 
@@ -217,6 +228,7 @@ struct Message<mock_pol> : detail::MessageBase
       *request = 1;
     }
   }
+#endif
 
   template < typename context >
   static void wait_pack_complete(context& con, communicator_type& con_comm)
@@ -246,6 +258,7 @@ struct Message<mock_pol> : detail::MessageBase
     *request = -1;
   }
 
+#ifdef COMB_ENABLE_MPI
   void Irecv(ExecContext<mpi_type_pol>&, communicator_type&, recv_request_type* request)
   {
     if (items.size() == 1) {
@@ -258,6 +271,7 @@ struct Message<mock_pol> : detail::MessageBase
       *request = -1;
     }
   }
+#endif
 
 
   template < typename context >
@@ -269,6 +283,7 @@ struct Message<mock_pol> : detail::MessageBase
     }
   }
 
+#ifdef COMB_ENABLE_MPI
   void allocate(ExecContext<mpi_type_pol>&, communicator_type& con_comm, COMB::Allocator& buf_aloc)
   {
     COMB::ignore_unused(con_comm);
@@ -280,6 +295,7 @@ struct Message<mock_pol> : detail::MessageBase
       }
     }
   }
+#endif
 
   template < typename context >
   void deallocate(context&, communicator_type& con_comm, COMB::Allocator& buf_aloc)

@@ -51,12 +51,19 @@ struct MessageBase
     LidxT* indices;
     COMB::Allocator& aloc;
     IdxT size;
+#ifdef COMB_ENABLE_MPI
     MPI_Datatype mpi_type;
     IdxT mpi_pack_max_nbytes;
-    list_item_type(DataT* data_, LidxT* indices_, COMB::Allocator& aloc_, IdxT size_,
-                   MPI_Datatype mpi_type_, IdxT mpi_pack_max_nbytes_)
-     : data(data_), indices(indices_), aloc(aloc_), size(size_),
-       mpi_type(mpi_type_), mpi_pack_max_nbytes(mpi_pack_max_nbytes_)
+#endif
+    list_item_type(DataT* data_, LidxT* indices_, COMB::Allocator& aloc_, IdxT size_
+#ifdef COMB_ENABLE_MPI
+                  ,MPI_Datatype mpi_type_, IdxT mpi_pack_max_nbytes_
+#endif
+                  )
+     : data(data_), indices(indices_), aloc(aloc_), size(size_)
+#ifdef COMB_ENABLE_MPI
+     , mpi_type(mpi_type_), mpi_pack_max_nbytes(mpi_pack_max_nbytes_)
+#endif
     { }
   };
 
@@ -109,13 +116,24 @@ struct MessageBase
     return m_have_many;
   }
 
-  void add(DataT* data, LidxT* indices, COMB::Allocator& aloc, IdxT size, MPI_Datatype mpi_type, IdxT mpi_pack_max_nbytes)
+  void add(DataT* data, LidxT* indices, COMB::Allocator& aloc, IdxT size
+#ifdef COMB_ENABLE_MPI
+          ,MPI_Datatype mpi_type, IdxT mpi_pack_max_nbytes
+#endif
+           )
   {
-    items.emplace_back(data, indices, aloc, size, mpi_type, mpi_pack_max_nbytes);
+    items.emplace_back(data, indices, aloc, size
+#ifdef COMB_ENABLE_MPI
+                      ,mpi_type, mpi_pack_max_nbytes
+#endif
+                      );
+#ifdef COMB_ENABLE_MPI
     if (items.back().mpi_type != MPI_DATATYPE_NULL) {
       m_max_nbytes += mpi_pack_max_nbytes;
       m_nbytes += mpi_pack_max_nbytes;
-    } else {
+    } else
+#endif
+    {
       m_max_nbytes += sizeof(DataT)*size;
       m_nbytes += sizeof(DataT)*size;
     }
@@ -129,9 +147,11 @@ struct MessageBase
       if (i->indices) {
         i->aloc.deallocate(i->indices); i->indices = nullptr;
       }
+#ifdef COMB_ENABLE_MPI
       if (i->mpi_type != MPI_DATATYPE_NULL) {
         detail::MPI::Type_free(&i->mpi_type); i->mpi_type = MPI_DATATYPE_NULL;
       }
+#endif
     }
     items.clear();
   }

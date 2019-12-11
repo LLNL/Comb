@@ -80,11 +80,13 @@ struct Timer {
       type = cpu;
     }
 
+#ifdef COMB_ENABLE_MPI
     void record(MPIContext const&)
     {
       tp_cpu = std::chrono::high_resolution_clock::now();
       type = cpu;
     }
+#endif
 
 #ifdef COMB_ENABLE_CUDA
     void record(CudaContext const& con)

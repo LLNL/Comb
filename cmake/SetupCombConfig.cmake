@@ -14,6 +14,7 @@
 ##############################################################################
 
 # Set up COMB_ENABLE prefixed options
+set(COMB_ENABLE_MPI ${ENABLE_MPI})
 set(COMB_ENABLE_OPENMP ${ENABLE_OPENMP})
 set(COMB_ENABLE_CUDA ${ENABLE_CUDA})
 set(COMB_ENABLE_CLANG_CUDA ${ENABLE_CLANG_CUDA})

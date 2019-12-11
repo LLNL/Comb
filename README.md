@@ -47,6 +47,7 @@ Comb creates a different MPI communicator for each test. This communicator is as
 
 The cmake configuration options change which execution patterns and memory spaces are enabled.
 
+  - __ENABLE_MPI__ Allow use of mpi and enable test combinations using mpi
   - __ENABLE_OPENMP__ Allow use of openmp and enable test combinations using openmp
   - __ENABLE_CUDA__  Allow use of cuda and enable test combinations using cuda
 

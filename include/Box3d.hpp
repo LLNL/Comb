@@ -250,12 +250,14 @@ struct Box3d
     return equiv;
   }
 
+#ifdef COMB_ENABLE_MPI
   MPI_Datatype get_type_subarray() const
   {
     MPI_Datatype mpi_type = detail::MPI::Type_create_subarray(3, info.len, sizes, min, MPI_ORDER_FORTRAN, MPI_DOUBLE);
     detail::MPI::Type_commit(&mpi_type);
     return mpi_type;
   }
+#endif
 
   template < typename context >
   void set_indices(context& con, LidxT* index_list) const

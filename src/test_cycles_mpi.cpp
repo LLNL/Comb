@@ -15,6 +15,8 @@
 
 #include "comb.hpp"
 
+#ifdef COMB_ENABLE_MPI
+
 #include "comm_pol_mpi.hpp"
 #include "do_cycles.hpp"
 
@@ -74,3 +76,5 @@ void test_cycles_mpi(CommInfo& comminfo, MeshInfo& info,
 }
 
 } // namespace COMB
+
+#endif

@@ -49,6 +49,7 @@
  *
  ******************************************************************************
  */
+#cmakedefine COMB_ENABLE_MPI
 #cmakedefine COMB_ENABLE_OPENMP
 #cmakedefine COMB_ENABLE_CUDA
 #cmakedefine COMB_ENABLE_CLANG_CUDA
@@ -101,6 +102,24 @@ namespace COMB {
 #error COMB configured with ENABLE_CLANG_CUDA, but without ENABLE_CUDA
 #endif // COMB_ENABLE_CUDA
 #endif // COMB_ENABLE_CLANG_CUDA
+
+#if defined(COMB_ENABLE_GPUMP)
+#if not defined(COMB_ENABLE_MPI)
+#error COMB configured with ENABLE_GPUMP, but without ENABLE_MPI
+#endif // COMB_ENABLE_MPI
+#endif // COMB_ENABLE_GPUMP
+
+#if defined(COMB_ENABLE_MP)
+#if not defined(COMB_ENABLE_MPI)
+#error COMB configured with ENABLE_MP, but without ENABLE_MPI
+#endif // COMB_ENABLE_MPI
+#endif // COMB_ENABLE_MP
+
+#if defined(COMB_ENABLE_UMR)
+#if not defined(COMB_ENABLE_MPI)
+#error COMB configured with ENABLE_UMR, but without ENABLE_MPI
+#endif // COMB_ENABLE_MPI
+#endif // COMB_ENABLE_UMR
 
 /*!
  ******************************************************************************

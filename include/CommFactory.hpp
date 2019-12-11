@@ -418,8 +418,10 @@ private:
   struct msg_info_type {
     LidxT* indices = nullptr;
     IdxT len = 0;
+#ifdef COMB_ENABLE_MPI
     MPI_Datatype mpi_type = MPI_DATATYPE_NULL;
     IdxT mpi_pack_nbytes = 0;
+#endif
   };
 
   void populate_msg_info_map(msg_info_map_type& msg_info_map, Box3d const& msg_box, int partner_rank, int msg_tag) const
@@ -456,16 +458,20 @@ private:
     return true;
   }
 
+#ifdef COMB_ENABLE_MPI
   bool msg_info_items_combineable(ExecContext<mpi_type_pol>&) const
   {
     return false;
   }
+#endif
 
   template < typename context >
-  std::list<msg_info_type> populate_msg_info(context& con, bool combineable, MPI_Comm comm,
-                                             message_info_data_type const& data_item) const
+  std::list<msg_info_type> populate_msg_info(context& con, bool combineable
+#ifdef COMB_ENABLE_MPI
+                                            ,MPI_Comm
+#endif
+                                            ,message_info_data_type const& data_item) const
   {
-    COMB::ignore_unused(comm);
     MeshData const* msg_data = data_item.data;
 
     std::list<msg_info_type> msg_info_list;
@@ -505,8 +511,10 @@ private:
     return msg_info_list;
   }
 
-  std::list<msg_info_type> populate_msg_info(ExecContext<mpi_type_pol>&, bool combineable, MPI_Comm comm,
-                                             message_info_data_type const& data_item) const
+#ifdef COMB_ENABLE_MPI
+  std::list<msg_info_type> populate_msg_info(ExecContext<mpi_type_pol>&, bool combineable
+                                            ,MPI_Comm comm
+                                            ,message_info_data_type const& data_item) const
   {
     std::list<msg_info_type> msg_info_list;
 
@@ -535,6 +543,7 @@ private:
 
     return msg_info_list;
   }
+#endif
 
   template < typename comm_type, typename msg_list_type >
   void populate_comm(comm_type& comm,
@@ -563,13 +572,25 @@ private:
         std::list<msg_info_type> msg_info_list;
 
         if (have_many) {
-          msg_info_list = populate_msg_info(con_many, combineable, comm.comminfo.cart.comm, data_item);
+          msg_info_list = populate_msg_info(con_many, combineable
+#ifdef COMB_ENABLE_MPI
+                                           ,comm.comminfo.cart.comm
+#endif
+                                           ,data_item);
         } else {
-          msg_info_list = populate_msg_info(con_few, combineable, comm.comminfo.cart.comm, data_item);
+          msg_info_list = populate_msg_info(con_few, combineable
+#ifdef COMB_ENABLE_MPI
+                                           ,comm.comminfo.cart.comm
+#endif
+                                           ,data_item);
         }
 
         for (msg_info_type& msg_info : msg_info_list) {
-          msg.add(msg_data->data(), msg_info.indices, msg_data->aloc, msg_info.len, msg_info.mpi_type, msg_info.mpi_pack_nbytes);
+          msg.add(msg_data->data(), msg_info.indices, msg_data->aloc, msg_info.len
+#ifdef COMB_ENABLE_MPI
+                 ,msg_info.mpi_type, msg_info.mpi_pack_nbytes
+#endif
+                 );
         }
       }
     };

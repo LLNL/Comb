@@ -18,6 +18,8 @@
 
 #include "config.hpp"
 
+#ifdef COMB_ENABLE_MPI
+
 #include <cassert>
 #include <cstdio>
 
@@ -285,6 +287,8 @@ inline bool Testall(int count, MPI_Request *requests, MPI_Status *statuses)
 } // namespace MPI
 
 } // namespace detail
+
+#endif
 
 #endif // _UTILS_MPI_HPP
 

@@ -46,6 +46,8 @@ void warmup(COMB::ExecContexts& exec,
             COMB::ExecutorsAvailable& exec_avail,
             Timer& tm, IdxT num_vars, IdxT len)
 {
+  COMB::ignore_unused(exec_avail);
+
   // warm-up memory pools
   do_warmup(exec.seq, alloc.host.allocator(), tm, num_vars, len);
 

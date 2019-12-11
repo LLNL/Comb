@@ -116,7 +116,9 @@ struct ExecutorsAvailable
 struct ExecContexts
 {
   CPUContext base_cpu{};
+#ifdef COMB_ENABLE_MPI
   MPIContext base_mpi{};
+#endif
 #ifdef COMB_ENABLE_CUDA
   CudaContext base_cuda{};
 #endif
@@ -133,7 +135,9 @@ struct ExecContexts
 #ifdef COMB_ENABLE_CUDA_GRAPH
   ExecContext<cuda_graph_pol> cuda_graph{base_cuda};
 #endif
+#ifdef COMB_ENABLE_MPI
   ExecContext<mpi_type_pol> mpi_type{base_mpi};
+#endif
 };
 
 } // namespace COMB

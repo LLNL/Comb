@@ -34,18 +34,22 @@
 
 int main(int argc, char** argv)
 {
+#ifdef COMB_ENABLE_MPI
   int required = MPI_THREAD_FUNNELED; // MPI_THREAD_SINGLE, MPI_THREAD_FUNNELED, MPI_THREAD_SERIALIZED, MPI_THREAD_MULTIPLE
   int provided = detail::MPI::Init_thread(&argc, &argv, required);
+#endif
 
   comb_setup_files();
 
   { // begin region MPI communication via comminfo
   CommInfo comminfo;
 
+#ifdef COMB_ENABLE_MPI
   if (required != provided) {
     fgprintf(FileGroup::err_master, "Didn't receive MPI thread support required %i provided %i.\n", required, provided);
     comminfo.abort();
   }
+#endif
 
   fgprintf(FileGroup::all, "Started rank %i of %i\n", comminfo.rank, comminfo.size);
 
@@ -102,7 +106,9 @@ int main(int argc, char** argv)
   // stores whether each comm policy is available for use
   COMB::CommunicatorsAvailable comm_avail;
   comm_avail.mock = true;
+#ifdef COMB_ENABLE_MPI
   comm_avail.mpi = true;
+#endif
 
   // stores whether each exec policy is available for use
   COMB::ExecutorsAvailable exec_avail;
@@ -177,7 +183,9 @@ int main(int argc, char** argv)
               ++i;
               if (strcmp(argv[i], "all") == 0) {
                 comm_avail.mock = enabledisable;
+#ifdef COMB_ENABLE_MPI
                 comm_avail.mpi = enabledisable;
+#endif
 #ifdef COMB_ENABLE_GPUMP
                 comm_avail.gpump = enabledisable;
 #endif
@@ -190,7 +198,9 @@ int main(int argc, char** argv)
               } else if (strcmp(argv[i], "mock") == 0) {
                 comm_avail.mock = enabledisable;
               } else if (strcmp(argv[i], "mpi") == 0) {
+#ifdef COMB_ENABLE_MPI
                 comm_avail.mpi = enabledisable;
+#endif
               } else if (strcmp(argv[i], "gpump") == 0) {
 #ifdef COMB_ENABLE_GPUMP
                 comm_avail.gpump = enabledisable;
@@ -261,7 +271,9 @@ int main(int argc, char** argv)
   #ifdef COMB_ENABLE_CUDA_GRAPH
                 exec_avail.cuda_graph = enabledisable;
   #endif
+#ifdef COMB_ENABLE_MPI
                 exec_avail.mpi_type = enabledisable;
+#endif
               } else if (strcmp(argv[i], "seq") == 0) {
                 exec_avail.seq = enabledisable;
               } else if (strcmp(argv[i], "omp") == 0 ||
@@ -294,7 +306,9 @@ int main(int argc, char** argv)
                 exec_avail.cuda_graph = enabledisable;
   #endif
               } else if (strcmp(argv[i], "mpi_type") == 0) {
+#ifdef COMB_ENABLE_MPI
                 exec_avail.mpi_type = enabledisable;
+#endif
               } else {
                 fgprintf(FileGroup::err_master, "Invalid argument to sub-option, ignoring %s %s %s.\n", argv[i-2], argv[i-1], argv[i]);
               }
@@ -456,10 +470,14 @@ int main(int argc, char** argv)
       } else if (strcmp(&argv[i][1], "basic_only") == 0) {
         do_basic_only = true;
       } else if (strcmp(&argv[i][1], "cuda_aware_mpi") == 0) {
+#ifdef COMB_ENABLE_MPI
 #ifdef COMB_ENABLE_CUDA
         alloc.access.cuda_aware_mpi = true;
 #else
         fgprintf(FileGroup::err_master, "Not built with cuda, ignoring %s.\n", argv[i]);
+#endif
+#else
+        fgprintf(FileGroup::err_master, "Not built with mpi, ignoring %s.\n", argv[i]);
 #endif
       } else if (strcmp(&argv[i][1], "cuda_host_accessible_from_device") == 0) {
 #ifdef COMB_ENABLE_CUDA
@@ -634,8 +652,10 @@ int main(int argc, char** argv)
     if (comm_avail.mock)
       COMB::test_cycles_mock(comminfo, info, exec, alloc, exec_avail, num_vars, ncycles, tm, tm_total);
 
+#ifdef COMB_ENABLE_MPI
     if (comm_avail.mpi)
       COMB::test_cycles_mpi(comminfo, info, exec, alloc, exec_avail, num_vars, ncycles, tm, tm_total);
+#endif
 
 #ifdef COMB_ENABLE_GPUMP
     if (comm_avail.gpump)
@@ -658,7 +678,9 @@ int main(int argc, char** argv)
 
   comb_teardown_files();
 
+#ifdef COMB_ENABLE_MPI
   detail::MPI::Finalize();
+#endif
   return 0;
 }
 

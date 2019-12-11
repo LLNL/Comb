@@ -144,11 +144,13 @@ extern void test_cycles_mock(CommInfo& comminfo, MeshInfo& info,
                              COMB::ExecutorsAvailable& exec_avail,
                              IdxT num_vars, IdxT ncycles, Timer& tm, Timer& tm_total);
 
+#ifdef COMB_ENABLE_MPI
 extern void test_cycles_mpi(CommInfo& comminfo, MeshInfo& info,
                             COMB::ExecContexts& exec,
                             COMB::Allocators& alloc,
                             COMB::ExecutorsAvailable& exec_avail,
                             IdxT num_vars, IdxT ncycles, Timer& tm, Timer& tm_total);
+#endif
 
 #ifdef COMB_ENABLE_GPUMP
 extern void test_cycles_gpump(CommInfo& comminfo, MeshInfo& info,

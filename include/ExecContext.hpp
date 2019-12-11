@@ -29,7 +29,10 @@ enum struct ContextEnum
 };
 
 struct CPUContext;
+
+#ifdef COMB_ENABLE_MPI
 struct MPIContext;
+#endif
 
 #ifdef COMB_ENABLE_CUDA
 
@@ -174,10 +177,12 @@ struct CudaContext
     // do nothing
   }
 
+#ifdef COMB_ENABLE_MPI
   void waitOn(MPIContext const&) const
   {
     // do nothing
   }
+#endif
 
   void waitOn(CudaContext const& other) const
   {
@@ -221,10 +226,12 @@ struct CPUContext
     // do nothing
   }
 
+#ifdef COMB_ENABLE_MPI
   void waitOn(MPIContext const&) const
   {
     // do nothing
   }
+#endif
 
 #ifdef COMB_ENABLE_CUDA
   void waitOn(CudaContext const& other) const
@@ -238,6 +245,8 @@ struct CPUContext
     // do nothing
   }
 };
+
+#ifdef COMB_ENABLE_MPI
 
 struct MPIContext
 {
@@ -263,6 +272,8 @@ struct MPIContext
     // do nothing
   }
 };
+
+#endif
 
 
 template < typename exec_pol >
