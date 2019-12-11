@@ -34,6 +34,11 @@
 // enable empty nodes at the begin and end of each graph instead of allowing disconnected components
 // #define COMB_GRAPH_BEGIN_END_NODES
 
+// enable launching kernels immediately instead of creating graphs
+// #define COMB_GRAPH_KERNEL_LAUNCH
+// enable launching kernels immediately into per component streams
+// #define COMB_GRAPH_KERNEL_LAUNCH_COMPONENT_STREAMS
+
 namespace cuda {
 
 namespace graph_launch {
@@ -56,12 +61,14 @@ struct Graph
     , m_ref(1)
     , m_num_events(0)
   {
+#ifndef COMB_GRAPH_KERNEL_LAUNCH
     // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).Graph cudaGraphCreate()\n", this );
     cudaCheck(cudaGraphCreate(&m_graph, 0));
     // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).Graph cudaGraphCreate() -> %p\n", this, &m_graph );
 #ifdef COMB_GRAPH_BEGIN_END_NODES
     // insert begin node
     cudaCheck(cudaGraphAddEmptyNode(&m_node_begin, m_graph, nullptr, 0));
+#endif
 #endif
   }
 
@@ -138,6 +145,7 @@ struct Graph
   void enqueue(cudaKernelNodeParams& params)
   {
     // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).enqueue %p grid(%i,%i,%i) block(%i,%i,%i) shmem(%zu) params(%p) extra(%p)\n", this, params.func, (int)params.gridDim.x, (int)params.gridDim.y, (int)params.gridDim.z, (int)params.blockDim.x, (int)params.blockDim.y, (int)params.blockDim.z, (size_t)params.sharedMemBytes, params.kernelParams, params.extra );
+#ifndef COMB_GRAPH_KERNEL_LAUNCH
     assert(!m_launched);
     if (m_num_nodes < m_nodes.size()) {
       if (m_num_nodes < m_instantiated_num_nodes) {
@@ -166,6 +174,7 @@ struct Graph
       cudaCheck(cudaGraphAddKernelNode(&m_nodes[m_num_nodes], m_graph, dependencies, num_dependencies, &params));
       // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).enqueue cudaGraphAddKernelNode(%p) -> %p\n", this, &m_graph, &m_nodes[m_num_nodes] );
     }
+#endif
     m_num_nodes++;
   }
 
@@ -176,6 +185,7 @@ struct Graph
     if (!m_launched) {
       if (m_instantiated_num_nodes != m_num_nodes) {
         if (m_instantiated_num_nodes > 0) {
+#ifndef COMB_GRAPH_KERNEL_LAUNCH
           // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).update cudaGraphExecDestroy(%p)\n", this, &m_graphExec );
           cudaCheck(cudaGraphExecDestroy(m_graphExec));
 #ifdef COMB_GRAPH_BEGIN_END_NODES
@@ -186,8 +196,10 @@ struct Graph
             cudaCheck(cudaGraphDestroyNode(m_nodes[i]));
           }
           m_nodes.resize(m_num_nodes);
+#endif
           m_instantiated_num_nodes = 0;
         }
+#ifndef COMB_GRAPH_KERNEL_LAUNCH
 #ifdef COMB_GRAPH_BEGIN_END_NODES
         // add end node depending on all kernel nodes
         cudaCheck(cudaGraphAddEmptyNode(&m_node_end, m_graph, &m_nodes[0], m_num_nodes));
@@ -197,9 +209,11 @@ struct Graph
         constexpr size_t bufferSize = 1024;
         char logBuffer[bufferSize] = "";
         cudaCheck(cudaGraphInstantiate(&m_graphExec, m_graph, &errorNode, logBuffer, bufferSize));
+#endif
         m_instantiated_num_nodes = m_num_nodes;
         // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).update cudaGraphInstantiate(%p) -> %p\n", this, &m_graph, &m_graphExec );
       }
+#ifndef COMB_GRAPH_KERNEL_LAUNCH
 #ifdef COMB_HAVE_CUDA_GRAPH_UPDATE
       else if (m_instantiated_num_nodes > 0) {
         // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).update cudaGraphExecUpdate(%p, %p)\n", this, &m_graph, &m_graphExec );
@@ -207,6 +221,7 @@ struct Graph
         cudaGraphExecUpdateResult result;
         cudaCheck(cudaGraphExecUpdate(m_graphExec, m_graph, &errorNode, &result));
       }
+#endif
 #endif
     }
   }
@@ -217,8 +232,10 @@ struct Graph
     // NVTX_RANGE_COLOR(NVTX_CYAN)
     if (!m_launched) {
 
+#ifndef COMB_GRAPH_KERNEL_LAUNCH
       // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).launch cudaGraphLaunch(%p) stream(%p)\n", this, &m_graphExec, (void*)stream );
       cudaCheck(cudaGraphLaunch(m_graphExec, stream));
+#endif
 
       if (m_num_events > 0) {
         createRecordEvent(stream);
@@ -250,6 +267,7 @@ struct Graph
       // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).~Graph cudaEventDestroy(%p)\n", this, &m_event );
       cudaCheck(cudaEventDestroy(m_event));
     }
+#ifndef COMB_GRAPH_KERNEL_LAUNCH
     if (m_instantiated_num_nodes > 0) {
       // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).~Graph cudaGraphExecDestroy(%p)\n", this, &m_graphExec );
       cudaCheck(cudaGraphExecDestroy(m_graphExec));
@@ -269,8 +287,10 @@ struct Graph
     m_nodes.clear();
     // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).~Graph cudaGraphDestroy(%p)\n", this, &m_graph );
     cudaCheck(cudaGraphDestroy(m_graph));
+#endif
   }
 private:
+#ifndef COMB_GRAPH_KERNEL_LAUNCH
   std::vector<cudaGraphNode_t> m_nodes;
 #ifdef COMB_GRAPH_BEGIN_END_NODES
   cudaGraphNode_t m_node_begin;
@@ -278,6 +298,7 @@ private:
 #endif
   cudaGraph_t m_graph;
   cudaGraphExec_t m_graphExec;
+#endif
   cudaEvent_t m_event;
 
   bool m_launched;
@@ -308,7 +329,11 @@ private:
 
 struct component
 {
+#ifdef COMB_GRAPH_KERNEL_LAUNCH_COMPONENT_STREAMS
+  ::CudaContext m_con;
+#else
   void* data = nullptr;
+#endif
 };
 
 struct group
@@ -432,7 +457,11 @@ void graph_for_all(IdxT begin, IdxT len, body_type body)
 }
 
 template <typename body_type>
-inline void for_all(int begin, int end, body_type&& body)
+inline void for_all(int begin, int end, body_type&& body
+#ifdef COMB_GRAPH_KERNEL_LAUNCH
+    , cudaStream_t stream
+#endif
+    )
 {
   using decayed_body_type = typename std::decay<body_type>::type;
 
@@ -451,6 +480,10 @@ inline void for_all(int begin, int end, body_type&& body)
   params.extra = nullptr;
 
   get_active_group().graph->enqueue(params);
+
+#ifdef COMB_GRAPH_KERNEL_LAUNCH
+  cudaCheck(cudaLaunchKernel(params.func, params.gridDim, params.blockDim, params.kernelParams, params.sharedMemBytes, stream));
+#endif
 }
 
 template < typename body_type >
@@ -468,7 +501,11 @@ void graph_for_all_2d(IdxT begin0, IdxT len0, IdxT begin1, IdxT len1, body_type 
 }
 
 template < typename body_type >
-inline void for_all_2d(IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, body_type&& body)
+inline void for_all_2d(IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, body_type&& body
+#ifdef COMB_GRAPH_KERNEL_LAUNCH
+    , cudaStream_t stream
+#endif
+    )
 {
   using decayed_body_type = typename std::decay<body_type>::type;
 
@@ -490,6 +527,10 @@ inline void for_all_2d(IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, body_type
   params.extra = nullptr;
 
   get_active_group().graph->enqueue(params);
+
+#ifdef COMB_GRAPH_KERNEL_LAUNCH
+  cudaCheck(cudaLaunchKernel(params.func, params.gridDim, params.blockDim, params.kernelParams, params.sharedMemBytes, stream));
+#endif
 }
 
 template < typename body_type >
@@ -510,7 +551,11 @@ void graph_for_all_3d(IdxT begin0, IdxT len0, IdxT begin1, IdxT len1, IdxT begin
 }
 
 template < typename body_type >
-inline void for_all_3d(IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, IdxT begin2, IdxT end2, body_type&& body)
+inline void for_all_3d(IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, IdxT begin2, IdxT end2, body_type&& body
+#ifdef COMB_GRAPH_KERNEL_LAUNCH
+    , cudaStream_t stream
+#endif
+    )
 {
   using decayed_body_type = typename std::decay<body_type>::type;
 
@@ -536,6 +581,10 @@ inline void for_all_3d(IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, IdxT begi
   params.extra = nullptr;
 
   get_active_group().graph->enqueue(params);
+
+#ifdef COMB_GRAPH_KERNEL_LAUNCH
+  cudaCheck(cudaLaunchKernel(params.func, params.gridDim, params.blockDim, params.kernelParams, params.sharedMemBytes, stream));
+#endif
 }
 
 } // namespace graph_launch

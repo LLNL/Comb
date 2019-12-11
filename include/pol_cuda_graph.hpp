@@ -39,12 +39,22 @@ struct ExecContext<cuda_graph_pol> : CudaContext
 
   using base = CudaContext;
 
+#ifdef COMB_GRAPH_KERNEL_LAUNCH_COMPONENT_STREAMS
+  component_type m_component;
+#endif
+
   ExecContext()
     : base()
+#ifdef COMB_GRAPH_KERNEL_LAUNCH_COMPONENT_STREAMS
+    , m_component{base(*this)}
+#endif
   { }
 
   ExecContext(base const& b)
     : base(b)
+#ifdef COMB_GRAPH_KERNEL_LAUNCH_COMPONENT_STREAMS
+    , m_component{base(*this)}
+#endif
   { }
 
   void ensure_waitable()
@@ -89,19 +99,27 @@ struct ExecContext<cuda_graph_pol> : CudaContext
     return component_type{};
   }
 
-  void start_component(group_type, component_type)
+  void start_component(group_type, component_type component)
   {
-
+#ifdef COMB_GRAPH_KERNEL_LAUNCH_COMPONENT_STREAMS
+    m_component = component;
+    m_component.m_con.waitOn(base(*this));
+#endif
   }
 
-  void finish_component(group_type, component_type)
+  void finish_component(group_type, component_type component)
   {
-
+#ifdef COMB_GRAPH_KERNEL_LAUNCH_COMPONENT_STREAMS
+    base::waitOn(component.m_con);
+    m_component.m_con = base(*this);
+#endif
   }
 
   void destroy_component(component_type)
   {
-
+#ifdef COMB_GRAPH_KERNEL_LAUNCH_COMPONENT_STREAMS
+    m_component.m_con = base(*this);
+#endif
   }
 
   event_type createEvent()
@@ -138,22 +156,34 @@ struct ExecContext<cuda_graph_pol> : CudaContext
   template < typename body_type >
   void for_all(IdxT begin, IdxT end, body_type&& body)
   {
-    cuda::graph_launch::for_all(begin, end, std::forward<body_type>(body));
-    // base::synchronize();
+    cuda::graph_launch::for_all(begin, end, std::forward<body_type>(body)
+#ifdef COMB_GRAPH_KERNEL_LAUNCH
+        , m_component.m_con.stream_launch()
+#endif
+        );
+    // m_component.m_con.synchronize();
   }
 
   template < typename body_type >
   void for_all_2d(IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, body_type&& body)
   {
-    cuda::graph_launch::for_all_2d(begin0, end0, begin1, end1, std::forward<body_type>(body));
-    // base::synchronize();
+    cuda::graph_launch::for_all_2d(begin0, end0, begin1, end1, std::forward<body_type>(body)
+#ifdef COMB_GRAPH_KERNEL_LAUNCH
+        , m_component.m_con.stream_launch()
+#endif
+        );
+    // m_component.m_con.synchronize();
   }
 
   template < typename body_type >
   void for_all_3d(IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, IdxT begin2, IdxT end2, body_type&& body)
   {
-    cuda::graph_launch::for_all_3d(begin0, end0, begin1, end1, begin2, end2, std::forward<body_type>(body));
-    // base::synchronize();
+    cuda::graph_launch::for_all_3d(begin0, end0, begin1, end1, begin2, end2, std::forward<body_type>(body)
+#ifdef COMB_GRAPH_KERNEL_LAUNCH
+        , m_component.m_con.stream_launch()
+#endif
+        );
+    // m_component.m_con.synchronize();
   }
 
 };
