@@ -28,6 +28,7 @@ void force_launch(cudaStream_t stream)
 {
    // NVTX_RANGE_COLOR(NVTX_CYAN)
    if (get_group().graph != nullptr && get_group().graph->launchable()) {
+      get_group().graph->update(stream);
       get_group().graph->launch(stream);
       new_active_group();
    }

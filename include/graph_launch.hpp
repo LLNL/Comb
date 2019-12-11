@@ -20,6 +20,11 @@
 
 #ifdef COMB_ENABLE_CUDA_GRAPH
 
+// cuda 10.2 and higher have graph update
+#if CUDART_VERSION >= 10020
+#define COMB_HAVE_CUDA_GRAPH_UPDATE
+#endif
+
 #include "utils.hpp"
 #include "utils_cuda.hpp"
 #include <vector>
@@ -128,13 +133,17 @@ struct Graph
     assert(!m_launched);
     if (m_num_nodes < m_nodes.size()) {
       if (m_num_nodes < m_instantiated_num_nodes) {
+#ifndef COMB_HAVE_CUDA_GRAPH_UPDATE
         // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).enqueue cudaGraphExecKernelNodeSetParams(%p, %p)\n", this, &m_graphExec, &m_nodes[m_num_nodes] );
         cudaCheck(cudaGraphExecKernelNodeSetParams(m_graphExec, m_nodes[m_num_nodes], &params));
+#endif
       } else {
         assert(0 && (m_num_nodes < m_instantiated_num_nodes));
       }
+#ifdef COMB_HAVE_CUDA_GRAPH_UPDATE
       // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).enqueue cudaGraphKernelNodeSetParams(%p, %p)\n", this, &m_graph, &m_nodes[m_num_nodes] );
-      // cudaCheck(cudaGraphKernelNodeSetParams(m_nodes[m_num_nodes], &params));
+      cudaCheck(cudaGraphKernelNodeSetParams(m_nodes[m_num_nodes], &params));
+#endif
     } else {
       assert(m_num_nodes == m_nodes.size());
       m_nodes.emplace_back();
@@ -147,30 +156,46 @@ struct Graph
     m_num_nodes++;
   }
 
-  void launch(cudaStream_t stream)
+  void update(cudaStream_t stream)
   {
-    // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).launch\n", this );
+    // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).update\n", this );
     // NVTX_RANGE_COLOR(NVTX_CYAN)
     if (!m_launched) {
       if (m_instantiated_num_nodes != m_num_nodes) {
         if (m_instantiated_num_nodes > 0) {
-          // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).launch cudaGraphExecDestroy(%p)\n", this, &m_graphExec );
+          // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).update cudaGraphExecDestroy(%p)\n", this, &m_graphExec );
           cudaCheck(cudaGraphExecDestroy(m_graphExec));
           for (int i = m_num_nodes; i < m_nodes.size(); ++i) {
-            // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).launch cudaGraphDestroyNode(%p)\n", this, &m_nodes[i] );
+            // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).update cudaGraphDestroyNode(%p)\n", this, &m_nodes[i] );
             cudaCheck(cudaGraphDestroyNode(m_nodes[i]));
           }
           m_nodes.resize(m_num_nodes);
           m_instantiated_num_nodes = 0;
         }
-        // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).launch cudaGraphInstantiate(%p)\n", this, &m_graph );
+        // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).update cudaGraphInstantiate(%p)\n", this, &m_graph );
         cudaGraphNode_t errorNode;
         constexpr size_t bufferSize = 1024;
         char logBuffer[bufferSize] = "";
         cudaCheck(cudaGraphInstantiate(&m_graphExec, m_graph, &errorNode, logBuffer, bufferSize));
         m_instantiated_num_nodes = m_num_nodes;
-        // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).launch cudaGraphInstantiate(%p) -> %p\n", this, &m_graph, &m_graphExec );
+        // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).update cudaGraphInstantiate(%p) -> %p\n", this, &m_graph, &m_graphExec );
       }
+#ifdef COMB_HAVE_CUDA_GRAPH_UPDATE
+      else if (m_instantiated_num_nodes > 0) {
+        // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).update cudaGraphExecUpdate(%p, %p)\n", this, &m_graph, &m_graphExec );
+        cudaGraphNode_t errorNode;
+        cudaGraphExecUpdateResult result;
+        cudaCheck(cudaGraphExecUpdate(m_graphExec, m_graph, &errorNode, &result));
+      }
+#endif
+    }
+  }
+
+  void launch(cudaStream_t stream)
+  {
+    // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).launch\n", this );
+    // NVTX_RANGE_COLOR(NVTX_CYAN)
+    if (!m_launched) {
 
       // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).launch cudaGraphLaunch(%p) stream(%p)\n", this, &m_graphExec, (void*)stream );
       cudaCheck(cudaGraphLaunch(m_graphExec, stream));
