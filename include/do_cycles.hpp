@@ -122,7 +122,7 @@ void do_cycles(CommContext<pol_comm>& con_comm_in,
 
     comm.barrier();
 
-    Range r1("test comm", Range::indigo);
+    Range r1("test correctness", Range::indigo);
 
     tm_total.start(tm_con, "test-comm");
 
