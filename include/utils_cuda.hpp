@@ -122,6 +122,15 @@ inline int get_arch() {
   return cuda_arch;
 }
 
+__device__ __forceinline__ unsigned long long device_timer()
+{
+  unsigned long long global_timer = 0;
+#if __CUDA_ARCH__ >= 300
+  asm volatile ("mov.u64 %0, %globaltimer;" : "=l"(global_timer));
+#endif
+  return global_timer;
+}
+
 } // namespace cuda
 
 } // namespace detail
