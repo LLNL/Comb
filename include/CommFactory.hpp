@@ -123,6 +123,12 @@ void for_connections(MeshInfo meshinfo, loop_body&& body)
 
 struct CommFactory
 {
+  static inline bool& allow_per_message_pack_fusing()
+  {
+    static bool allow = true;
+    return allow;
+  }
+
   CommInfo const& comminfo;
 
   using msg_map_type  = std::map<Box3d, Box3d>; // maps recv boxes to send boxes
@@ -455,7 +461,7 @@ private:
   template < typename context >
   bool msg_info_items_combineable(context&) const
   {
-    return true;
+    return allow_per_message_pack_fusing();
   }
 
 #ifdef COMB_ENABLE_MPI

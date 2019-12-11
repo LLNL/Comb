@@ -14,6 +14,7 @@
 //////////////////////////////////////////////////////////////////////////////
 
 #include "comb.hpp"
+#include "CommFactory.hpp"
 #include "batch_launch.hpp"
 #include "persistent_launch.hpp"
 
@@ -213,6 +214,24 @@ int main(int argc, char** argv)
 #ifdef COMB_ENABLE_UMR
                 comm_avail.umr = enabledisable;
 #endif
+              } else {
+                fgprintf(FileGroup::err_master, "Invalid argument to sub-option, ignoring %s %s %s.\n", argv[i-2], argv[i-1], argv[i]);
+              }
+            } else {
+              fgprintf(FileGroup::err_master, "No argument to sub-option, ignoring %s %s.\n", argv[i-1], argv[i]);
+            }
+          } else if ( strcmp(argv[i], "allow") == 0
+                   || strcmp(argv[i], "disallow") == 0 ) {
+            bool allowdisallow = false;
+            if (strcmp(argv[i], "allow") == 0) {
+              allowdisallow = true;
+            } else if (strcmp(argv[i], "disallow") == 0) {
+              allowdisallow = false;
+            }
+            if (i+1 < argc && argv[i+1][0] != '-') {
+              ++i;
+              if (strcmp(argv[i], "per_message_pack_fusing") == 0) {
+                CommFactory::allow_per_message_pack_fusing() = allowdisallow;
               } else {
                 fgprintf(FileGroup::err_master, "Invalid argument to sub-option, ignoring %s %s %s.\n", argv[i-2], argv[i-1], argv[i]);
               }
