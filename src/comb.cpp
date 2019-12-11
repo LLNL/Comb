@@ -583,7 +583,7 @@ int main(int argc, char** argv)
       if (i < omp_threads) {
         fgprintf(FileGroup::all, "OMP thread map %6i", thread_cpu_id[i]);
         for (++i; i < omp_threads; ++i) {
-          fgprintf(FileGroup::all, " %8i", thread_cpu_id[i]);
+          fgprintf(FileGroup::all, ";%i", thread_cpu_id[i]);
         }
       }
 
