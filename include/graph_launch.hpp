@@ -25,10 +25,14 @@
 #define COMB_HAVE_CUDA_GRAPH_UPDATE
 #endif
 
+#include "ExecContext.hpp"
 #include "utils.hpp"
 #include "utils_cuda.hpp"
 #include <vector>
 #include <assert.h>
+
+// enable empty nodes at the begin and end of each graph instead of allowing disconnected components
+// #define COMB_GRAPH_BEGIN_END_NODES
 
 namespace cuda {
 
@@ -55,6 +59,10 @@ struct Graph
     // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).Graph cudaGraphCreate()\n", this );
     cudaCheck(cudaGraphCreate(&m_graph, 0));
     // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).Graph cudaGraphCreate() -> %p\n", this, &m_graph );
+#ifdef COMB_GRAPH_BEGIN_END_NODES
+    // insert begin node
+    cudaCheck(cudaGraphAddEmptyNode(&m_node_begin, m_graph, nullptr, 0));
+#endif
   }
 
   // no copy construction
@@ -147,8 +155,13 @@ struct Graph
     } else {
       assert(m_num_nodes == m_nodes.size());
       m_nodes.emplace_back();
+#ifdef COMB_GRAPH_BEGIN_END_NODES
+      const cudaGraphNode_t* dependencies = &m_node_begin;
+      int num_dependencies = 1;
+#else
       const cudaGraphNode_t* dependencies = nullptr;
       int num_dependencies = 0;
+#endif
       // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).enqueue cudaGraphAddKernelNode(%p)\n", this, &m_graph );
       cudaCheck(cudaGraphAddKernelNode(&m_nodes[m_num_nodes], m_graph, dependencies, num_dependencies, &params));
       // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).enqueue cudaGraphAddKernelNode(%p) -> %p\n", this, &m_graph, &m_nodes[m_num_nodes] );
@@ -165,6 +178,9 @@ struct Graph
         if (m_instantiated_num_nodes > 0) {
           // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).update cudaGraphExecDestroy(%p)\n", this, &m_graphExec );
           cudaCheck(cudaGraphExecDestroy(m_graphExec));
+#ifdef COMB_GRAPH_BEGIN_END_NODES
+          cudaCheck(cudaGraphDestroyNode(m_node_end));
+#endif
           for (int i = m_num_nodes; i < m_nodes.size(); ++i) {
             // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).update cudaGraphDestroyNode(%p)\n", this, &m_nodes[i] );
             cudaCheck(cudaGraphDestroyNode(m_nodes[i]));
@@ -172,6 +188,10 @@ struct Graph
           m_nodes.resize(m_num_nodes);
           m_instantiated_num_nodes = 0;
         }
+#ifdef COMB_GRAPH_BEGIN_END_NODES
+        // add end node depending on all kernel nodes
+        cudaCheck(cudaGraphAddEmptyNode(&m_node_end, m_graph, &m_nodes[0], m_num_nodes));
+#endif
         // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).update cudaGraphInstantiate(%p)\n", this, &m_graph );
         cudaGraphNode_t errorNode;
         constexpr size_t bufferSize = 1024;
@@ -234,6 +254,14 @@ struct Graph
       // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).~Graph cudaGraphExecDestroy(%p)\n", this, &m_graphExec );
       cudaCheck(cudaGraphExecDestroy(m_graphExec));
     }
+#ifdef COMB_GRAPH_BEGIN_END_NODES
+    if (m_nodes.size() > 0) {
+      cudaCheck(cudaGraphDestroyNode(m_node_begin));
+    }
+    if (m_instantiated_num_nodes > 0) {
+      cudaCheck(cudaGraphDestroyNode(m_node_end));
+    }
+#endif
     for (int i = 0; i < m_nodes.size(); ++i) {
       // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).~Graph cudaGraphDestroyNode(%p)\n", this, &m_nodes[i] );
       cudaCheck(cudaGraphDestroyNode(m_nodes[i]));
@@ -244,6 +272,10 @@ struct Graph
   }
 private:
   std::vector<cudaGraphNode_t> m_nodes;
+#ifdef COMB_GRAPH_BEGIN_END_NODES
+  cudaGraphNode_t m_node_begin;
+  cudaGraphNode_t m_node_end;
+#endif
   cudaGraph_t m_graph;
   cudaGraphExec_t m_graphExec;
   cudaEvent_t m_event;
