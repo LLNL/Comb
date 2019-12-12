@@ -32,7 +32,7 @@
 #include <assert.h>
 
 // enable empty nodes at the begin and end of each graph instead of allowing disconnected components
-// #define COMB_GRAPH_BEGIN_END_NODES
+#define COMB_GRAPH_BEGIN_END_NODES
 
 // enable launching kernels immediately instead of creating graphs
 // #define COMB_GRAPH_KERNEL_LAUNCH
@@ -40,7 +40,7 @@
 // #define COMB_GRAPH_KERNEL_LAUNCH_COMPONENT_STREAMS
 
 // add device timers in the kernel nodes to measure start and stop times
-// #define COMB_GRAPH_KERNEL_DEVICE_TIMER
+#define COMB_GRAPH_KERNEL_DEVICE_TIMER
 
 namespace cuda {
 
