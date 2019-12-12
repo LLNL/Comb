@@ -48,6 +48,19 @@ namespace graph_launch {
 
 namespace detail {
 
+#ifdef COMB_GRAPH_KERNEL_DEVICE_TIMER
+#ifdef COMB_GRAPH_BEGIN_END_NODES
+template < int >
+__global__
+void graph_timer_kernel(unsigned long long* kernel_timer)
+{
+  if (kernel_timer != nullptr) {
+    kernel_timer[0] = COMB::detail::cuda::device_timer();
+  }
+}
+#endif
+#endif
+
 struct Graph
 {
   struct Event
@@ -70,7 +83,20 @@ struct Graph
     // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).Graph cudaGraphCreate() -> %p\n", this, &m_graph );
 #ifdef COMB_GRAPH_BEGIN_END_NODES
     // insert begin node
+#ifdef COMB_GRAPH_KERNEL_DEVICE_TIMER
+    unsigned long long* kernel_starts = nullptr;
+    cudaKernelNodeParams params;
+    params.func = (void*)&graph_timer_kernel<0>;
+    params.gridDim = dim3{1};
+    params.blockDim = dim3{1};
+    params.sharedMemBytes = 0;
+    void* args[]{&kernel_starts};
+    params.kernelParams = args;
+    params.extra = nullptr;
+    cudaCheck(cudaGraphAddKernelNode(&m_node_begin, m_graph, nullptr, 0, &params));
+#else
     cudaCheck(cudaGraphAddEmptyNode(&m_node_begin, m_graph, nullptr, 0));
+#endif
 #endif
 #endif
   }
@@ -203,14 +229,28 @@ struct Graph
           m_instantiated_num_nodes = 0;
 #ifdef COMB_GRAPH_KERNEL_DEVICE_TIMER
           if (m_kernel_starts) {
+            m_num_kernel_timers = 0;
             cudaCheck(cudaFree(m_kernel_starts));
           }
 #endif
         }
 #ifndef COMB_GRAPH_KERNEL_LAUNCH
 #ifdef COMB_GRAPH_BEGIN_END_NODES
+#ifdef COMB_GRAPH_KERNEL_DEVICE_TIMER
+        unsigned long long* kernel_stops = nullptr;
+        cudaKernelNodeParams params;
+        params.func = (void*)&graph_timer_kernel<0>;
+        params.gridDim = dim3{1};
+        params.blockDim = dim3{1};
+        params.sharedMemBytes = 0;
+        void* args[]{&kernel_stops};
+        params.kernelParams = args;
+        params.extra = nullptr;
+        cudaCheck(cudaGraphAddKernelNode(&m_node_end, m_graph, &m_nodes[0], m_num_nodes, &params));
+#else
         // add end node depending on all kernel nodes
         cudaCheck(cudaGraphAddEmptyNode(&m_node_end, m_graph, &m_nodes[0], m_num_nodes));
+#endif
 #endif
         // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).update cudaGraphInstantiate(%p)\n", this, &m_graph );
         cudaGraphNode_t errorNode;
@@ -221,7 +261,12 @@ struct Graph
         m_instantiated_num_nodes = m_num_nodes;
         // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).update cudaGraphInstantiate(%p) -> %p\n", this, &m_graph, &m_graphExec );
 #ifdef COMB_GRAPH_KERNEL_DEVICE_TIMER
-        cudaCheck(cudaMalloc(&m_kernel_starts, m_instantiated_num_nodes*2*sizeof(m_kernel_starts[0])));
+#ifdef COMB_GRAPH_BEGIN_END_NODES
+        m_num_kernel_timers = m_instantiated_num_nodes+1;
+#else
+        m_num_kernel_timers = m_instantiated_num_nodes;
+#endif
+        cudaCheck(cudaMalloc(&m_kernel_starts, m_num_kernel_timers*2*sizeof(m_kernel_starts[0])));
 #endif
       }
 #ifndef COMB_GRAPH_KERNEL_LAUNCH
@@ -263,6 +308,54 @@ struct Graph
     m_event_recorded = false;
     m_launched = false;
     m_num_nodes = 0;
+#ifndef COMB_GRAPH_KERNEL_LAUNCH
+#ifdef COMB_GRAPH_BEGIN_END_NODES
+#ifdef COMB_GRAPH_KERNEL_DEVICE_TIMER
+    // update params for begin and end node when using timers
+    unsigned long long* kernel_starts = nullptr;
+    unsigned long long* kernel_stops  = nullptr;
+    if (m_kernel_starts != nullptr
+     && m_kernel_id < m_instantiated_num_nodes ) {
+      kernel_starts = m_kernel_starts + m_num_kernel_timers - 1;
+      kernel_stops  = m_kernel_starts + 2*m_num_kernel_timers - 1;
+    }
+    cudaKernelNodeParams params_begin;
+    params_begin.func = (void*)&graph_timer_kernel<0>;
+    params_begin.gridDim = dim3{1};
+    params_begin.blockDim = dim3{1};
+    params_begin.sharedMemBytes = 0;
+    void* args[]{&kernel_starts};
+    params_begin.kernelParams = args;
+    params_begin.extra = nullptr;
+#ifdef COMB_HAVE_CUDA_GRAPH_UPDATE
+    // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).enqueue cudaGraphKernelNodeSetParams(%p, %p)\n", this, &m_graph, &m_node_begin );
+    cudaCheck(cudaGraphKernelNodeSetParams(m_node_begin, &params_begin));
+#else
+    if (m_instantiated_num_nodes > 0) {
+      // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).enqueue cudaGraphExecKernelNodeSetParams(%p, %p)\n", this, &m_graphExec, &m_node_begin );
+      cudaCheck(cudaGraphExecKernelNodeSetParams(m_graphExec, m_node_begin, &params_begin));
+    }
+#endif
+    if (m_instantiated_num_nodes > 0) {
+      cudaKernelNodeParams params_end;
+      params_end.func = (void*)&graph_timer_kernel<0>;
+      params_end.gridDim = dim3{1};
+      params_end.blockDim = dim3{1};
+      params_end.sharedMemBytes = 0;
+      void* args[]{&kernel_stops};
+      params_end.kernelParams = args;
+      params_end.extra = nullptr;
+#ifdef COMB_HAVE_CUDA_GRAPH_UPDATE
+      // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).enqueue cudaGraphKernelNodeSetParams(%p, %p)\n", this, &m_graph, &m_node_end );
+      cudaCheck(cudaGraphKernelNodeSetParams(m_node_end, &params_end));
+#else
+      // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).enqueue cudaGraphExecKernelNodeSetParams(%p, %p)\n", this, &m_graphExec, &m_node_end );
+      cudaCheck(cudaGraphExecKernelNodeSetParams(m_graphExec, m_node_end, &params_end));
+#endif
+    }
+#endif
+#endif
+#endif
   }
 
   bool launchable() const
@@ -302,19 +395,25 @@ struct Graph
 
 #ifdef COMB_GRAPH_KERNEL_DEVICE_TIMER
     if (m_kernel_starts) {
-      unsigned long long* kernel_starts = (unsigned long long*)malloc(m_instantiated_num_nodes*2*sizeof(m_kernel_starts[0]));
-      unsigned long long* kernel_stops = kernel_starts + m_instantiated_num_nodes;
-      cudaCheck(cudaMemcpy(kernel_starts, m_kernel_starts, m_instantiated_num_nodes*2*sizeof(m_kernel_starts[0]), cudaMemcpyDefault));
+      unsigned long long* kernel_starts = (unsigned long long*)malloc(m_num_kernel_timers*2*sizeof(m_kernel_starts[0]));
+      unsigned long long* kernel_stops = kernel_starts + m_num_kernel_timers;
+      cudaCheck(cudaMemcpy(kernel_starts, m_kernel_starts, m_num_kernel_timers*2*sizeof(m_kernel_starts[0]), cudaMemcpyDefault));
       cudaCheck(cudaFree(m_kernel_starts));
 
       double tick_rate = 1000000000.0; // 1 tick / ns
 
       unsigned long long first_start = kernel_starts[0];
-      for (int i = 0; i < m_kernel_id; i++) {
+      for (int i = 0; i < m_num_kernel_timers; i++) {
         if (first_start > kernel_starts[i]) first_start = kernel_starts[i];
       }
 
-      for (int i = 0; i < m_kernel_id; i++) {
+      // print timers from begin and end kernel nodes
+      if (m_num_kernel_timers != m_instantiated_num_nodes) {
+        double start = (kernel_starts[m_num_kernel_timers-1] - first_start) / tick_rate;
+        double stop  = (kernel_stops[m_num_kernel_timers-1] - first_start) / tick_rate;
+        FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).~Graph graph_start %.9f graph_stop %.9f\n", this, start, stop);
+      }
+      for (int i = 0; i < m_instantiated_num_nodes; i++) {
         double start = (kernel_starts[i] - first_start) / tick_rate;
         double stop  = (kernel_stops[i] - first_start) / tick_rate;
         FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).~Graph kernel_start %.9f kernel_stop %.9f\n", this, start, stop);
@@ -348,6 +447,7 @@ public:
 #ifdef COMB_GRAPH_KERNEL_DEVICE_TIMER
   unsigned long long* m_kernel_starts = nullptr;
   int m_kernel_id = 0;
+  int m_num_kernel_timers = 0;
 #endif
 private:
   void createRecordEvent(cudaStream_t stream)
@@ -529,9 +629,10 @@ inline void for_all(int begin, int end, body_type&& body
   unsigned long long* kernel_starts = nullptr;
   unsigned long long* kernel_stops = nullptr;
   int kernel_id = -1;
-  if (get_active_group().graph->m_kernel_starts != nullptr && get_active_group().graph->m_kernel_id < get_active_group().graph->m_instantiated_num_nodes) {
+  if (get_active_group().graph->m_kernel_starts != nullptr
+   && get_active_group().graph->m_kernel_id < get_active_group().graph->m_instantiated_num_nodes) {
     kernel_starts = get_active_group().graph->m_kernel_starts;
-    kernel_stops = get_active_group().graph->m_kernel_starts + get_active_group().graph->m_instantiated_num_nodes;
+    kernel_stops = get_active_group().graph->m_kernel_starts + get_active_group().graph->m_num_kernel_timers;
     kernel_id = get_active_group().graph->m_kernel_id++;
   }
 #endif
