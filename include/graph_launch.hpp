@@ -30,6 +30,7 @@
 #include "utils_cuda.hpp"
 #include <vector>
 #include <assert.h>
+#include <chrono>
 
 // enable empty nodes at the begin and end of each graph instead of allowing disconnected components
 #define COMB_GRAPH_BEGIN_END_NODES
@@ -41,6 +42,10 @@
 
 // add device timers in the kernel nodes to measure start and stop times
 #define COMB_GRAPH_KERNEL_DEVICE_TIMER
+// add host timers around the graph api functions
+#ifdef COMB_GRAPH_KERNEL_DEVICE_TIMER
+#define COMB_GRAPH_KERNEL_HOST_TIMER
+#endif
 
 namespace cuda {
 
@@ -59,6 +64,17 @@ void graph_timer_kernel(unsigned long long* kernel_timer)
   }
 }
 #endif
+#endif
+
+#ifdef COMB_GRAPH_KERNEL_HOST_TIMER
+template < int >
+__global__
+void graph_spin_kernel(double time_s)
+{
+  unsigned long long t0 = COMB::detail::cuda::device_timer();
+  unsigned long long time_ns = static_cast<unsigned long long>(time_s * 1000000000.0);
+  while (time_ns > COMB::detail::cuda::device_timer()-t0);
+}
 #endif
 
 struct Graph
@@ -177,6 +193,12 @@ struct Graph
 #ifndef COMB_GRAPH_KERNEL_LAUNCH
     assert(!m_launched);
     if (m_num_nodes < m_nodes.size()) {
+#ifdef COMB_GRAPH_KERNEL_HOST_TIMER
+      std::chrono::time_point<std::chrono::high_resolution_clock> t0;
+      if (m_do_timing) {
+        t0 = std::chrono::high_resolution_clock::now();
+      }
+#endif
       if (m_num_nodes < m_instantiated_num_nodes) {
 #ifndef COMB_HAVE_CUDA_GRAPH_UPDATE
         // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).enqueue cudaGraphExecKernelNodeSetParams(%p, %p)\n", this, &m_graphExec, &m_nodes[m_num_nodes] );
@@ -188,6 +210,12 @@ struct Graph
 #ifdef COMB_HAVE_CUDA_GRAPH_UPDATE
       // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).enqueue cudaGraphKernelNodeSetParams(%p, %p)\n", this, &m_graph, &m_nodes[m_num_nodes] );
       cudaCheck(cudaGraphKernelNodeSetParams(m_nodes[m_num_nodes], &params));
+#endif
+#ifdef COMB_GRAPH_KERNEL_HOST_TIMER
+      if (m_do_timing) {
+        auto t1 = std::chrono::high_resolution_clock::now();
+        m_time_setparams += std::chrono::duration<double>(t1-t0).count();
+      }
 #endif
     } else {
       assert(m_num_nodes == m_nodes.size());
@@ -233,6 +261,13 @@ struct Graph
             m_kernel_id = 0;
             m_num_kernel_timers = 0;
             cudaCheck(cudaFree(m_kernel_starts)); m_kernel_starts = nullptr;
+#ifdef COMB_GRAPH_KERNEL_HOST_TIMER
+            m_time_setparams = 0.0;
+            m_time_update = 0.0;
+            m_time_launch = 0.0;
+            cudaCheck(cudaEventDestroy(m_time_launch_events[0]));
+            cudaCheck(cudaEventDestroy(m_time_launch_events[1]));
+#endif
           }
 #endif
         }
@@ -269,7 +304,19 @@ struct Graph
         // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).update cudaGraphExecUpdate(%p, %p)\n", this, &m_graph, &m_graphExec );
         cudaGraphNode_t errorNode;
         cudaGraphExecUpdateResult result;
+#ifdef COMB_GRAPH_KERNEL_HOST_TIMER
+        std::chrono::time_point<std::chrono::high_resolution_clock> t0;
+        if (m_do_timing) {
+          t0 = std::chrono::high_resolution_clock::now();
+        }
+#endif
         cudaCheck(cudaGraphExecUpdate(m_graphExec, m_graph, &errorNode, &result));
+#ifdef COMB_GRAPH_KERNEL_HOST_TIMER
+        if (m_do_timing) {
+          auto t1 = std::chrono::high_resolution_clock::now();
+          m_time_update = std::chrono::duration<double>(t1-t0).count();
+        }
+#endif
       }
 #endif
 #endif
@@ -284,13 +331,35 @@ struct Graph
 
 #ifndef COMB_GRAPH_KERNEL_LAUNCH
       // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).launch cudaGraphLaunch(%p) stream(%p)\n", this, &m_graphExec, (void*)stream );
+#ifdef COMB_GRAPH_KERNEL_HOST_TIMER
+      std::chrono::time_point<std::chrono::high_resolution_clock> t0;
+      if (m_do_timing) {
+        // launch a kernel to ensure accurate event timing of the cuda graph launch
+        graph_spin_kernel<0><<<1,1,0,stream>>>(0.001); // spin for 0.001 seconds
+        cudaCheck(cudaEventRecord(m_time_launch_events[0], stream));
+        t0 = std::chrono::high_resolution_clock::now();
+      }
+#endif
       cudaCheck(cudaGraphLaunch(m_graphExec, stream));
+#ifdef COMB_GRAPH_KERNEL_HOST_TIMER
+      if (m_do_timing) {
+        auto t1 = std::chrono::high_resolution_clock::now();
+        cudaCheck(cudaEventRecord(m_time_launch_events[1], stream));
+        m_time_launch = std::chrono::duration<double>(t1-t0).count();
+      }
+#endif
+#endif
+#ifdef COMB_GRAPH_KERNEL_DEVICE_TIMER
+      if (m_do_timing) {
+        m_do_timing = false;
+      }
 #endif
 
       if (m_num_events > 0) {
         createRecordEvent(stream);
       }
 
+      m_num_uses += 1;
       m_launched = true;
     }
   }
@@ -304,7 +373,7 @@ struct Graph
     m_num_nodes = 0;
 #ifndef COMB_GRAPH_KERNEL_LAUNCH
 #ifdef COMB_GRAPH_KERNEL_DEVICE_TIMER
-    if (m_kernel_id < m_instantiated_num_nodes ) {
+    if (m_num_uses == 5 && m_kernel_id < m_instantiated_num_nodes) {
       // enable timing, this should also ensure that m_instantiated_num_nodes > 0
       if (m_kernel_starts == nullptr) {
         // allocate space to store timers
@@ -314,6 +383,14 @@ struct Graph
         m_num_kernel_timers = m_instantiated_num_nodes;
 #endif
         cudaCheck(cudaMalloc(&m_kernel_starts, m_num_kernel_timers*2*sizeof(m_kernel_starts[0])));
+
+#ifdef COMB_GRAPH_KERNEL_HOST_TIMER
+        m_time_setparams = 0.0;
+        m_time_update = 0.0;
+        m_time_launch = 0.0;
+        cudaCheck(cudaEventCreateWithFlags(&m_time_launch_events[0], cudaEventDefault));
+        cudaCheck(cudaEventCreateWithFlags(&m_time_launch_events[1], cudaEventDefault));
+#endif
       }
       m_do_timing = true;
     } else {
@@ -415,6 +492,20 @@ struct Graph
         if (first_start > kernel_starts[i]) first_start = kernel_starts[i];
       }
 
+#ifdef COMB_GRAPH_KERNEL_HOST_TIMER
+      // print timers from around host api calls
+      {
+        FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).~Graph graph_setparams %.9f\n", this, m_time_setparams);
+        FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).~Graph graph_update %.9f\n", this, m_time_update);
+        FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).~Graph graph_launch %.9f\n", this, m_time_launch);
+        float ms;
+        cudaCheck(cudaEventElapsedTime(&ms, m_time_launch_events[0], m_time_launch_events[1]));
+        double time = static_cast<double>(ms) / 1000.0;
+        FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).~Graph graph_device %.9f\n", this, time);
+        cudaCheck(cudaEventDestroy(m_time_launch_events[0]));
+        cudaCheck(cudaEventDestroy(m_time_launch_events[1]));
+      }
+#endif
       // print timers from begin and end kernel nodes
       if (m_num_kernel_timers != m_instantiated_num_nodes) {
         double start = (kernel_starts[m_num_kernel_timers-1] - first_start) / tick_rate;
@@ -451,12 +542,19 @@ private:
   int m_num_nodes;
   int m_ref;
   int m_num_events;
+  int m_num_uses = 0;
 public:
 #ifdef COMB_GRAPH_KERNEL_DEVICE_TIMER
   unsigned long long* m_kernel_starts = nullptr;
   int m_kernel_id = 0;
   int m_num_kernel_timers = 0;
   bool m_do_timing = false;
+#ifdef COMB_GRAPH_KERNEL_HOST_TIMER
+  double m_time_setparams = 0.0;
+  double m_time_update = 0.0;
+  double m_time_launch = 0.0;
+  cudaEvent_t m_time_launch_events[2];
+#endif
 #endif
 private:
   void createRecordEvent(cudaStream_t stream)
