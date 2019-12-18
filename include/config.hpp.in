@@ -37,10 +37,15 @@
 #ifndef COMB_config_HPP
 #define COMB_config_HPP
 
+// get compilers used
+#cmakedefine COMB_COMPILER "${COMB_CXX_COMPILER}"
+#cmakedefine COMB_CUDA_COMPILER "${COMB_CUDA_COMPILER}"
+
 // disallow NDEBUG so asserts work
 #ifdef NDEBUG
 #undef NDEBUG
 #endif
+
 
 /*!
  ******************************************************************************

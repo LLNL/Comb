@@ -22,6 +22,9 @@ set(COMB_ENABLE_GPUMP ${ENABLE_GPUMP})
 set(COMB_ENABLE_MP ${ENABLE_MP})
 set(COMB_ENABLE_UMR ${ENABLE_UMR})
 
+set(COMB_CXX_COMPILER ${CMAKE_CXX_COMPILER})
+set(COMB_CUDA_COMPILER ${CMAKE_CUDA_COMPILER})
+
 # Configure a header file with all the variables we found.
 configure_file(${PROJECT_SOURCE_DIR}/include/config.hpp.in
   ${PROJECT_BINARY_DIR}/include/config.hpp)
