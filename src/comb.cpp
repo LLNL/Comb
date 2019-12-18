@@ -73,7 +73,7 @@ int main(int argc, char** argv)
 
     int runtime_v = -1;
     cudaCheck(cudaRuntimeGetVersion(&runtime_v));
-    fgprintf(FileGroup::all, "Cuda driver version %i\n", runtime_v);
+    fgprintf(FileGroup::all, "Cuda runtime version %i\n", runtime_v);
 
     const char* visible_devices = nullptr;
     visible_devices = getenv("CUDA_VISIBLE_DEVICES");
