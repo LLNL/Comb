@@ -64,9 +64,17 @@ int main(int argc, char** argv)
   fgprintf(FileGroup::all, "Compiler %s\n", COMB_SERIALIZE(COMB_COMPILER));
 
 #ifdef COMB_ENABLE_CUDA
-  fgprintf(FileGroup::all, "Cuda compiler %s\n", COMB_SERIALIZE(COMB_CUDA_COMPILER));
-
   {
+    fgprintf(FileGroup::all, "Cuda compiler %s\n", COMB_SERIALIZE(COMB_CUDA_COMPILER));
+
+    int driver_v = -1;
+    cudaCheck(cudaDriverGetVersion(&driver_v));
+    fgprintf(FileGroup::all, "Cuda driver version %i\n", driver_v);
+
+    int runtime_v = -1;
+    cudaCheck(cudaRuntimeGetVersion(&runtime_v));
+    fgprintf(FileGroup::all, "Cuda driver version %i\n", runtime_v);
+
     const char* visible_devices = nullptr;
     visible_devices = getenv("CUDA_VISIBLE_DEVICES");
     if (visible_devices == nullptr) {
@@ -77,9 +85,9 @@ int main(int argc, char** argv)
     cudaCheck(cudaGetDevice(&device));
 
     fgprintf(FileGroup::all, "GPU %i visible %s\n", device, visible_devices);
-  }
 
-  cudaCheck(cudaDeviceSynchronize());
+    cudaCheck(cudaDeviceSynchronize());
+  }
 #endif
 
 
