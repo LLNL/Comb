@@ -344,14 +344,12 @@ struct Comm
     }
     con_comm.connect_ranks(send_ranks, recv_ranks);
 
-    send_message_type::setup_mempool(con_comm, many_aloc, few_aloc);
-    recv_message_type::setup_mempool(con_comm, many_aloc, few_aloc);
+    con_comm.setup_mempool(many_aloc, few_aloc);
   }
 
   ~Comm()
   {
-    recv_message_type::teardown_mempool(con_comm);
-    send_message_type::teardown_mempool(con_comm);
+    con_comm.teardown_mempool();
 
     std::vector<int> send_ranks;
     std::vector<int> recv_ranks;

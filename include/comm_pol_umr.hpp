@@ -93,6 +93,17 @@ struct CommContext<umr_pol> : MPIContext
   {
     COMB::ignore_unused(comm, send_ranks, recv_ranks);
   }
+
+
+  void setup_mempool(COMB::Allocator& many_aloc,
+                     COMB::Allocator& few_aloc)
+  {
+    COMB::ignore_unused(many_aloc, few_aloc);
+  }
+
+  void teardown_mempool()
+  {
+  }
 };
 
 
@@ -113,19 +124,6 @@ struct Message<MessageBase::Kind::send, umr_pol>
 
   // use the base class constructor
   using base::base;
-
-
-  static void setup_mempool(communicator_type& con_comm,
-                            COMB::Allocator& many_aloc,
-                            COMB::Allocator& few_aloc)
-  {
-    COMB::ignore_unused(con_comm, many_aloc, few_aloc);
-  }
-
-  static void teardown_mempool(communicator_type& con_comm)
-  {
-    COMB::ignore_unused(con_comm);
-  }
 
 
   static int wait_send_any(communicator_type&,
@@ -185,19 +183,6 @@ struct Message<MessageBase::Kind::recv, umr_pol>
 
   // use the base class constructor
   using base::base;
-
-
-  static void setup_mempool(communicator_type& con_comm,
-                            COMB::Allocator& many_aloc,
-                            COMB::Allocator& few_aloc)
-  {
-    COMB::ignore_unused(con_comm, many_aloc, few_aloc);
-  }
-
-  static void teardown_mempool(communicator_type& con_comm)
-  {
-    COMB::ignore_unused(con_comm);
-  }
 
 
   static int wait_recv_any(communicator_type&,
