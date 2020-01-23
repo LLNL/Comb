@@ -23,7 +23,7 @@
 #include <exception>
 #include <stdexcept>
 #include <algorithm>
-#include <unordered_map>
+#include <unordered_set>
 #include <map>
 
 #include "for_all.hpp"
@@ -33,7 +33,11 @@
 #include "MessageBase.hpp"
 #include "ExecContext.hpp"
 
-struct MpRequest
+namespace detail {
+
+namespace mp {
+
+struct Request
 {
   int status;
   struct mp* g;
@@ -49,18 +53,18 @@ struct MpRequest
     ~context_union() {}
   } context;
 
-  MpRequest()
+  Request()
     : status(0)
     , g(nullptr)
     , partner_rank(-1)
     , context_type(ContextEnum::invalid)
     , context()
-    , completed(false)
+    , completed(true)
   {
 
   }
 
-  MpRequest(MpRequest const& other)
+  Request(Request const& other)
     : status(other.status)
     , g(other.g)
     , partner_rank(other.partner_rank)
@@ -71,7 +75,7 @@ struct MpRequest
     copy_context(other.context_type, other.context);
   }
 
-  MpRequest& operator=(MpRequest const& other)
+  Request& operator=(Request const& other)
   {
     status = other.status;
     g = other.g;
@@ -81,7 +85,7 @@ struct MpRequest
     return *this;
   }
 
-  ~MpRequest()
+  ~Request()
   {
     destroy_context();
   }
@@ -166,115 +170,7 @@ private:
   }
 };
 
-struct mp_pol {
-  // static const bool async = false;
-  static const bool mock = false;
-  // compile mpi_type packing/unpacking tests for this comm policy
-  static const bool use_mpi_type = false;
-  static const char* get_name() { return "mp"; }
-  using send_request_type = MpRequest;
-  using recv_request_type = MpRequest;
-  using send_status_type = int;
-  using recv_status_type = int;
-};
-
-template < >
-struct CommContext<mp_pol> : CudaContext
-{
-  using base = CudaContext;
-
-  using pol = mp_pol;
-
-  using send_request_type = typename pol::send_request_type;
-  using recv_request_type = typename pol::recv_request_type;
-  using send_status_type = typename pol::send_status_type;
-  using recv_status_type = typename pol::recv_status_type;
-
-  struct mp* g;
-
-  CommContext()
-    : base()
-    , g(nullptr)
-  { }
-
-  CommContext(base const& b)
-    : base(b)
-    , g(nullptr)
-  { }
-
-  CommContext(CommContext const& a_, MPI_Comm comm_)
-    : base(a_)
-    , g(detail::mp::init(comm_))
-  { }
-
-  ~CommContext()
-  {
-    if (g != nullptr) {
-      detail::mp::term(g); g = nullptr;
-    }
-  }
-
-  void ensure_waitable()
-  {
-
-  }
-
-  template < typename context >
-  void waitOn(context& con)
-  {
-    con.ensure_waitable();
-    base::waitOn(con);
-  }
-
-  send_request_type send_request_null() { return send_request_type{}; }
-  recv_request_type recv_request_null() { return recv_request_type{}; }
-  send_status_type send_status_null() { return 0; }
-  recv_status_type recv_status_null() { return 0; }
-
-
-  void connect_ranks(std::vector<int> const& send_ranks,
-                     std::vector<int> const& recv_ranks)
-  {
-    std::set<int> ranks;
-    for (int rank : send_ranks) {
-      if (ranks.find(rank) == ranks.end()) {
-        ranks.insert(rank);
-      }
-    }
-    for (int rank : recv_ranks) {
-      if (ranks.find(rank) == ranks.end()) {
-        ranks.insert(rank);
-      }
-    }
-    for (int rank : ranks) {
-      detail::mp::connect_propose(g, rank);
-    }
-    for (int rank : ranks) {
-      detail::mp::connect_accept(g, rank);
-    }
-  }
-
-  void disconnect_ranks(std::vector<int> const& send_ranks,
-                        std::vector<int> const& recv_ranks)
-  {
-    std::set<int> ranks;
-    for (int rank : send_ranks) {
-      if (ranks.find(rank) != ranks.end()) {
-        ranks.insert(rank);
-      }
-    }
-    for (int rank : recv_ranks) {
-      if (ranks.find(rank) != ranks.end()) {
-        ranks.insert(rank);
-      }
-    }
-    for (int rank : ranks) {
-      detail::mp::disconnect(g, rank);
-    }
-  }
-};
-
-struct mp_mempool
+struct mempool
 {
   struct ibv_ptr
   {
@@ -315,7 +211,7 @@ struct mp_mempool
 
         ptr = info.ptr;
       } else {
-        throw std::invalid_argument("unknown allocator passed to mp_mempool::allocate");
+        throw std::invalid_argument("unknown allocator passed to detail::mp::mempool::allocate");
       }
     }
     return ptr;
@@ -340,10 +236,10 @@ struct mp_mempool
           unused_ptrs.emplace(info.size, info);
         } else {
           // unknown or unused pointer
-          throw std::invalid_argument("unknown or unused pointer passed to mp_mempool::deallocate");
+          throw std::invalid_argument("unknown or unused pointer passed to detail::mp::mempool::deallocate");
         }
       } else {
-        throw std::invalid_argument("unknown allocator passed to mp_mempool::deallocate");
+        throw std::invalid_argument("unknown allocator passed to detail::mp::mempool::deallocate");
       }
     }
   }
@@ -409,111 +305,719 @@ private:
   std::unordered_map<COMB::Allocator*, ptr_map> m_allocators;
 };
 
+} // namespace mp
+
+} // namespace detail
+
+struct mp_pol {
+  // static const bool async = false;
+  static const bool mock = false;
+  // compile mpi_type packing/unpacking tests for this comm policy
+  static const bool use_mpi_type = false;
+  static const char* get_name() { return "mp"; }
+  using send_request_type = detail::mp::Request*;
+  using recv_request_type = detail::mp::Request*;
+  using send_status_type = int;
+  using recv_status_type = int;
+};
 
 template < >
-struct Message<mp_pol> : detail::MessageBase
+struct CommContext<mp_pol> : CudaContext
 {
-  using base = detail::MessageBase;
+  using base = CudaContext;
 
-  using policy_comm = mp_pol;
-  using communicator_type = CommContext<policy_comm>;
-  using send_request_type = typename policy_comm::send_request_type;
-  using recv_request_type = typename policy_comm::recv_request_type;
-  using send_status_type  = typename policy_comm::send_status_type;
-  using recv_status_type  = typename policy_comm::recv_status_type;
+  using pol = mp_pol;
 
-  using region_type = mp_mempool::ibv_ptr;
-  static inline mp_mempool& get_mempool()
+  using send_request_type = typename pol::send_request_type;
+  using recv_request_type = typename pol::recv_request_type;
+  using send_status_type = typename pol::send_status_type;
+  using recv_status_type = typename pol::recv_status_type;
+
+  struct mp* g;
+
+  CommContext()
+    : base()
+    , g(nullptr)
+  { }
+
+  CommContext(base const& b)
+    : base(b)
+    , g(nullptr)
+  { }
+
+  CommContext(CommContext const& a_, MPI_Comm comm_)
+    : base(a_)
+    , g(detail::mp::init(comm_))
+  { }
+
+  ~CommContext()
   {
-    static mp_mempool mempool;
+    if (g != nullptr) {
+      detail::mp::term(g); g = nullptr;
+    }
+  }
+
+  void ensure_waitable()
+  {
+
+  }
+
+  template < typename context >
+  void waitOn(context& con)
+  {
+    con.ensure_waitable();
+    base::waitOn(con);
+  }
+
+  send_request_type send_request_null() { return nullptr; }
+  recv_request_type recv_request_null() { return nullptr; }
+  send_status_type send_status_null() { return 0; }
+  recv_status_type recv_status_null() { return 0; }
+
+
+  void connect_ranks(std::vector<int> const& send_ranks,
+                     std::vector<int> const& recv_ranks)
+  {
+    std::set<int> ranks;
+    for (int rank : send_ranks) {
+      if (ranks.find(rank) == ranks.end()) {
+        ranks.insert(rank);
+      }
+    }
+    for (int rank : recv_ranks) {
+      if (ranks.find(rank) == ranks.end()) {
+        ranks.insert(rank);
+      }
+    }
+    for (int rank : ranks) {
+      detail::mp::connect_propose(g, rank);
+    }
+    for (int rank : ranks) {
+      detail::mp::connect_accept(g, rank);
+    }
+  }
+
+  void disconnect_ranks(std::vector<int> const& send_ranks,
+                        std::vector<int> const& recv_ranks)
+  {
+    std::set<int> ranks;
+    for (int rank : send_ranks) {
+      if (ranks.find(rank) != ranks.end()) {
+        ranks.insert(rank);
+      }
+    }
+    for (int rank : recv_ranks) {
+      if (ranks.find(rank) != ranks.end()) {
+        ranks.insert(rank);
+      }
+    }
+    for (int rank : ranks) {
+      detail::mp::disconnect(g, rank);
+    }
+  }
+
+
+  inline detail::mp::mempool& get_mempool()
+  {
+    static detail::mp::mempool mempool;
     return mempool;
   }
 
-  static void setup_mempool(communicator_type& con_comm,
-                            COMB::Allocator& many_aloc,
-                            COMB::Allocator& few_aloc)
+  void setup_mempool(COMB::Allocator& many_aloc,
+                     COMB::Allocator& few_aloc)
   {
-    get_mempool().add_allocator(con_comm.g, many_aloc);
-    get_mempool().add_allocator(con_comm.g, few_aloc);
+    get_mempool().add_allocator(this->g, many_aloc);
+    get_mempool().add_allocator(this->g, few_aloc);
   }
 
-  static void teardown_mempool(communicator_type& con_comm)
+  void teardown_mempool()
   {
-    get_mempool().remove_allocators(con_comm.g);
+    get_mempool().remove_allocators(this->g);
   }
 
 
-  Message(Kind _kind, int partner_rank, int tag, bool have_many)
-    : base(_kind, partner_rank, tag, have_many)
-    , m_region()
-  { }
-
-  ~Message()
-  { }
-
-
-  template < typename context >
-  void pack(context& con, communicator_type& con_comm)
+  struct message_request_type
   {
-    static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "mp_pol does not support mpi_type_pol");
-    DataT* buf = m_buf;
-    assert(buf != nullptr);
-    auto end = std::end(items);
-    for (auto i = std::begin(items); i != end; ++i) {
-      DataT const* src = i->data;
-      LidxT const* indices = i->indices;
-      IdxT len = i->size;
-      // FGPRINTF(FileGroup::proc, "%p pack %p = %p[%p] len %d\n", this, buf, src, indices, len);
-      con.for_all(0, len, make_copy_idxr_idxr(src, detail::indexer_list_idx{indices}, buf, detail::indexer_idx{}));
-      buf += len;
+    using region_type = detail::mp::mempool::ibv_ptr;
+
+    detail::MessageBase::Kind kind;
+    region_type region;
+    detail::mp::Request request;
+
+    message_request_type(detail::MessageBase::Kind kind_)
+      : kind(kind_)
+    { }
+  };
+
+  inline std::unordered_set<message_request_type*>& get_message_request_map()
+  {
+    static std::unordered_set<message_request_type*> messages;
+    return messages;
+  }
+
+  // returns when msg has completed
+  void wait_request(message_request_type* msg_request)
+  {
+    // loop over all messages to check if they are done
+    // this allows all messages to make progress
+    while (1) {
+      for (message_request_type* other_msg_request : get_message_request_map()) {
+
+        detail::MessageBase::Kind other_kind = other_msg_request->kind;
+        detail::mp::Request& other_request = other_msg_request->request;
+
+        if (!other_request.completed && other_kind == msg_request->kind) {
+          if (other_kind == detail::MessageBase::Kind::send) {
+            other_request.completed = detail::mp::is_send_complete(other_request.g, other_request.partner_rank);
+          } else if (other_kind == detail::MessageBase::Kind::recv) {
+            other_request.completed = detail::mp::is_receive_complete(other_request.g, other_request.partner_rank);
+          } else {
+            assert(0 && (other_kind == detail::MessageBase::Kind::send || other_kind == detail::MessageBase::Kind::recv));
+          }
+        }
+
+        if (other_msg_request == msg_request && other_request.completed) return;
+      }
+    }
+  }
+};
+
+
+namespace detail {
+
+template < >
+struct Message<MessageBase::Kind::send, mp_pol>
+  : MessageInterface<MessageBase::Kind::send, mp_pol>
+{
+  using base = MessageInterface<MessageBase::Kind::send, mp_pol>;
+
+  using policy_comm = typename base::policy_comm;
+  using communicator_type = typename base::communicator_type;
+  using request_type      = typename base::request_type;
+  using status_type       = typename base::status_type;
+
+  // use the base class constructor
+  using base::base;
+
+
+  static int test_send_any(communicator_type& con_comm,
+                           int count, request_type* requests,
+                           status_type* statuses)
+  {
+    for (int i = 0; i < count; ++i) {
+      int status = handle_send_request(con_comm, requests[i]);
+      if (status == 3) {
+        statuses[i] = 1;
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  static int wait_send_any(communicator_type& con_comm,
+                           int count, request_type* requests,
+                           status_type* statuses)
+  {
+    int ready = -1;
+    do {
+      ready = test_send_any(con_comm, count, requests, statuses);
+    } while (ready == -1);
+    return ready;
+  }
+
+  static int test_send_some(communicator_type& con_comm,
+                            int count, request_type* requests,
+                            int* indices, status_type* statuses)
+  {
+    int done = 0;
+    if (count > 0) {
+      bool new_requests = (requests[0]->status == 1);
+      if (new_requests) {
+        // detail::mp::cork(con_comm.g);
+      }
+      for (int i = 0; i < count; ++i) {
+        int status = handle_send_request(con_comm, requests[i]);
+        if (status == 3) {
+          statuses[i] = 1;
+          indices[done++] = i;
+        }
+      }
+      if (new_requests) {
+        // detail::mp::uncork(con_comm.g, con_comm.stream_launch());
+      }
+    }
+    return done;
+  }
+
+  static int wait_send_some(communicator_type& con_comm,
+                            int count, request_type* requests,
+                            int* indices, status_type* statuses)
+  {
+    int done = 0;
+    do {
+      done = test_send_some(con_comm, count, requests, indices, statuses);
+    } while (done == 0);
+    return done;
+  }
+
+  static bool test_send_all(communicator_type& con_comm,
+                            int count, request_type* requests,
+                            status_type* statuses)
+  {
+    int done = 0;
+    if (count > 0) {
+      bool new_requests = (requests[0]->status == 1);
+      if (new_requests) {
+        // detail::mp::cork(con_comm.g);
+      }
+      for (int i = 0; i < count; ++i) {
+        int status = handle_send_request(con_comm, requests[i]);
+        if (status == 3) {
+          statuses[i] = 1;
+        }
+        if (status == 3 || status == 4) {
+          done++;
+        }
+      }
+      if (new_requests) {
+        // detail::mp::uncork(con_comm.g, con_comm.stream_launch());
+      }
+    }
+    return done == count;
+  }
+
+  static void wait_send_all(communicator_type& con_comm,
+                            int count, request_type* requests,
+                            status_type* statuses)
+  {
+    bool done = false;
+    do {
+      done = test_send_all(con_comm, count, requests, statuses);
+    } while (!done);
+  }
+
+private:
+  static bool start_wait_send(communicator_type&,
+                              request_type& request)
+  {
+    assert(!request->completed);
+    bool done = false;
+    if (request->context_type == ContextEnum::cuda) {
+      detail::mp::stream_wait_send_complete(request->g, request->partner_rank, request->context.cuda.stream_launch());
+      done = true;
+    } else if (request->context_type == ContextEnum::cpu) {
+      detail::mp::cpu_ack_isend(request->g, request->partner_rank);
+    } else {
+      assert(0 && (request->context_type == ContextEnum::cuda || request->context_type == ContextEnum::cpu));
+    }
+    return done;
+  }
+
+  static bool test_waiting_send(communicator_type&,
+                                request_type& request)
+  {
+    assert(!request->completed);
+    bool done = false;
+    if (request->context_type == ContextEnum::cuda) {
+      done = detail::mp::is_send_complete(request->g, request->partner_rank);
+      request->completed = done;
+      // do one test to get things moving, then allow something else to be enqueued
+      done = true;
+    } else if (request->context_type == ContextEnum::cpu) {
+      done = detail::mp::is_send_complete(request->g, request->partner_rank);
+      request->completed = done;
+    } else {
+      assert(0 && (request->context_type == ContextEnum::cuda || request->context_type == ContextEnum::cpu));
+    }
+    return done;
+  }
+
+  // possible status values
+  // 0 - not ready to wait, not sent
+  // 1 - ready to wait, first wait
+  // 2 - ready to wait, waited before
+  // 3 - ready, first ready
+  // 4 - ready, ready before
+  static int handle_send_request(communicator_type& con_comm,
+                                 request_type& request)
+  {
+    if (request->status == 0) {
+      // not sent
+      assert(0 && (request->status != 0));
+    } else if (request->status == 1) {
+      // sent, start waiting
+      if (start_wait_send(con_comm, request)) {
+        // done
+        request->status = 3;
+      } else {
+        // wait again later
+        request->status = 2;
+      }
+    } else if (request->status == 2) {
+      // still waiting, keep waiting
+      if (test_waiting_send(con_comm, request)) {
+        // done
+        request->status = 3;
+      }
+    } else if (request->status == 3) {
+      // already done
+      request->status = 4;
+    } else if (request->status == 4) {
+      // still done
+    } else {
+      assert(0 && (0 <= request->status && request->status <= 4));
+    }
+    return request->status;
+  }
+};
+
+
+template < >
+struct Message<MessageBase::Kind::recv, mp_pol>
+  : MessageInterface<MessageBase::Kind::recv, mp_pol>
+{
+  using base = MessageInterface<MessageBase::Kind::recv, mp_pol>;
+
+  using policy_comm = typename base::policy_comm;
+  using communicator_type = typename base::communicator_type;
+  using request_type      = typename base::request_type;
+  using status_type       = typename base::status_type;
+
+  // use the base class constructor
+  using base::base;
+
+
+  static int test_recv_any(communicator_type& con_comm,
+                           int count, request_type* requests,
+                           status_type* statuses)
+  {
+    for (int i = 0; i < count; ++i) {
+      int status = handle_recv_request(con_comm, requests[i]);
+      if (status == -3) {
+        statuses[i] = 1;
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  static int wait_recv_any(communicator_type& con_comm,
+                           int count, request_type* requests,
+                           status_type* statuses)
+  {
+    int ready = -1;
+    do {
+      ready = test_recv_any(con_comm, count, requests, statuses);
+    } while (ready == -1);
+    return ready;
+  }
+
+  static int test_recv_some(communicator_type& con_comm,
+                            int count, request_type* requests,
+                            int* indices, status_type* statuses)
+  {
+    int done = 0;
+    if (count > 0) {
+      bool new_requests = (requests[0]->status == -1);
+      if (new_requests) {
+        // detail::mp::cork(con_comm.g);
+      }
+      for (int i = 0; i < count; ++i) {
+        int status = handle_recv_request(con_comm, requests[i]);
+        if (status == -3) {
+          statuses[i] = 1;
+          indices[done++] = i;
+        }
+      }
+      if (new_requests) {
+        // detail::mp::uncork(con_comm.g, con_comm.stream_launch());
+      }
+    }
+    return done;
+  }
+
+  static int wait_recv_some(communicator_type& con_comm,
+                            int count, request_type* requests,
+                            int* indices, status_type* statuses)
+  {
+    int done = 0;
+    do {
+      done = test_recv_some(con_comm, count, requests, indices, statuses);
+    } while (done == 0);
+    return done;
+  }
+
+  static bool test_recv_all(communicator_type& con_comm,
+                            int count, request_type* requests,
+                            status_type* statuses)
+  {
+    int done = 0;
+    if (count > 0) {
+      bool new_requests = (requests[0]->status == -1);
+      if (new_requests) {
+        // detail::mp::cork(con_comm.g);
+      }
+      for (int i = 0; i < count; ++i) {
+        int status = handle_recv_request(con_comm, requests[i]);
+        if (status == -3) {
+          statuses[i] = 1;
+        }
+        if (status == -3 || status == -4) {
+          done++;
+        }
+      }
+      if (new_requests) {
+        // detail::mp::uncork(con_comm.g, con_comm.stream_launch());
+      }
+    }
+    return done == count;
+  }
+
+  static void wait_recv_all(communicator_type& con_comm,
+                            int count, request_type* requests,
+                            status_type* statuses)
+  {
+    bool done = false;
+    do {
+      done = test_recv_all(con_comm, count, requests, statuses);
+    } while (!done);
+  }
+
+private:
+  static bool start_wait_recv(communicator_type&,
+                              request_type& request)
+  {
+    assert(!request->completed);
+    bool done = false;
+    if (request->context_type == ContextEnum::cuda) {
+      detail::mp::stream_wait_recv_complete(request->g, request->partner_rank, request->context.cuda.stream_launch());
+      done = true;
+    } else if (request->context_type == ContextEnum::cpu) {
+      detail::mp::cpu_ack_recv(request->g, request->partner_rank);
+    } else {
+      assert(0 && (request->context_type == ContextEnum::cuda || request->context_type == ContextEnum::cpu));
+    }
+    return done;
+  }
+
+  static bool test_waiting_recv(communicator_type&,
+                                request_type& request)
+  {
+    assert(!request->completed);
+    bool done = false;
+    if (request->context_type == ContextEnum::cuda) {
+      done = detail::mp::is_receive_complete(request->g, request->partner_rank);
+      request->completed = done;
+      // do one test to get things moving, then allow the packs to be enqueued
+      done = true;
+    } else if (request->context_type == ContextEnum::cpu) {
+      done = detail::mp::is_receive_complete(request->g, request->partner_rank);
+      request->completed = done;
+    } else {
+      assert(0 && (request->context_type == ContextEnum::cuda || request->context_type == ContextEnum::cpu));
+    }
+    return done;
+  }
+
+  // possible status values
+  //  0 - not ready to wait, not received
+  // -1 - ready to wait, first wait
+  // -2 - ready to wait, waited before
+  // -3 - ready, first ready
+  // -4 - ready, ready before
+  static int handle_recv_request(communicator_type& con_comm,
+                                 request_type& request)
+  {
+    if (request->status == 0) {
+      // not received
+      assert(0 && (request->status != 0));
+    } else if (request->status == -1) {
+      // received, start waiting
+      if (start_wait_recv(con_comm, request)) {
+        // done
+        request->status = -3;
+      } else {
+        // wait again later
+        request->status = -2;
+      }
+    } else if (request->status == -2) {
+      // still waiting, keep waiting
+      if (test_waiting_recv(con_comm, request)) {
+        // done
+        request->status = -3;
+      }
+    } else if (request->status == -3) {
+      // already done
+      request->status = -4;
+    } else if (request->status == -4) {
+      // still done
+    } else {
+      assert(0 && (-4 <= request->status && request->status <= 0));
+    }
+    return request->status;
+  }
+};
+
+
+template < typename exec_policy >
+struct MessageGroup<MessageBase::Kind::send, mp_pol, exec_policy>
+  : detail::MessageGroupInterface<MessageBase::Kind::send, mp_pol, exec_policy>
+{
+  using base = detail::MessageGroupInterface<MessageBase::Kind::send, mp_pol, exec_policy>;
+
+  using policy_comm       = typename base::policy_comm;
+  using communicator_type = typename base::communicator_type;
+  using message_type      = typename base::message_type;
+  using request_type      = typename base::request_type;
+  using status_type       = typename base::status_type;
+
+  using message_item_type = typename base::message_item_type;
+  using context_type      = typename base::context_type;
+  using event_type        = typename base::event_type;
+  using group_type        = typename base::group_type;
+  using component_type    = typename base::component_type;
+
+  using message_request_type = typename communicator_type::message_request_type;
+  using region_type = typename message_request_type::region_type;
+
+  std::vector<message_request_type> m_msg_requests;
+
+  // use the base class constructor
+  using base::base;
+
+
+  void finalize()
+  {
+    // call base finalize
+    base::finalize();
+
+    // allocate m_msg_requests
+    m_msg_requests.resize(this->messages.size(), message_request_type{MessageBase::Kind::send});
+  }
+
+
+  void allocate(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len)
+  {
+    COMB::ignore_unused(con, con_comm);
+    if (len <= 0) return;
+    for (IdxT i = 0; i < len; ++i) {
+      message_type* msg = msgs[i];
+      assert(msg->buf == nullptr);
+
+      IdxT nbytes = msg->nbytes() * this->m_variables.size();
+
+      message_request_type& msg_request = m_msg_requests[msg->idx];
+      msg_request.region = con_comm.get_mempool().allocate(con_comm.g, this->m_aloc, nbytes);
+      msg->buf = msg_request.region.ptr;
+      con_comm.get_message_request_map().emplace(&msg_request);
     }
   }
 
-  template < typename context >
-  void unpack(context& con, communicator_type& con_comm)
+  void pack(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async async)
   {
-    static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "mp_pol does not support mpi_type_pol");
-    DataT const* buf = m_buf;
-    assert(buf != nullptr);
-    auto end = std::end(items);
-    for (auto i = std::begin(items); i != end; ++i) {
-      DataT* dst = i->data;
-      LidxT const* indices = i->indices;
-      IdxT len = i->size;
-      // FGPRINTF(FileGroup::proc, "%p unpack %p[%p] = %p len %d\n", this, dst, indices, buf, len);
-      con.for_all(0, len, make_copy_idxr_idxr(buf, detail::indexer_idx{}, dst, detail::indexer_list_idx{indices}));
-      buf += len;
+    COMB::ignore_unused(con_comm);
+    if (len <= 0) return;
+    con.start_group(this->m_groups[len-1]);
+    for (IdxT i = 0; i < len; ++i) {
+      const message_type* msg = msgs[i];
+      char* buf = static_cast<char*>(msg->buf);
+      assert(buf != nullptr);
+      this->m_contexts[msg->idx].start_component(this->m_groups[len-1], this->m_components[msg->idx]);
+      for (const MessageItemBase* msg_item : msg->message_items) {
+        const message_item_type* item = static_cast<const message_item_type*>(msg_item);
+        const IdxT len = item->size;
+        const IdxT nbytes = item->nbytes;
+        LidxT const* indices = item->indices;
+        for (DataT const* src : this->m_variables) {
+          // FGPRINTF(FileGroup::proc, "%p pack %p = %p[%p] len %d\n", this, buf, src, indices, len);
+          this->m_contexts[msg->idx].for_all(0, len, make_copy_idxr_idxr(src, detail::indexer_list_idx{indices},
+                                             static_cast<DataT*>(static_cast<void*>(buf)), detail::indexer_idx{}));
+          buf += nbytes;
+        }
+      }
+      if (async == detail::Async::no) {
+        this->m_contexts[msg->idx].finish_component(this->m_groups[len-1], this->m_components[msg->idx]);
+      } else {
+        this->m_contexts[msg->idx].finish_component_recordEvent(this->m_groups[len-1], this->m_components[msg->idx], this->m_events[msg->idx]);
+      }
+    }
+    con.finish_group(this->m_groups[len-1]);
+  }
+
+  IdxT wait_pack_complete(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async async)
+  {
+    // FGPRINTF(FileGroup::proc, "wait_pack_complete\n");
+
+    // mp isends use message packing context and don't need synchronization
+    COMB::ignore_unused(con, con_comm, msgs, async);
+    return len;
+  }
+
+  static void start_Isends(context_type& con, communicator_type& con_comm)
+  {
+    // FGPRINTF(FileGroup::proc, "start_Isends\n");
+    cork_Isends(con, con_comm);
+  }
+
+  void Isend(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, request_type* requests)
+  {
+    if (len <= 0) return;
+    start_Isends(con, con_comm);
+    for (IdxT i = 0; i < len; ++i) {
+      const message_type* msg = msgs[i];
+      char* buf = static_cast<char*>(msg->buf);
+      assert(buf != nullptr);
+      const int partner_rank = msg->partner_rank;
+      // const int tag = msg->msg_tag;
+      const IdxT nbytes = msg->nbytes() * this->m_variables.size();
+
+      // FGPRINTF(FileGroup::proc, "%p Isend %p nbytes %d to %i tag %i\n", this, buf, nbytes, partner_rank, tag);
+      message_request_type& msg_request = m_msg_requests[msg->idx];
+      start_Isend(con, con_comm, partner_rank, nbytes, msg_request);
+      msg_request.request.status = 1;
+      msg_request.request.g = con_comm.g;
+      msg_request.request.partner_rank = partner_rank;
+      msg_request.request.setContext(con);
+      msg_request.request.completed = false;
+      requests[i] = &msg_request.request;
+    }
+    finish_Isends(con, con_comm);
+  }
+
+  static void finish_Isends(context_type& con, communicator_type& con_comm)
+  {
+    // FGPRINTF(FileGroup::proc, "finish_Isends\n");
+    uncork_Isends(con, con_comm);
+  }
+
+  void deallocate(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len)
+  {
+    COMB::ignore_unused(con, con_comm);
+    if (len <= 0) return;
+    for (IdxT i = 0; i < len; ++i) {
+      message_type* msg = msgs[i];
+      assert(msg->buf != nullptr);
+
+      message_request_type& msg_request = m_msg_requests[msg->idx];
+      finish_send(con_comm, msg_request);
+      con_comm.get_mempool().deallocate(con_comm.g, this->m_aloc, msg_request.region);
+      msg_request.region = region_type{};
+      msg->buf = nullptr;
+      con_comm.get_message_request_map().erase(&msg_request);
     }
   }
 
 private:
-  void start_Isend(CPUContext const&, communicator_type& con_comm)
+  void start_Isend(CPUContext const&, communicator_type& con_comm, int partner_rank, IdxT nbytes, message_request_type& msg_request)
   {
-    detail::mp::isend(con_comm.g, partner_rank(), m_region.mr, m_region.offset, nbytes());
+    detail::mp::isend(con_comm.g, partner_rank, msg_request.region.mr, msg_request.region.offset, nbytes);
   }
 
-  void start_Isend(CudaContext const& con, communicator_type& con_comm)
+  void start_Isend(CudaContext const& con, communicator_type& con_comm, int partner_rank, IdxT nbytes, message_request_type& msg_request)
   {
-    detail::mp::stream_send(con_comm.g, partner_rank(), con.stream_launch(), m_region.mr, m_region.offset, nbytes());
+    detail::mp::stream_send(con_comm.g, partner_rank, con.stream_launch(), msg_request.region.mr, msg_request.region.offset, nbytes);
   }
 
-public:
-  template < typename context >
-  void Isend(context& con, communicator_type& con_comm, send_request_type* request)
-  {
-    static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "mp_pol does not support mpi_type_pol");
-    // FGPRINTF(FileGroup::proc, "%p Isend %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
-
-    start_Isend(con, con_comm);
-    request->status = 1;
-    request->g = con_comm.g;
-    request->partner_rank = partner_rank();
-    request->setContext(con);
-    request->completed = false;
-    m_send_request = request;
-  }
-
-private:
   static void cork_Isends(CPUContext const&, communicator_type& con_comm)
   {
     COMB::ignore_unused(con_comm);
@@ -529,451 +1033,171 @@ private:
     COMB::ignore_unused(con_comm);
   }
 
-  static void uncork_Isends(CudaContext const& con, communicator_type& con_comm)
+  static void uncork_Isends(CudaContext const&, communicator_type& con_comm)
   {
-    detail::mp::uncork(con_comm.g, con.stream_launch());
+    detail::mp::uncork(con_comm.g, con_comm.stream_launch());
   }
 
-public:
-  template < typename context >
-  static void wait_pack_complete(context& con, communicator_type& con_comm)
+  void finish_send(communicator_type& con_comm, message_request_type& msg_request)
   {
-    static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "mp_pol does not support mpi_type_pol");
-    // FGPRINTF(FileGroup::proc, "wait_pack_complete\n");
+    if (!msg_request.request.completed) {
+      msg_request.request.completed = detail::mp::is_send_complete(msg_request.request.g, msg_request.request.partner_rank);
 
-    // mp isends use message packing context and don't need synchronization
-    COMB::ignore_unused(con, con_comm);
-  }
-
-  template < typename context >
-  static void start_Isends(context& con, communicator_type& con_comm)
-  {
-    static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "mp_pol does not support mpi_type_pol");
-    // FGPRINTF(FileGroup::proc, "start_Isends\n");
-
-    cork_Isends(con, con_comm);
-  }
-
-  template < typename context >
-  static void finish_Isends(context& con, communicator_type& con_comm)
-  {
-    static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "mp_pol does not support mpi_type_pol");
-    // FGPRINTF(FileGroup::proc, "finish_Isends\n");
-
-    uncork_Isends(con, con_comm);
-  }
-
-  template < typename context >
-  void Irecv(context& con, communicator_type& con_comm, recv_request_type* request)
-  {
-    static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "mp_pol does not support mpi_type_pol");
-    // FGPRINTF(FileGroup::proc, "%p Irecv %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
-
-    detail::mp::receive(con_comm.g, partner_rank(), m_region.mr, m_region.offset, nbytes());
-    request->status = -1;
-    request->g = con_comm.g;
-    request->partner_rank = partner_rank();
-    request->setContext(con);
-    request->completed = false;
-    m_recv_request = request;
-  }
-
-
-  template < typename context >
-  void allocate(context&, communicator_type& con_comm, COMB::Allocator& buf_aloc)
-  {
-    static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "mp_pol does not support mpi_type_pol");
-    if (m_buf == nullptr) {
-      m_region = get_mempool().allocate(con_comm.g, buf_aloc, nbytes());
-      m_buf = (DataT*)m_region.ptr;
-    }
-  }
-
-  template < typename context >
-  void deallocate(context& con, communicator_type& con_comm, COMB::Allocator& buf_aloc)
-  {
-    static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "mp_pol does not support mpi_type_pol");
-    if (m_buf != nullptr) {
-
-      if (m_send_request) {
-        finish_send(con_comm, *m_send_request);
-        m_send_request = nullptr;
-      }
-      if (m_recv_request) {
-        finish_recv(con_comm, *m_recv_request);
-        m_recv_request = nullptr;
-      }
-      get_mempool().deallocate(con_comm.g, buf_aloc, m_region);
-      m_region = region_type{};
-      m_buf = nullptr;
-    }
-  }
-
-
-private:
-  static bool start_wait_send(communicator_type&,
-                              send_request_type& request)
-  {
-    assert(!request.completed);
-    bool done = false;
-    if (request.context_type == ContextEnum::cuda) {
-      detail::mp::stream_wait_send_complete(request.g, request.partner_rank, request.context.cuda.stream_launch());
-    } else if (request.context_type == ContextEnum::cpu) {
-      detail::mp::cpu_ack_isend(request.g, request.partner_rank);
-    } else {
-      assert(0 && (request.context_type == ContextEnum::cuda || request.context_type == ContextEnum::cpu));
-    }
-    return done;
-  }
-
-  static bool test_waiting_send(communicator_type&,
-                                send_request_type& request)
-  {
-    assert(!request.completed);
-    bool done = false;
-    if (request.context_type == ContextEnum::cuda) {
-      done = detail::mp::is_send_complete(request.g, request.partner_rank);
-      request.completed = done;
-      // do one test to get things moving, then allow something else to be enqueued
-      done = true;
-    } else if (request.context_type == ContextEnum::cpu) {
-      done = detail::mp::is_send_complete(request.g, request.partner_rank);
-      request.completed = done;
-    } else {
-      assert(0 && (request.context_type == ContextEnum::cuda || request.context_type == ContextEnum::cpu));
-    }
-    return done;
-  }
-
-  static void finish_send(communicator_type&,
-                          send_request_type& request)
-  {
-    if (!request.completed) {
-      detail::mp::wait_send_complete(request.g, request.partner_rank);
-      request.completed = true;
-    }
-  }
-
-  // possible status values
-  // 0 - not ready to wait, not sent
-  // 1 - ready to wait, first wait
-  // 2 - ready to wait, waited before
-  // 3 - ready, first ready
-  // 4 - ready, ready before
-  static int handle_send_request(communicator_type& con_comm,
-                                 send_request_type& request)
-  {
-    if (request.status == 0) {
-      // not sent
-      assert(0 && (request.status != 0));
-    } else if (request.status == 1) {
-      // sent, start waiting
-      if (start_wait_send(con_comm, request)) {
-        // done
-        request.status = 3;
-      } else {
-        // wait again later
-        request.status = 2;
-      }
-    } else if (request.status == 2) {
-      // still waiting, keep waiting
-      if (test_waiting_send(con_comm, request)) {
-        // done
-        request.status = 3;
-      }
-    } else if (request.status == 3) {
-      // already done
-      request.status = 4;
-    } else if (request.status == 4) {
-      // still done
-    } else {
-      assert(0 && (0 <= request.status && request.status <= 4));
-    }
-    return request.status;
-  }
-
-public:
-  static int test_send_any(communicator_type& con_comm,
-                           int count, send_request_type* requests,
-                           send_status_type* statuses)
-  {
-    for (int i = 0; i < count; ++i) {
-      int status = handle_send_request(con_comm, requests[i]);
-      if (status == 3) {
-        statuses[i] = 1;
-        return i;
+      if (!msg_request.request.completed) {
+        con_comm.wait_request(&msg_request);
       }
     }
-    return -1;
   }
-
-  static int wait_send_any(communicator_type& con_comm,
-                           int count, send_request_type* requests,
-                           send_status_type* statuses)
-  {
-    int ready = -1;
-    do {
-      ready = test_send_any(con_comm, count, requests, statuses);
-    } while (ready == -1);
-    return ready;
-  }
-
-  static int test_send_some(communicator_type& con_comm,
-                            int count, send_request_type* requests,
-                            int* indices, send_status_type* statuses)
-  {
-    int done = 0;
-    if (count > 0) {
-      bool new_requests = (requests[0].status == 1);
-      if (new_requests) {
-        detail::mp::cork(con_comm.g);
-      }
-      for (int i = 0; i < count; ++i) {
-        int status = handle_send_request(con_comm, requests[i]);
-        if (status == 3) {
-          statuses[i] = 1;
-          indices[done++] = i;
-        }
-      }
-      if (new_requests) {
-        detail::mp::uncork(con_comm.g, con_comm.stream_launch());
-      }
-    }
-    return done;
-  }
-
-  static int wait_send_some(communicator_type& con_comm,
-                            int count, send_request_type* requests,
-                            int* indices, send_status_type* statuses)
-  {
-    int done = 0;
-    do {
-      done = test_send_some(con_comm, count, requests, indices, statuses);
-    } while (done == 0);
-    return done;
-  }
-
-  static bool test_send_all(communicator_type& con_comm,
-                            int count, send_request_type* requests,
-                            send_status_type* statuses)
-  {
-    int done = 0;
-    if (count > 0) {
-      bool new_requests = (requests[0].status == 1);
-      if (new_requests) {
-        detail::mp::cork(con_comm.g);
-      }
-      for (int i = 0; i < count; ++i) {
-        int status = handle_send_request(con_comm, requests[i]);
-        if (status == 3) {
-          statuses[i] = 1;
-        }
-        if (status == 3 || status == 4) {
-          done++;
-        }
-      }
-      if (new_requests) {
-        detail::mp::uncork(con_comm.g, con_comm.stream_launch());
-      }
-    }
-    return done == count;
-  }
-
-  static void wait_send_all(communicator_type& con_comm,
-                            int count, send_request_type* requests,
-                            send_status_type* statuses)
-  {
-    bool done = false;
-    do {
-      done = test_send_all(con_comm, count, requests, statuses);
-    } while (!done);
-  }
-
-
-private:
-  static bool start_wait_recv(communicator_type&,
-                              recv_request_type& request)
-  {
-    assert(!request.completed);
-    bool done = false;
-    if (request.context_type == ContextEnum::cuda) {
-      detail::mp::stream_wait_recv_complete(request.g, request.partner_rank, request.context.cuda.stream_launch());
-    } else if (request.context_type == ContextEnum::cpu) {
-      detail::mp::cpu_ack_recv(request.g, request.partner_rank);
-    } else {
-      assert(0 && (request.context_type == ContextEnum::cuda || request.context_type == ContextEnum::cpu));
-    }
-    return done;
-  }
-
-  static bool test_waiting_recv(communicator_type&,
-                                recv_request_type& request)
-  {
-    assert(!request.completed);
-    bool done = false;
-    if (request.context_type == ContextEnum::cuda) {
-      done = detail::mp::is_receive_complete(request.g, request.partner_rank);
-      request.completed = done;
-      // do one test to get things moving, then allow the packs to be enqueued
-      done = true;
-    } else if (request.context_type == ContextEnum::cpu) {
-      done = detail::mp::is_receive_complete(request.g, request.partner_rank);
-      request.completed = done;
-    } else {
-      assert(0 && (request.context_type == ContextEnum::cuda || request.context_type == ContextEnum::cpu));
-    }
-    return done;
-  }
-
-  static void finish_recv(communicator_type&,
-                          recv_request_type& request)
-  {
-    if (!request.completed) {
-      detail::mp::wait_receive_complete(request.g, request.partner_rank);
-      request.completed = true;
-    }
-  }
-
-  // possible status values
-  //  0 - not ready to wait, not received
-  // -1 - ready to wait, first wait
-  // -2 - ready to wait, waited before
-  // -3 - ready, first ready
-  // -4 - ready, ready before
-  static int handle_recv_request(communicator_type& con_comm,
-                                 recv_request_type& request)
-  {
-    if (request.status == 0) {
-      // not received
-      assert(0 && (request.status != 0));
-    } else if (request.status == -1) {
-      // received, start waiting
-      if (start_wait_recv(con_comm, request)) {
-        // done
-        request.status = -3;
-      } else {
-        // wait again later
-        request.status = -2;
-      }
-    } else if (request.status == -2) {
-      // still waiting, keep waiting
-      if (test_waiting_recv(con_comm, request)) {
-        // done
-        request.status = -3;
-      }
-    } else if (request.status == -3) {
-      // already done
-      request.status = -4;
-    } else if (request.status == -4) {
-      // still done
-    } else {
-      assert(0 && (-4 <= request.status && request.status <= 0));
-    }
-    return request.status;
-  }
-
-public:
-  static int test_recv_any(communicator_type& con_comm,
-                           int count, recv_request_type* requests,
-                           recv_status_type* statuses)
-  {
-    for (int i = 0; i < count; ++i) {
-      int status = handle_recv_request(con_comm, requests[i]);
-      if (status == -3) {
-        statuses[i] = 1;
-        return i;
-      }
-    }
-    return -1;
-  }
-
-  static int wait_recv_any(communicator_type& con_comm,
-                           int count, recv_request_type* requests,
-                           recv_status_type* statuses)
-  {
-    int ready = -1;
-    do {
-      ready = test_recv_any(con_comm, count, requests, statuses);
-    } while (ready == -1);
-    return ready;
-  }
-
-  static int test_recv_some(communicator_type& con_comm,
-                            int count, recv_request_type* requests,
-                            int* indices, recv_status_type* statuses)
-  {
-    int done = 0;
-    if (count > 0) {
-      bool new_requests = (requests[0].status == -1);
-      if (new_requests) {
-        detail::mp::cork(con_comm.g);
-      }
-      for (int i = 0; i < count; ++i) {
-        int status = handle_recv_request(con_comm, requests[i]);
-        if (status == -3) {
-          statuses[i] = 1;
-          indices[done++] = i;
-        }
-      }
-      if (new_requests) {
-        detail::mp::uncork(con_comm.g, con_comm.stream_launch());
-      }
-    }
-    return done;
-  }
-
-  static int wait_recv_some(communicator_type& con_comm,
-                            int count, recv_request_type* requests,
-                            int* indices, recv_status_type* statuses)
-  {
-    int done = 0;
-    do {
-      done = test_recv_some(con_comm, count, requests, indices, statuses);
-    } while (done == 0);
-    return done;
-  }
-
-  static bool test_recv_all(communicator_type& con_comm,
-                            int count, recv_request_type* requests,
-                            recv_status_type* statuses)
-  {
-    int done = 0;
-    if (count > 0) {
-      bool new_requests = (requests[0].status == -1);
-      if (new_requests) {
-        detail::mp::cork(con_comm.g);
-      }
-      for (int i = 0; i < count; ++i) {
-        int status = handle_recv_request(con_comm, requests[i]);
-        if (status == -3) {
-          statuses[i] = 1;
-        }
-        if (status == -3 || status == -4) {
-          done++;
-        }
-      }
-      if (new_requests) {
-        detail::mp::uncork(con_comm.g, con_comm.stream_launch());
-      }
-    }
-    return done == count;
-  }
-
-  static void wait_recv_all(communicator_type& con_comm,
-                            int count, recv_request_type* requests,
-                            recv_status_type* statuses)
-  {
-    bool done = false;
-    do {
-      done = test_recv_all(con_comm, count, requests, statuses);
-    } while (!done);
-  }
-
-private:
-  region_type m_region;
-  send_request_type* m_send_request = nullptr;
-  recv_request_type* m_recv_request = nullptr;
 };
+
+template < typename exec_policy >
+struct MessageGroup<MessageBase::Kind::recv, mp_pol, exec_policy>
+  : detail::MessageGroupInterface<MessageBase::Kind::recv, mp_pol, exec_policy>
+{
+  using base = detail::MessageGroupInterface<MessageBase::Kind::recv, mp_pol, exec_policy>;
+
+  using policy_comm       = typename base::policy_comm;
+  using communicator_type = typename base::communicator_type;
+  using message_type      = typename base::message_type;
+  using request_type      = typename base::request_type;
+  using status_type       = typename base::status_type;
+
+  using message_item_type = typename base::message_item_type;
+  using context_type      = typename base::context_type;
+  using event_type        = typename base::event_type;
+  using group_type        = typename base::group_type;
+  using component_type    = typename base::component_type;
+
+  using message_request_type = typename communicator_type::message_request_type;
+  using region_type = typename message_request_type::region_type;
+
+  std::vector<message_request_type> m_msg_requests;
+
+  // use the base class constructor
+  using base::base;
+
+
+  void finalize()
+  {
+    // call base finalize
+    base::finalize();
+
+    // allocate m_msg_requests
+    m_msg_requests.resize(this->messages.size(), message_request_type{MessageBase::Kind::recv});
+  }
+
+
+  void allocate(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len)
+  {
+    COMB::ignore_unused(con, con_comm);
+    if (len <= 0) return;
+    for (IdxT i = 0; i < len; ++i) {
+      message_type* msg = msgs[i];
+      assert(msg->buf == nullptr);
+
+      IdxT nbytes = msg->nbytes() * this->m_variables.size();
+
+      message_request_type& msg_request = m_msg_requests[msg->idx];
+      msg_request.region = con_comm.get_mempool().allocate(con_comm.g, this->m_aloc, nbytes);
+      msg->buf = msg_request.region.ptr;
+      con_comm.get_message_request_map().emplace(&msg_request);
+    }
+  }
+
+  void Irecv(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, request_type* requests)
+  {
+    COMB::ignore_unused(con, con_comm);
+    if (len <= 0) return;
+    for (IdxT i = 0; i < len; ++i) {
+      const message_type* msg = msgs[i];
+      char* buf = static_cast<char*>(msg->buf);
+      assert(buf != nullptr);
+      const int partner_rank = msg->partner_rank;
+      // const int tag = msg->msg_tag;
+      const IdxT nbytes = msg->nbytes() * this->m_variables.size();
+      // FGPRINTF(FileGroup::proc, "%p Irecv %p nbytes %d to %i tag %i\n", this, buf, nbytes, partner_rank, tag);
+      message_request_type& msg_request = m_msg_requests[msg->idx];
+      detail::mp::receive(con_comm.g, partner_rank, msg_request.region.mr, msg_request.region.offset, nbytes);
+      msg_request.request.status = -1;
+      msg_request.request.g = con_comm.g;
+      msg_request.request.partner_rank = partner_rank;
+      msg_request.request.setContext(con);
+      msg_request.request.completed = false;
+      requests[i] = &msg_request.request;
+    }
+  }
+
+  void unpack(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len)
+  {
+    COMB::ignore_unused(con_comm);
+    if (len <= 0) return;
+    con.start_group(this->m_groups[len-1]);
+    for (IdxT i = 0; i < len; ++i) {
+      const message_type* msg = msgs[i];
+      char* buf = static_cast<char*>(msg->buf);
+      assert(buf != nullptr);
+      this->m_contexts[msg->idx].start_component(this->m_groups[len-1], this->m_components[msg->idx]);
+      for (const MessageItemBase* msg_item : msg->message_items) {
+        const message_item_type* item = static_cast<const message_item_type*>(msg_item);
+        const IdxT len = item->size;
+        const IdxT nbytes = item->nbytes;
+        LidxT const* indices = item->indices;
+        for (DataT* dst : this->m_variables) {
+          // FGPRINTF(FileGroup::proc, "%p unpack %p[%p] = %p len %d\n", this, dst, indices, buf, len);
+          this->m_contexts[msg->idx].for_all(0, len, make_copy_idxr_idxr(static_cast<DataT*>(static_cast<void*>(buf)), detail::indexer_idx{},
+                                             dst, detail::indexer_list_idx{indices}));
+          buf += nbytes;
+        }
+      }
+      this->m_contexts[msg->idx].finish_component(this->m_groups[len-1], this->m_components[msg->idx]);
+    }
+    con.finish_group(this->m_groups[len-1]);
+  }
+
+  void deallocate(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len)
+  {
+    COMB::ignore_unused(con, con_comm);
+    if (len <= 0) return;
+    for (IdxT i = 0; i < len; ++i) {
+      message_type* msg = msgs[i];
+      assert(msg->buf != nullptr);
+
+      message_request_type& msg_request = m_msg_requests[msg->idx];
+      finish_recv(con_comm, msg_request);
+      con_comm.get_mempool().deallocate(con_comm.g, this->m_aloc, msg_request.region);
+      msg_request.region = region_type{};
+      msg->buf = nullptr;
+      con_comm.get_message_request_map().erase(&msg_request);
+    }
+  }
+
+private:
+  void finish_recv(communicator_type& con_comm, message_request_type& msg_request)
+  {
+    if (!msg_request.request.completed) {
+      msg_request.request.completed = detail::mp::is_receive_complete(msg_request.request.g, msg_request.request.partner_rank);
+
+      if (!msg_request.request.completed) {
+        con_comm.wait_request(&msg_request);
+      }
+    }
+  }
+};
+
+
+template < >
+struct MessageGroup<MessageBase::Kind::send, mp_pol, mpi_type_pol>
+{
+  // unimplemented
+};
+
+template < >
+struct MessageGroup<MessageBase::Kind::recv, mp_pol, mpi_type_pol>
+{
+  // unimplemented
+};
+
+} // namespace detail
 
 #endif // COMB_ENABLE_MP
 
