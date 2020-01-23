@@ -433,7 +433,7 @@ private:
 
         msg_group.add_message_item(
             partner_rank,
-            {size, nbytes, indices, mesh_aloc});
+            message_item_type{size, nbytes, indices, mesh_aloc});
 
       } else {
 
