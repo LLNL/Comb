@@ -54,8 +54,9 @@ void do_cycles_basic(CommContext<pol_comm>& con_comm_in,
     CommInfo comminfo(comm_info);
 
     using comm_type = Comm<pol_many, pol_few, pol_comm>;
-    using message_type = typename comm_type::message_type;
     using policy_comm  = typename comm_type::policy_comm;
+    using recv_message_type = typename comm_type::recv_message_type;
+    using send_message_type = typename comm_type::send_message_type;
 
 #ifdef COMB_ENABLE_MPI
     // set name of communicator
@@ -94,31 +95,31 @@ void do_cycles_basic(CommContext<pol_comm>& con_comm_in,
 
       for (IdxT i = 0; i < num_vars; ++i) {
 
-        vars.push_back(MeshData(info, aloc_mesh));
+        vars.emplace_back(info, aloc_mesh);
 
-        vars[i].allocate();
+        MeshData& var = vars.back();
 
-        DataT* data = vars[i].data();
+        // allocate variable
+        var.allocate();
+
+        // initialize variable
+        DataT* data = var.data();
         IdxT totallen = info.totallen;
 
         con_mesh.for_all(0, totallen,
                             detail::set_n1(data));
-
-        factory.add_var(vars[i]);
-
         con_mesh.synchronize();
+
+        // add variable to comm
+        factory.add_var(var);
       }
 
       factory.populate(comm, con_many, con_few);
     }
 
     // do_cycles_basic expects that all sends and receives have_many (use pol_many)
-    for (message_type& recv : comm.m_recvs) {
-      assert(recv.have_many()) ;
-    }
-    for (message_type& send : comm.m_sends) {
-      assert(send.have_many()) ;
-    }
+    assert(comm.m_recvs.message_group_few.messages.size() == 0);
+    assert(comm.m_sends.message_group_few.messages.size() == 0);
 
     tm_total.stop(tm_con);
 
@@ -475,14 +476,15 @@ void do_cycles_basic(CommContext<pol_comm>& con_comm_in,
       {
         // FGPRINTF(FileGroup::proc, "posting receives\n");
 
-        IdxT num_recvs = comm.m_recvs.size();
+        IdxT num_recvs = comm.m_recvs.message_group_many.messages.size();
 
-        comm.m_recv_requests.resize(num_recvs, comm.con_comm.recv_request_null());
+        comm.m_recvs.requests.resize(num_recvs, comm.con_comm.recv_request_null());
 
         for (IdxT i = 0; i < num_recvs; ++i) {
+          recv_message_type* message = &comm.m_recvs.message_group_many.messages[i];
 
-          comm.m_recvs[i].allocate(con_many, comm.con_comm, aloc_many);
-          comm.m_recvs[i].Irecv(con_many, comm.con_comm, &comm.m_recv_requests[i]);
+          comm.m_recvs.message_group_many.allocate(con_many, comm.con_comm, &message, 1);
+          comm.m_recvs.message_group_many.Irecv(con_many, comm.con_comm, &message, 1, &comm.m_recvs.requests[i]);
         }
       }
 
@@ -499,16 +501,17 @@ void do_cycles_basic(CommContext<pol_comm>& con_comm_in,
       {
         // FGPRINTF(FileGroup::proc, "posting sends\n");
 
-        const IdxT num_sends = comm.m_sends.size();
+        const IdxT num_sends = comm.m_sends.message_group_many.messages.size();
 
-        comm.m_send_requests.resize(num_sends, comm.con_comm.send_request_null());
+        comm.m_sends.requests.resize(num_sends, comm.con_comm.send_request_null());
 
         for (IdxT i = 0; i < num_sends; ++i) {
+          send_message_type* message = &comm.m_sends.message_group_many.messages[i];
 
-          comm.m_sends[i].allocate(con_many, comm.con_comm, aloc_many);
-          comm.m_sends[i].pack(con_many, comm.con_comm);
-          message_type::wait_pack_complete(con_many, comm.con_comm);
-          comm.m_sends[i].Isend(con_many, comm.con_comm, &comm.m_send_requests[i]);
+          comm.m_sends.message_group_many.allocate(con_many, comm.con_comm, &message, 1);
+          comm.m_sends.message_group_many.pack(con_many, comm.con_comm, &message, 1, ::detail::Async::no);
+          comm.m_sends.message_group_many.wait_pack_complete(con_many, comm.con_comm, &message, 1, ::detail::Async::no);
+          comm.m_sends.message_group_many.Isend(con_many, comm.con_comm, &message, 1, &comm.m_sends.requests[i]);
         }
       }
 
@@ -554,23 +557,25 @@ void do_cycles_basic(CommContext<pol_comm>& con_comm_in,
       {
         // FGPRINTF(FileGroup::proc, "waiting receives\n");
 
-        IdxT num_recvs = comm.m_recvs.size();
+        IdxT num_recvs = comm.m_recvs.message_group_many.messages.size();
 
         typename policy_comm::recv_status_type status = comm.con_comm.recv_status_null();
 
         IdxT num_done = 0;
         while (num_done < num_recvs) {
 
-          IdxT idx = message_type::wait_recv_any(comm.con_comm, num_recvs, &comm.m_recv_requests[0], &status);
+          IdxT idx = recv_message_type::wait_recv_any(comm.con_comm, num_recvs, &comm.m_recvs.requests[0], &status);
 
-          comm.m_recvs[idx].unpack(con_many, comm.con_comm);
-          comm.m_recvs[idx].deallocate(con_many, comm.con_comm, aloc_many);
+          recv_message_type* message = &comm.m_recvs.message_group_many.messages[idx];
+
+          comm.m_recvs.message_group_many.unpack(con_many, comm.con_comm, &message, 1);
+          comm.m_recvs.message_group_many.deallocate(con_many, comm.con_comm, &message, 1);
 
           num_done += 1;
 
         }
 
-        comm.m_recv_requests.clear();
+        comm.m_recvs.requests.clear();
 
         con_many.synchronize();
       }
@@ -588,21 +593,23 @@ void do_cycles_basic(CommContext<pol_comm>& con_comm_in,
       {
         // FGPRINTF(FileGroup::proc, "posting sends\n");
 
-        IdxT num_sends = comm.m_sends.size();
+        IdxT num_sends = comm.m_sends.message_group_many.messages.size();
 
         typename policy_comm::send_status_type status = comm.con_comm.send_status_null();
 
         IdxT num_done = 0;
         while (num_done < num_sends) {
 
-          IdxT idx = message_type::wait_send_any(comm.con_comm, num_sends, &comm.m_send_requests[0], &status);
+          IdxT idx = send_message_type::wait_send_any(comm.con_comm, num_sends, &comm.m_sends.requests[0], &status);
 
-          comm.m_sends[idx].deallocate(con_many, comm.con_comm, aloc_many);
+          send_message_type* message = &comm.m_sends.message_group_many.messages[idx];
+
+          comm.m_sends.message_group_many.deallocate(con_many, comm.con_comm, &message, 1);
 
           num_done += 1;
         }
 
-        comm.m_send_requests.clear();
+        comm.m_sends.requests.clear();
       }
 
       tm.stop(tm_con);
@@ -636,8 +643,6 @@ void do_cycles_basic(CommContext<pol_comm>& con_comm_in,
 
     print_timer(comminfo, tm);
     print_timer(comminfo, tm_total);
-
-    comm.depopulate();
   }
 
   tm.clear();

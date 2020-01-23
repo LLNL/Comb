@@ -30,6 +30,17 @@ using DataT = double;
 
 namespace detail {
 
+// std::exchange
+// taken from https://en.cppreference.com/w/cpp/utility/exchange
+// license http://creativecommons.org/licenses/by-sa/3.0/
+template < typename T, typename U = T >
+T exchange(T& obj, U&& new_value)
+{
+  T old_value = std::move(obj);
+  obj = std::forward<U>(new_value);
+  return old_value;
+}
+
 template < typename T, typename ... types >
 struct Count;
 

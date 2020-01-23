@@ -506,8 +506,6 @@ void do_cycles(CommContext<pol_comm>& con_comm_in,
 
     print_timer(comminfo, tm);
     print_timer(comminfo, tm_total);
-
-    comm.depopulate();
   }
 
   tm.clear();

@@ -29,6 +29,11 @@
 
 namespace detail {
 
+enum struct Async {
+  no
+ ,yes
+};
+
 struct MessageBase
 {
   enum struct Kind {
@@ -36,136 +41,256 @@ struct MessageBase
    ,recv
   };
 
-  int m_partner_rank;
-  int m_msg_tag;
-  DataT* m_buf;
-  IdxT m_size;
-  IdxT m_max_nbytes;
-  IdxT m_nbytes;
-  bool m_have_many;
   Kind m_kind;
+};
 
-  struct list_item_type
+
+struct MessageItemBase
+{
+  IdxT size;
+  IdxT nbytes;
+
+  MessageItemBase(IdxT _size, IdxT _nbytes)
+    : size(_size)
+    , nbytes(_nbytes)
+  { }
+
+  MessageItemBase(MessageItemBase const&) = delete;
+  MessageItemBase& operator=(MessageItemBase const&) = delete;
+
+  MessageItemBase(MessageItemBase && o)
+    : size(detail::exchange(o.size, 0))
+    , nbytes(detail::exchange(o.nbytes, 0))
+  { }
+  MessageItemBase& operator=(MessageItemBase &&) = delete;
+};
+
+template < typename exec_policy >
+struct MessageItem : MessageItemBase
+{
+  LidxT* indices;
+  COMB::Allocator& m_aloc;
+
+  MessageItem(IdxT _size, IdxT _nbytes, LidxT* _indices, COMB::Allocator& _aloc)
+    : MessageItemBase(_size, _nbytes)
+    , indices(_indices)
+    , m_aloc(_aloc)
+  { }
+
+  MessageItem(MessageItem const&) = delete;
+  MessageItem& operator=(MessageItem const&) = delete;
+
+  MessageItem(MessageItem && o)
+    : MessageItemBase(std::move(o))
+    , indices(detail::exchange(o.indices, nullptr))
+    , m_aloc(o.m_aloc)
+  { }
+  MessageItem& operator=(MessageItem &&) = delete;
+
+  ~MessageItem()
   {
-    DataT* data;
-    LidxT* indices;
-    COMB::Allocator& aloc;
-    IdxT size;
-#ifdef COMB_ENABLE_MPI
-    MPI_Datatype mpi_type;
-    IdxT mpi_pack_max_nbytes;
-#endif
-    list_item_type(DataT* data_, LidxT* indices_, COMB::Allocator& aloc_, IdxT size_
-#ifdef COMB_ENABLE_MPI
-                  ,MPI_Datatype mpi_type_, IdxT mpi_pack_max_nbytes_
-#endif
-                  )
-     : data(data_), indices(indices_), aloc(aloc_), size(size_)
-#ifdef COMB_ENABLE_MPI
-     , mpi_type(mpi_type_), mpi_pack_max_nbytes(mpi_pack_max_nbytes_)
-#endif
-    { }
-  };
-
-  std::list<list_item_type> items;
-
-  MessageBase(Kind _kind, int partner_rank, int tag, bool have_many)
-    : m_partner_rank(partner_rank)
-    , m_msg_tag(tag)
-    , m_buf(nullptr)
-    , m_max_nbytes(0)
-    , m_nbytes(0)
-    , m_have_many(have_many)
-    , m_kind(_kind)
-  {
-
-  }
-
-  int partner_rank()
-  {
-    return m_partner_rank;
-  }
-
-  int tag()
-  {
-    return m_msg_tag;
-  }
-
-  DataT* buffer()
-  {
-    return m_buf;
-  }
-
-  IdxT size() const
-  {
-    return m_size;
-  }
-
-  IdxT max_nbytes() const
-  {
-    return m_max_nbytes;
-  }
-
-  IdxT nbytes() const
-  {
-    return m_nbytes;
-  }
-
-  bool have_many() const
-  {
-    return m_have_many;
-  }
-
-  void add(DataT* data, LidxT* indices, COMB::Allocator& aloc, IdxT size
-#ifdef COMB_ENABLE_MPI
-          ,MPI_Datatype mpi_type, IdxT mpi_pack_max_nbytes
-#endif
-           )
-  {
-    items.emplace_back(data, indices, aloc, size
-#ifdef COMB_ENABLE_MPI
-                      ,mpi_type, mpi_pack_max_nbytes
-#endif
-                      );
-#ifdef COMB_ENABLE_MPI
-    if (items.back().mpi_type != MPI_DATATYPE_NULL) {
-      m_max_nbytes += mpi_pack_max_nbytes;
-      m_nbytes += mpi_pack_max_nbytes;
-    } else
-#endif
-    {
-      m_max_nbytes += sizeof(DataT)*size;
-      m_nbytes += sizeof(DataT)*size;
+    if (indices) {
+      m_aloc.deallocate(indices); indices = nullptr;
     }
-    m_size += size;
   }
+};
 
-  void destroy()
-  {
-    auto end = std::end(items);
-    for (auto i = std::begin(items); i != end; ++i) {
-      if (i->indices) {
-        i->aloc.deallocate(i->indices); i->indices = nullptr;
-      }
 #ifdef COMB_ENABLE_MPI
-      if (i->mpi_type != MPI_DATATYPE_NULL) {
-        detail::MPI::Type_free(&i->mpi_type); i->mpi_type = MPI_DATATYPE_NULL;
-      }
-#endif
+
+template < >
+struct MessageItem<mpi_type_pol> : MessageItemBase
+{
+  MPI_Datatype mpi_type;
+  int packed_nbytes;
+
+  MessageItem(IdxT _size, IdxT _nbytes, MPI_Datatype _mpi_type)
+    : MessageItemBase(_size, _nbytes)
+    , mpi_type(_mpi_type)
+    , packed_nbytes(0)
+  { }
+
+  MessageItem(MessageItem const&) = delete;
+  MessageItem& operator=(MessageItem const&) = delete;
+
+  MessageItem(MessageItem && o)
+    : MessageItemBase(std::move(o))
+    , mpi_type(detail::exchange(o.mpi_type, MPI_DATATYPE_NULL))
+    , packed_nbytes(detail::exchange(o.packed_nbytes, 0))
+  { }
+  MessageItem& operator=(MessageItem &&) = delete;
+
+  ~MessageItem()
+  {
+    if (mpi_type != MPI_DATATYPE_NULL) {
+      detail::MPI::Type_free(&mpi_type); mpi_type = MPI_DATATYPE_NULL;
     }
-    items.clear();
+  }
+};
+
+#endif
+
+
+template < MessageBase::Kind kind, typename comm_policy >
+struct Message;
+
+template < MessageBase::Kind kind, typename comm_policy, typename exec_policy >
+struct MessageGroup;
+
+
+template < MessageBase::Kind kind, typename comm_policy >
+struct MessageInterface
+{
+  using policy_comm       = comm_policy;
+  using communicator_type = CommContext<policy_comm>;
+  using request_type      = typename std::conditional<kind == MessageBase::Kind::send,
+                                typename policy_comm::send_request_type,
+                                typename policy_comm::recv_request_type>::type;
+  using status_type       = typename std::conditional<kind == MessageBase::Kind::send,
+                                typename policy_comm::send_status_type,
+                                typename policy_comm::recv_status_type>::type;
+
+  IdxT idx;
+  int partner_rank;
+  int msg_tag;
+
+  void* buf = nullptr;
+
+  request_type* request = nullptr;
+  status_type*  status = nullptr;
+
+  std::vector<const MessageItemBase*> message_items;
+
+  MessageInterface(IdxT _idx, int _partner_rank, int _tag)
+    : idx(_idx)
+    , partner_rank(_partner_rank)
+    , msg_tag(_tag)
+  {
+
   }
 
-  ~MessageBase()
+  void set_request(request_type* _request)
   {
+    request = _request;
+  }
+
+  void set_status(status_type* _status)
+  {
+    status = _status;
+  }
+
+  void add_item(MessageItemBase const& item)
+  {
+    message_items.push_back(&item);
+  }
+
+  IdxT nbytes()
+  {
+    IdxT msg_nbytes = 0;
+    for (const MessageItemBase* item : message_items) {
+      msg_nbytes += item->nbytes;
+    }
+    return msg_nbytes;
+  }
+};
+
+template < MessageBase::Kind kind, typename comm_policy, typename exec_policy >
+struct MessageGroupInterface
+{
+  using policy_comm       = comm_policy;
+  using communicator_type = CommContext<policy_comm>;
+  using message_type      = Message<kind, comm_policy>;
+  using request_type      = typename std::conditional<kind == MessageBase::Kind::send,
+                                typename policy_comm::send_request_type,
+                                typename policy_comm::recv_request_type>::type;
+  using status_type       = typename std::conditional<kind == MessageBase::Kind::send,
+                                typename policy_comm::send_status_type,
+                                typename policy_comm::recv_status_type>::type;
+
+  using message_item_type = MessageItem<exec_policy>;
+  using context_type      = ExecContext<exec_policy>;
+  using event_type        = typename exec_policy::event_type;
+  using group_type        = typename exec_policy::group_type;
+  using component_type    = typename exec_policy::component_type;
+
+  std::vector<message_type> messages;
+  std::vector<context_type> m_contexts;
+  std::vector<event_type> m_events;
+  std::vector<component_type> m_components;
+  std::vector<group_type> m_groups;
+
+  std::vector<DataT*> m_variables;
+
+  std::vector<int> m_item_partner_ranks;
+  std::vector<message_item_type> m_items;
+
+  COMB::Allocator& m_aloc;
+
+
+  MessageGroupInterface(COMB::Allocator& aloc_)
+    : m_aloc(aloc_)
+  {
+
+  }
+
+  void add_message(context_type& con, int partner_rank, int tag)
+  {
+    messages.emplace_back(messages.size(), partner_rank, tag);
+    m_contexts.emplace_back( con );
+    m_events.emplace_back( m_contexts.back().createEvent() );
+    m_components.emplace_back( m_contexts.back().create_component() );
+    m_groups.emplace_back( m_contexts.back().create_group() );
+  }
+
+  void add_variable(DataT *data)
+  {
+    m_variables.emplace_back(data);
+  }
+
+  void add_message_item(int partner_rank, message_item_type&& item)
+  {
+    // emplace_back invalidates iterators
+    m_item_partner_ranks.emplace_back(partner_rank);
+    m_items.emplace_back(std::move(item));
+  }
+
+  void finalize()
+  {
+    // add items to messages
+    IdxT numItems = m_items.size();
+    for (IdxT i = 0; i < numItems; ++i) {
+
+      int partner_rank = m_item_partner_ranks[i];
+      message_item_type const& item = m_items[i];
+
+      bool found = false;
+      for (message_type& msg : messages) {
+        if (msg.partner_rank == partner_rank) {
+          msg.add_item(item);
+          found = true;
+          break;
+        }
+      }
+      assert(found);
+    }
+    m_item_partner_ranks.clear();
+  }
+
+  ~MessageGroupInterface()
+  {
+    IdxT numMessages = messages.size();
+    for(IdxT i = 0; i < numMessages; i++) {
+      m_contexts[i].destroyEvent(m_events[i]);
+    }
+    for(IdxT i = 0; i < numMessages; i++) {
+      m_contexts[i].destroy_component(m_components[i]);
+    }
+    for(IdxT i = 0; i < numMessages; i++) {
+      m_contexts[i].destroy_group(m_groups[i]);
+    }
   }
 };
 
 } // namespace detail
-
-
-template < typename policy_comm_ >
-struct Message;
 
 
 #endif // _MESSAGE_HPP
