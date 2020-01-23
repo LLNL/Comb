@@ -158,7 +158,7 @@ struct MessageInterface
   request_type* request = nullptr;
   status_type*  status = nullptr;
 
-  std::vector<const MessageItemBase*> message_items;
+  std::vector<MessageItemBase*> message_items;
 
   MessageInterface(IdxT _idx, int _partner_rank, int _tag)
     : idx(_idx)
@@ -178,12 +178,12 @@ struct MessageInterface
     status = _status;
   }
 
-  void add_item(MessageItemBase const& item)
+  void add_item(MessageItemBase& item)
   {
     message_items.push_back(&item);
   }
 
-  IdxT nbytes()
+  IdxT nbytes() const
   {
     IdxT msg_nbytes = 0;
     for (const MessageItemBase* item : message_items) {
@@ -260,7 +260,7 @@ struct MessageGroupInterface
     for (IdxT i = 0; i < numItems; ++i) {
 
       int partner_rank = m_item_partner_ranks[i];
-      message_item_type const& item = m_items[i];
+      message_item_type& item = m_items[i];
 
       bool found = false;
       for (message_type& msg : messages) {

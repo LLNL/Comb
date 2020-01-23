@@ -472,7 +472,7 @@ private:
       IdxT size = msg_box.size();
       MPI_Datatype mpi_type = msg_box.get_type_subarray();
       detail::MPI::Type_commit(&mpi_type);
-      nbytes = detail::MPI::Pack_size(1, mpi_type, comm);
+      IdxT nbytes = detail::MPI::Pack_size(1, mpi_type, comm.con_comm.comm);
 
       msg_group.add_message_item(
           partner_rank,

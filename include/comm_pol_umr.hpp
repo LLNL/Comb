@@ -50,7 +50,7 @@ struct CommContext<umr_pol> : MPIContext
   using send_status_type = typename pol::send_status_type;
   using recv_status_type = typename pol::recv_status_type;
 
-  MPI_Comm comm;
+  MPI_Comm comm = MPI_COMM_NULL;
 
   CommContext()
     : base()
