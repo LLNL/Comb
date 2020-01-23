@@ -42,6 +42,12 @@ int main(int argc, char** argv)
 
   comb_setup_files();
 
+  fgprintf(FileGroup::all, "Args ");
+  for(int i = 0; i < argc; ++i) {
+    fgprintf(FileGroup::all, " %s", argv[i]);
+  }
+  fgprintf(FileGroup::all, "\n");
+
   { // begin region MPI communication via comminfo
   CommInfo comminfo;
 
