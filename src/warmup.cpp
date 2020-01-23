@@ -25,7 +25,7 @@ void do_warmup(ExecContext<pol>& con, COMB::Allocator& aloc, Timer& tm, IdxT num
   char test_name[1024] = ""; snprintf(test_name, 1024, "warmup %s %s", pol::get_name(), aloc.name());
   Range r(test_name, Range::green);
 
-  DataT** vars = new DataT*[num_vars];
+  std::vector<DataT*> vars(num_vars, nullptr);
 
   for (IdxT i = 0; i < num_vars; ++i) {
     vars[i] = (DataT*)aloc.allocate(len*sizeof(DataT));
@@ -39,6 +39,10 @@ void do_warmup(ExecContext<pol>& con, COMB::Allocator& aloc, Timer& tm, IdxT num
   }
 
   con.synchronize();
+
+  for (IdxT i = 0; i < num_vars; ++i) {
+    aloc.deallocate(vars[i]);
+  }
 }
 
 void warmup(COMB::ExecContexts& exec,
