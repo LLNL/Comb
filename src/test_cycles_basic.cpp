@@ -75,9 +75,21 @@ void do_cycles_basic(CommContext<pol_comm>& con_comm_in,
 #endif
                                    );
 
-    // if policies are the same set cutoff to 0 (always use pol_many) to simplify algorithms
+    // sometimes set cutoff to 0 (always use pol_many) to simplify algorithms
     if (std::is_same<pol_many, pol_few>::value) {
-      comminfo.cutoff = 0;
+      // check comm send (packing) method
+      switch (comminfo.post_send_method) {
+        case CommInfo::method::waitsome:
+        case CommInfo::method::testsome:
+          // don't change cutoff to see if breaking messages into
+          // sized groups matters
+          break;
+        default:
+          // already packing individually or all together
+          // might aw well use simpler algorithm
+          comminfo.cutoff = 0;
+          break;
+      }
     }
 
     // make communicator object
