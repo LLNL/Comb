@@ -484,7 +484,7 @@ struct Comm
         }
 
         for (IdxT i_few = 0; i_few < num_few; i_few++) {
-          messages_many[i_few] = &m_sends.message_group_few.messages[i_few];
+          messages_few[i_few] = &m_sends.message_group_few.messages[i_few];
           m_sends.message_group_few.allocate(con_few, con_comm, &messages_few[i_few], 1);
           m_sends.message_group_few.pack(con_few, con_comm, &messages_few[i_few], 1, detail::Async::no);
           m_sends.message_group_few.wait_pack_complete(con_few, con_comm, &messages_few[i_few], 1, detail::Async::no);
@@ -497,7 +497,7 @@ struct Comm
           messages_many[i_many] = &m_sends.message_group_many.messages[i_many];
         }
         for (IdxT i_few = 0; i_few < num_few; i_few++) {
-          messages_many[i_few] = &m_sends.message_group_few.messages[i_few];
+          messages_few[i_few] = &m_sends.message_group_few.messages[i_few];
         }
 
         m_sends.message_group_many.allocate(con_many, con_comm, &messages_many[0], num_many);
@@ -569,7 +569,7 @@ struct Comm
         m_sends.message_group_many.Isend(con_many, con_comm, &messages_many[0], num_many, &requests_many[0]);
 
         for (IdxT i_few = 0; i_few < num_few; i_few++) {
-          messages_many[i_few] = &m_sends.message_group_few.messages[i_few];
+          messages_few[i_few] = &m_sends.message_group_few.messages[i_few];
         }
         m_sends.message_group_few.allocate(con_few, con_comm, &messages_few[0], num_few);
         m_sends.message_group_few.pack(con_few, con_comm, &messages_few[0], num_few, detail::Async::no);
@@ -582,7 +582,7 @@ struct Comm
           messages_many[i_many] = &m_sends.message_group_many.messages[i_many];
         }
         for (IdxT i_few = 0; i_few < num_few; i_few++) {
-          messages_many[i_few] = &m_sends.message_group_few.messages[i_few];
+          messages_few[i_few] = &m_sends.message_group_few.messages[i_few];
         }
 
         m_sends.message_group_many.allocate(con_many, con_comm, &messages_many[0], num_many);
@@ -649,7 +649,7 @@ struct Comm
           messages_many[i_many] = &m_sends.message_group_many.messages[i_many];
         }
         for (IdxT i_few = 0; i_few < num_few; i_few++) {
-          messages_many[i_few] = &m_sends.message_group_few.messages[i_few];
+          messages_few[i_few] = &m_sends.message_group_few.messages[i_few];
         }
 
         m_sends.message_group_many.allocate(con_many, con_comm, &messages_many[0], num_many);
@@ -670,7 +670,7 @@ struct Comm
           messages_many[i_many] = &m_sends.message_group_many.messages[i_many];
         }
         for (IdxT i_few = 0; i_few < num_few; i_few++) {
-          messages_many[i_few] = &m_sends.message_group_few.messages[i_few];
+          messages_few[i_few] = &m_sends.message_group_few.messages[i_few];
         }
 
         m_sends.message_group_many.allocate(con_many, con_comm, &messages_many[0], num_many);
