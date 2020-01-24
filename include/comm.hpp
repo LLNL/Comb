@@ -756,30 +756,41 @@ struct Comm
 
     recv_request_type* requests = &m_recvs.requests[0];
 
+    using recv_status_type = typename policy_comm::recv_status_type;
+    std::vector<recv_status_type> recv_statuses(num_recvs, con_comm.recv_status_null());
+
     switch (wait_recv_method) {
       case CommInfo::method::waitany:
       case CommInfo::method::testany:
       {
-        typename policy_comm::recv_status_type status = con_comm.recv_status_null();
-
         IdxT num_done = 0;
         while (num_done < num_recvs) {
 
           IdxT idx = num_recvs;
           if (wait_recv_method == CommInfo::method::waitany) {
-            idx = recv_message_type::wait_recv_any(con_comm, num_recvs, &requests[0], &status);
+            idx = recv_message_type::wait_recv_any(con_comm, num_recvs, &requests[0], &recv_statuses[0]);
           } else {
             while(idx < 0 || idx >= num_recvs) {
-              idx = recv_message_type::test_recv_any(con_comm, num_recvs, &requests[0], &status);
+              idx = recv_message_type::test_recv_any(con_comm, num_recvs, &requests[0], &recv_statuses[0]);
             }
           }
+              assert(0 <= idx && idx < num_recvs);
+              assert(requests > (recv_request_type*)0x1);
 
           if (idx < num_many) {
             m_recvs.message_group_many.unpack(con_many, con_comm, &messages[idx], 1);
+              assert(0 <= idx && idx < num_recvs);
+              assert(requests > (recv_request_type*)0x1);
             m_recvs.message_group_many.deallocate(con_many, con_comm, &messages[idx], 1);
+              assert(0 <= idx && idx < num_recvs);
+              assert(requests > (recv_request_type*)0x1);
           } else if (idx < num_recvs) {
             m_recvs.message_group_few.unpack(con_few, con_comm, &messages[idx], 1);
+              assert(0 <= idx && idx < num_recvs);
+              assert(requests > (recv_request_type*)0x1);
             m_recvs.message_group_few.deallocate(con_few, con_comm, &messages[idx], 1);
+              assert(0 <= idx && idx < num_recvs);
+              assert(requests > (recv_request_type*)0x1);
           } else {
             assert(0 <= idx && idx < num_recvs);
           }
@@ -791,7 +802,6 @@ struct Comm
       case CommInfo::method::waitsome:
       case CommInfo::method::testsome:
       {
-        std::vector<typename policy_comm::recv_status_type> recv_statuses(num_recvs, con_comm.recv_status_null());
         std::vector<int> indices(num_recvs, -1);
         std::vector<recv_message_type*> recvd_messages(num_recvs, nullptr);
 
@@ -840,8 +850,6 @@ struct Comm
       case CommInfo::method::waitall:
       case CommInfo::method::testall:
       {
-        std::vector<typename policy_comm::recv_status_type> recv_statuses(num_recvs, con_comm.recv_status_null());
-
         if (wait_recv_method == CommInfo::method::waitall) {
           recv_message_type::wait_recv_all(con_comm, num_recvs, &requests[0], &recv_statuses[0]);
         } else {
@@ -893,21 +901,22 @@ struct Comm
 
     send_request_type* requests = &m_sends.requests[0];
 
+    using send_status_type = typename policy_comm::send_status_type;
+    std::vector<send_status_type> send_statuses(num_sends, con_comm.send_status_null());
+
     switch (wait_send_method) {
       case CommInfo::method::waitany:
       case CommInfo::method::testany:
       {
-        typename policy_comm::send_status_type status = con_comm.send_status_null();
-
         IdxT num_done = 0;
         while (num_done < num_sends) {
 
           IdxT idx = num_sends;
           if (wait_send_method == CommInfo::method::waitany) {
-            idx = send_message_type::wait_send_any(con_comm, num_sends, &requests[0], &status);
+            idx = send_message_type::wait_send_any(con_comm, num_sends, &requests[0], &send_statuses[0]);
           } else {
             while(idx < 0 || idx >= num_sends) {
-              idx = send_message_type::test_send_any(con_comm, num_sends, &requests[0], &status);
+              idx = send_message_type::test_send_any(con_comm, num_sends, &requests[0], &send_statuses[0]);
             }
           }
 
@@ -925,7 +934,6 @@ struct Comm
       case CommInfo::method::waitsome:
       case CommInfo::method::testsome:
       {
-        std::vector<typename policy_comm::send_status_type> send_statuses(num_sends, con_comm.send_status_null());
         std::vector<int> indices(num_sends, -1);
         std::vector<send_message_type*> sent_messages(num_sends, nullptr);
 
@@ -971,8 +979,6 @@ struct Comm
       case CommInfo::method::waitall:
       case CommInfo::method::testall:
       {
-        std::vector<typename policy_comm::send_status_type> send_statuses(num_sends, con_comm.send_status_null());
-
         if (wait_send_method == CommInfo::method::waitall) {
           send_message_type::wait_send_all(con_comm, num_sends, &requests[0], &send_statuses[0]);
         } else {
