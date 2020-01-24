@@ -182,6 +182,23 @@ struct ExecContext<seq_pol> : CPUContext
     // base::synchronize();
   }
 
+  template < typename body_type >
+  void fused(IdxT len_outer, IdxT len_inner, body_type&& body_in)
+  {
+    for (IdxT i_outer = 0; i_outer < len_outer; ++i_outer) {
+      auto body = body_in;
+      body.set_outer(i_outer);
+      for (IdxT i_inner = 0; i_inner < len_inner; ++i_inner) {
+        body.set_inner(i_inner);
+        for (IdxT i = 0; i < body.len; ++i) {
+          body(i, i);
+        }
+      }
+    }
+    // base::synchronize();
+  }
+
+
 };
 
 #endif // _POL_SEQ_HPP

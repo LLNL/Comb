@@ -170,6 +170,20 @@ struct ExecContext<cuda_persistent_pol> : CudaContext
     // base::synchronize();
   }
 
+  template < typename body_type >
+  void fused(IdxT len_outer, IdxT len_inner, body_type&& body_in)
+  {
+    for (IdxT i_outer = 0; i_outer < len_outer; ++i_outer) {
+      auto body = body_in;
+      body.set_outer(i_outer);
+      for (IdxT i_inner = 0; i_inner < len_inner; ++i_inner) {
+        body.set_inner(i_inner);
+        cuda::persistent_launch::for_all(0, body.len, body, base::stream());
+      }
+    }
+    // base::synchronize();
+  }
+
 };
 
 #endif // COMB_ENABLE_CUDA

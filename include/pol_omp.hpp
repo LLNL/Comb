@@ -311,6 +311,56 @@ struct ExecContext<omp_pol> : CPUContext
     // base::synchronize();
   }
 
+  template < typename body_type >
+  void fused(IdxT len_outer, IdxT len_inner, body_type&& body_in)
+  {
+
+  #ifdef COMB_USE_OMP_COLLAPSE
+
+    #pragma omp parallel for collapse(2)
+    for (IdxT i_outer = 0; i_outer < len_outer; ++i_outer) {
+      for (IdxT i_inner = 0; i_inner < len_inner; ++i_inner) {
+        auto body = body_in;
+        body.set_outer(i_outer);
+        body.set_inner(i_inner);
+        for (IdxT i = 0; i < body.len; ++i) {
+          body(i, i);
+        }
+      }
+    }
+
+  #elif defined(COMB_USE_OMP_WEAK_COLLAPSE)
+
+    #pragma omp parallel for collapse(2)
+    for (IdxT i_outer = 0; i_outer < len_outer; ++i_outer) {
+      for (IdxT i_inner = 0; i_inner < len_inner; ++i_inner) {
+        auto body = body_in;
+        body.set_outer(i_outer);
+        body.set_inner(i_inner);
+        for (IdxT i = 0; i < body.len; ++i) {
+          body(i, i);
+        }
+      }
+    }
+
+  #else
+
+    #pragma omp parallel for
+    for (IdxT i_outer = 0; i_outer < len_outer; ++i_outer) {
+      auto body = body_in;
+      body.set_outer(i_outer);
+      for (IdxT i_inner = 0; i_inner < len_inner; ++i_inner) {
+        body.set_inner(i_inner);
+        for (IdxT i = 0; i < body.len; ++i) {
+          body(i, i);
+        }
+      }
+    }
+
+  #endif
+    // base::synchronize();
+  }
+
 };
 
 #endif // COMB_ENABLE_OPENMP

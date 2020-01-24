@@ -28,6 +28,18 @@
 #include "ExecContext.hpp"
 
 
+inline bool& comb_allow_per_message_pack_fusing()
+{
+  static bool allow = true;
+  return allow;
+}
+
+inline bool& comb_allow_pack_loop_fusion()
+{
+  static bool allow = true;
+  return allow;
+}
+
 namespace detail {
 
 template < typename body_type >

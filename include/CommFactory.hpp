@@ -123,12 +123,6 @@ void for_connections(MeshInfo meshinfo, loop_body&& body)
 
 struct CommFactory
 {
-  static inline bool& allow_per_message_pack_fusing()
-  {
-    static bool allow = true;
-    return allow;
-  }
-
   CommFactory(CommInfo const& comminfo_)
     : comminfo(comminfo_)
   { }
@@ -387,7 +381,7 @@ private:
   template < typename context >
   bool msg_info_items_combineable(context&) const
   {
-    return allow_per_message_pack_fusing();
+    return comb_allow_per_message_pack_fusing();
   }
 
 #ifdef COMB_ENABLE_MPI

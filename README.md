@@ -99,6 +99,7 @@ The runtime options change the properties of the grid and its decomposition, as 
           -   __test_all__ Wait for all sends to complete by polling (MPI_Testall)
       -   __allow|disallow *option*__ Allow or disallow specific communications options
           -   __per_message_pack_fusing__ Allow packing kernels to be fused for a single variable when packing into the same message
+          -   __message_group_pack_fusing__ Allow packing kernels to be fused across variables and messages when packing in the same message group
   -   __\-cycles *\#*__ Number of times the communication pattern is tested
   -   __\-omp_threads *\#*__ Number of openmp threads requested
   -   __\-exec *option*__ Execution options

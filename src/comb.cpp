@@ -245,7 +245,9 @@ int main(int argc, char** argv)
             if (i+1 < argc && argv[i+1][0] != '-') {
               ++i;
               if (strcmp(argv[i], "per_message_pack_fusing") == 0) {
-                CommFactory::allow_per_message_pack_fusing() = allowdisallow;
+                comb_allow_per_message_pack_fusing() = allowdisallow;
+              } else if (strcmp(argv[i], "message_group_pack_fusing") == 0) {
+                comb_allow_pack_loop_fusion() = allowdisallow;
               } else {
                 fgprintf(FileGroup::err_master, "Invalid argument to sub-option, ignoring %s %s %s.\n", argv[i-2], argv[i-1], argv[i]);
               }

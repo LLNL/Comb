@@ -185,6 +185,24 @@ struct ExecContext<cuda_graph_pol> : CudaContext
     // m_component.m_con.synchronize();
   }
 
+  template < typename body_type >
+  void fused(IdxT len_outer, IdxT len_inner, body_type&& body_in)
+  {
+    for (IdxT i_outer = 0; i_outer < len_outer; ++i_outer) {
+      auto body = body_in;
+      body.set_outer(i_outer);
+      for (IdxT i_inner = 0; i_inner < len_inner; ++i_inner) {
+        body.set_inner(i_inner);
+        cuda::graph_launch::for_all(0, body.len, body
+#ifdef COMB_GRAPH_KERNEL_LAUNCH
+            , m_component.m_con.stream_launch()
+#endif
+            );
+      }
+    }
+    // m_component.m_con.synchronize();
+  }
+
 };
 
 #endif // COMB_ENABLE_CUDA_GRAPH

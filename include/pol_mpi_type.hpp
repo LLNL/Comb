@@ -170,6 +170,13 @@ struct ExecContext<mpi_type_pol> : MPIContext
   //   static_assert(false, "This method should never be used");
   // }
 
+  // template < typename body_type >
+  // void fused(IdxT len_outer, IdxT len_inner, body_type&& body_in)
+  // {
+  //   COMB::ignore_unused(pol, len_outer, len_inner, body_in);
+  //   static_assert(false, "This method should never be used");
+  // }
+
 };
 
 #endif

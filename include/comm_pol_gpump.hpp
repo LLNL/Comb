@@ -882,6 +882,14 @@ struct MessageGroup<MessageBase::Kind::send, gpump_pol, exec_policy>
 
   std::vector<message_request_type> m_msg_requests;
 
+  // vars for fused loops
+  DataT const** m_srcs = nullptr;
+
+  DataT**       m_bufs = nullptr;
+  LidxT const** m_idxs = nullptr;
+  IdxT*         m_lens = nullptr;
+  IdxT m_pos = 0;
+
   // use the base class constructor
   using base::base;
 
@@ -911,6 +919,26 @@ struct MessageGroup<MessageBase::Kind::send, gpump_pol, exec_policy>
       msg->buf = msg_request.region.ptr;
       con_comm.get_message_request_map().emplace(&msg_request);
     }
+
+    if (comb_allow_pack_loop_fusion() && m_srcs == nullptr) {
+
+      // allocate per variable vars
+      IdxT num_vars = this->m_variables.size();
+      m_srcs = (DataT const**)con.util_aloc.allocate(num_vars*sizeof(DataT const*));
+
+      // variable vars initialized here
+      for (IdxT i = 0; i < num_vars; ++i) {
+        m_srcs[i] = this->m_variables[i];
+      }
+
+      // allocate per item vars
+      IdxT num_items = this->m_items.size();
+      m_bufs = (DataT**)      con.util_aloc.allocate(num_items*sizeof(DataT*));
+      m_idxs = (LidxT const**)con.util_aloc.allocate(num_items*sizeof(LidxT const*));
+      m_lens = (IdxT*)        con.util_aloc.allocate(num_items*sizeof(IdxT));
+
+      // item vars initialized in pack
+    }
   }
 
   void pack(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async async)
@@ -918,26 +946,85 @@ struct MessageGroup<MessageBase::Kind::send, gpump_pol, exec_policy>
     COMB::ignore_unused(con_comm);
     if (len <= 0) return;
     con.start_group(this->m_groups[len-1]);
-    for (IdxT i = 0; i < len; ++i) {
-      const message_type* msg = msgs[i];
-      char* buf = static_cast<char*>(msg->buf);
-      assert(buf != nullptr);
-      this->m_contexts[msg->idx].start_component(this->m_groups[len-1], this->m_components[msg->idx]);
-      for (const MessageItemBase* msg_item : msg->message_items) {
-        const message_item_type* item = static_cast<const message_item_type*>(msg_item);
-        const IdxT len = item->size;
-        const IdxT nbytes = item->nbytes;
-        LidxT const* indices = item->indices;
-        for (DataT const* src : this->m_variables) {
-          // FGPRINTF(FileGroup::proc, "%p pack %p = %p[%p] len %d\n", this, buf, src, indices, len);
-          this->m_contexts[msg->idx].for_all(0, len, make_copy_idxr_idxr(src, detail::indexer_list_idx{indices},
-                                             static_cast<DataT*>(static_cast<void*>(buf)), detail::indexer_idx{}));
-          buf += nbytes;
+    if (!comb_allow_pack_loop_fusion()) {
+      for (IdxT i = 0; i < len; ++i) {
+        const message_type* msg = msgs[i];
+        char* buf = static_cast<char*>(msg->buf);
+        assert(buf != nullptr);
+        this->m_contexts[msg->idx].start_component(this->m_groups[len-1], this->m_components[msg->idx]);
+        for (const MessageItemBase* msg_item : msg->message_items) {
+          const message_item_type* item = static_cast<const message_item_type*>(msg_item);
+          const IdxT len = item->size;
+          const IdxT nbytes = item->nbytes;
+          LidxT const* indices = item->indices;
+          for (DataT const* src : this->m_variables) {
+            // FGPRINTF(FileGroup::proc, "%p pack %p = %p[%p] len %d\n", this, buf, src, indices, len);
+            this->m_contexts[msg->idx].for_all(0, len, make_copy_idxr_idxr(src, detail::indexer_list_idx{indices},
+                                               static_cast<DataT*>(static_cast<void*>(buf)), detail::indexer_idx{}));
+            buf += nbytes;
+          }
+        }
+        if (async == detail::Async::no) {
+          this->m_contexts[msg->idx].finish_component(this->m_groups[len-1], this->m_components[msg->idx]);
+        } else {
+          this->m_contexts[msg->idx].finish_component_recordEvent(this->m_groups[len-1], this->m_components[msg->idx], this->m_events[msg->idx]);
         }
       }
-      if (async == detail::Async::no) {
-        this->m_contexts[msg->idx].finish_component(this->m_groups[len-1], this->m_components[msg->idx]);
-      } else {
+    }
+    else if (false && async == detail::Async::no) { // not sure how to know when individual contexts are in different streams
+      IdxT num_vars = this->m_variables.size();
+      DataT const** srcs = m_srcs;
+      DataT**       bufs = m_bufs + m_pos;
+      LidxT const** idxs = m_idxs + m_pos;
+      IdxT*         lens = m_lens + m_pos;
+      IdxT num_fused = 0;
+      for (IdxT i = 0; i < len; ++i) {
+        const message_type* msg = msgs[i];
+        char* buf = static_cast<char*>(msg->buf);
+        assert(buf != nullptr);
+        for (const MessageItemBase* msg_item : msg->message_items) {
+          const message_item_type* item = static_cast<const message_item_type*>(msg_item);
+          const IdxT nitems = item->size;
+          const IdxT nbytes = item->nbytes;
+          LidxT const* indices = item->indices;
+          bufs[num_fused] = (DataT*)buf;
+          idxs[num_fused] = indices;
+          lens[num_fused] = nitems;
+          num_fused += 1;
+          buf += nbytes * num_vars;
+          assert(nitems*sizeof(DataT) == nbytes);
+        }
+      }
+      // FGPRINTF(FileGroup::proc, "%p pack %p = %p[%p] nitems %d\n", this, buf, src, indices, nitems);
+      con.fused(num_fused, num_vars, fused_packer(srcs, bufs, idxs, lens));
+      m_pos += num_fused;
+    } else {
+      IdxT num_vars = this->m_variables.size();
+      for (IdxT i = 0; i < len; ++i) {
+        const message_type* msg = msgs[i];
+        char* buf = static_cast<char*>(msg->buf);
+        assert(buf != nullptr);
+        DataT const** srcs = m_srcs;
+        DataT**       bufs = m_bufs + m_pos;
+        LidxT const** idxs = m_idxs + m_pos;
+        IdxT*         lens = m_lens + m_pos;
+        IdxT num_fused = 0;
+        this->m_contexts[msg->idx].start_component(this->m_groups[len-1], this->m_components[msg->idx]);
+        for (const MessageItemBase* msg_item : msg->message_items) {
+          const message_item_type* item = static_cast<const message_item_type*>(msg_item);
+          const IdxT nitems = item->size;
+          const IdxT nbytes = item->nbytes;
+          LidxT const* indices = item->indices;
+          bufs[num_fused] = (DataT*)buf;
+          idxs[num_fused] = indices;
+          lens[num_fused] = nitems;
+          num_fused += 1;
+          buf += nbytes * num_vars;
+          assert(nitems*sizeof(DataT) == nbytes);
+        }
+        // FGPRINTF(FileGroup::proc, "%p pack %p = %p[%p] nitems %d\n", this, buf, src, indices, nitems);
+        this->m_contexts[msg->idx].fused(num_fused, num_vars, fused_packer(srcs, bufs, idxs, lens));
+        m_pos += num_fused;
         this->m_contexts[msg->idx].finish_component_recordEvent(this->m_groups[len-1], this->m_components[msg->idx], this->m_events[msg->idx]);
       }
     }
@@ -1004,6 +1091,21 @@ struct MessageGroup<MessageBase::Kind::send, gpump_pol, exec_policy>
       msg_request.region = region_type{};
       msg->buf = nullptr;
       con_comm.get_message_request_map().erase(&msg_request);
+    }
+
+    // TODO: worry about host reusing this memory before device synchronized
+    if (comb_allow_pack_loop_fusion() && m_srcs != nullptr && m_pos == this->m_items.size()) {
+
+      // deallocate per variable vars
+      con.util_aloc.deallocate(m_srcs); m_srcs = nullptr;
+
+      // deallocate per item vars
+      con.util_aloc.deallocate(m_bufs); m_bufs = nullptr;
+      con.util_aloc.deallocate(m_idxs); m_idxs = nullptr;
+      con.util_aloc.deallocate(m_lens); m_lens = nullptr;
+
+      // reset pos
+      m_pos = 0;
     }
   }
 
@@ -1073,6 +1175,14 @@ struct MessageGroup<MessageBase::Kind::recv, gpump_pol, exec_policy>
 
   std::vector<message_request_type> m_msg_requests;
 
+  // fused loop vars
+  DataT**       m_dsts = nullptr;
+
+  DataT const** m_bufs = nullptr;
+  LidxT const** m_idxs = nullptr;
+  IdxT*         m_lens = nullptr;
+  IdxT m_pos = 0;
+
   // use the base class constructor
   using base::base;
 
@@ -1101,6 +1211,26 @@ struct MessageGroup<MessageBase::Kind::recv, gpump_pol, exec_policy>
       msg_request.region = con_comm.get_mempool().allocate(con_comm.g, this->m_aloc, nbytes);
       msg->buf = msg_request.region.ptr;
       con_comm.get_message_request_map().emplace(&msg_request);
+    }
+
+    if (comb_allow_pack_loop_fusion() && m_dsts == nullptr) {
+
+      // allocate per variable vars
+      IdxT num_vars = this->m_variables.size();
+      m_dsts = (DataT**)con.util_aloc.allocate(num_vars*sizeof(DataT*));
+
+      // variable vars initialized here
+      for (IdxT i = 0; i < num_vars; ++i) {
+        m_dsts[i] = this->m_variables[i];
+      }
+
+      // allocate per item vars
+      IdxT num_items = this->m_items.size();
+      m_bufs = (DataT const**)con.util_aloc.allocate(num_items*sizeof(DataT const*));
+      m_idxs = (LidxT const**)con.util_aloc.allocate(num_items*sizeof(LidxT const*));
+      m_lens = (IdxT*)        con.util_aloc.allocate(num_items*sizeof(IdxT));
+
+      // item vars initialized in pack
     }
   }
 
@@ -1132,24 +1262,82 @@ struct MessageGroup<MessageBase::Kind::recv, gpump_pol, exec_policy>
     COMB::ignore_unused(con_comm);
     if (len <= 0) return;
     con.start_group(this->m_groups[len-1]);
-    for (IdxT i = 0; i < len; ++i) {
-      const message_type* msg = msgs[i];
-      char* buf = static_cast<char*>(msg->buf);
-      assert(buf != nullptr);
-      this->m_contexts[msg->idx].start_component(this->m_groups[len-1], this->m_components[msg->idx]);
-      for (const MessageItemBase* msg_item : msg->message_items) {
-        const message_item_type* item = static_cast<const message_item_type*>(msg_item);
-        const IdxT len = item->size;
-        const IdxT nbytes = item->nbytes;
-        LidxT const* indices = item->indices;
-        for (DataT* dst : this->m_variables) {
-          // FGPRINTF(FileGroup::proc, "%p unpack %p[%p] = %p len %d\n", this, dst, indices, buf, len);
-          this->m_contexts[msg->idx].for_all(0, len, make_copy_idxr_idxr(static_cast<DataT*>(static_cast<void*>(buf)), detail::indexer_idx{},
-                                             dst, detail::indexer_list_idx{indices}));
-          buf += nbytes;
+    if (!comb_allow_pack_loop_fusion()) {
+      for (IdxT i = 0; i < len; ++i) {
+        const message_type* msg = msgs[i];
+        char* buf = static_cast<char*>(msg->buf);
+        assert(buf != nullptr);
+        this->m_contexts[msg->idx].start_component(this->m_groups[len-1], this->m_components[msg->idx]);
+        for (const MessageItemBase* msg_item : msg->message_items) {
+          const message_item_type* item = static_cast<const message_item_type*>(msg_item);
+          const IdxT len = item->size;
+          const IdxT nbytes = item->nbytes;
+          LidxT const* indices = item->indices;
+          for (DataT* dst : this->m_variables) {
+            // FGPRINTF(FileGroup::proc, "%p unpack %p[%p] = %p len %d\n", this, dst, indices, buf, len);
+            this->m_contexts[msg->idx].for_all(0, len, make_copy_idxr_idxr(static_cast<DataT*>(static_cast<void*>(buf)), detail::indexer_idx{},
+                                               dst, detail::indexer_list_idx{indices}));
+            buf += nbytes;
+          }
+        }
+        this->m_contexts[msg->idx].finish_component(this->m_groups[len-1], this->m_components[msg->idx]);
+      }
+    else if (false) { // not sure how to know when individual contexts are in different streams
+      IdxT num_vars = this->m_variables.size();
+      DataT**       dsts = m_dsts;
+      DataT const** bufs = m_bufs + m_pos;
+      LidxT const** idxs = m_idxs + m_pos;
+      IdxT*         lens = m_lens + m_pos;
+      IdxT num_fused = 0;
+      for (IdxT i = 0; i < len; ++i) {
+        const message_type* msg = msgs[i];
+        char* buf = static_cast<char*>(msg->buf);
+        assert(buf != nullptr);
+        for (const MessageItemBase* msg_item : msg->message_items) {
+          const message_item_type* item = static_cast<const message_item_type*>(msg_item);
+          const IdxT nitems = item->size;
+          const IdxT nbytes = item->nbytes;
+          LidxT const* indices = item->indices;
+          bufs[num_fused] = (DataT const*)buf;
+          idxs[num_fused] = indices;
+          lens[num_fused] = nitems;
+          num_fused += 1;
+          buf += nbytes * num_vars;
+          assert(nitems*sizeof(DataT) == nbytes);
         }
       }
-      this->m_contexts[msg->idx].finish_component(this->m_groups[len-1], this->m_components[msg->idx]);
+      // FGPRINTF(FileGroup::proc, "%p pack %p = %p[%p] nitems %d\n", this, buf, dst, indices, nitems);
+      con.fused(num_fused, num_vars, fused_unpacker(dsts, bufs, idxs, lens));
+      m_pos += num_fused;
+    } else {
+      IdxT num_vars = this->m_variables.size();
+      DataT** dsts = m_dsts;
+      for (IdxT i = 0; i < len; ++i) {
+        const message_type* msg = msgs[i];
+        char* buf = static_cast<char*>(msg->buf);
+        assert(buf != nullptr);
+        DataT const** bufs = m_bufs + m_pos;
+        LidxT const** idxs = m_idxs + m_pos;
+        IdxT*         lens = m_lens + m_pos;
+        IdxT num_fused = 0;
+        this->m_contexts[msg->idx].start_component(this->m_groups[len-1], this->m_components[msg->idx]);
+        for (const MessageItemBase* msg_item : msg->message_items) {
+          const message_item_type* item = static_cast<const message_item_type*>(msg_item);
+          const IdxT nitems = item->size;
+          const IdxT nbytes = item->nbytes;
+          LidxT const* indices = item->indices;
+          bufs[num_fused] = (DataT const*)buf;
+          idxs[num_fused] = indices;
+          lens[num_fused] = nitems;
+          num_fused += 1;
+          buf += nbytes * num_vars;
+          assert(nitems*sizeof(DataT) == nbytes);
+        }
+        // FGPRINTF(FileGroup::proc, "%p pack %p = %p[%p] nitems %d\n", this, buf, dst, indices, nitems);
+        con.fused(num_fused, num_vars, fused_unpacker(dsts, bufs, idxs, lens));
+        m_pos += num_fused;
+        this->m_contexts[msg->idx].finish_component(this->m_groups[len-1], this->m_components[msg->idx]);
+      }
     }
     con.finish_group(this->m_groups[len-1]);
   }
@@ -1168,6 +1356,21 @@ struct MessageGroup<MessageBase::Kind::recv, gpump_pol, exec_policy>
       msg_request.region = region_type{};
       msg->buf = nullptr;
       con_comm.get_message_request_map().erase(&msg_request);
+    }
+
+    // TODO: worry about host reusing this memory before device synchronized
+    if (comb_allow_pack_loop_fusion() && m_dsts != nullptr && m_pos == this->m_items.size()) {
+
+      // deallocate per variable vars
+      con.util_aloc.deallocate(m_dsts); m_dsts = nullptr;
+
+      // deallocate per item vars
+      con.util_aloc.deallocate(m_bufs); m_bufs = nullptr;
+      con.util_aloc.deallocate(m_idxs); m_idxs = nullptr;
+      con.util_aloc.deallocate(m_lens); m_lens = nullptr;
+
+      // reset pos
+      m_pos = 0;
     }
   }
 
