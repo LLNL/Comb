@@ -173,6 +173,7 @@ struct fused_packer
   IdxT const*   lens;
 
   DataT const* src = nullptr;
+  DataT*       bufk = nullptr;
   DataT*       buf = nullptr;
   LidxT const* idx = nullptr;
   IdxT         len = 0;
@@ -189,20 +190,23 @@ struct fused_packer
   {
     len = lens[k];
     idx = idxs[k];
-    buf = bufs[k];
+    bufk = bufs[k];
   }
 
   COMB_HOST COMB_DEVICE
   void set_inner(IdxT j)
   {
     src = srcs[j];
-    buf += j*len;
+    buf = bufk + j*len;
   }
 
   // must be run for all i in [0, len)
   COMB_HOST COMB_DEVICE
   void operator()(IdxT i, IdxT)
   {
+    // if (i == 0) {
+    //   FGPRINTF(FileGroup::proc, "fused_packer buf %p, src %p, idx %p, len %i\n", buf, src, idx, len); FFLUSH(stdout);
+    // }
     buf[i] = src[idx[i]];
   }
 };
@@ -215,6 +219,7 @@ struct fused_unpacker
   IdxT  const*  lens;
 
   DataT*       dst = nullptr;
+  DataT const* bufk = nullptr;
   DataT const* buf = nullptr;
   LidxT const* idx = nullptr;
   IdxT         len = 0;
@@ -231,20 +236,23 @@ struct fused_unpacker
   {
     len = lens[k];
     idx = idxs[k];
-    buf = bufs[k];
+    bufk = bufs[k];
   }
 
   COMB_HOST COMB_DEVICE
   void set_inner(IdxT j)
   {
     dst = dsts[j];
-    buf += j*len;
+    buf = bufk + j*len;
   }
 
   // must be run for all i in [0, len)
   COMB_HOST COMB_DEVICE
   void operator()(IdxT i, IdxT)
   {
+    // if (i == 0) {
+    //   FGPRINTF(FileGroup::proc, "fused_packer buf %p, dst %p, idx %p, len %i\n", buf, dst, idx, len); FFLUSH(stdout);
+    // }
     dst[idx[i]] = buf[i];
   }
 };
