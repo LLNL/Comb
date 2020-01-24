@@ -42,9 +42,12 @@ int main(int argc, char** argv)
 
   comb_setup_files();
 
-  fgprintf(FileGroup::all, "Args ");
-  for(int i = 0; i < argc; ++i) {
-    fgprintf(FileGroup::all, " %s", argv[i]);
+  fgprintf(FileGroup::all, "Comb version %i.%i.%i\n",
+      COMB_VERSION_MAJOR, COMB_VERSION_MINOR, COMB_VERSION_PATCHLEVEL);
+
+  fgprintf(FileGroup::all, "Args  %s", argv[0]);
+  for(int i = 1; i < argc; ++i) {
+    fgprintf(FileGroup::all, ";%s", argv[i]);
   }
   fgprintf(FileGroup::all, "\n");
 

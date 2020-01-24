@@ -133,9 +133,9 @@ namespace COMB {
  *
  ******************************************************************************
  */
-#cmakedefine COMB_VERSION_MAJOR
-#cmakedefine COMB_VERSION_MINOR
-#cmakedefine COMB_VERSION_PATCHLEVEL
+#define COMB_VERSION_MAJOR @COMB_VERSION_MAJOR@
+#define COMB_VERSION_MINOR @COMB_VERSION_MINOR@
+#define COMB_VERSION_PATCHLEVEL @COMB_VERSION_PATCHLEVEL@
 
 /*!
  ******************************************************************************
