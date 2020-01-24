@@ -280,7 +280,7 @@ struct ExecContext<cuda_pol> : CudaContext
   }
 
   template < typename body_type >
-  void fused(IdxT len_outer, IdxT len_inner, body_type&& body_in)
+  void fused(IdxT len_outer, IdxT len_inner, IdxT len_hint, body_type&& body_in)
   {
     using decayed_body_type = typename std::decay<body_type>::type;
 
@@ -289,7 +289,7 @@ struct ExecContext<cuda_pol> : CudaContext
     constexpr IdxT threads2 = 1024;
     const IdxT blocks0 = len_outer;
     const IdxT blocks1 = len_inner;
-    const IdxT blocks2 = 1;
+    const IdxT blocks2 = (len_hint + threads2 - 1) / threads2;
 
     void* func =(void*)&cuda_fused<decayed_body_type, threads0*threads1*threads2>;
     dim3 gridDim(blocks2, blocks1, blocks0);

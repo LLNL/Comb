@@ -171,8 +171,9 @@ struct ExecContext<cuda_batch_pol> : CudaContext
   }
 
   template < typename body_type >
-  void fused(IdxT len_outer, IdxT len_inner, body_type&& body_in)
+  void fused(IdxT len_outer, IdxT len_inner, IdxT len_hint, body_type&& body_in)
   {
+    COMB::ignore_unused(len_hint);
     for (IdxT i_outer = 0; i_outer < len_outer; ++i_outer) {
       auto body = body_in;
       body.set_outer(i_outer);

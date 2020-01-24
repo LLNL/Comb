@@ -312,8 +312,9 @@ struct ExecContext<omp_pol> : CPUContext
   }
 
   template < typename body_type >
-  void fused(IdxT len_outer, IdxT len_inner, body_type&& body_in)
+  void fused(IdxT len_outer, IdxT len_inner, IdxT len_hint, body_type&& body_in)
   {
+    COMB::ignore_unused(len_hint);
 
   #ifdef COMB_USE_OMP_COLLAPSE
 

@@ -327,6 +327,7 @@ struct MessageGroup<MessageBase::Kind::send, mpi_pol, exec_policy>
       DataT**       bufs = m_bufs + m_pos;
       LidxT const** idxs = m_idxs + m_pos;
       IdxT*         lens = m_lens + m_pos;
+      IdxT total_items = 0;
       IdxT num_fused = 0;
       for (IdxT i = 0; i < len; ++i) {
         const message_type* msg = msgs[i];
@@ -340,13 +341,15 @@ struct MessageGroup<MessageBase::Kind::send, mpi_pol, exec_policy>
           bufs[num_fused] = (DataT*)buf;
           idxs[num_fused] = indices;
           lens[num_fused] = nitems;
+          total_items += nitems;
           num_fused += 1;
           buf += nbytes * num_vars;
           assert(nitems*sizeof(DataT) == nbytes);
         }
       }
       // FGPRINTF(FileGroup::proc, "%p pack %p = %p[%p] nitems %d\n", this, buf, src, indices, nitems);
-      con.fused(num_fused, num_vars, fused_packer(srcs, bufs, idxs, lens));
+      IdxT avg_items = (total_items + num_fused - 1) / num_fused;
+      con.fused(num_fused, num_vars, avg_items, fused_packer(srcs, bufs, idxs, lens));
       m_pos += num_fused;
     } else {
       IdxT num_vars = this->m_variables.size();
@@ -358,6 +361,7 @@ struct MessageGroup<MessageBase::Kind::send, mpi_pol, exec_policy>
         DataT**       bufs = m_bufs + m_pos;
         LidxT const** idxs = m_idxs + m_pos;
         IdxT*         lens = m_lens + m_pos;
+        IdxT total_items = 0;
         IdxT num_fused = 0;
         this->m_contexts[msg->idx].start_component(this->m_groups[len-1], this->m_components[msg->idx]);
         for (const MessageItemBase* msg_item : msg->message_items) {
@@ -368,12 +372,14 @@ struct MessageGroup<MessageBase::Kind::send, mpi_pol, exec_policy>
           bufs[num_fused] = (DataT*)buf;
           idxs[num_fused] = indices;
           lens[num_fused] = nitems;
+          total_items += nitems;
           num_fused += 1;
           buf += nbytes * num_vars;
           assert(nitems*sizeof(DataT) == nbytes);
         }
         // FGPRINTF(FileGroup::proc, "%p pack %p = %p[%p] nitems %d\n", this, buf, src, indices, nitems);
-        this->m_contexts[msg->idx].fused(num_fused, num_vars, fused_packer(srcs, bufs, idxs, lens));
+        IdxT avg_items = (total_items + num_fused - 1) / num_fused;
+        this->m_contexts[msg->idx].fused(num_fused, num_vars, avg_items, fused_packer(srcs, bufs, idxs, lens));
         m_pos += num_fused;
         this->m_contexts[msg->idx].finish_component_recordEvent(this->m_groups[len-1], this->m_components[msg->idx], this->m_events[msg->idx]);
       }
@@ -570,6 +576,7 @@ struct MessageGroup<MessageBase::Kind::recv, mpi_pol, exec_policy>
       DataT const** bufs = m_bufs + m_pos;
       LidxT const** idxs = m_idxs + m_pos;
       IdxT*         lens = m_lens + m_pos;
+      IdxT total_items = 0;
       IdxT num_fused = 0;
       for (IdxT i = 0; i < len; ++i) {
         const message_type* msg = msgs[i];
@@ -583,13 +590,15 @@ struct MessageGroup<MessageBase::Kind::recv, mpi_pol, exec_policy>
           bufs[num_fused] = (DataT const*)buf;
           idxs[num_fused] = indices;
           lens[num_fused] = nitems;
+          total_items += nitems;
           num_fused += 1;
           buf += nbytes * num_vars;
           assert(nitems*sizeof(DataT) == nbytes);
         }
       }
       // FGPRINTF(FileGroup::proc, "%p pack %p = %p[%p] nitems %d\n", this, buf, dst, indices, nitems);
-      con.fused(num_fused, num_vars, fused_unpacker(dsts, bufs, idxs, lens));
+      IdxT avg_items = (total_items + num_fused - 1) / num_fused;
+      con.fused(num_fused, num_vars, avg_items, fused_unpacker(dsts, bufs, idxs, lens));
       m_pos += num_fused;
     }
     con.finish_group(this->m_groups[len-1]);
