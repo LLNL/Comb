@@ -18,6 +18,8 @@
 
 #include "config.hpp"
 
+#include "memory.hpp"
+
 #ifdef COMB_ENABLE_CUDA_GRAPH
 #include "graph_launch.hpp"
 
@@ -39,19 +41,16 @@ struct ExecContext<cuda_graph_pol> : CudaContext
 
   using base = CudaContext;
 
+  COMB::Allocator& util_aloc;
+
 #ifdef COMB_GRAPH_KERNEL_LAUNCH_COMPONENT_STREAMS
   component_type m_component;
 #endif
 
-  ExecContext()
-    : base()
-#ifdef COMB_GRAPH_KERNEL_LAUNCH_COMPONENT_STREAMS
-    , m_component{base(*this)}
-#endif
-  { }
 
-  ExecContext(base const& b)
+  ExecContext(base const& b, COMB::Allocator& util_aloc_)
     : base(b)
+    , util_aloc(util_aloc_)
 #ifdef COMB_GRAPH_KERNEL_LAUNCH_COMPONENT_STREAMS
     , m_component{base(*this)}
 #endif

@@ -18,6 +18,9 @@
 
 #include "config.hpp"
 
+
+#include "memory.hpp"
+
 #ifdef COMB_ENABLE_MPI
 
 struct mpi_type_component
@@ -50,12 +53,12 @@ struct ExecContext<mpi_type_pol> : MPIContext
 
   using base = MPIContext;
 
-  ExecContext()
-    : base()
-  { }
+  COMB::Allocator& util_aloc;
 
-  ExecContext(base const& b)
+
+  ExecContext(base const& b, COMB::Allocator& util_aloc_)
     : base(b)
+    , util_aloc(util_aloc_)
   { }
 
   void ensure_waitable()

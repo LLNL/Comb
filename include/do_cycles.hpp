@@ -45,7 +45,7 @@ void do_cycles(CommContext<pol_comm>& con_comm_in,
                ExecContext<pol_few>& con_few,  COMB::Allocator& aloc_few,
                Timer& tm, Timer& tm_total)
 {
-  ExecContext<seq_pol> tm_con;
+  CPUContext tm_con;
   tm_total.clear();
   tm.clear();
 

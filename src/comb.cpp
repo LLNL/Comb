@@ -97,12 +97,12 @@ int main(int argc, char** argv)
 #endif
 
 
-  COMB::ExecContexts exec;
-
   // stores the Allocator for each memory type,
   // whether each memory type is available for use,
   // and whether each memory type is accessbile from each exec context
   COMB::Allocators alloc;
+
+  COMB::ExecContexts exec{alloc};
 
   // read command line arguments
 #ifdef COMB_ENABLE_OPENMP

@@ -35,7 +35,7 @@ void do_copy(ExecContext<pol>& con,
              COMB::Allocator& src_aloc,
              Timer& tm, IdxT num_vars, IdxT len, IdxT nrepeats)
 {
-  ExecContext<seq_pol> tm_con;
+  CPUContext tm_con;
   tm.clear();
 
   char test_name[1024] = ""; snprintf(test_name, 1024, "memcpy %s dst %s src %s", pol::get_name(), dst_aloc.name(), src_aloc.name());

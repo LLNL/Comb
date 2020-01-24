@@ -123,21 +123,41 @@ struct ExecContexts
   CudaContext base_cuda{};
 #endif
 
-  ExecContext<seq_pol> seq{base_cpu};
+  ExecContext<seq_pol> seq;
 #ifdef COMB_ENABLE_OPENMP
-  ExecContext<omp_pol> omp{base_cpu};
+  ExecContext<omp_pol> omp;
 #endif
 #ifdef COMB_ENABLE_CUDA
-  ExecContext<cuda_pol> cuda{base_cuda};
-  ExecContext<cuda_batch_pol> cuda_batch{base_cuda};
-  ExecContext<cuda_persistent_pol> cuda_persistent{base_cuda};
+  ExecContext<cuda_pol> cuda;
+  ExecContext<cuda_batch_pol> cuda_batch;
+  ExecContext<cuda_persistent_pol> cuda_persistent;
 #endif
 #ifdef COMB_ENABLE_CUDA_GRAPH
-  ExecContext<cuda_graph_pol> cuda_graph{base_cuda};
+  ExecContext<cuda_graph_pol> cuda_graph;
 #endif
 #ifdef COMB_ENABLE_MPI
-  ExecContext<mpi_type_pol> mpi_type{base_mpi};
+  ExecContext<mpi_type_pol> mpi_type;
 #endif
+
+  ExecContexts(Allocators& alocs)
+    : seq(base_cpu, alocs.host.allocator())
+#ifdef COMB_ENABLE_OPENMP
+    , omp(base_cpu, alocs.host.allocator())
+#endif
+#ifdef COMB_ENABLE_CUDA
+    , cuda(base_cuda, alocs.cuda_hostpinned.allocator())
+    , cuda_batch(base_cuda, alocs.cuda_hostpinned.allocator())
+    , cuda_persistent(base_cuda, alocs.cuda_hostpinned.allocator())
+#endif
+#ifdef COMB_ENABLE_CUDA_GRAPH
+    , cuda_graph(base_cuda, alocs.cuda_hostpinned.allocator())
+#endif
+#ifdef COMB_ENABLE_MPI
+    , mpi_type(base_mpi, alocs.host.allocator())
+#endif
+  {
+
+  }
 };
 
 } // namespace COMB

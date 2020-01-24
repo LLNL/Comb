@@ -56,12 +56,12 @@ struct ExecContext<omp_pol> : CPUContext
 
   using base = CPUContext;
 
-  ExecContext()
-    : base()
-  { }
+  COMB::Allocator& util_aloc;
 
-  ExecContext(base const& b)
+
+  ExecContext(base const& b, COMB::Allocator& util_aloc_)
     : base(b)
+    , util_aloc(util_aloc_)
   { }
 
   void ensure_waitable()

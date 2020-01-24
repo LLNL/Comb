@@ -37,7 +37,7 @@ void do_cycles_basic(CommContext<pol_comm>& con_comm_in,
 #endif
                ,"do_cycles_basic expects pol_many to be seq_pol or cuda_pol");
 
-  ExecContext<seq_pol> tm_con;
+  CPUContext tm_con;
   tm_total.clear();
   tm.clear();
 

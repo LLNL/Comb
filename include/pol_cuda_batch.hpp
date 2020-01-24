@@ -18,6 +18,9 @@
 
 #include "config.hpp"
 
+
+#include "memory.hpp"
+
 #ifdef COMB_ENABLE_CUDA
 #include "batch_launch.hpp"
 
@@ -49,12 +52,12 @@ struct ExecContext<cuda_batch_pol> : CudaContext
 
   using base = CudaContext;
 
-  ExecContext()
-    : base()
-  { }
+  COMB::Allocator& util_aloc;
 
-  ExecContext(base const& b)
+
+  ExecContext(base const& b, COMB::Allocator& util_aloc_)
     : base(b)
+    , util_aloc(util_aloc_)
   { }
 
   void ensure_waitable()
