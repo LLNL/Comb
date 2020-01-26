@@ -1288,6 +1288,7 @@ struct MessageGroup<MessageBase::Kind::recv, gpump_pol, exec_policy>
         }
         this->m_contexts[msg->idx].finish_component(this->m_groups[len-1], this->m_components[msg->idx]);
       }
+    }
     else if (false) { // not sure how to know when individual contexts are in different streams
       IdxT num_vars = this->m_variables.size();
       DataT**       dsts = m_dsts;
