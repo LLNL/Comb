@@ -20,6 +20,7 @@
 
 #include "for_all.hpp"
 #include "utils.hpp"
+#include "utils_mpi.hpp"
 #include "MessageBase.hpp"
 #include "ExecContext.hpp"
 
@@ -37,10 +38,17 @@ struct mock_pol {
   using recv_status_type = int;
 };
 
+
+#ifdef COMB_ENABLE_MPI
+#define COMB_MOCK_BASE MPIContext
+#else
+#define COMB_MOCK_BASE CPUContext
+#endif
+
 template < >
-struct CommContext<mock_pol> : CPUContext
+struct CommContext<mock_pol> : COMB_MOCK_BASE
 {
-  using base = CPUContext;
+  using base = COMB_MOCK_BASE;
 
   using pol = mock_pol;
 
