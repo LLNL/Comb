@@ -453,7 +453,7 @@ struct MessageGroup<MessageBase::Kind::send, mock_pol, exec_policy>
           total_items += nitems;
           num_fused += 1;
           buf += nbytes * num_vars;
-          assert(nitems*sizeof(DataT) == nbytes);
+          assert(static_cast<IdxT>(nitems*sizeof(DataT)) == nbytes);
         }
       }
       // FGPRINTF(FileGroup::proc, "%p pack %p = %p[%p] nitems %d\n", this, buf, src, indices, nitems);
@@ -484,7 +484,7 @@ struct MessageGroup<MessageBase::Kind::send, mock_pol, exec_policy>
           total_items += nitems;
           num_fused += 1;
           buf += nbytes * num_vars;
-          assert(nitems*sizeof(DataT) == nbytes);
+          assert(static_cast<IdxT>(nitems*sizeof(DataT)) == nbytes);
         }
         // FGPRINTF(FileGroup::proc, "%p pack %p = %p[%p] nitems %d\n", this, buf, src, indices, nitems);
         IdxT avg_items = (total_items + num_fused - 1) / num_fused;
@@ -558,7 +558,7 @@ struct MessageGroup<MessageBase::Kind::send, mock_pol, exec_policy>
       msg->buf = nullptr;
     }
 
-    if (comb_allow_pack_loop_fusion() && m_srcs != nullptr && m_pos == this->m_items.size()) {
+    if (comb_allow_pack_loop_fusion() && m_srcs != nullptr && m_pos == static_cast<IdxT>(this->m_items.size())) {
 
       // deallocate per variable vars
       con.util_aloc.deallocate(m_srcs); m_srcs = nullptr;
@@ -703,7 +703,7 @@ struct MessageGroup<MessageBase::Kind::recv, mock_pol, exec_policy>
           total_items += nitems;
           num_fused += 1;
           buf += nbytes * num_vars;
-          assert(nitems*sizeof(DataT) == nbytes);
+          assert(static_cast<IdxT>(nitems*sizeof(DataT)) == nbytes);
         }
       }
       // FGPRINTF(FileGroup::proc, "%p pack %p = %p[%p] nitems %d\n", this, buf, dst, indices, nitems);
@@ -727,7 +727,7 @@ struct MessageGroup<MessageBase::Kind::recv, mock_pol, exec_policy>
       msg->buf = nullptr;
     }
 
-    if (comb_allow_pack_loop_fusion() && m_dsts != nullptr && m_pos == this->m_items.size()) {
+    if (comb_allow_pack_loop_fusion() && m_dsts != nullptr && m_pos == static_cast<IdxT>(this->m_items.size())) {
 
       // deallocate per variable vars
       con.util_aloc.deallocate(m_dsts); m_dsts = nullptr;
