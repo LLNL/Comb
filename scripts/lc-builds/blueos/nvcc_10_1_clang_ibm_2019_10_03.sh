@@ -15,23 +15,22 @@
 ## Please also see the LICENSE file for MIT license.
 ##############################################################################
 
-COMPILER_SUFFIX=xl_2019_08_20
-BUILD_SUFFIX=lc_blueos_nvcc_10_2_${COMPILER_SUFFIX}
+COMPILER_SUFFIX=clang_ibm_2019_10_03
+BUILD_SUFFIX=lc_blueos_nvcc_10_1_${COMPILER_SUFFIX}
 
-rm -rf build_${BUILD_SUFFIX} 2>/dev/null
+rm -rf build_${BUILD_SUFFIX} >/dev/null
 mkdir build_${BUILD_SUFFIX} && cd build_${BUILD_SUFFIX}
 
 module load cmake/3.9.2
-module load cuda/10.2.86
-module load xl/2019.08.20
+module load cuda/10.1.243
+module load clang/ibm-2019.10.03
 
 cmake \
   -DCMAKE_BUILD_TYPE=Release \
   -DENABLE_OPENMP=ON \
   -DENABLE_CUDA=ON \
-  -DENABLE_GPUMP=ON \
   -DCUDA_ARCH=sm_70 \
-  -DCUDA_TOOLKIT_ROOT_DIR=/usr/tce/packages/cuda/cuda-10.2.86 \
+  -DCUDA_TOOLKIT_ROOT_DIR=/usr/tce/packages/cuda/cuda-10.1.243 \
   -C ../host-configs/lc-builds/blueos/nvcc_${COMPILER_SUFFIX}.cmake \
   -DCMAKE_INSTALL_PREFIX=../install_${BUILD_SUFFIX} \
   "$@" \
