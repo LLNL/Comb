@@ -127,6 +127,8 @@ The runtime options change the properties of the grid and its decomposition, as 
           -   __cuda_managed_device_preferred_host_accessed__ cuda managed with device preferred and host accessed advice memory space
   -   __\-cuda_aware_mpi__ Assert that you are using a cuda aware mpi implementation and enable tests that pass cuda device or managed memory to MPI
   -   __\-cuda_host_accessible_from_device__ Assert that your system supports pageable host memory access from the device and enable tests that access pageable host memory on the device
+  -  __\-print_packing_sizes__ Print message and packing sizes to proc files
+  -  __\-print_message_sizes__ Print message sizes to proc files
 
 ### Example Script
 

@@ -121,6 +121,9 @@ int main(int argc, char** argv)
 
   bool do_basic_only = false;
 
+  bool do_print_packing_sizes = false;
+  bool do_print_message_sizes = false;
+
   // stores whether each comm policy is available for use
   COMB::CommunicatorsAvailable comm_avail;
   comm_avail.mock = true;
@@ -529,6 +532,10 @@ int main(int argc, char** argv)
 #else
         fgprintf(FileGroup::err_master, "Not built with cuda, ignoring %s.\n", argv[i]);
 #endif
+      } else if (strcmp(&argv[i][1], "print_packing_sizes") == 0) {
+        do_print_packing_sizes = true;
+      } else if (strcmp(&argv[i][1], "print_message_sizes") == 0) {
+        do_print_message_sizes = true;
       } else {
         fgprintf(FileGroup::err_master, "Unknown option, ignoring %s.\n", argv[i]);
       }
@@ -672,6 +679,8 @@ int main(int argc, char** argv)
       fgprintf(FileGroup::all, "\n");
     }
   }
+
+  COMB::print_message_info(comminfo, info, alloc.host.allocator(), num_vars, do_print_packing_sizes, do_print_message_sizes);
 
   Timer tm(2*6*ncycles);
   Timer tm_total(1024);

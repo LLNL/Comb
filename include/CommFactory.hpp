@@ -148,35 +148,30 @@ struct CommFactory
     iter->second.emplace_back(&meshdata);
   }
 
-  template < typename comm_type >
-  void populate(comm_type& comm,
-                ExecContext<typename comm_type::policy_many>& con_many,
-                ExecContext<typename comm_type::policy_few>& con_few) const
+  void print_message_info(bool print_packing_sizes, bool print_message_sizes) const
   {
-
     // list of MeshInfo to map from partner rank to message boxes
     mesh_info_map_type recv_mesh_info_map;
     // list of MeshInfo to map from partner rank to message boxes
     mesh_info_map_type send_mesh_info_map;
 
-    // populate the msg_info_maps with message boxes in the right order
-    for (auto const& recv_send : msg_map) {
+    populate_mesh_info_maps(recv_mesh_info_map, send_mesh_info_map);
 
-      Box3d const& recv_box = recv_send.first;
-      Box3d const& send_box = recv_send.second;
+    print_mesh_info_map(send_mesh_info_map, "send", print_packing_sizes, print_message_sizes);
+    print_mesh_info_map(recv_mesh_info_map, "recv", print_packing_sizes, print_message_sizes);
+  }
 
-      // recv_box.print("recv_box");
-      // send_box.print("send_box");
+  template < typename comm_type >
+  void populate(comm_type& comm,
+                ExecContext<typename comm_type::policy_many>& con_many,
+                ExecContext<typename comm_type::policy_few>& con_few) const
+  {
+    // list of MeshInfo to map from partner rank to message boxes
+    mesh_info_map_type recv_mesh_info_map;
+    // list of MeshInfo to map from partner rank to message boxes
+    mesh_info_map_type send_mesh_info_map;
 
-      int recv_rank = rank_map.at(recv_box.info);
-      int send_rank = rank_map.at(send_box.info);
-
-      // TODO: check for out of bounds tag
-      int msg_tag = recv_rank;
-
-      populate_mesh_info_map(recv_mesh_info_map, recv_box, send_rank, msg_tag);
-      populate_mesh_info_map(send_mesh_info_map, send_box, recv_rank, msg_tag);
-    }
+    populate_mesh_info_maps(recv_mesh_info_map, send_mesh_info_map);
 
     // use the msg_info_maps to populate messages in comm
     populate_comm(comm, con_many, con_few, comm.m_recvs, recv_mesh_info_map);
@@ -345,6 +340,28 @@ private:
         assert(neighbor_recv_to_sends_iter->first == neighbor_recv);
         assert(neighbor_recv_to_sends_iter->second == self_send);
       });
+    }
+  }
+
+  void populate_mesh_info_maps(mesh_info_map_type& recv_mesh_info_map, mesh_info_map_type& send_mesh_info_map) const
+  {
+    // populate the msg_info_maps with message boxes in the right order
+    for (auto const& recv_send : msg_map) {
+
+      Box3d const& recv_box = recv_send.first;
+      Box3d const& send_box = recv_send.second;
+
+      // recv_box.print("recv_box");
+      // send_box.print("send_box");
+
+      int recv_rank = rank_map.at(recv_box.info);
+      int send_rank = rank_map.at(send_box.info);
+
+      // TODO: check for out of bounds tag
+      int msg_tag = recv_rank;
+
+      populate_mesh_info_map(recv_mesh_info_map, recv_box, send_rank, msg_tag);
+      populate_mesh_info_map(send_mesh_info_map, send_box, recv_rank, msg_tag);
     }
   }
 
@@ -590,6 +607,88 @@ private:
       msg_list.message_group_many.finalize();
       msg_list.message_group_few.finalize();
 
+    }
+  }
+
+  void print_msg_info(const char* name,
+                      size_t nvars,
+                      int partner_rank,
+                      int msg_tag,
+                      message_info_data_type const& data_item,
+                      bool print_packing_sizes, bool print_message_sizes) const
+  {
+    size_t combined_size = data_item.total_size()*nvars;
+    size_t combined_nbytes = sizeof(DataT)*combined_size;
+
+    const char* prefix = "";
+
+    if (print_message_sizes || print_packing_sizes) {
+
+      fgprintf(FileGroup::proc, "%s%s: %4i partner %4i tag %9zu items %9zu bytes\n",
+          prefix, name, partner_rank, msg_tag, combined_size, combined_nbytes);
+    }
+
+    int prefix_size = snprintf(nullptr, 0, "%s%s: %4i partner", prefix, name, partner_rank);
+    assert(prefix_size >= 0);
+
+    if (print_packing_sizes) {
+
+      for (Box3d const& msg_box : data_item.boxes) {
+
+        // fill item data
+        IdxT size = msg_box.size();
+        IdxT nbytes = sizeof(DataT)*size;
+
+        fgprintf(FileGroup::proc, "%*s %4zu var%s %9zu items/var %9zu bytes/var\n",
+            prefix_size, prefix, nvars, (nvars == 1) ? "" : "s", size, nbytes);
+      }
+    }
+  }
+
+  void print_mesh_info_map(mesh_info_map_type const& mesh_info_map,
+                           const char* name,
+                           bool print_packing_sizes, bool print_message_sizes) const
+  {
+    int myrank = comminfo.rank;
+
+    // the MeshGroup coding can only handle one kind of MeshInfo
+    assert(mesh_info_map.size() <= 1);
+
+    for (auto& mesh_msg_item : mesh_info_map) {
+
+      MeshInfo const& meshinfo = mesh_msg_item.first;
+      msg_info_map_type const& msg_info_map = mesh_msg_item.second;
+
+      std::list<MeshData const*> const& msg_data_list = data_map.at(meshinfo);
+
+      // skip this MeshInfo if it isn't used
+      if (msg_data_list.size() == 0) continue;
+
+      // add message and each box per message to the comm
+      auto lambda = [&](message_info_type const& msginfo) {
+
+        // add a new message to the message group
+        print_msg_info(name, msg_data_list.size(), msginfo.partner_rank, msginfo.msg_tag, msginfo.data_items, print_packing_sizes, print_message_sizes);
+      };
+
+      // order messages (myrank-end), [begin-myrank)
+      auto msg_info_begin  = msg_info_map.begin();
+      auto msg_info_middle = msg_info_map.lower_bound(myrank);
+      auto msg_info_end    = msg_info_map.end();
+
+      // myrank = 4;
+      // partner ranks = [2, 3, 7, 9];
+      // send/recv order = [7, 9, 2, 3];
+
+      // reorder messages so that each rank sends/recvs messages in order
+      // starting with the lowest ranked partner whose rank is greater than its rank
+      for (auto msg_info_iter = msg_info_middle; msg_info_iter != msg_info_end;    ++msg_info_iter) {
+        lambda(msg_info_iter->second);
+      }
+      // then wrapping back around to its lowest ranked partner
+      for (auto msg_info_iter = msg_info_begin;  msg_info_iter != msg_info_middle; ++msg_info_iter) {
+        lambda(msg_info_iter->second);
+      }
     }
   }
 };

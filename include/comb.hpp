@@ -127,6 +127,12 @@ namespace detail {
 
 extern void print_timer(CommInfo& comminfo, Timer& tm, const char* prefix = "");
 
+extern void print_message_info(CommInfo& comminfo, MeshInfo& info,
+                               COMB::Allocator& aloc_unused,
+                               IdxT num_vars,
+                               bool print_packing_sizes,
+                               bool print_message_sizes);
+
 extern void warmup(COMB::ExecContexts& exec,
                    COMB::Allocators& alloc,
                    COMB::ExecutorsAvailable& exec_avail,
