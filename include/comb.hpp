@@ -1,5 +1,5 @@
 //////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2018-2019, Lawrence Livermore National Security, LLC.
+// Copyright (c) 2018-2020, Lawrence Livermore National Security, LLC.
 //
 // Produced at the Lawrence Livermore National Laboratory
 //
@@ -126,6 +126,12 @@ namespace detail {
 } // namespace detail
 
 extern void print_timer(CommInfo& comminfo, Timer& tm, const char* prefix = "");
+
+extern void print_message_info(CommInfo& comminfo, MeshInfo& info,
+                               COMB::Allocator& aloc_unused,
+                               IdxT num_vars,
+                               bool print_packing_sizes,
+                               bool print_message_sizes);
 
 extern void warmup(COMB::ExecContexts& exec,
                    COMB::Allocators& alloc,

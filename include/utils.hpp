@@ -1,5 +1,5 @@
 //////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2018-2019, Lawrence Livermore National Security, LLC.
+// Copyright (c) 2018-2020, Lawrence Livermore National Security, LLC.
 //
 // Produced at the Lawrence Livermore National Laboratory
 //
@@ -29,6 +29,17 @@ using DataT = double;
 
 
 namespace detail {
+
+// std::exchange
+// taken from https://en.cppreference.com/w/cpp/utility/exchange
+// license http://creativecommons.org/licenses/by-sa/3.0/
+template < typename T, typename U = T >
+T exchange(T& obj, U&& new_value)
+{
+  T old_value = std::move(obj);
+  obj = std::forward<U>(new_value);
+  return old_value;
+}
 
 template < typename T, typename ... types >
 struct Count;
@@ -153,6 +164,98 @@ template < typename I_src, typename T_dst, typename I_dst >
 set_idxr_idxr<I_src, T_dst, I_dst> make_set_idxr_idxr(I_src const& idxr_src, T_dst* const& ptr_dst, I_dst const& idxr_dst) {
   return set_idxr_idxr<I_src, T_dst, I_dst>(idxr_src, ptr_dst, idxr_dst);
 }
+
+struct fused_packer
+{
+  DataT const** srcs;
+  DataT**       bufs;
+  LidxT const** idxs;
+  IdxT const*   lens;
+
+  DataT const* src = nullptr;
+  DataT*       bufk = nullptr;
+  DataT*       buf = nullptr;
+  LidxT const* idx = nullptr;
+  IdxT         len = 0;
+
+  fused_packer(DataT const** srcs_, DataT** bufs_, LidxT const** idxs_, IdxT const* lens_)
+    : srcs(srcs_)
+    , bufs(bufs_)
+    , idxs(idxs_)
+    , lens(lens_)
+  { }
+
+  COMB_HOST COMB_DEVICE
+  void set_outer(IdxT k)
+  {
+    len = lens[k];
+    idx = idxs[k];
+    bufk = bufs[k];
+  }
+
+  COMB_HOST COMB_DEVICE
+  void set_inner(IdxT j)
+  {
+    src = srcs[j];
+    buf = bufk + j*len;
+  }
+
+  // must be run for all i in [0, len)
+  COMB_HOST COMB_DEVICE
+  void operator()(IdxT i, IdxT)
+  {
+    // if (i == 0) {
+    //   FGPRINTF(FileGroup::proc, "fused_packer buf %p, src %p, idx %p, len %i\n", buf, src, idx, len); FFLUSH(stdout);
+    // }
+    buf[i] = src[idx[i]];
+  }
+};
+
+struct fused_unpacker
+{
+  DataT**       dsts;
+  DataT const** bufs;
+  LidxT const** idxs;
+  IdxT  const*  lens;
+
+  DataT*       dst = nullptr;
+  DataT const* bufk = nullptr;
+  DataT const* buf = nullptr;
+  LidxT const* idx = nullptr;
+  IdxT         len = 0;
+
+  fused_unpacker(DataT** dsts_, DataT const** bufs_, LidxT const** idxs_, IdxT const* lens_)
+    : dsts(dsts_)
+    , bufs(bufs_)
+    , idxs(idxs_)
+    , lens(lens_)
+  { }
+
+  COMB_HOST COMB_DEVICE
+  void set_outer(IdxT k)
+  {
+    len = lens[k];
+    idx = idxs[k];
+    bufk = bufs[k];
+  }
+
+  COMB_HOST COMB_DEVICE
+  void set_inner(IdxT j)
+  {
+    dst = dsts[j];
+    buf = bufk + j*len;
+  }
+
+  // must be run for all i in [0, len)
+  COMB_HOST COMB_DEVICE
+  void operator()(IdxT i, IdxT)
+  {
+    // if (i == 0) {
+    //   FGPRINTF(FileGroup::proc, "fused_packer buf %p, dst %p, idx %p, len %i\n", buf, dst, idx, len); FFLUSH(stdout);
+    // }
+    dst[idx[i]] = buf[i];
+  }
+};
 
 } // namespace detail
 

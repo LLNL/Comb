@@ -1,5 +1,5 @@
 ##############################################################################
-## Copyright (c) 2018-2019, Lawrence Livermore National Security, LLC.
+## Copyright (c) 2018-2020, Lawrence Livermore National Security, LLC.
 ##
 ## Produced at the Lawrence Livermore National Laboratory
 ##
@@ -14,8 +14,8 @@
 ##############################################################################
 
 set(COMB_VERSION_MAJOR 0)
-set(COMB_VERSION_MINOR 1)
-set(COMB_VERSION_PATCHLEVEL 2)
+set(COMB_VERSION_MINOR 2)
+set(COMB_VERSION_PATCHLEVEL 0)
 
 cmake_minimum_required(VERSION 3.9)
 

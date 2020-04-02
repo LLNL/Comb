@@ -1,5 +1,5 @@
 //////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2018-2019, Lawrence Livermore National Security, LLC.
+// Copyright (c) 2018-2020, Lawrence Livermore National Security, LLC.
 //
 // Produced at the Lawrence Livermore National Laboratory
 //
@@ -17,6 +17,8 @@
 #define _POL_CUDA_GRAPH_HPP
 
 #include "config.hpp"
+
+#include "memory.hpp"
 
 #ifdef COMB_ENABLE_CUDA_GRAPH
 #include "graph_launch.hpp"
@@ -39,19 +41,16 @@ struct ExecContext<cuda_graph_pol> : CudaContext
 
   using base = CudaContext;
 
+  COMB::Allocator& util_aloc;
+
 #ifdef COMB_GRAPH_KERNEL_LAUNCH_COMPONENT_STREAMS
   component_type m_component;
 #endif
 
-  ExecContext()
-    : base()
-#ifdef COMB_GRAPH_KERNEL_LAUNCH_COMPONENT_STREAMS
-    , m_component{base(*this)}
-#endif
-  { }
 
-  ExecContext(base const& b)
+  ExecContext(base const& b, COMB::Allocator& util_aloc_)
     : base(b)
+    , util_aloc(util_aloc_)
 #ifdef COMB_GRAPH_KERNEL_LAUNCH_COMPONENT_STREAMS
     , m_component{base(*this)}
 #endif
@@ -183,6 +182,25 @@ struct ExecContext<cuda_graph_pol> : CudaContext
         , m_component.m_con.stream_launch()
 #endif
         );
+    // m_component.m_con.synchronize();
+  }
+
+  template < typename body_type >
+  void fused(IdxT len_outer, IdxT len_inner, IdxT len_hint, body_type&& body_in)
+  {
+    COMB::ignore_unused(len_hint);
+    for (IdxT i_outer = 0; i_outer < len_outer; ++i_outer) {
+      auto body = body_in;
+      body.set_outer(i_outer);
+      for (IdxT i_inner = 0; i_inner < len_inner; ++i_inner) {
+        body.set_inner(i_inner);
+        cuda::graph_launch::for_all(0, body.len, body
+#ifdef COMB_GRAPH_KERNEL_LAUNCH
+            , m_component.m_con.stream_launch()
+#endif
+            );
+      }
+    }
     // m_component.m_con.synchronize();
   }
 
