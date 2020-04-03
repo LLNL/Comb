@@ -712,7 +712,7 @@ void graph_for_all(IdxT begin, IdxT len, body_type body
     body(i + begin, i);
   }
 #ifdef COMB_GRAPH_KERNEL_DEVICE_TIMER
-  if (kernel_starts != nullptr && i == (blockDim.x * gridDim.x - 1)) {
+  if (kernel_starts != nullptr && i == 0) {
     kernel_stops[kernel_id] = COMB::detail::cuda::device_timer();
   }
 #endif
