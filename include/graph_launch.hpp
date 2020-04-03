@@ -53,8 +53,9 @@ namespace graph_launch {
 
 namespace detail {
 
-#ifdef COMB_GRAPH_KERNEL_DEVICE_TIMER
-#ifdef COMB_GRAPH_BEGIN_END_NODES
+#if ( defined(COMB_GRAPH_KERNEL_DEVICE_TIMER) && \
+      defined(COMB_GRAPH_BEGIN_END_NODES)) || \
+    defined(COMB_GRAPH_KERNEL_HOST_TIMER)
 template < int >
 __global__
 void graph_timer_kernel(unsigned long long* kernel_timer)
@@ -63,7 +64,6 @@ void graph_timer_kernel(unsigned long long* kernel_timer)
     kernel_timer[0] = COMB::detail::cuda::device_timer();
   }
 }
-#endif
 #endif
 
 #ifdef COMB_GRAPH_KERNEL_HOST_TIMER
@@ -265,6 +265,7 @@ struct Graph
             m_time_setparams = 0.0;
             m_time_update = 0.0;
             m_time_launch = 0.0;
+            m_kernel_pre_start = nullptr;
             cudaCheck(cudaEventDestroy(m_time_launch_events[0]));
             cudaCheck(cudaEventDestroy(m_time_launch_events[1]));
 #endif
@@ -336,6 +337,7 @@ struct Graph
       if (m_do_timing) {
         // launch a kernel to ensure accurate event timing of the cuda graph launch
         graph_spin_kernel<0><<<1,1,0,stream>>>(0.001); // spin for 0.001 seconds
+        graph_timer_kernel<0><<<1,1,0,stream>>>(m_kernel_pre_start);
         cudaCheck(cudaEventRecord(m_time_launch_events[0], stream));
         t0 = std::chrono::high_resolution_clock::now();
       }
@@ -345,6 +347,7 @@ struct Graph
       if (m_do_timing) {
         auto t1 = std::chrono::high_resolution_clock::now();
         cudaCheck(cudaEventRecord(m_time_launch_events[1], stream));
+        graph_timer_kernel<0><<<1,1,0,stream>>>(m_kernel_pre_start+1);
         m_time_launch = std::chrono::duration<double>(t1-t0).count();
       }
 #endif
@@ -382,12 +385,13 @@ struct Graph
 #else
         m_num_kernel_timers = m_instantiated_num_nodes;
 #endif
-        cudaCheck(cudaMalloc(&m_kernel_starts, m_num_kernel_timers*2*sizeof(m_kernel_starts[0])));
+        cudaCheck(cudaMalloc(&m_kernel_starts, (m_num_kernel_timers*2+2)*sizeof(m_kernel_starts[0])));
 
 #ifdef COMB_GRAPH_KERNEL_HOST_TIMER
         m_time_setparams = 0.0;
         m_time_update = 0.0;
         m_time_launch = 0.0;
+        m_kernel_pre_start = m_kernel_starts + m_num_kernel_timers*2;
         cudaCheck(cudaEventCreateWithFlags(&m_time_launch_events[0], cudaEventDefault));
         cudaCheck(cudaEventCreateWithFlags(&m_time_launch_events[1], cudaEventDefault));
 #endif
@@ -480,9 +484,9 @@ struct Graph
 
 #ifdef COMB_GRAPH_KERNEL_DEVICE_TIMER
     if (m_kernel_starts) {
-      unsigned long long* kernel_starts = (unsigned long long*)malloc(m_num_kernel_timers*2*sizeof(m_kernel_starts[0]));
+      unsigned long long* kernel_starts = (unsigned long long*)malloc((m_num_kernel_timers*2+2)*sizeof(m_kernel_starts[0]));
       unsigned long long* kernel_stops = kernel_starts + m_num_kernel_timers;
-      cudaCheck(cudaMemcpy(kernel_starts, m_kernel_starts, m_num_kernel_timers*2*sizeof(m_kernel_starts[0]), cudaMemcpyDefault));
+      cudaCheck(cudaMemcpy(kernel_starts, m_kernel_starts, (m_num_kernel_timers*2+2)*sizeof(m_kernel_starts[0]), cudaMemcpyDefault));
       cudaCheck(cudaFree(m_kernel_starts));
 
       double tick_rate = 1000000000.0; // 1 tick / ns
@@ -504,6 +508,10 @@ struct Graph
         FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).~Graph graph_device %.9f\n", this, time);
         cudaCheck(cudaEventDestroy(m_time_launch_events[0]));
         cudaCheck(cudaEventDestroy(m_time_launch_events[1]));
+        unsigned long long* kernel_pre_start = kernel_starts + m_num_kernel_timers*2;
+        double time_kernel_pre_start = -static_cast<double>(first_start - kernel_pre_start[0]) / tick_rate;
+        double time_kernel_post_stop =  static_cast<double>(kernel_pre_start[1] - first_start) / tick_rate;
+        FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).~Graph graph_pre_start %.9f graph_post_stop %.9f\n", this, time_kernel_pre_start, time_kernel_post_stop);
       }
 #endif
       // print timers from begin and end kernel nodes
@@ -553,6 +561,7 @@ public:
   double m_time_setparams = 0.0;
   double m_time_update = 0.0;
   double m_time_launch = 0.0;
+  unsigned long long* m_kernel_pre_start = nullptr;
   cudaEvent_t m_time_launch_events[2];
 #endif
 #endif
