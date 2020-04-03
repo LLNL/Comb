@@ -286,6 +286,8 @@ struct AllocatorAccessibilityFlags
   bool cuda_device_accessible_from_host = false;
   // special flag to enable tests that pass device buffers to MPI
   bool cuda_aware_mpi = false;
+  // special flag to allow use of device preferred host accessed managed memory for cuda util allocations
+  bool use_device_preferred_for_cuda_util_aloc = false;
 };
 
 struct AllocatorInfo
