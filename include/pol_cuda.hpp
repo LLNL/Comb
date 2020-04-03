@@ -20,17 +20,47 @@
 
 #include "memory.hpp"
 
+#include <chrono>
+
 #ifdef COMB_ENABLE_CUDA
 #include <cuda.h>
 
+#define COMB_CUDA_FUSED_KERNEL_DEVICE_TIMER
+#define COMB_CUDA_FUSED_KERNEL_HOST_TIMER
+
+#ifdef COMB_CUDA_FUSED_KERNEL_HOST_TIMER
+template < int >
+__global__
+void cuda_spin_kernel(double time_s)
+{
+  unsigned long long t0 = COMB::detail::cuda::device_timer();
+  unsigned long long time_ns = static_cast<unsigned long long>(time_s * 1000000000.0);
+  while (time_ns > COMB::detail::cuda::device_timer()-t0);
+}
+#endif
+
 template < typename body_type >
 __global__
-void cuda_for_all(IdxT begin, IdxT len, body_type body)
+void cuda_for_all(IdxT begin, IdxT len, body_type body
+#ifdef COMB_CUDA_FUSED_KERNEL_DEVICE_TIMER
+  ,unsigned long long* kernel_starts, unsigned long long* kernel_stops, int kernel_id
+#endif
+  )
 {
   const IdxT i = threadIdx.x + blockIdx.x * blockDim.x;
+#ifdef COMB_CUDA_FUSED_KERNEL_DEVICE_TIMER
+  if (kernel_starts != nullptr && i == 0) {
+    kernel_starts[kernel_id] = COMB::detail::cuda::device_timer();
+  }
+#endif
   if (i < len) {
     body(i + begin, i);
   }
+#ifdef COMB_CUDA_FUSED_KERNEL_DEVICE_TIMER
+  if (kernel_starts != nullptr && i == 0) {
+    kernel_stops[kernel_id] = COMB::detail::cuda::device_timer();
+  }
+#endif
 }
 
 template < typename body_type >
@@ -66,21 +96,33 @@ void cuda_for_all_3d(IdxT begin0, IdxT len0, IdxT begin1, IdxT len1, IdxT begin2
 
 template < typename body_type, IdxT num_threads >
 __global__ __launch_bounds__(num_threads)
-void cuda_fused(body_type body_in)
+void cuda_fused(body_type body_in
+#ifdef COMB_CUDA_FUSED_KERNEL_DEVICE_TIMER
+  ,unsigned long long* kernel_starts, unsigned long long* kernel_stops, int kernel_id_begin
+#endif
+  )
 {
   const IdxT i_outer = blockIdx.z;
   const IdxT i_inner = blockIdx.y;
   const IdxT ii      = threadIdx.x + blockIdx.x * blockDim.x;
   const IdxT i_stride = blockDim.x * gridDim.x;
+#ifdef COMB_CUDA_FUSED_KERNEL_DEVICE_TIMER
+  if (kernel_starts != nullptr && ii == 0) {
+    kernel_starts[kernel_id_begin + blockIdx.y + blockIdx.z*gridDim.y] = COMB::detail::cuda::device_timer();
+  }
+#endif
   auto body = body_in;
   body.set_outer(i_outer);
   body.set_inner(i_inner);
   for (IdxT i = ii; i < body.len; i += i_stride) {
     body(i, i);
   }
+#ifdef COMB_CUDA_FUSED_KERNEL_DEVICE_TIMER
+  if (kernel_starts != nullptr && ii == 0) {
+    kernel_stops[kernel_id_begin + blockIdx.y + blockIdx.z*gridDim.y] = COMB::detail::cuda::device_timer();
+  }
+#endif
 }
-
-
 
 struct cuda_component
 {
@@ -89,7 +131,24 @@ struct cuda_component
 
 struct cuda_group
 {
-  void* ptr = nullptr;
+  struct fused_info
+  {
+#ifdef COMB_CUDA_FUSED_KERNEL_DEVICE_TIMER
+    bool m_used = false;
+    int m_num_nodes = 0;
+    int m_max_num_nodes = 0;
+    int m_num_uses = 0;
+    unsigned long long* m_kernel_starts = nullptr;
+    int m_kernel_id = 0;
+    int m_num_kernel_timers = 0;
+    bool m_do_timing = false;
+#ifdef COMB_CUDA_FUSED_KERNEL_HOST_TIMER
+    double m_time_launch = 0.0;
+    cudaEvent_t m_time_launch_events[2];
+#endif
+#endif
+  };
+  fused_info* f = nullptr;
 };
 
 struct cuda_pol {
@@ -135,22 +194,113 @@ struct ExecContext<cuda_pol> : CudaContext
     base::synchronize();
   }
 
+private:
+  static inline group_type& get_active_group()
+  {
+    static group_type active_group = group_type{};
+    return active_group;
+  }
+
+public:
+
   group_type create_group()
   {
+#ifdef COMB_CUDA_FUSED_KERNEL_DEVICE_TIMER
+    group_type g{};
+    g.f = new typename group_type::fused_info{};
+    return g;
+#else
     return group_type{};
+#endif
   }
 
-  void start_group(group_type)
+  void start_group(group_type g)
   {
+#ifdef COMB_CUDA_FUSED_KERNEL_DEVICE_TIMER
+    get_active_group() = g;
+    assert(g.f);
+
+    g.f->m_used = false;
+    g.f->m_num_nodes = 0;
+    g.f->m_kernel_id = 0;
+
+    if (g.f->m_num_uses == 5 && g.f->m_kernel_id < g.f->m_max_num_nodes) {
+      // enable timing, this should also ensure that m_max_num_nodes > 0
+      if (g.f->m_kernel_starts == nullptr) {
+        // allocate space to store timers
+        g.f->m_num_kernel_timers = g.f->m_max_num_nodes;
+        cudaCheck(cudaMalloc(&g.f->m_kernel_starts, g.f->m_num_kernel_timers*2*sizeof(g.f->m_kernel_starts[0])));
+
+#ifdef COMB_CUDA_FUSED_KERNEL_HOST_TIMER
+        g.f->m_time_launch = 0.0;
+        cudaCheck(cudaEventCreateWithFlags(&g.f->m_time_launch_events[0], cudaEventDefault));
+        cudaCheck(cudaEventCreateWithFlags(&g.f->m_time_launch_events[1], cudaEventDefault));
+#endif
+      }
+      g.f->m_do_timing = true;
+    } else {
+      g.f->m_do_timing = false;
+    }
+#endif
   }
 
-  void finish_group(group_type)
+  void finish_group(group_type g)
   {
+#ifdef COMB_CUDA_FUSED_KERNEL_DEVICE_TIMER
+    assert(g.f);
+    if (g.f->m_used) {
+
+      if (g.f->m_do_timing) {
+        g.f->m_do_timing = false;
+      }
+
+      g.f->m_num_uses += 1;
+      g.f->m_used = false;
+    }
+
+    get_active_group() = group_type{};
+#endif
   }
 
-  void destroy_group(group_type)
+  void destroy_group(group_type g)
   {
+#ifdef COMB_CUDA_FUSED_KERNEL_DEVICE_TIMER
+    assert(g.f);
+    if (g.f->m_kernel_starts) {
+      unsigned long long* kernel_starts = (unsigned long long*)malloc(g.f->m_num_kernel_timers*2*sizeof(g.f->m_kernel_starts[0]));
+      unsigned long long* kernel_stops = kernel_starts + g.f->m_num_kernel_timers;
+      cudaCheck(cudaMemcpy(kernel_starts, g.f->m_kernel_starts, g.f->m_num_kernel_timers*2*sizeof(g.f->m_kernel_starts[0]), cudaMemcpyDefault));
+      cudaCheck(cudaFree(g.f->m_kernel_starts));
 
+      double tick_rate = 1000000000.0; // 1 tick / ns
+
+      unsigned long long first_start = kernel_starts[0];
+      for (int i = 0; i < g.f->m_num_kernel_timers; i++) {
+        if (first_start > kernel_starts[i]) first_start = kernel_starts[i];
+      }
+
+#ifdef COMB_CUDA_FUSED_KERNEL_HOST_TIMER
+      // print timers from around host api calls
+      {
+        FGPRINTF(FileGroup::proc, "ExecContext<cuda_pol>(%p).destroy_group fused_launch %.9f\n", this, g.f->m_time_launch);
+        float ms;
+        cudaCheck(cudaEventElapsedTime(&ms, g.f->m_time_launch_events[0], g.f->m_time_launch_events[1]));
+        double time = static_cast<double>(ms) / 1000.0;
+        FGPRINTF(FileGroup::proc, "ExecContext<cuda_pol>(%p).destroy_group fused_device %.9f\n", this, time);
+        cudaCheck(cudaEventDestroy(g.f->m_time_launch_events[0]));
+        cudaCheck(cudaEventDestroy(g.f->m_time_launch_events[1]));
+      }
+#endif
+
+      for (int i = 0; i < g.f->m_num_kernel_timers; i++) {
+        double start = (kernel_starts[i] - first_start) / tick_rate;
+        double stop  = (kernel_stops[i] - first_start) / tick_rate;
+        FGPRINTF(FileGroup::proc, "ExecContext<cuda_pol>(%p).destroy_group kernel_start %.9f kernel_stop %.9f\n", this, start, stop);
+      }
+      free(kernel_starts);
+    }
+    delete g.f;
+#endif
   }
 
   component_type create_component()
@@ -216,14 +366,56 @@ struct ExecContext<cuda_pol> : CudaContext
     const IdxT threads = 256;
     const IdxT blocks = (len + threads - 1) / threads;
 
+#ifdef COMB_CUDA_FUSED_KERNEL_DEVICE_TIMER
+    group_type g = get_active_group();
+    unsigned long long* kernel_starts = nullptr;
+    unsigned long long* kernel_stops = nullptr;
+    int kernel_id = -1;
+    if (g.f) {
+      if (g.f->m_do_timing) {
+        assert(g.f->m_kernel_starts != nullptr);
+        assert(g.f->m_kernel_id + 1 <= g.f->m_max_num_nodes);
+        kernel_starts = g.f->m_kernel_starts;
+        kernel_stops = g.f->m_kernel_starts + g.f->m_num_kernel_timers;
+        kernel_id = g.f->m_kernel_id; g.f->m_kernel_id += 1;
+      }
+      g.f->m_used = true;
+      g.f->m_num_nodes += 1;
+      if (g.f->m_num_nodes > g.f->m_max_num_nodes) { g.f->m_max_num_nodes = g.f->m_num_nodes; }
+    }
+#endif
+
     void* func = (void*)&cuda_for_all<decayed_body_type>;
     dim3 gridDim(blocks);
     dim3 blockDim(threads);
-    void* args[]{&begin, &len, &body};
+    void* args[]{&begin, &len, &body
+#ifdef COMB_CUDA_FUSED_KERNEL_DEVICE_TIMER
+      , &kernel_starts, &kernel_stops, &kernel_id
+#endif
+      };
     size_t sharedMem = 0;
     cudaStream_t stream = base::stream_launch();
 
+#ifdef COMB_CUDA_FUSED_KERNEL_HOST_TIMER
+    std::chrono::time_point<std::chrono::high_resolution_clock> t0;
+    if (g.f && g.f->m_do_timing) {
+      if (kernel_id == 0) {
+        cuda_spin_kernel<0><<<1,1,0,stream>>>(0.001); // spin for 0.001 seconds
+        cudaCheck(cudaEventRecord(g.f->m_time_launch_events[0], stream));
+      }
+      t0 = std::chrono::high_resolution_clock::now();
+    }
+#endif
     cudaCheck(cudaLaunchKernel(func, gridDim, blockDim, args, sharedMem, stream));
+#ifdef COMB_CUDA_FUSED_KERNEL_HOST_TIMER
+    if (g.f && g.f->m_do_timing) {
+      auto t1 = std::chrono::high_resolution_clock::now();
+      if (g.f->m_kernel_id >= g.f->m_max_num_nodes) {
+        cudaCheck(cudaEventRecord(g.f->m_time_launch_events[1], stream));
+      }
+      g.f->m_time_launch += std::chrono::duration<double>(t1-t0).count();
+    }
+#endif
     // base::synchronize();
   }
 
@@ -291,17 +483,57 @@ struct ExecContext<cuda_pol> : CudaContext
     const IdxT blocks1 = len_inner;
     const IdxT blocks2 = (len_hint + threads2 - 1) / threads2;
 
+#ifdef COMB_CUDA_FUSED_KERNEL_DEVICE_TIMER
+    group_type g = get_active_group();
+    unsigned long long* kernel_starts = nullptr;
+    unsigned long long* kernel_stops = nullptr;
+    int kernel_id = -1;
+    if (g.f) {
+      if (g.f->m_do_timing) {
+        assert(g.f->m_kernel_starts != nullptr);
+        assert(g.f->m_kernel_id + len_outer*len_inner <= g.f->m_max_num_nodes);
+        kernel_starts = g.f->m_kernel_starts;
+        kernel_stops = g.f->m_kernel_starts + g.f->m_num_kernel_timers;
+        kernel_id = g.f->m_kernel_id; g.f->m_kernel_id += len_outer*len_inner;
+      }
+      g.f->m_used = true;
+      g.f->m_num_nodes += len_outer*len_inner;
+      if (g.f->m_num_nodes > g.f->m_max_num_nodes) { g.f->m_max_num_nodes = g.f->m_num_nodes; }
+    }
+#endif
+
     void* func =(void*)&cuda_fused<decayed_body_type, threads0*threads1*threads2>;
     dim3 gridDim(blocks2, blocks1, blocks0);
     dim3 blockDim(threads2, threads1, threads0);
-    void* args[]{&body_in};
+    void* args[]{&body_in
+#ifdef COMB_CUDA_FUSED_KERNEL_DEVICE_TIMER
+      , &kernel_starts, &kernel_stops, &kernel_id
+#endif
+      };
     size_t sharedMem = 0;
     cudaStream_t stream = base::stream_launch();
-
+#ifdef COMB_CUDA_FUSED_KERNEL_HOST_TIMER
+    std::chrono::time_point<std::chrono::high_resolution_clock> t0;
+    if (g.f && g.f->m_do_timing) {
+      if (kernel_id == 0) {
+        cuda_spin_kernel<0><<<1,1,0,stream>>>(0.001); // spin for 0.001 seconds
+        cudaCheck(cudaEventRecord(g.f->m_time_launch_events[0], stream));
+      }
+      t0 = std::chrono::high_resolution_clock::now();
+    }
+#endif
     cudaCheck(cudaLaunchKernel(func, gridDim, blockDim, args, sharedMem, stream));
+#ifdef COMB_CUDA_FUSED_KERNEL_HOST_TIMER
+    if (g.f && g.f->m_do_timing) {
+      auto t1 = std::chrono::high_resolution_clock::now();
+      if (g.f->m_kernel_id >= g.f->m_max_num_nodes) {
+        cudaCheck(cudaEventRecord(g.f->m_time_launch_events[1], stream));
+      }
+      g.f->m_time_launch += std::chrono::duration<double>(t1-t0).count();
+    }
+#endif
     // base::synchronize();
   }
-
 };
 
 #endif // COMB_ENABLE_CUDA
