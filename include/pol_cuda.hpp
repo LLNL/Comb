@@ -31,6 +31,15 @@
 #ifdef COMB_CUDA_FUSED_KERNEL_HOST_TIMER
 template < int >
 __global__
+void cuda_timer_kernel(unsigned long long* kernel_timer)
+{
+  if (kernel_timer != nullptr) {
+    kernel_timer[0] = COMB::detail::cuda::device_timer();
+  }
+}
+
+template < int >
+__global__
 void cuda_spin_kernel(double time_s)
 {
   unsigned long long t0 = COMB::detail::cuda::device_timer();
@@ -144,6 +153,7 @@ struct cuda_group
     bool m_do_timing = false;
 #ifdef COMB_CUDA_FUSED_KERNEL_HOST_TIMER
     double m_time_launch = 0.0;
+    unsigned long long* m_kernel_pre_start = nullptr;
     cudaEvent_t m_time_launch_events[2];
 #endif
 #endif
@@ -229,10 +239,11 @@ public:
       if (g.f->m_kernel_starts == nullptr) {
         // allocate space to store timers
         g.f->m_num_kernel_timers = g.f->m_max_num_nodes;
-        cudaCheck(cudaMalloc(&g.f->m_kernel_starts, g.f->m_num_kernel_timers*2*sizeof(g.f->m_kernel_starts[0])));
+        cudaCheck(cudaMalloc(&g.f->m_kernel_starts, (g.f->m_num_kernel_timers*2+2)*sizeof(g.f->m_kernel_starts[0])));
 
 #ifdef COMB_CUDA_FUSED_KERNEL_HOST_TIMER
         g.f->m_time_launch = 0.0;
+        g.f->m_kernel_pre_start = g.f->m_kernel_starts + g.f->m_num_kernel_timers*2;
         cudaCheck(cudaEventCreateWithFlags(&g.f->m_time_launch_events[0], cudaEventDefault));
         cudaCheck(cudaEventCreateWithFlags(&g.f->m_time_launch_events[1], cudaEventDefault));
 #endif
@@ -267,9 +278,9 @@ public:
 #ifdef COMB_CUDA_FUSED_KERNEL_DEVICE_TIMER
     assert(g.f);
     if (g.f->m_kernel_starts) {
-      unsigned long long* kernel_starts = (unsigned long long*)malloc(g.f->m_num_kernel_timers*2*sizeof(g.f->m_kernel_starts[0]));
+      unsigned long long* kernel_starts = (unsigned long long*)malloc((g.f->m_num_kernel_timers*2+2)*sizeof(g.f->m_kernel_starts[0]));
       unsigned long long* kernel_stops = kernel_starts + g.f->m_num_kernel_timers;
-      cudaCheck(cudaMemcpy(kernel_starts, g.f->m_kernel_starts, g.f->m_num_kernel_timers*2*sizeof(g.f->m_kernel_starts[0]), cudaMemcpyDefault));
+      cudaCheck(cudaMemcpy(kernel_starts, g.f->m_kernel_starts, (g.f->m_num_kernel_timers*2+2)*sizeof(g.f->m_kernel_starts[0]), cudaMemcpyDefault));
       cudaCheck(cudaFree(g.f->m_kernel_starts));
 
       double tick_rate = 1000000000.0; // 1 tick / ns
@@ -289,6 +300,11 @@ public:
         FGPRINTF(FileGroup::proc, "ExecContext<cuda_pol>(%p).destroy_group fused_device %.9f\n", this, time);
         cudaCheck(cudaEventDestroy(g.f->m_time_launch_events[0]));
         cudaCheck(cudaEventDestroy(g.f->m_time_launch_events[1]));
+        unsigned long long* kernel_pre_start = kernel_starts + g.f->m_num_kernel_timers*2;
+        double time_kernel_pre_start = -static_cast<double>(first_start - kernel_pre_start[0]) / tick_rate;
+        double time_kernel_post_stop =  static_cast<double>(kernel_pre_start[1] - first_start) / tick_rate;
+        FGPRINTF(FileGroup::proc, "ExecContext<cuda_pol>(%p).destroy_group kernel_pre_start %.9f kernel_post_stop %.9f\n", this, time_kernel_pre_start, time_kernel_post_stop);
+
       }
 #endif
 
@@ -401,6 +417,7 @@ public:
     if (g.f && g.f->m_do_timing) {
       if (kernel_id == 0) {
         cuda_spin_kernel<0><<<1,1,0,stream>>>(0.001); // spin for 0.001 seconds
+        cuda_timer_kernel<0><<<1,1,0,stream>>>(g.f->m_kernel_pre_start);
         cudaCheck(cudaEventRecord(g.f->m_time_launch_events[0], stream));
       }
       t0 = std::chrono::high_resolution_clock::now();
@@ -412,6 +429,7 @@ public:
       auto t1 = std::chrono::high_resolution_clock::now();
       if (g.f->m_kernel_id >= g.f->m_max_num_nodes) {
         cudaCheck(cudaEventRecord(g.f->m_time_launch_events[1], stream));
+        cuda_timer_kernel<0><<<1,1,0,stream>>>(g.f->m_kernel_pre_start+1);
       }
       g.f->m_time_launch += std::chrono::duration<double>(t1-t0).count();
     }
@@ -517,6 +535,7 @@ public:
     if (g.f && g.f->m_do_timing) {
       if (kernel_id == 0) {
         cuda_spin_kernel<0><<<1,1,0,stream>>>(0.001); // spin for 0.001 seconds
+        cuda_timer_kernel<0><<<1,1,0,stream>>>(g.f->m_kernel_pre_start);
         cudaCheck(cudaEventRecord(g.f->m_time_launch_events[0], stream));
       }
       t0 = std::chrono::high_resolution_clock::now();
@@ -528,6 +547,7 @@ public:
       auto t1 = std::chrono::high_resolution_clock::now();
       if (g.f->m_kernel_id >= g.f->m_max_num_nodes) {
         cudaCheck(cudaEventRecord(g.f->m_time_launch_events[1], stream));
+        cuda_timer_kernel<0><<<1,1,0,stream>>>(g.f->m_kernel_pre_start+1);
       }
       g.f->m_time_launch += std::chrono::duration<double>(t1-t0).count();
     }
