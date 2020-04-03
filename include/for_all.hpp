@@ -157,12 +157,12 @@ struct ExecContexts
     , omp(base_cpu, alocs.host.allocator())
 #endif
 #ifdef COMB_ENABLE_CUDA
-    , cuda(base_cuda, alocs.cuda_hostpinned.allocator())
-    , cuda_batch(base_cuda, alocs.cuda_hostpinned.allocator())
-    , cuda_persistent(base_cuda, alocs.cuda_hostpinned.allocator())
+    , cuda(base_cuda, (alocs.access.use_device_preferred_for_cuda_util_aloc) ? alocs.cuda_managed_device_preferred_host_accessed.allocator() : alocs.cuda_hostpinned.allocator())
+    , cuda_batch(base_cuda, (alocs.access.use_device_preferred_for_cuda_util_aloc) ? alocs.cuda_managed_device_preferred_host_accessed.allocator() : alocs.cuda_hostpinned.allocator())
+    , cuda_persistent(base_cuda, (alocs.access.use_device_preferred_for_cuda_util_aloc) ? alocs.cuda_managed_device_preferred_host_accessed.allocator() : alocs.cuda_hostpinned.allocator())
 #endif
 #ifdef COMB_ENABLE_CUDA_GRAPH
-    , cuda_graph(base_cuda, alocs.cuda_hostpinned.allocator())
+    , cuda_graph(base_cuda, (alocs.access.use_device_preferred_for_cuda_util_aloc) ? alocs.cuda_managed_device_preferred_host_accessed.allocator() : alocs.cuda_hostpinned.allocator())
 #endif
 #ifdef COMB_ENABLE_MPI
     , mpi_type(base_mpi, alocs.host.allocator())

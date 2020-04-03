@@ -105,8 +105,6 @@ int main(int argc, char** argv)
   // and whether each memory type is accessbile from each exec context
   COMB::Allocators alloc;
 
-  COMB::ExecContexts exec{alloc};
-
   // read command line arguments
 #ifdef COMB_ENABLE_OPENMP
   int omp_threads = -1;
@@ -532,6 +530,12 @@ int main(int argc, char** argv)
 #else
         fgprintf(FileGroup::err_master, "Not built with cuda, ignoring %s.\n", argv[i]);
 #endif
+      } else if (strcmp(&argv[i][1], "use_device_preferred_for_cuda_util_aloc") == 0) {
+#ifdef COMB_ENABLE_CUDA
+        alloc.access.use_device_preferred_for_cuda_util_aloc = true;
+#else
+        fgprintf(FileGroup::err_master, "Not built with cuda, ignoring %s.\n", argv[i]);
+#endif
       } else if (strcmp(&argv[i][1], "print_packing_sizes") == 0) {
         do_print_packing_sizes = true;
       } else if (strcmp(&argv[i][1], "print_message_sizes") == 0) {
@@ -684,6 +688,8 @@ int main(int argc, char** argv)
 
   Timer tm(2*19*ncycles);
   Timer tm_total(1024);
+
+  COMB::ExecContexts exec{alloc};
 
   get_timer_context<timer_pol>() = &exec.seq;
 

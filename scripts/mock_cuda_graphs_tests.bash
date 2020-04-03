@@ -55,8 +55,12 @@ comb_args="${comb_args} -memory enable cuda_managed"
 comb_args="${comb_args} -comm enable mock"
 # disable mpi communication tests
 comb_args="${comb_args} -comm disable mpi"
-# disable fusing packs per variable per message
+# disable fusing packs per variable per message, pack each boundary separately even those in the same message
 comb_args="${comb_args} -comm disallow per_message_pack_fusing"
+# disable fusing packs per message group, pack each message separately
+# comb_args="${comb_args} -comm disallow message_group_pack_fusing"
+# use device preferred memory instead of host pinned memory for device utility allocations, used by fused kernels
+# comb_args="${comb_args} -use_device_preferred_for_cuda_util_aloc"
 
 
 # set up arguments for communication method
