@@ -1,5 +1,5 @@
 //////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2018-2019, Lawrence Livermore National Security, LLC.
+// Copyright (c) 2018-2020, Lawrence Livermore National Security, LLC.
 //
 // Produced at the Lawrence Livermore National Laboratory
 //
@@ -19,6 +19,7 @@
 #include "config.hpp"
 
 #include "utils.hpp"
+#include "memory.hpp"
 
 struct seq_component
 {
@@ -48,12 +49,12 @@ struct ExecContext<seq_pol> : CPUContext
 
   using base = CPUContext;
 
-  ExecContext()
-    : base()
-  { }
+  COMB::Allocator& util_aloc;
 
-  ExecContext(base const& b)
+
+  ExecContext(base const& b, COMB::Allocator& util_aloc_)
     : base(b)
+    , util_aloc(util_aloc_)
   { }
 
   void ensure_waitable()
@@ -180,6 +181,24 @@ struct ExecContext<seq_pol> : CPUContext
     }
     // base::synchronize();
   }
+
+  template < typename body_type >
+  void fused(IdxT len_outer, IdxT len_inner, IdxT len_hint, body_type&& body_in)
+  {
+    COMB::ignore_unused(len_hint);
+    for (IdxT i_outer = 0; i_outer < len_outer; ++i_outer) {
+      auto body = body_in;
+      body.set_outer(i_outer);
+      for (IdxT i_inner = 0; i_inner < len_inner; ++i_inner) {
+        body.set_inner(i_inner);
+        for (IdxT i = 0; i < body.len; ++i) {
+          body(i, i);
+        }
+      }
+    }
+    // base::synchronize();
+  }
+
 
 };
 

@@ -1,5 +1,5 @@
 //////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2018-2019, Lawrence Livermore National Security, LLC.
+// Copyright (c) 2018-2020, Lawrence Livermore National Security, LLC.
 //
 // Produced at the Lawrence Livermore National Laboratory
 //
@@ -17,6 +17,8 @@
 #define _POL_CUDA_HPP
 
 #include "config.hpp"
+
+#include "memory.hpp"
 
 #ifdef COMB_ENABLE_CUDA
 #include <cuda.h>
@@ -62,6 +64,24 @@ void cuda_for_all_3d(IdxT begin0, IdxT len0, IdxT begin1, IdxT len1, IdxT begin2
   }
 }
 
+template < typename body_type, IdxT num_threads >
+__global__ __launch_bounds__(num_threads)
+void cuda_fused(body_type body_in)
+{
+  const IdxT i_outer = blockIdx.z;
+  const IdxT i_inner = blockIdx.y;
+  const IdxT ii      = threadIdx.x + blockIdx.x * blockDim.x;
+  const IdxT i_stride = blockDim.x * gridDim.x;
+  auto body = body_in;
+  body.set_outer(i_outer);
+  body.set_inner(i_inner);
+  for (IdxT i = ii; i < body.len; i += i_stride) {
+    body(i, i);
+  }
+}
+
+
+
 struct cuda_component
 {
   void* ptr = nullptr;
@@ -90,12 +110,12 @@ struct ExecContext<cuda_pol> : CudaContext
 
   using base = CudaContext;
 
-  ExecContext()
-    : base()
-  { }
+  COMB::Allocator& util_aloc;
 
-  ExecContext(base const& b)
+
+  ExecContext(base const& b, COMB::Allocator& util_aloc_)
     : base(b)
+    , util_aloc(util_aloc_)
   { }
 
   void ensure_waitable()
@@ -252,6 +272,29 @@ struct ExecContext<cuda_pol> : CudaContext
     dim3 gridDim(blocks2, blocks1, blocks0);
     dim3 blockDim(threads2, threads1, threads0);
     void* args[]{&begin0, &len0, &begin1, &len1, &begin2, &len2, &len12, &body};
+    size_t sharedMem = 0;
+    cudaStream_t stream = base::stream_launch();
+
+    cudaCheck(cudaLaunchKernel(func, gridDim, blockDim, args, sharedMem, stream));
+    // base::synchronize();
+  }
+
+  template < typename body_type >
+  void fused(IdxT len_outer, IdxT len_inner, IdxT len_hint, body_type&& body_in)
+  {
+    using decayed_body_type = typename std::decay<body_type>::type;
+
+    constexpr IdxT threads0 = 1;
+    constexpr IdxT threads1 = 1;
+    constexpr IdxT threads2 = 1024;
+    const IdxT blocks0 = len_outer;
+    const IdxT blocks1 = len_inner;
+    const IdxT blocks2 = (len_hint + threads2 - 1) / threads2;
+
+    void* func =(void*)&cuda_fused<decayed_body_type, threads0*threads1*threads2>;
+    dim3 gridDim(blocks2, blocks1, blocks0);
+    dim3 blockDim(threads2, threads1, threads0);
+    void* args[]{&body_in};
     size_t sharedMem = 0;
     cudaStream_t stream = base::stream_launch();
 

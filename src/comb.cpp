@@ -1,5 +1,5 @@
 //////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2018-2019, Lawrence Livermore National Security, LLC.
+// Copyright (c) 2018-2020, Lawrence Livermore National Security, LLC.
 //
 // Produced at the Lawrence Livermore National Laboratory
 //
@@ -41,6 +41,15 @@ int main(int argc, char** argv)
 #endif
 
   comb_setup_files();
+
+  fgprintf(FileGroup::all, "Comb version %i.%i.%i\n",
+      COMB_VERSION_MAJOR, COMB_VERSION_MINOR, COMB_VERSION_PATCHLEVEL);
+
+  fgprintf(FileGroup::all, "Args  %s", argv[0]);
+  for(int i = 1; i < argc; ++i) {
+    fgprintf(FileGroup::all, ";%s", argv[i]);
+  }
+  fgprintf(FileGroup::all, "\n");
 
   { // begin region MPI communication via comminfo
   CommInfo comminfo;
@@ -91,12 +100,12 @@ int main(int argc, char** argv)
 #endif
 
 
-  COMB::ExecContexts exec;
-
   // stores the Allocator for each memory type,
   // whether each memory type is available for use,
   // and whether each memory type is accessbile from each exec context
   COMB::Allocators alloc;
+
+  COMB::ExecContexts exec{alloc};
 
   // read command line arguments
 #ifdef COMB_ENABLE_OPENMP
@@ -111,6 +120,9 @@ int main(int argc, char** argv)
   IdxT ncycles = 5;
 
   bool do_basic_only = false;
+
+  bool do_print_packing_sizes = false;
+  bool do_print_message_sizes = false;
 
   // stores whether each comm policy is available for use
   COMB::CommunicatorsAvailable comm_avail;
@@ -239,7 +251,9 @@ int main(int argc, char** argv)
             if (i+1 < argc && argv[i+1][0] != '-') {
               ++i;
               if (strcmp(argv[i], "per_message_pack_fusing") == 0) {
-                CommFactory::allow_per_message_pack_fusing() = allowdisallow;
+                comb_allow_per_message_pack_fusing() = allowdisallow;
+              } else if (strcmp(argv[i], "message_group_pack_fusing") == 0) {
+                comb_allow_pack_loop_fusion() = allowdisallow;
               } else {
                 fgprintf(FileGroup::err_master, "Invalid argument to sub-option, ignoring %s %s %s.\n", argv[i-2], argv[i-1], argv[i]);
               }
@@ -518,6 +532,10 @@ int main(int argc, char** argv)
 #else
         fgprintf(FileGroup::err_master, "Not built with cuda, ignoring %s.\n", argv[i]);
 #endif
+      } else if (strcmp(&argv[i][1], "print_packing_sizes") == 0) {
+        do_print_packing_sizes = true;
+      } else if (strcmp(&argv[i][1], "print_message_sizes") == 0) {
+        do_print_message_sizes = true;
       } else {
         fgprintf(FileGroup::err_master, "Unknown option, ignoring %s.\n", argv[i]);
       }
@@ -661,6 +679,8 @@ int main(int argc, char** argv)
       fgprintf(FileGroup::all, "\n");
     }
   }
+
+  COMB::print_message_info(comminfo, info, alloc.host.allocator(), num_vars, do_print_packing_sizes, do_print_message_sizes);
 
   Timer tm(2*19*ncycles);
   Timer tm_total(1024);

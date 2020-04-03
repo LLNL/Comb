@@ -1,5 +1,5 @@
 //////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2018-2019, Lawrence Livermore National Security, LLC.
+// Copyright (c) 2018-2020, Lawrence Livermore National Security, LLC.
 //
 // Produced at the Lawrence Livermore National Laboratory
 //
@@ -17,6 +17,9 @@
 #define _POL_CUDA_BATCH_HPP
 
 #include "config.hpp"
+
+
+#include "memory.hpp"
 
 #ifdef COMB_ENABLE_CUDA
 #include "batch_launch.hpp"
@@ -49,12 +52,12 @@ struct ExecContext<cuda_batch_pol> : CudaContext
 
   using base = CudaContext;
 
-  ExecContext()
-    : base()
-  { }
+  COMB::Allocator& util_aloc;
 
-  ExecContext(base const& b)
+
+  ExecContext(base const& b, COMB::Allocator& util_aloc_)
     : base(b)
+    , util_aloc(util_aloc_)
   { }
 
   void ensure_waitable()
@@ -164,6 +167,21 @@ struct ExecContext<cuda_batch_pol> : CudaContext
   {
     IdxT len = (end0 - begin0) * (end1 - begin1) * (end2 - begin2);
     cuda::batch_launch::for_all(0, len, detail::adapter_3d<typename std::remove_reference<body_type>::type>{begin0, end0, begin1, end1, begin2, end2, std::forward<body_type>(body)}, base::stream());
+    // base::synchronize();
+  }
+
+  template < typename body_type >
+  void fused(IdxT len_outer, IdxT len_inner, IdxT len_hint, body_type&& body_in)
+  {
+    COMB::ignore_unused(len_hint);
+    for (IdxT i_outer = 0; i_outer < len_outer; ++i_outer) {
+      auto body = body_in;
+      body.set_outer(i_outer);
+      for (IdxT i_inner = 0; i_inner < len_inner; ++i_inner) {
+        body.set_inner(i_inner);
+        cuda::batch_launch::for_all(0, body.len, body, base::stream());
+      }
+    }
     // base::synchronize();
   }
 

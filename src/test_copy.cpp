@@ -1,5 +1,5 @@
 //////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2018-2019, Lawrence Livermore National Security, LLC.
+// Copyright (c) 2018-2020, Lawrence Livermore National Security, LLC.
 //
 // Produced at the Lawrence Livermore National Laboratory
 //
@@ -35,6 +35,7 @@ void do_copy(ExecContext<pol>& con,
              COMB::Allocator& src_aloc,
              Timer& tm, IdxT num_vars, IdxT len, IdxT nrepeats)
 {
+  // CPUContext tm_con;
   tm.clear();
 
   char test_name[1024] = ""; snprintf(test_name, 1024, "memcpy %s dst %s src %s", pol::get_name(), dst_aloc.name(), src_aloc.name());

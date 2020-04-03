@@ -1,5 +1,5 @@
 //////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2018-2019, Lawrence Livermore National Security, LLC.
+// Copyright (c) 2018-2020, Lawrence Livermore National Security, LLC.
 //
 // Produced at the Lawrence Livermore National Laboratory
 //
@@ -16,6 +16,8 @@
 #include "config.hpp"
 
 #include "comb.hpp"
+
+#include "CommFactory.hpp"
 
 namespace COMB {
 
@@ -92,6 +94,46 @@ void print_timer(CommInfo& comminfo, Timer& tm, const char* prefix) {
   delete[] mins;
   delete[] maxs;
   delete[] nums;
+}
+
+void print_message_info(CommInfo& comminfo, MeshInfo& info,
+                        COMB::Allocator& aloc_unused,
+                        IdxT num_vars,
+                        bool print_packing_sizes,
+                        bool print_message_sizes)
+{
+  if (!(print_packing_sizes || print_message_sizes)) {
+    return;
+  }
+
+  const char* prefix = "";
+
+  if (print_packing_sizes) {
+    fgprintf(FileGroup::all, "%sprint message and packing sizes to proc file(s)\n",
+        prefix);
+  } else if (print_message_sizes) {
+    fgprintf(FileGroup::all, "%sprint message sizes to proc file(s)\n",
+        prefix);
+  }
+
+  Range r0("print_message_info", Range::green);
+
+  std::vector<MeshData> vars;
+  vars.reserve(num_vars);
+
+  {
+    CommFactory factory(comminfo);
+
+    for (IdxT i = 0; i < num_vars; ++i) {
+
+      vars.push_back(MeshData(info, aloc_unused));
+
+      factory.add_var(vars[i]);
+    }
+
+    factory.print_message_info(print_packing_sizes, print_message_sizes);
+  }
+
 }
 
 } // namespace COMB

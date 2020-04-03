@@ -1,4 +1,4 @@
-# Comb v0.1.2
+# Comb v0.2.0
 
 Comb is a communication performance benchmarking tool. It is used to determine performance tradeoffs in implementing communication patterns on high performance computing (HPC) platforms. At its core comb runs combinations of communication patterns with execution patterns, and memory spaces in order to find efficient combinations. The current set of capabilities Comb provides includes:
   - Configurable structured mesh halo exchange communication.
@@ -99,6 +99,7 @@ The runtime options change the properties of the grid and its decomposition, as 
           -   __test_all__ Wait for all sends to complete by polling (MPI_Testall)
       -   __allow|disallow *option*__ Allow or disallow specific communications options
           -   __per_message_pack_fusing__ Allow packing kernels to be fused for a single variable when packing into the same message
+          -   __message_group_pack_fusing__ Allow packing kernels to be fused across variables and messages when packing in the same message group
   -   __\-cycles *\#*__ Number of times the communication pattern is tested
   -   __\-omp_threads *\#*__ Number of openmp threads requested
   -   __\-exec *option*__ Execution options
@@ -126,6 +127,8 @@ The runtime options change the properties of the grid and its decomposition, as 
           -   __cuda_managed_device_preferred_host_accessed__ cuda managed with device preferred and host accessed advice memory space
   -   __\-cuda_aware_mpi__ Assert that you are using a cuda aware mpi implementation and enable tests that pass cuda device or managed memory to MPI
   -   __\-cuda_host_accessible_from_device__ Assert that your system supports pageable host memory access from the device and enable tests that access pageable host memory on the device
+  -  __\-print_packing_sizes__ Print message and packing sizes to proc files
+  -  __\-print_message_sizes__ Print message sizes to proc files
 
 ### Example Script
 

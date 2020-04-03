@@ -1,5 +1,5 @@
 //////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2018-2019, Lawrence Livermore National Security, LLC.
+// Copyright (c) 2018-2020, Lawrence Livermore National Security, LLC.
 //
 // Produced at the Lawrence Livermore National Laboratory
 //
@@ -26,7 +26,11 @@ void test_cycles_mock(CommInfo& comminfo, MeshInfo& info,
                       COMB::ExecutorsAvailable& exec_avail,
                       IdxT num_vars, IdxT ncycles, Timer& tm, Timer& tm_total)
 {
+#ifdef COMB_ENABLE_MPI
+  CommContext<mock_pol> con_comm{exec.base_mpi};
+#else
   CommContext<mock_pol> con_comm{exec.base_cpu};
+#endif
 
   {
     // mock host memory tests

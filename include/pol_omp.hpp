@@ -1,5 +1,5 @@
 //////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2018-2019, Lawrence Livermore National Security, LLC.
+// Copyright (c) 2018-2020, Lawrence Livermore National Security, LLC.
 //
 // Produced at the Lawrence Livermore National Laboratory
 //
@@ -56,12 +56,12 @@ struct ExecContext<omp_pol> : CPUContext
 
   using base = CPUContext;
 
-  ExecContext()
-    : base()
-  { }
+  COMB::Allocator& util_aloc;
 
-  ExecContext(base const& b)
+
+  ExecContext(base const& b, COMB::Allocator& util_aloc_)
     : base(b)
+    , util_aloc(util_aloc_)
   { }
 
   void ensure_waitable()
@@ -303,6 +303,57 @@ struct ExecContext<omp_pol> : CPUContext
         for(IdxT i2 = 0; i2 < len2; ++i2) {
           IdxT i = i0 * len12 + i1 * len2 + i2;
           body(i0 + begin0, i1 + begin1, i2 + begin2, i);
+        }
+      }
+    }
+
+  #endif
+    // base::synchronize();
+  }
+
+  template < typename body_type >
+  void fused(IdxT len_outer, IdxT len_inner, IdxT len_hint, body_type&& body_in)
+  {
+    COMB::ignore_unused(len_hint);
+
+  #ifdef COMB_USE_OMP_COLLAPSE
+
+    #pragma omp parallel for collapse(2)
+    for (IdxT i_outer = 0; i_outer < len_outer; ++i_outer) {
+      for (IdxT i_inner = 0; i_inner < len_inner; ++i_inner) {
+        auto body = body_in;
+        body.set_outer(i_outer);
+        body.set_inner(i_inner);
+        for (IdxT i = 0; i < body.len; ++i) {
+          body(i, i);
+        }
+      }
+    }
+
+  #elif defined(COMB_USE_OMP_WEAK_COLLAPSE)
+
+    #pragma omp parallel for collapse(2)
+    for (IdxT i_outer = 0; i_outer < len_outer; ++i_outer) {
+      for (IdxT i_inner = 0; i_inner < len_inner; ++i_inner) {
+        auto body = body_in;
+        body.set_outer(i_outer);
+        body.set_inner(i_inner);
+        for (IdxT i = 0; i < body.len; ++i) {
+          body(i, i);
+        }
+      }
+    }
+
+  #else
+
+    #pragma omp parallel for
+    for (IdxT i_outer = 0; i_outer < len_outer; ++i_outer) {
+      auto body = body_in;
+      body.set_outer(i_outer);
+      for (IdxT i_inner = 0; i_inner < len_inner; ++i_inner) {
+        body.set_inner(i_inner);
+        for (IdxT i = 0; i < body.len; ++i) {
+          body(i, i);
         }
       }
     }

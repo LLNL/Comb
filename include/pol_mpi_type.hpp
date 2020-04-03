@@ -1,5 +1,5 @@
 //////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2018-2019, Lawrence Livermore National Security, LLC.
+// Copyright (c) 2018-2020, Lawrence Livermore National Security, LLC.
 //
 // Produced at the Lawrence Livermore National Laboratory
 //
@@ -17,6 +17,9 @@
 #define _POL_MPI_TYPE_HPP
 
 #include "config.hpp"
+
+
+#include "memory.hpp"
 
 #ifdef COMB_ENABLE_MPI
 
@@ -50,12 +53,12 @@ struct ExecContext<mpi_type_pol> : MPIContext
 
   using base = MPIContext;
 
-  ExecContext()
-    : base()
-  { }
+  COMB::Allocator& util_aloc;
 
-  ExecContext(base const& b)
+
+  ExecContext(base const& b, COMB::Allocator& util_aloc_)
     : base(b)
+    , util_aloc(util_aloc_)
   { }
 
   void ensure_waitable()
@@ -164,6 +167,13 @@ struct ExecContext<mpi_type_pol> : MPIContext
   // void for_all_3d(IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, IdxT begin2, IdxT end2, body_type&& body)
   // {
   //   COMB::ignore_unused(pol, begin0, end0, begin1, end1, begin2, end2, body);
+  //   static_assert(false, "This method should never be used");
+  // }
+
+  // template < typename body_type >
+  // void fused(IdxT len_outer, IdxT len_inner, IdxT len_hint, body_type&& body_in)
+  // {
+  //   COMB::ignore_unused(pol, len_outer, len_inner, body_in);
   //   static_assert(false, "This method should never be used");
   // }
 

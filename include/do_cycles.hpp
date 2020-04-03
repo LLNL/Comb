@@ -1,5 +1,5 @@
 //////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2018-2019, Lawrence Livermore National Security, LLC.
+// Copyright (c) 2018-2020, Lawrence Livermore National Security, LLC.
 //
 // Produced at the Lawrence Livermore National Laboratory
 //
@@ -45,6 +45,7 @@ void do_cycles(CommContext<pol_comm>& con_comm_in,
                ExecContext<pol_few>& con_few,  COMB::Allocator& aloc_few,
                Timer& tm, Timer& tm_total)
 {
+  // CPUContext tm_con;
   tm_total.clear();
   tm.clear();
 
@@ -79,9 +80,21 @@ void do_cycles(CommContext<pol_comm>& con_comm_in,
 #endif
                                    );
 
-    // if policies are the same set cutoff to 0 (always use pol_many) to simplify algorithms
+    // sometimes set cutoff to 0 (always use pol_many) to simplify algorithms
     if (std::is_same<pol_many, pol_few>::value) {
-      comminfo.cutoff = 0;
+      // check comm send (packing) method
+      switch (comminfo.post_send_method) {
+        case CommInfo::method::waitsome:
+        case CommInfo::method::testsome:
+          // don't change cutoff to see if breaking messages into
+          // sized groups matters
+          break;
+        default:
+          // already packing individually or all together
+          // might aw well use simpler algorithm
+          comminfo.cutoff = 0;
+          break;
+      }
     }
 
     // make communicator object
@@ -507,8 +520,6 @@ void do_cycles(CommContext<pol_comm>& con_comm_in,
 
     print_timer(comminfo, tm);
     print_timer(comminfo, tm_total);
-
-    comm.depopulate();
   }
 
   tm.clear();

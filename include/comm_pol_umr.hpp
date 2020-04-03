@@ -1,5 +1,5 @@
 //////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2018-2019, Lawrence Livermore National Security, LLC.
+// Copyright (c) 2018-2020, Lawrence Livermore National Security, LLC.
 //
 // Produced at the Lawrence Livermore National Laboratory
 //
@@ -50,7 +50,7 @@ struct CommContext<umr_pol> : MPIContext
   using send_status_type = typename pol::send_status_type;
   using recv_status_type = typename pol::recv_status_type;
 
-  MPI_Comm comm;
+  MPI_Comm comm = MPI_COMM_NULL;
 
   CommContext()
     : base()
@@ -93,224 +93,380 @@ struct CommContext<umr_pol> : MPIContext
   {
     COMB::ignore_unused(comm, send_ranks, recv_ranks);
   }
+
+
+  void setup_mempool(COMB::Allocator& many_aloc,
+                     COMB::Allocator& few_aloc)
+  {
+    COMB::ignore_unused(many_aloc, few_aloc);
+  }
+
+  void teardown_mempool()
+  {
+  }
 };
 
 
+
+
+namespace detail {
+
 template < >
-struct Message<umr_pol> : detail::MessageBase
+struct Message<MessageBase::Kind::send, umr_pol>
+  : MessageInterface<MessageBase::Kind::send, umr_pol>
 {
-  using base = detail::MessageBase;
+  using base = MessageInterface<MessageBase::Kind::send, umr_pol>;
 
-  using policy_comm = umr_pol;
-  using communicator_type = CommExec<policy_comm>;
-  using send_request_type = typename policy_comm::send_request_type;
-  using recv_request_type = typename policy_comm::recv_request_type;
-  using send_status_type  = typename policy_comm::send_status_type;
-  using recv_status_type  = typename policy_comm::recv_status_type;
-
-  static void setup_mempool(communicator_type& con_comm,
-                            COMB::Allocator& many_aloc,
-                            COMB::Allocator& few_aloc)
-  {
-    COMB::ignore_unused(con_comm, many_aloc, few_aloc);
-  }
-
-  static void teardown_mempool(communicator_type& con_comm)
-  {
-    COMB::ignore_unused(con_comm);
-  }
-
+  using policy_comm = typename base::policy_comm;
+  using communicator_type = typename base::communicator_type;
+  using request_type      = typename base::request_type;
+  using status_type       = typename base::status_type;
 
   // use the base class constructor
   using base::base;
 
-  ~Message()
-  { }
 
-
-  template < typename context >
-  void pack(context& con, communicator_type&)
-  {
-    static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "umr_pol does not support mpi_type_pol");
-    DataT* buf = m_buf;
-    assert(buf != nullptr);
-    auto end = std::end(items);
-    for (auto i = std::begin(items); i != end; ++i) {
-      DataT const* src = i->data;
-      LidxT const* indices = i->indices;
-      IdxT len = i->size;
-      // FGPRINTF(FileGroup::proc, "%p pack %p = %p[%p] len %d\n", this, buf, src, indices, len);
-      con.for_all(0, len, make_copy_idxr_idxr(src, detail::indexer_list_idx{indices}, buf, detail::indexer_idx{}));
-      buf += len;
-    }
-  }
-
-  template < typename context >
-  void unpack(context& con, communicator_type&)
-  {
-    static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "umr_pol does not support mpi_type_pol");
-    DataT const* buf = m_buf;
-    assert(buf != nullptr);
-    auto end = std::end(items);
-    for (auto i = std::begin(items); i != end; ++i) {
-      DataT* dst = i->data;
-      LidxT const* indices = i->indices;
-      IdxT len = i->size;
-      // FGPRINTF(FileGroup::proc, "%p unpack %p[%p] = %p len %d\n", this, dst, indices, buf, len);
-      con.for_all(0, len, make_copy_idxr_idxr(buf, detail::indexer_idx{}, dst, detail::indexer_list_idx{indices}));
-      buf += len;
-    }
-  }
-
-
-  template < typename context >
-  void Isend(context&, communicator_type& con_comm, send_request_type* request)
-  {
-    static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "umr_pol does not support mpi_type_pol");
-    // FGPRINTF(FileGroup::proc, "%p Isend %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
-    detail::UMR::Isend(buffer(), nbytes(), UMR_BYTE, partner_rank(), tag(), con_comm.comm, request);
-  }
-
-  template < typename context >
-  static void wait_pack_complete(context& con, communicator_type& con_comm)
-  {
-    static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "umr_pol does not support mpi_type_pol");
-    // FGPRINTF(FileGroup::proc, "wait_pack_complete\n");
-    con_comm.waitOn(con);
-  }
-
-  template < typename context >
-  static void start_Isends(context& con, communicator_type& con_comm)
-  {
-    static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "umr_pol does not support mpi_type_pol");
-    // FGPRINTF(FileGroup::proc, "start_Isends\n");
-    COMB::ignore_unused(con, con_comm);
-  }
-
-  template < typename context >
-  static void finish_Isends(context& con, communicator_type& con_comm)
-  {
-    static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "umr_pol does not support mpi_type_pol");
-    // FGPRINTF(FileGroup::proc, "finish_Isends\n");
-    COMB::ignore_unused(con, con_comm);
-  }
-
-  template < typename context >
-  void Irecv(context&, communicator_type& con_comm, recv_request_type* request)
-  {
-    static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "umr_pol does not support mpi_type_pol");
-    // FGPRINTF(FileGroup::proc, "%p Irecv %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
-    detail::UMR::Irecv(buffer(), nbytes(), UMR_BYTE, partner_rank(), tag(), con_comm.comm, request);
-  }
-
-
-  template < typename context >
-  void allocate(context&, communicator_type& con_comm, COMB::Allocator& buf_aloc)
-  {
-    static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "umr_pol does not support mpi_type_pol");
-    COMB::ignore_unused(con_comm);
-    if (m_buf == nullptr) {
-      m_buf = (DataT*)buf_aloc.allocate(nbytes());
-    }
-  }
-
-  template < typename context >
-  void deallocate(context&, communicator_type& con_comm, COMB::Allocator& buf_aloc)
-  {
-    static_assert(!std::is_same<context, ExecContext<mpi_type_pol>>::value, "umr_pol does not support mpi_type_pol");
-    COMB::ignore_unused(con_comm);
-    if (m_buf != nullptr) {
-      buf_aloc.deallocate(m_buf);
-      m_buf = nullptr;
-    }
-  }
-
-
-  static int wait_send_any(communicator_type& con_comm,
-                           int count, send_request_type* requests,
-                           send_status_type* statuses)
+  static int wait_send_any(communicator_type&,
+                           int count, request_type* requests,
+                           status_type* statuses)
   {
     return detail::UMR::Waitany(count, requests, statuses);
   }
 
-  static int test_send_any(communicator_type& con_comm,
-                           int count, send_request_type* requests,
-                           send_status_type* statuses)
+  static int test_send_any(communicator_type&,
+                           int count, request_type* requests,
+                           status_type* statuses)
   {
     return detail::UMR::Testany(count, requests, statuses);
   }
 
-  static int wait_send_some(communicator_type& con_comm,
-                            int count, send_request_type* requests,
-                            int* indices, send_status_type* statuses)
+  static int wait_send_some(communicator_type&,
+                            int count, request_type* requests,
+                            int* indices, status_type* statuses)
   {
     return detail::UMR::Waitsome(count, requests, indices, statuses);
   }
 
-  static int test_send_some(communicator_type& con_comm,
-                            int count, send_request_type* requests,
-                            int* indices, send_status_type* statuses)
+  static int test_send_some(communicator_type&,
+                            int count, request_type* requests,
+                            int* indices, status_type* statuses)
   {
     return detail::UMR::Testsome(count, requests, indices, statuses);
   }
 
-  static void wait_send_all(communicator_type& con_comm,
-                            int count, send_request_type* requests,
-                            send_status_type* statuses)
+  static void wait_send_all(communicator_type&,
+                            int count, request_type* requests,
+                            status_type* statuses)
   {
     detail::UMR::Waitall(count, requests, statuses);
   }
 
-  static bool test_send_all(communicator_type& con_comm,
-                           int count, send_request_type* requests,
-                            send_status_type* statuses)
-  {
-    return detail::UMR::Testall(count, requests, statuses);
-  }
-
-
-  static int wait_recv_any(communicator_type& con_comm,
-                           int count, recv_request_type* requests,
-                           recv_status_type* statuses)
-  {
-    return detail::UMR::Waitany(count, requests, statuses);
-  }
-
-  static int test_recv_any(communicator_type& con_comm,
-                           int count, recv_request_type* requests,
-                           recv_status_type* statuses)
-  {
-    return detail::UMR::Testany(count, requests, statuses);
-  }
-
-  static int wait_recv_some(communicator_type& con_comm,
-                            int count, recv_request_type* requests,
-                            int* indices, recv_status_type* statuses)
-  {
-    return detail::UMR::Waitsome(count, requests, indices, statuses);
-  }
-
-  static int test_recv_some(communicator_type& con_comm,
-                            int count, recv_request_type* requests,
-                            int* indices, recv_status_type* statuses)
-  {
-    return detail::UMR::Testsome(count, requests, indices, statuses);
-  }
-
-  static void wait_recv_all(communicator_type& con_comm,
-                            int count, recv_request_type* requests,
-                            recv_status_type* statuses)
-  {
-    detail::UMR::Waitall(count, requests, statuses);
-  }
-
-  static bool test_recv_all(communicator_type& con_comm,
-                            int count, recv_request_type* requests,
-                            recv_status_type* statuses)
+  static bool test_send_all(communicator_type&,
+                            int count, request_type* requests,
+                            status_type* statuses)
   {
     return detail::UMR::Testall(count, requests, statuses);
   }
 };
+
+
+template < >
+struct Message<MessageBase::Kind::recv, umr_pol>
+  : MessageInterface<MessageBase::Kind::recv, umr_pol>
+{
+  using base = MessageInterface<MessageBase::Kind::recv, umr_pol>;
+
+  using policy_comm = typename base::policy_comm;
+  using communicator_type = typename base::communicator_type;
+  using request_type      = typename base::request_type;
+  using status_type       = typename base::status_type;
+
+  // use the base class constructor
+  using base::base;
+
+
+  static int wait_recv_any(communicator_type&,
+                           int count, request_type* requests,
+                           status_type* statuses)
+  {
+    return detail::UMR::Waitany(count, requests, statuses);
+  }
+
+  static int test_recv_any(communicator_type&,
+                           int count, request_type* requests,
+                           status_type* statuses)
+  {
+    return detail::UMR::Testany(count, requests, statuses);
+  }
+
+  static int wait_recv_some(communicator_type&,
+                            int count, request_type* requests,
+                            int* indices, status_type* statuses)
+  {
+    return detail::UMR::Waitsome(count, requests, indices, statuses);
+  }
+
+  static int test_recv_some(communicator_type&,
+                            int count, request_type* requests,
+                            int* indices, status_type* statuses)
+  {
+    return detail::UMR::Testsome(count, requests, indices, statuses);
+  }
+
+  static void wait_recv_all(communicator_type&,
+                            int count, request_type* requests,
+                            status_type* statuses)
+  {
+    detail::UMR::Waitall(count, requests, statuses);
+  }
+
+  static bool test_recv_all(communicator_type&,
+                            int count, request_type* requests,
+                            status_type* statuses)
+  {
+    return detail::UMR::Testall(count, requests, statuses);
+  }
+};
+
+
+template < typename exec_policy >
+struct MessageGroup<MessageBase::Kind::send, umr_pol, exec_policy>
+  : detail::MessageGroupInterface<MessageBase::Kind::send, umr_pol, exec_policy>
+{
+  using base = detail::MessageGroupInterface<MessageBase::Kind::send, umr_pol, exec_policy>;
+
+  using policy_comm       = typename base::policy_comm;
+  using communicator_type = typename base::communicator_type;
+  using message_type      = typename base::message_type;
+  using request_type      = typename base::request_type;
+  using status_type       = typename base::status_type;
+
+  using message_item_type = typename base::message_item_type;
+  using context_type      = typename base::context_type;
+  using event_type        = typename base::event_type;
+  using group_type        = typename base::group_type;
+  using component_type    = typename base::component_type;
+
+  // use the base class constructor
+  using base::base;
+
+
+  void allocate(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len)
+  {
+    COMB::ignore_unused(con, con_comm);
+    if (len <= 0) return;
+    for (IdxT i = 0; i < len; ++i) {
+      message_type* msg = msgs[i];
+      assert(msg->buf == nullptr);
+
+      IdxT nbytes = msg->nbytes() * this->m_variables.size();
+
+      msg->buf = this->m_aloc.allocate(nbytes);
+    }
+  }
+
+  void pack(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async async)
+  {
+    COMB::ignore_unused(con_comm);
+    if (len <= 0) return;
+    con.start_group(this->m_groups[len-1]);
+    for (IdxT i = 0; i < len; ++i) {
+      const message_type* msg = msgs[i];
+      char* buf = static_cast<char*>(msg->buf);
+      assert(buf != nullptr);
+      this->m_contexts[msg->idx].start_component(this->m_groups[len-1], this->m_components[msg->idx]);
+      for (const MessageItemBase* msg_item : msg->message_items) {
+        const message_item_type* item = static_cast<const message_item_type*>(msg_item);
+        const IdxT len = item->size;
+        const IdxT nbytes = item->nbytes;
+        LidxT const* indices = item->indices;
+        for (DataT const* src : this->m_variables) {
+          // FGPRINTF(FileGroup::proc, "%p pack %p = %p[%p] len %d\n", this, buf, src, indices, len);
+          this->m_contexts[msg->idx].for_all(0, len, make_copy_idxr_idxr(src, detail::indexer_list_idx{indices},
+                                             static_cast<DataT*>(static_cast<void*>(buf)), detail::indexer_idx{}));
+          buf += nbytes;
+        }
+      }
+      if (async == detail::Async::no) {
+        this->m_contexts[msg->idx].finish_component(this->m_groups[len-1], this->m_components[msg->idx]);
+      } else {
+        this->m_contexts[msg->idx].finish_component_recordEvent(this->m_groups[len-1], this->m_components[msg->idx], this->m_events[msg->idx]);
+      }
+    }
+    con.finish_group(this->m_groups[len-1]);
+  }
+
+  IdxT wait_pack_complete(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async async)
+  {
+    // FGPRINTF(FileGroup::proc, "wait_pack_complete\n");
+    if (len <= 0) return 0;
+    if (async == detail::Async::no) {
+      con_comm.waitOn(con);
+    } else {
+      for (IdxT i = 0; i < len; ++i) {
+        const message_type* msg = msgs[i];
+        if (!this->m_contexts[msg->idx].queryEvent(this->m_events[msg->idx])) {
+          return i;
+        }
+      }
+    }
+    return len;
+  }
+
+  static void start_Isends(context_type& con, communicator_type& con_comm)
+  {
+    // FGPRINTF(FileGroup::proc, "start_Isends\n");
+    COMB::ignore_unused(con, con_comm);
+  }
+
+  void Isend(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, request_type* requests)
+  {
+    if (len <= 0) return;
+    start_Isends(con, con_comm);
+    for (IdxT i = 0; i < len; ++i) {
+      const message_type* msg = msgs[i];
+      char* buf = static_cast<char*>(msg->buf);
+      assert(buf != nullptr);
+      const int partner_rank = msg->partner_rank;
+      const int tag = msg->msg_tag;
+      const IdxT nbytes = msg->nbytes() * this->m_variables.size();
+      // FGPRINTF(FileGroup::proc, "%p Isend %p nbytes %d to %i tag %i\n", this, buf, nbytes, partner_rank, tag);
+      detail::UMR::Isend(buf, nbytes, UMR_BYTE,
+                         partner_rank, tag, con_comm.comm, &requests[i]);
+    }
+    finish_Isends(con, con_comm);
+  }
+
+  static void finish_Isends(context_type& con, communicator_type& con_comm)
+  {
+    // FGPRINTF(FileGroup::proc, "finish_Isends\n");
+    COMB::ignore_unused(con, con_comm);
+  }
+
+  void deallocate(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len)
+  {
+    COMB::ignore_unused(con, con_comm);
+    if (len <= 0) return;
+    for (IdxT i = 0; i < len; ++i) {
+      message_type* msg = msgs[i];
+      assert(msg->buf != nullptr);
+
+      this->m_aloc.deallocate(msg->buf);
+
+      msg->buf = nullptr;
+    }
+  }
+};
+
+template < typename exec_policy >
+struct MessageGroup<MessageBase::Kind::recv, umr_pol, exec_policy>
+  : detail::MessageGroupInterface<MessageBase::Kind::recv, umr_pol, exec_policy>
+{
+  using base = detail::MessageGroupInterface<MessageBase::Kind::recv, umr_pol, exec_policy>;
+
+  using policy_comm       = typename base::policy_comm;
+  using communicator_type = typename base::communicator_type;
+  using message_type      = typename base::message_type;
+  using request_type      = typename base::request_type;
+  using status_type       = typename base::status_type;
+
+  using message_item_type = typename base::message_item_type;
+  using context_type      = typename base::context_type;
+  using event_type        = typename base::event_type;
+  using group_type        = typename base::group_type;
+  using component_type    = typename base::component_type;
+
+  // use the base class constructor
+  using base::base;
+
+
+  void allocate(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len)
+  {
+    COMB::ignore_unused(con, con_comm);
+    if (len <= 0) return;
+    for (IdxT i = 0; i < len; ++i) {
+      message_type* msg = msgs[i];
+      assert(msg->buf == nullptr);
+
+      IdxT nbytes = msg->nbytes() * this->m_variables.size();
+
+      msg->buf = this->m_aloc.allocate(nbytes);
+    }
+  }
+
+  void Irecv(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, request_type* requests)
+  {
+    COMB::ignore_unused(con, con_comm);
+    if (len <= 0) return;
+    for (IdxT i = 0; i < len; ++i) {
+      const message_type* msg = msgs[i];
+      char* buf = static_cast<char*>(msg->buf);
+      assert(buf != nullptr);
+      const int partner_rank = msg->partner_rank;
+      const int tag = msg->msg_tag;
+      const IdxT nbytes = msg->nbytes() * this->m_variables.size();
+      // FGPRINTF(FileGroup::proc, "%p Irecv %p nbytes %d to %i tag %i\n", this, buf, nbytes, partner_rank, tag);
+      detail::UMR::Irecv(buf, nbytes, UMR_BYTE,
+                         partner_rank, tag, con_comm.comm, &requests[i]);
+    }
+  }
+
+  void unpack(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len)
+  {
+    COMB::ignore_unused(con_comm);
+    if (len <= 0) return;
+    con.start_group(this->m_groups[len-1]);
+    for (IdxT i = 0; i < len; ++i) {
+      const message_type* msg = msgs[i];
+      char* buf = static_cast<char*>(msg->buf);
+      assert(buf != nullptr);
+      this->m_contexts[msg->idx].start_component(this->m_groups[len-1], this->m_components[msg->idx]);
+      for (const MessageItemBase* msg_item : msg->message_items) {
+        const message_item_type* item = static_cast<const message_item_type*>(msg_item);
+        const IdxT len = item->size;
+        const IdxT nbytes = item->nbytes;
+        LidxT const* indices = item->indices;
+        for (DataT* dst : this->m_variables) {
+          // FGPRINTF(FileGroup::proc, "%p unpack %p[%p] = %p len %d\n", this, dst, indices, buf, len);
+          this->m_contexts[msg->idx].for_all(0, len, make_copy_idxr_idxr(static_cast<DataT*>(static_cast<void*>(buf)), detail::indexer_idx{},
+                                             dst, detail::indexer_list_idx{indices}));
+          buf += nbytes;
+        }
+      }
+      this->m_contexts[msg->idx].finish_component(this->m_groups[len-1], this->m_components[msg->idx]);
+    }
+    con.finish_group(this->m_groups[len-1]);
+  }
+
+  void deallocate(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len)
+  {
+    COMB::ignore_unused(con, con_comm);
+    if (len <= 0) return;
+    for (IdxT i = 0; i < len; ++i) {
+      message_type* msg = msgs[i];
+      assert(msg->buf != nullptr);
+
+      this->m_aloc.deallocate(msg->buf);
+
+      msg->buf = nullptr;
+    }
+  }
+};
+
+
+template < >
+struct MessageGroup<MessageBase::Kind::send, umr_pol, mpi_type_pol>
+{
+  // unimplemented
+};
+
+template < >
+struct MessageGroup<MessageBase::Kind::recv, umr_pol, mpi_type_pol>
+{
+  // unimplemented
+};
+
+} // namespace detail
 
 #endif // COMB_ENABLE_UMR
 
