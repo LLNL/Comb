@@ -26,7 +26,24 @@
 #include <cuda.h>
 
 #define COMB_CUDA_FUSED_KERNEL_DEVICE_TIMER
+
+#ifdef COMB_CUDA_FUSED_KERNEL_DEVICE_TIMER
 #define COMB_CUDA_FUSED_KERNEL_HOST_TIMER
+#define COMB_CUDA_FUSED_KERNEL_DEVICE_TIMER_SKIP 32u
+#define COMB_CUDA_FUSED_KERNEL_DEVICE_TIMER_DO_TIMER(i) \
+    (((i) % COMB_CUDA_FUSED_KERNEL_DEVICE_TIMER_SKIP) == 0)
+#define COMB_CUDA_FUSED_KERNEL_DEVICE_TIMER_ASSIGN_START(ref, val) \
+    ::atomicMin(&(ref), (val))
+#define COMB_CUDA_FUSED_KERNEL_DEVICE_TIMER_ASSIGN_STOP(ref, val) \
+    ::atomicMax(&(ref), (val))
+#else
+#define COMB_CUDA_FUSED_KERNEL_DEVICE_TIMER_DO_TIMER(i) \
+    ((i) == 0)
+#define COMB_CUDA_FUSED_KERNEL_DEVICE_TIMER_ASSIGN_START(ref, val) \
+    (ref) = (val)
+#define COMB_CUDA_FUSED_KERNEL_DEVICE_TIMER_ASSIGN_STOP(ref, val) \
+    (ref) = (val)
+#endif
 
 #ifdef COMB_CUDA_FUSED_KERNEL_HOST_TIMER
 template < int >
@@ -58,16 +75,19 @@ void cuda_for_all(IdxT begin, IdxT len, body_type body
 {
   const IdxT i = threadIdx.x + blockIdx.x * blockDim.x;
 #ifdef COMB_CUDA_FUSED_KERNEL_DEVICE_TIMER
-  if (kernel_starts != nullptr && i == 0) {
-    kernel_starts[kernel_id] = COMB::detail::cuda::device_timer();
+  unsigned long long kernel_start;
+  if (kernel_starts != nullptr && COMB_CUDA_FUSED_KERNEL_DEVICE_TIMER_DO_TIMER(i)) {
+    kernel_start = COMB::detail::cuda::device_timer();
   }
 #endif
   if (i < len) {
     body(i + begin, i);
   }
 #ifdef COMB_CUDA_FUSED_KERNEL_DEVICE_TIMER
-  if (kernel_starts != nullptr && i == 0) {
-    kernel_stops[kernel_id] = COMB::detail::cuda::device_timer();
+  if (kernel_starts != nullptr && COMB_CUDA_FUSED_KERNEL_DEVICE_TIMER_DO_TIMER(i)) {
+    unsigned long long kernel_stop = COMB::detail::cuda::device_timer();
+    COMB_CUDA_FUSED_KERNEL_DEVICE_TIMER_ASSIGN_START(kernel_starts[kernel_id], kernel_start);
+    COMB_CUDA_FUSED_KERNEL_DEVICE_TIMER_ASSIGN_STOP(kernel_stops[kernel_id], kernel_stop);
   }
 #endif
 }
@@ -116,8 +136,9 @@ void cuda_fused(body_type body_in
   const IdxT ii      = threadIdx.x + blockIdx.x * blockDim.x;
   const IdxT i_stride = blockDim.x * gridDim.x;
 #ifdef COMB_CUDA_FUSED_KERNEL_DEVICE_TIMER
-  if (kernel_starts != nullptr && ii == 0) {
-    kernel_starts[kernel_id_begin + blockIdx.y + blockIdx.z*gridDim.y] = COMB::detail::cuda::device_timer();
+  unsigned long long kernel_start;
+  if (kernel_starts != nullptr && COMB_CUDA_FUSED_KERNEL_DEVICE_TIMER_DO_TIMER(ii)) {
+    kernel_start = COMB::detail::cuda::device_timer();
   }
 #endif
   auto body = body_in;
@@ -127,8 +148,10 @@ void cuda_fused(body_type body_in
     body(i, i);
   }
 #ifdef COMB_CUDA_FUSED_KERNEL_DEVICE_TIMER
-  if (kernel_starts != nullptr && ii == 0) {
-    kernel_stops[kernel_id_begin + blockIdx.y + blockIdx.z*gridDim.y] = COMB::detail::cuda::device_timer();
+  if (kernel_starts != nullptr && COMB_CUDA_FUSED_KERNEL_DEVICE_TIMER_DO_TIMER(ii)) {
+    unsigned long long kernel_stop = COMB::detail::cuda::device_timer();
+    COMB_CUDA_FUSED_KERNEL_DEVICE_TIMER_ASSIGN_START(kernel_starts[kernel_id_begin + blockIdx.y + blockIdx.z*gridDim.y], kernel_start);
+    COMB_CUDA_FUSED_KERNEL_DEVICE_TIMER_ASSIGN_STOP(kernel_stops[kernel_id_begin + blockIdx.y + blockIdx.z*gridDim.y], kernel_stop);
   }
 #endif
 }
@@ -240,6 +263,11 @@ public:
         // allocate space to store timers
         g.f->m_num_kernel_timers = g.f->m_max_num_nodes;
         cudaCheck(cudaMalloc(&g.f->m_kernel_starts, (g.f->m_num_kernel_timers*2+2)*sizeof(g.f->m_kernel_starts[0])));
+#ifdef COMB_CUDA_FUSED_KERNEL_DEVICE_TIMER_SKIP
+        // initialize starts to -1 (ULL_MAX), stops to 0
+        cudaCheck(cudaMemsetAsync(g.f->m_kernel_starts, -1, g.f->m_num_kernel_timers*sizeof(g.f->m_kernel_starts[0])));
+        cudaCheck(cudaMemsetAsync(g.f->m_kernel_starts+g.f->m_num_kernel_timers, 0, g.f->m_num_kernel_timers*sizeof(g.f->m_kernel_starts[0])));
+#endif
 
 #ifdef COMB_CUDA_FUSED_KERNEL_HOST_TIMER
         g.f->m_time_launch = 0.0;

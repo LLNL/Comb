@@ -45,6 +45,20 @@
 // add host timers around the graph api functions
 #ifdef COMB_GRAPH_KERNEL_DEVICE_TIMER
 #define COMB_GRAPH_KERNEL_HOST_TIMER
+#define COMB_GRAPH_KERNEL_DEVICE_TIMER_SKIP 32u
+#define COMB_GRAPH_KERNEL_DEVICE_TIMER_DO_TIMER(i) \
+    (((i) % COMB_GRAPH_KERNEL_DEVICE_TIMER_SKIP) == 0)
+#define COMB_GRAPH_KERNEL_DEVICE_TIMER_ASSIGN_START(ref, val) \
+    ::atomicMin(&(ref), (val))
+#define COMB_GRAPH_KERNEL_DEVICE_TIMER_ASSIGN_STOP(ref, val) \
+    ::atomicMax(&(ref), (val))
+#else
+#define COMB_GRAPH_KERNEL_DEVICE_TIMER_DO_TIMER(i) \
+    ((i) == 0)
+#define COMB_GRAPH_KERNEL_DEVICE_TIMER_ASSIGN_START(ref, val) \
+    (ref) = (val)
+#define COMB_GRAPH_KERNEL_DEVICE_TIMER_ASSIGN_STOP(ref, val) \
+    (ref) = (val)
 #endif
 
 namespace cuda {
@@ -386,6 +400,11 @@ struct Graph
         m_num_kernel_timers = m_instantiated_num_nodes;
 #endif
         cudaCheck(cudaMalloc(&m_kernel_starts, (m_num_kernel_timers*2+2)*sizeof(m_kernel_starts[0])));
+#ifdef COMB_GRAPH_KERNEL_DEVICE_TIMER_SKIP
+        // initialize starts to -1 (ULL_MAX), stops to 0
+        cudaCheck(cudaMemsetAsync(m_kernel_starts, -1, m_num_kernel_timers*sizeof(m_kernel_starts[0])));
+        cudaCheck(cudaMemsetAsync(m_kernel_starts+m_num_kernel_timers, 0, m_num_kernel_timers*sizeof(m_kernel_starts[0])));
+#endif
 
 #ifdef COMB_GRAPH_KERNEL_HOST_TIMER
         m_time_setparams = 0.0;
@@ -713,16 +732,19 @@ void graph_for_all(IdxT begin, IdxT len, body_type body
 {
   const IdxT i = threadIdx.x + blockIdx.x * blockDim.x;
 #ifdef COMB_GRAPH_KERNEL_DEVICE_TIMER
-  if (kernel_starts != nullptr && i == 0) {
-    kernel_starts[kernel_id] = COMB::detail::cuda::device_timer();
+  unsigned long long kernel_start;
+  if (kernel_starts != nullptr && COMB_GRAPH_KERNEL_DEVICE_TIMER_DO_TIMER(i)) {
+    kernel_start = COMB::detail::cuda::device_timer();
   }
 #endif
   if (i < len) {
     body(i + begin, i);
   }
 #ifdef COMB_GRAPH_KERNEL_DEVICE_TIMER
-  if (kernel_starts != nullptr && i == 0) {
-    kernel_stops[kernel_id] = COMB::detail::cuda::device_timer();
+  if (kernel_starts != nullptr && COMB_GRAPH_KERNEL_DEVICE_TIMER_DO_TIMER(i)) {
+    unsigned long long kernel_stop =  COMB::detail::cuda::device_timer();
+    COMB_GRAPH_KERNEL_DEVICE_TIMER_ASSIGN_START(kernel_starts[kernel_id], kernel_start);
+    COMB_GRAPH_KERNEL_DEVICE_TIMER_ASSIGN_STOP(kernel_stops[kernel_id], kernel_stop);
   }
 #endif
 }
