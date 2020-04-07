@@ -29,6 +29,7 @@
 
 #ifdef COMB_CUDA_FUSED_KERNEL_DEVICE_TIMER
 #define COMB_CUDA_FUSED_KERNEL_HOST_TIMER
+// #define COMB_CUDA_FUSED_KERNEL_PRINT_WORK
 #define COMB_CUDA_FUSED_KERNEL_DEVICE_TIMER_SKIP 32u
 #define COMB_CUDA_FUSED_KERNEL_DEVICE_TIMER_DO_TIMER(i) \
     (((i) % COMB_CUDA_FUSED_KERNEL_DEVICE_TIMER_SKIP) == 0)
@@ -171,6 +172,9 @@ struct cuda_group
     int m_max_num_nodes = 0;
     int m_num_uses = 0;
     unsigned long long* m_kernel_starts = nullptr;
+#ifdef COMB_CUDA_FUSED_KERNEL_PRINT_WORK
+    int* m_kernel_work = nullptr;
+#endif
     int m_kernel_id = 0;
     int m_num_kernel_timers = 0;
     bool m_do_timing = false;
@@ -263,6 +267,9 @@ public:
         // allocate space to store timers
         g.f->m_num_kernel_timers = g.f->m_max_num_nodes;
         cudaCheck(cudaMalloc(&g.f->m_kernel_starts, (g.f->m_num_kernel_timers*2+2)*sizeof(g.f->m_kernel_starts[0])));
+#ifdef COMB_CUDA_FUSED_KERNEL_PRINT_WORK
+        g.f->m_kernel_work = (int*)malloc(g.f->m_max_num_nodes*2*sizeof(g.f->m_kernel_work[0]));
+#endif
 #ifdef COMB_CUDA_FUSED_KERNEL_DEVICE_TIMER_SKIP
         // initialize starts to -1 (ULL_MAX), stops to 0
         cudaCheck(cudaMemsetAsync(g.f->m_kernel_starts, -1, g.f->m_num_kernel_timers*sizeof(g.f->m_kernel_starts[0])));
@@ -335,13 +342,22 @@ public:
 
       }
 #endif
-
       for (int i = 0; i < g.f->m_num_kernel_timers; i++) {
         double start = (kernel_starts[i] - first_start) / tick_rate;
         double stop  = (kernel_stops[i] - first_start) / tick_rate;
-        FGPRINTF(FileGroup::proc, "ExecContext<cuda_pol>(%p).destroy_group kernel_start %.9f kernel_stop %.9f\n", this, start, stop);
+#ifdef COMB_CUDA_FUSED_KERNEL_PRINT_WORK
+        int work = g.f->m_kernel_work[i];
+        int threads = g.f->m_kernel_work[i + g.f->m_max_num_nodes];
+#else
+        int work = 0;
+        int threads = 0;
+#endif
+        FGPRINTF(FileGroup::proc, "ExecContext<cuda_pol>(%p).destroy_group kernel_start %.9f kernel_stop %.9f kernel_work %i kernel_threads %i\n", this, start, stop, work, threads);
       }
       free(kernel_starts);
+#ifdef COMB_CUDA_FUSED_KERNEL_PRINT_WORK
+      free(g.f->m_kernel_work);
+#endif
     }
     delete g.f;
 #endif
@@ -422,6 +438,10 @@ public:
         kernel_starts = g.f->m_kernel_starts;
         kernel_stops = g.f->m_kernel_starts + g.f->m_num_kernel_timers;
         kernel_id = g.f->m_kernel_id; g.f->m_kernel_id += 1;
+#ifdef COMB_CUDA_FUSED_KERNEL_PRINT_WORK
+        g.f->m_kernel_work[kernel_id] = len;
+        g.f->m_kernel_work[g.f->m_max_num_nodes + kernel_id] = threads*blocks;
+#endif
       }
       g.f->m_used = true;
       g.f->m_num_nodes += 1;
@@ -541,6 +561,17 @@ public:
         kernel_starts = g.f->m_kernel_starts;
         kernel_stops = g.f->m_kernel_starts + g.f->m_num_kernel_timers;
         kernel_id = g.f->m_kernel_id; g.f->m_kernel_id += len_outer*len_inner;
+#ifdef COMB_CUDA_FUSED_KERNEL_PRINT_WORK
+        for (IdxT i_outer = 0; i_outer < len_outer; ++i_outer) {
+          auto body = body_in;
+          body.set_outer(i_outer);
+          for (IdxT i_inner = 0; i_inner < len_inner; ++i_inner) {
+            body.set_inner(i_inner);
+            g.f->m_kernel_work[kernel_id + i_inner + i_outer*len_inner] = body.len;
+            g.f->m_kernel_work[g.f->m_max_num_nodes + kernel_id + i_inner + i_outer*len_inner] = threads2*blocks2;
+          }
+        }
+#endif
       }
       g.f->m_used = true;
       g.f->m_num_nodes += len_outer*len_inner;

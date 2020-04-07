@@ -45,6 +45,7 @@
 // add host timers around the graph api functions
 #ifdef COMB_GRAPH_KERNEL_DEVICE_TIMER
 #define COMB_GRAPH_KERNEL_HOST_TIMER
+// #define COMB_GRAPH_KERNEL_PRINT_WORK
 #define COMB_GRAPH_KERNEL_DEVICE_TIMER_SKIP 32u
 #define COMB_GRAPH_KERNEL_DEVICE_TIMER_DO_TIMER(i) \
     (((i) % COMB_GRAPH_KERNEL_DEVICE_TIMER_SKIP) == 0)
@@ -275,6 +276,9 @@ struct Graph
             m_kernel_id = 0;
             m_num_kernel_timers = 0;
             cudaCheck(cudaFree(m_kernel_starts)); m_kernel_starts = nullptr;
+#ifdef COMB_GRAPH_KERNEL_PRINT_WORK
+            free(m_kernel_work); m_kernel_work = nullptr;
+#endif
 #ifdef COMB_GRAPH_KERNEL_HOST_TIMER
             m_time_setparams = 0.0;
             m_time_update = 0.0;
@@ -400,6 +404,9 @@ struct Graph
         m_num_kernel_timers = m_instantiated_num_nodes;
 #endif
         cudaCheck(cudaMalloc(&m_kernel_starts, (m_num_kernel_timers*2+2)*sizeof(m_kernel_starts[0])));
+#ifdef COMB_GRAPH_KERNEL_PRINT_WORK
+        m_kernel_work = (int*)malloc(m_instantiated_num_nodes*sizeof(m_kernel_work[0]));
+#endif
 #ifdef COMB_GRAPH_KERNEL_DEVICE_TIMER_SKIP
         // initialize starts to -1 (ULL_MAX), stops to 0
         cudaCheck(cudaMemsetAsync(m_kernel_starts, -1, m_num_kernel_timers*sizeof(m_kernel_starts[0])));
@@ -542,9 +549,17 @@ struct Graph
       for (int i = 0; i < m_instantiated_num_nodes; i++) {
         double start = (kernel_starts[i] - first_start) / tick_rate;
         double stop  = (kernel_stops[i] - first_start) / tick_rate;
-        FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).~Graph kernel_start %.9f kernel_stop %.9f\n", this, start, stop);
+#ifdef COMB_GRAPH_KERNEL_PRINT_WORK
+        int work = m_kernel_work[i];
+#else
+        int work = 0;
+#endif
+        FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).~Graph kernel_start %.9f kernel_stop %.9f kernel_work %i\n", this, start, stop, work);
       }
       free(kernel_starts);
+#ifdef COMB_GRAPH_KERNEL_PRINT_WORK
+      free(m_kernel_work);
+#endif
     }
 #endif
   }
@@ -573,6 +588,9 @@ private:
 public:
 #ifdef COMB_GRAPH_KERNEL_DEVICE_TIMER
   unsigned long long* m_kernel_starts = nullptr;
+#ifdef COMB_GRAPH_KERNEL_PRINT_WORK
+  int* m_kernel_work = nullptr;
+#endif
   int m_kernel_id = 0;
   int m_num_kernel_timers = 0;
   bool m_do_timing = false;
@@ -773,6 +791,9 @@ inline void for_all(int begin, int end, body_type&& body
     kernel_starts = get_active_group().graph->m_kernel_starts;
     kernel_stops = get_active_group().graph->m_kernel_starts + get_active_group().graph->m_num_kernel_timers;
     kernel_id = get_active_group().graph->m_kernel_id++;
+#ifdef COMB_GRAPH_KERNEL_PRINT_WORK
+    get_active_group().graph->m_kernel_work[kernel_id] = len;
+#endif
   }
 #endif
 
