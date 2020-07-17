@@ -58,6 +58,7 @@
 #cmakedefine COMB_ENABLE_OPENMP
 #cmakedefine COMB_ENABLE_CUDA
 #cmakedefine COMB_ENABLE_CLANG_CUDA
+#cmakedefine COMB_ENABLE_GDSYNC
 #cmakedefine COMB_ENABLE_GPUMP
 #cmakedefine COMB_ENABLE_MP
 #cmakedefine COMB_ENABLE_UMR
@@ -107,6 +108,12 @@ namespace COMB {
 #error COMB configured with ENABLE_CLANG_CUDA, but without ENABLE_CUDA
 #endif // COMB_ENABLE_CUDA
 #endif // COMB_ENABLE_CLANG_CUDA
+
+#if defined(COMB_ENABLE_GDSYNC)
+#if not defined(COMB_ENABLE_MPI)
+#error COMB configured with ENABLE_GDSYNC, but without ENABLE_MPI
+#endif // COMB_ENABLE_MPI
+#endif // COMB_ENABLE_GDSYNC
 
 #if defined(COMB_ENABLE_GPUMP)
 #if not defined(COMB_ENABLE_MPI)

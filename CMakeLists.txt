@@ -27,6 +27,7 @@ project(COMB LANGUAGES CXX VERSION ${COMB_LOADED})
 set(ENABLE_MPI ON CACHE BOOL "Build MPI support")
 set(ENABLE_OPENMP OFF CACHE BOOL "Build OpenMP support")
 set(ENABLE_CUDA OFF CACHE BOOL "Build CUDA support")
+set(ENABLE_GDSYNC OFF CACHE BOOL "Build GDSYNC support")
 set(ENABLE_GPUMP OFF CACHE BOOL "Build GPUMP support")
 set(ENABLE_MP OFF CACHE BOOL "Build MP support")
 set(ENABLE_UMR OFF CACHE BOOL "Build UMR support")
@@ -81,6 +82,7 @@ set(comb_sources
   src/test_copy.cpp
   src/test_cycles_mock.cpp
   src/test_cycles_mpi.cpp
+  src/test_cycles_gdsync.cpp
   src/test_cycles_gpump.cpp
   src/test_cycles_mp.cpp
   src/test_cycles_umr.cpp
@@ -98,6 +100,10 @@ endif()
 
 if (ENABLE_CUDA)
   set(comb_depends ${comb_depends} cuda nvToolsExt)
+endif()
+
+if (ENABLE_GDSYNC)
+  set(comb_depends ${comb_depends} gdsync)
 endif()
 
 if (ENABLE_GPUMP)

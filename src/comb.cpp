@@ -205,6 +205,9 @@ int main(int argc, char** argv)
 #ifdef COMB_ENABLE_MPI
                 comm_avail.mpi = enabledisable;
 #endif
+#ifdef COMB_ENABLE_GDSYNC
+                comm_avail.gdsync = enabledisable;
+#endif
 #ifdef COMB_ENABLE_GPUMP
                 comm_avail.gpump = enabledisable;
 #endif
@@ -219,6 +222,10 @@ int main(int argc, char** argv)
               } else if (strcmp(argv[i], "mpi") == 0) {
 #ifdef COMB_ENABLE_MPI
                 comm_avail.mpi = enabledisable;
+#endif
+              } else if (strcmp(argv[i], "gdsync") == 0) {
+#ifdef COMB_ENABLE_GDSYNC
+                comm_avail.gdsync = enabledisable;
 #endif
               } else if (strcmp(argv[i], "gpump") == 0) {
 #ifdef COMB_ENABLE_GPUMP
@@ -708,6 +715,11 @@ int main(int argc, char** argv)
 #ifdef COMB_ENABLE_MPI
     if (comm_avail.mpi)
       COMB::test_cycles_mpi(comminfo, info, exec, alloc, exec_avail, num_vars, ncycles, tm, tm_total);
+#endif
+
+#ifdef COMB_ENABLE_GDSYNC
+    if (comm_avail.gdsync)
+      COMB::test_cycles_gdsync(comminfo, info, exec, alloc, exec_avail, num_vars, ncycles, tm, tm_total);
 #endif
 
 #ifdef COMB_ENABLE_GPUMP

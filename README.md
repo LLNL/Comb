@@ -66,6 +66,7 @@ The runtime options change the properties of the grid and its decomposition, as 
           -   __all__ all message passing execution patterns
           -   __mock__ mock message passing execution pattern (do not communicate)
           -   __mpi__ mpi message passing execution pattern
+          -   __gdsync__ libgdsync message passing execution pattern (experimental)
           -   __gpump__ libgpump message passing execution pattern
           -   __mp__ libmp message passing execution pattern (experimental)
           -   __umr__ umr message passing execution pattern (experimental)

@@ -40,6 +40,32 @@ if (ENABLE_CUDA)
 endif()
 
 
+if (ENABLE_GDSYNC)
+  message(STATUS "FindGDSYNC.cmake ${PROJECT_SOURCE_DIR}/cmake")
+  set (CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake;${CMAKE_MODULE_PATH}")
+  find_package(gdsync REQUIRED)
+
+  if (GDSYNC_FOUND)
+    message(STATUS "GDSYNC Enabled")
+    message(STATUS "GDSYNC  Compile Flags:  ${GDSYNC_CXX_COMPILE_FLAGS}")
+    message(STATUS "GDSYNC  Include Path:   ${GDSYNC_INCLUDE_PATH}")
+    message(STATUS "GDSYNC  Link Flags:     ${GDSYNC_CXX_LINK_FLAGS}")
+    message(STATUS "GDSYNC  Libraries:      ${GDSYNC_CXX_LIBRARIES}")
+    message(STATUS "GDSYNC  Device Arch:    ${GDSYNC_ARCH}")
+  else()
+    message(FATAL_ERROR "gdsync NOT FOUND")
+  endif()
+
+  # register GDSYNC with blt
+  blt_register_library(NAME gdsync
+                       INCLUDES ${GDSYNC_CXX_INCLUDE_PATH}
+                       LIBRARIES ${GDSYNC_CXX_LIBRARIES}
+                       COMPILE_FLAGS ${GDSYNC_CXX_COMPILE_FLAGS}
+                       LINK_FLAGS    ${GDSYNC_CXX_LINK_FLAGS}
+                       DEFINES USE_GDSYNC)
+endif()
+
+
 if (ENABLE_GPUMP)
   message(STATUS "FindGPUMP.cmake ${PROJECT_SOURCE_DIR}/cmake")
   set (CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake;${CMAKE_MODULE_PATH}")

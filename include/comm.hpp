@@ -1005,6 +1005,7 @@ struct CommunicatorsAvailable
 {
   bool mock = false;
   bool mpi = false;
+  bool gdsync = false;
   bool gpump = false;
   bool mp = false;
   bool umr = false;
