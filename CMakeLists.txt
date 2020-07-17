@@ -24,12 +24,12 @@ set(COMB_LOADED "${COMB_VERSION_MAJOR}.${COMB_VERSION_MINOR}.${COMB_VERSION_PATC
 project(COMB LANGUAGES CXX VERSION ${COMB_LOADED})
 
 # Build options
-set(ENABLE_MPI ON CACHE Bool "Build MPI support")
-set(ENABLE_OPENMP OFF CACHE Bool "Build OpenMP support")
-set(ENABLE_CUDA OFF CACHE Bool "Build CUDA support")
-set(ENABLE_GPUMP OFF CACHE Bool "Build GPUMP support")
-set(ENABLE_MP OFF CACHE Bool "Build MP support")
-set(ENABLE_UMR OFF CACHE Bool "Build UMR support")
+set(ENABLE_MPI ON CACHE BOOL "Build MPI support")
+set(ENABLE_OPENMP OFF CACHE BOOL "Build OpenMP support")
+set(ENABLE_CUDA OFF CACHE BOOL "Build CUDA support")
+set(ENABLE_GPUMP OFF CACHE BOOL "Build GPUMP support")
+set(ENABLE_MP OFF CACHE BOOL "Build MP support")
+set(ENABLE_UMR OFF CACHE BOOL "Build UMR support")
 
 set(COMB_CXX_STANDARD_FLAG "default" CACHE STRING "Specific c++ standard flag to use, default attempts to autodetect the highest available")
 

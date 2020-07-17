@@ -30,4 +30,4 @@ set(MPIEXEC_NUMPROC_FLAG "-n" CACHE PATH "")
 
 set(ENABLE_WRAP_ALL_TESTS_WITH_MPIEXEC TRUE CACHE BOOL "Ensures that tests will be wrapped with srun to run on the backend nodes")
 
-set(COMB_HOST_CONFIG_LOADED On CACHE Bool "")
+set(COMB_HOST_CONFIG_LOADED On CACHE BOOL "")

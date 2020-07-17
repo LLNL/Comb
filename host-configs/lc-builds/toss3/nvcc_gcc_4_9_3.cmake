@@ -36,4 +36,4 @@ set(COMB_NVCC_FLAGS_RELWITHDEBINFO "-O2 -g -lineinfo"                           
 set(COMB_NVCC_FLAGS_MINSIZEREL     "-Os"                                             CACHE STRING "")
 set(COMB_NVCC_FLAGS_DEBUG          "-O0 -g -G"                                       CACHE STRING "")
 
-set(COMB_HOST_CONFIG_LOADED On CACHE Bool "")
+set(COMB_HOST_CONFIG_LOADED On CACHE BOOL "")
