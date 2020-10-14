@@ -25,4 +25,4 @@ set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -finline-functions -finline-limit=20000" CAC
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-Ofast -g -finline-functions -finline-limit=20000" CACHE STRING "")
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g" CACHE STRING "")
 
-set(COMB_HOST_CONFIG_LOADED On CACHE Bool "")
+set(COMB_HOST_CONFIG_LOADED On CACHE BOOL "")
