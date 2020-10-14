@@ -944,8 +944,6 @@ struct MessageGroup<MessageBase::Kind::recv, mock_pol, mpi_type_pol>
     if (len <= 0) return;
     for (IdxT i = 0; i < len; ++i) {
       const message_type* msg = msgs[i];
-      char* buf = static_cast<char*>(msg->buf);
-      assert(buf != nullptr);
       // const int partner_rank = msg->partner_rank;
       // const int tag = msg->msg_tag;
       if (msg->message_items.size() == 1 && this->m_variables.size() == 1) {
