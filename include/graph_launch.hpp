@@ -20,6 +20,11 @@
 
 #ifdef COMB_ENABLE_CUDA_GRAPH
 
+// cuda 10.1 and higher have graph kernel node set params
+#if CUDART_VERSION >= 10010
+#define COMB_HAVE_CUDA_GRAPH_KERNEL_NODE_SET_PARAMS
+#endif
+
 // cuda 10.2 and higher have graph update
 #if CUDART_VERSION >= 10020
 #define COMB_HAVE_CUDA_GRAPH_UPDATE
@@ -61,15 +66,8 @@ struct Graph
     , m_ref(1)
     , m_num_events(0)
   {
-#ifndef COMB_GRAPH_KERNEL_LAUNCH
-    // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).Graph cudaGraphCreate()\n", this );
-    cudaCheck(cudaGraphCreate(&m_graph, 0));
-    // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).Graph cudaGraphCreate() -> %p\n", this, &m_graph );
-#ifdef COMB_GRAPH_BEGIN_END_NODES
-    // insert begin node
-    cudaCheck(cudaGraphAddEmptyNode(&m_node_begin, m_graph, nullptr, 0));
-#endif
-#endif
+    // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).Graph\n", this );
+    createGraph();
   }
 
   // no copy construction
@@ -149,7 +147,7 @@ struct Graph
     assert(!m_launched);
     if (m_num_nodes < m_nodes.size()) {
       if (m_num_nodes < m_instantiated_num_nodes) {
-#ifndef COMB_HAVE_CUDA_GRAPH_UPDATE
+#if defined(COMB_HAVE_CUDA_GRAPH_KERNEL_NODE_SET_PARAMS) && !defined(COMB_HAVE_CUDA_GRAPH_UPDATE)
         // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).enqueue cudaGraphExecKernelNodeSetParams(%p, %p)\n", this, &m_graphExec, &m_nodes[m_num_nodes] );
         cudaCheck(cudaGraphExecKernelNodeSetParams(m_graphExec, m_nodes[m_num_nodes], &params));
 #endif
@@ -252,6 +250,10 @@ struct Graph
     m_event_recorded = false;
     m_launched = false;
     m_num_nodes = 0;
+#if !(defined(COMB_HAVE_CUDA_GRAPH_KERNEL_NODE_SET_PARAMS) || defined(COMB_HAVE_CUDA_GRAPH_UPDATE))
+    destroyGraph();
+    createGraph();
+#endif
   }
 
   bool launchable() const
@@ -261,33 +263,14 @@ struct Graph
 
   ~Graph()
   {
+    // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).~Graph\n", this );
     assert(m_ref == 0);
     assert(m_num_events == 0);
     if (m_event_created) {
       // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).~Graph cudaEventDestroy(%p)\n", this, &m_event );
       cudaCheck(cudaEventDestroy(m_event));
     }
-#ifndef COMB_GRAPH_KERNEL_LAUNCH
-    if (m_instantiated_num_nodes > 0) {
-      // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).~Graph cudaGraphExecDestroy(%p)\n", this, &m_graphExec );
-      cudaCheck(cudaGraphExecDestroy(m_graphExec));
-    }
-#ifdef COMB_GRAPH_BEGIN_END_NODES
-    if (m_nodes.size() > 0) {
-      cudaCheck(cudaGraphDestroyNode(m_node_begin));
-    }
-    if (m_instantiated_num_nodes > 0) {
-      cudaCheck(cudaGraphDestroyNode(m_node_end));
-    }
-#endif
-    for (int i = 0; i < m_nodes.size(); ++i) {
-      // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).~Graph cudaGraphDestroyNode(%p)\n", this, &m_nodes[i] );
-      cudaCheck(cudaGraphDestroyNode(m_nodes[i]));
-    }
-    m_nodes.clear();
-    // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).~Graph cudaGraphDestroy(%p)\n", this, &m_graph );
-    cudaCheck(cudaGraphDestroy(m_graph));
-#endif
+    destroyGraph();
   }
 private:
 #ifndef COMB_GRAPH_KERNEL_LAUNCH
@@ -322,6 +305,47 @@ private:
       cudaCheck(cudaEventRecord(m_event, stream));
       m_event_recorded = true;
     }
+  }
+
+  void createGraph()
+  {
+#ifndef COMB_GRAPH_KERNEL_LAUNCH
+    // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).createGraph cudaGraphCreate()\n", this );
+    cudaCheck(cudaGraphCreate(&m_graph, 0));
+    // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).createGraph cudaGraphCreate() -> %p\n", this, &m_graph );
+#ifdef COMB_GRAPH_BEGIN_END_NODES
+    // insert begin node
+    cudaCheck(cudaGraphAddEmptyNode(&m_node_begin, m_graph, nullptr, 0));
+#endif
+#endif
+  }
+
+  void destroyGraph()
+  {
+#ifndef COMB_GRAPH_KERNEL_LAUNCH
+    if (m_instantiated_num_nodes > 0) {
+      // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).destroyGraph cudaGraphExecDestroy(%p)\n", this, &m_graphExec );
+      cudaCheck(cudaGraphExecDestroy(m_graphExec));
+    }
+#ifdef COMB_GRAPH_BEGIN_END_NODES
+    if (m_nodes.size() > 0) {
+      cudaCheck(cudaGraphDestroyNode(m_node_begin));
+    }
+    if (m_instantiated_num_nodes > 0) {
+      cudaCheck(cudaGraphDestroyNode(m_node_end));
+    }
+#endif
+    for (int i = 0; i < m_nodes.size(); ++i) {
+      // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).destroyGraph cudaGraphDestroyNode(%p)\n", this, &m_nodes[i] );
+      cudaCheck(cudaGraphDestroyNode(m_nodes[i]));
+    }
+    m_nodes.clear();
+    m_num_nodes = 0;
+    m_instantiated_num_nodes = 0;
+    m_launched = false;
+    // FGPRINTF(FileGroup::proc, "cuda::graph_launch::Graph(%p).destroyGraph cudaGraphDestroy(%p)\n", this, &m_graph );
+    cudaCheck(cudaGraphDestroy(m_graph));
+#endif
   }
 };
 
