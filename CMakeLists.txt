@@ -39,6 +39,14 @@ set(ENABLE_UMR OFF CACHE BOOL "Build UMR support")
 
 option(ENABLE_CLANG_CUDA "Use Clang's native CUDA support" OFF)
 
+# Build options for libraries, disable extras
+option(ENABLE_TESTS "Build tests" Off)
+option(ENABLE_REPRODUCERS "Build issue reproducers" Off)
+option(ENABLE_EXAMPLES "Build simple examples" Off)
+option(ENABLE_EXERCISES "Build exercises " Off)
+option(ENABLE_MODULES "Enable modules in supporting compilers (clang)" Off)
+
+
 set(COMB_CXX_STANDARD_FLAG "default" CACHE STRING "Specific c++ standard flag to use, default attempts to autodetect the highest available")
 
 cmake_minimum_required(VERSION 3.9)
