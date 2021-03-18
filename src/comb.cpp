@@ -130,8 +130,8 @@ int main(int argc, char** argv)
 #endif
 
   // stores whether each exec policy is available for use
-  COMB::ExecutorsAvailable exec_avail;
-  exec_avail.seq = true;
+  COMB::Executors exec;
+  exec.seq.m_available = true;
 
   // stores whether each memory type is available for use
   alloc.host.m_available = true;
@@ -303,57 +303,57 @@ int main(int argc, char** argv)
             if (i+1 < argc && argv[i+1][0] != '-') {
               ++i;
               if (strcmp(argv[i], "all") == 0) {
-                exec_avail.seq = enabledisable;
+                exec.seq.m_available = enabledisable;
   #ifdef COMB_ENABLE_OPENMP
-                exec_avail.omp = enabledisable;
+                exec.omp.m_available = enabledisable;
   #endif
   #ifdef COMB_ENABLE_CUDA
-                exec_avail.cuda = enabledisable;
-                exec_avail.cuda_batch = enabledisable && cuda::batch_launch::available();
-                exec_avail.cuda_persistent = enabledisable && cuda::persistent_launch::available();
-                exec_avail.cuda_batch_fewgs = enabledisable && cuda::batch_launch::available();
-                exec_avail.cuda_persistent_fewgs = enabledisable && cuda::persistent_launch::available();
+                exec.cuda.m_available = enabledisable;
+                exec.cuda_batch.m_available = enabledisable && cuda::batch_launch::available();
+                exec.cuda_persistent.m_available = enabledisable && cuda::persistent_launch::available();
+                exec.cuda_batch_fewgs.m_available = enabledisable && cuda::batch_launch::available();
+                exec.cuda_persistent_fewgs.m_available = enabledisable && cuda::persistent_launch::available();
   #endif
   #ifdef COMB_ENABLE_CUDA_GRAPH
-                exec_avail.cuda_graph = enabledisable;
+                exec.cuda_graph.m_available = enabledisable;
   #endif
 #ifdef COMB_ENABLE_MPI
-                exec_avail.mpi_type = enabledisable;
+                exec.mpi_type.m_available = enabledisable;
 #endif
               } else if (strcmp(argv[i], "seq") == 0) {
-                exec_avail.seq = enabledisable;
+                exec.seq.m_available = enabledisable;
               } else if (strcmp(argv[i], "omp") == 0 ||
                          strcmp(argv[i], "openmp") == 0) {
   #ifdef COMB_ENABLE_OPENMP
-                exec_avail.omp = enabledisable;
+                exec.omp.m_available = enabledisable;
   #endif
               } else if (strcmp(argv[i], "cuda") == 0) {
   #ifdef COMB_ENABLE_CUDA
-                exec_avail.cuda = enabledisable;
+                exec.cuda.m_available = enabledisable;
   #endif
               } else if (strcmp(argv[i], "cuda_batch") == 0) {
   #ifdef COMB_ENABLE_CUDA
-                exec_avail.cuda_batch = enabledisable && cuda::batch_launch::available();
+                exec.cuda_batch.m_available = enabledisable && cuda::batch_launch::available();
   #endif
               } else if (strcmp(argv[i], "cuda_persistent") == 0) {
   #ifdef COMB_ENABLE_CUDA
-                exec_avail.cuda_persistent = enabledisable && cuda::persistent_launch::available();
+                exec.cuda_persistent.m_available = enabledisable && cuda::persistent_launch::available();
   #endif
               } else if (strcmp(argv[i], "cuda_batch_fewgs") == 0) {
   #ifdef COMB_ENABLE_CUDA
-                exec_avail.cuda_batch_fewgs = enabledisable && cuda::persistent_launch::available();
+                exec.cuda_batch_fewgs.m_available = enabledisable && cuda::persistent_launch::available();
   #endif
               } else if (strcmp(argv[i], "cuda_persistent_fewgs") == 0) {
   #ifdef COMB_ENABLE_CUDA
-                exec_avail.cuda_persistent_fewgs = enabledisable && cuda::persistent_launch::available();
+                exec.cuda_persistent_fewgs.m_available = enabledisable && cuda::persistent_launch::available();
   #endif
               } else if (strcmp(argv[i], "cuda_graph") == 0) {
   #ifdef COMB_ENABLE_CUDA_GRAPH
-                exec_avail.cuda_graph = enabledisable;
+                exec.cuda_graph.m_available = enabledisable;
   #endif
               } else if (strcmp(argv[i], "mpi_type") == 0) {
 #ifdef COMB_ENABLE_MPI
-                exec_avail.mpi_type = enabledisable;
+                exec.mpi_type.m_available = enabledisable;
 #endif
               } else {
                 fgprintf(FileGroup::err_master, "Invalid argument to sub-option, ignoring %s %s %s.\n", argv[i-2], argv[i-1], argv[i]);
@@ -696,45 +696,45 @@ int main(int argc, char** argv)
   Timer tm(2*6*ncycles);
   Timer tm_total(1024);
 
-  COMB::ExecContexts exec{alloc};
+  exec.create_executors(alloc);
 
   // warm-up memory pools
-  COMB::warmup(exec, alloc, exec_avail, tm, num_vars+1, info.totallen);
+  COMB::warmup(exec, alloc, tm, num_vars+1, info.totallen);
 
-  COMB::test_copy(comminfo, exec, alloc, exec_avail, tm, num_vars, info.totallen, ncycles);
+  COMB::test_copy(comminfo, exec, alloc, tm, num_vars, info.totallen, ncycles);
 
   if (do_basic_only) {
 
-    COMB::test_cycles_basic(comminfo, info, exec, alloc, exec_avail, num_vars, ncycles, tm, tm_total);
+    COMB::test_cycles_basic(comminfo, info, exec, alloc, num_vars, ncycles, tm, tm_total);
 
   } else {
 
     if (comm_avail.mock)
-      COMB::test_cycles_mock(comminfo, info, exec, alloc, exec_avail, num_vars, ncycles, tm, tm_total);
+      COMB::test_cycles_mock(comminfo, info, exec, alloc, num_vars, ncycles, tm, tm_total);
 
 #ifdef COMB_ENABLE_MPI
     if (comm_avail.mpi)
-      COMB::test_cycles_mpi(comminfo, info, exec, alloc, exec_avail, num_vars, ncycles, tm, tm_total);
+      COMB::test_cycles_mpi(comminfo, info, exec, alloc, num_vars, ncycles, tm, tm_total);
 #endif
 
 #ifdef COMB_ENABLE_GDSYNC
     if (comm_avail.gdsync)
-      COMB::test_cycles_gdsync(comminfo, info, exec, alloc, exec_avail, num_vars, ncycles, tm, tm_total);
+      COMB::test_cycles_gdsync(comminfo, info, exec, alloc, num_vars, ncycles, tm, tm_total);
 #endif
 
 #ifdef COMB_ENABLE_GPUMP
     if (comm_avail.gpump)
-      COMB::test_cycles_gpump(comminfo, info, exec, alloc, exec_avail, num_vars, ncycles, tm, tm_total);
+      COMB::test_cycles_gpump(comminfo, info, exec, alloc, num_vars, ncycles, tm, tm_total);
 #endif
 
 #ifdef COMB_ENABLE_MP
     if (comm_avail.mp)
-      COMB::test_cycles_mp(comminfo, info, exec, alloc, exec_avail, num_vars, ncycles, tm, tm_total);
+      COMB::test_cycles_mp(comminfo, info, exec, alloc, num_vars, ncycles, tm, tm_total);
 #endif
 
 #ifdef COMB_ENABLE_UMR
     if (comm_avail.umr)
-      COMB::test_cycles_umr(comminfo, info, exec, alloc, exec_avail, num_vars, ncycles, tm, tm_total);
+      COMB::test_cycles_umr(comminfo, info, exec, alloc, num_vars, ncycles, tm, tm_total);
 #endif
 
   }

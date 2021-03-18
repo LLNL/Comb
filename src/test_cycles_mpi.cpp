@@ -23,12 +23,11 @@
 namespace COMB {
 
 void test_cycles_mpi(CommInfo& comminfo, MeshInfo& info,
-                     COMB::ExecContexts& exec,
+                     COMB::Executors& exec,
                      COMB::Allocators& alloc,
-                     COMB::ExecutorsAvailable& exec_avail,
                      IdxT num_vars, IdxT ncycles, Timer& tm, Timer& tm_total)
 {
-  CommContext<mpi_pol> con_comm{exec.base_mpi};
+  CommContext<mpi_pol> con_comm{exec.base_mpi.get()};
 
   {
     // mpi host memory tests
@@ -49,7 +48,6 @@ void test_cycles_mpi(CommInfo& comminfo, MeshInfo& info,
                          alloc,
                          cpu_many_aloc, cpu_few_aloc,
                          cuda_many_aloc, cuda_few_aloc,
-                         exec_avail,
                          num_vars, ncycles, tm, tm_total);
   }
 
@@ -68,7 +66,6 @@ void test_cycles_mpi(CommInfo& comminfo, MeshInfo& info,
                          alloc,
                          cpu_many_aloc, cpu_few_aloc,
                          cuda_many_aloc, cuda_few_aloc,
-                         exec_avail,
                          num_vars, ncycles, tm, tm_total);
   }
 #endif

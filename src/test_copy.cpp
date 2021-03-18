@@ -140,47 +140,46 @@ void do_copy(ExecContext<pol>& con,
 }
 
 void test_copy_allocator(CommInfo& comminfo,
-                         COMB::ExecContexts& exec,
+                         COMB::Executors& exec,
                          AllocatorInfo& dst_aloc,
                          AllocatorInfo& cpu_src_aloc,
                          AllocatorInfo& cuda_src_aloc,
-                         COMB::ExecutorsAvailable& exec_avail,
                          Timer& tm, IdxT num_vars, IdxT len, IdxT nrepeats)
 {
   char name[1024] = ""; snprintf(name, 1024, "set_vars %s", dst_aloc.allocator().name());
   Range r0(name, Range::green);
 
-  if (exec_avail.seq && should_do_copy(exec.seq, dst_aloc, cpu_src_aloc))
-    do_copy(exec.seq, comminfo, dst_aloc.allocator(), cpu_src_aloc.allocator(), tm, num_vars, len, nrepeats);
+  if (exec.seq.m_available && should_do_copy(exec.seq.get(), dst_aloc, cpu_src_aloc))
+    do_copy(exec.seq.get(), comminfo, dst_aloc.allocator(), cpu_src_aloc.allocator(), tm, num_vars, len, nrepeats);
 
 #ifdef COMB_ENABLE_OPENMP
-  if (exec_avail.omp && should_do_copy(exec.omp, dst_aloc, cpu_src_aloc))
-    do_copy(exec.omp, comminfo, dst_aloc.allocator(), cpu_src_aloc.allocator(), tm, num_vars, len, nrepeats);
+  if (exec.omp.m_available && should_do_copy(exec.omp.get(), dst_aloc, cpu_src_aloc))
+    do_copy(exec.omp.get(), comminfo, dst_aloc.allocator(), cpu_src_aloc.allocator(), tm, num_vars, len, nrepeats);
 #endif
 
 #ifdef COMB_ENABLE_CUDA
-  if (exec_avail.cuda && should_do_copy(exec.cuda, dst_aloc, cuda_src_aloc))
-    do_copy(exec.cuda, comminfo, dst_aloc.allocator(), cuda_src_aloc.allocator(), tm, num_vars, len, nrepeats);
+  if (exec.cuda.m_available && should_do_copy(exec.cuda.get(), dst_aloc, cuda_src_aloc))
+    do_copy(exec.cuda.get(), comminfo, dst_aloc.allocator(), cuda_src_aloc.allocator(), tm, num_vars, len, nrepeats);
 
-  if (exec_avail.cuda_batch && should_do_copy(exec.cuda_batch, dst_aloc, cuda_src_aloc))
-    do_copy(exec.cuda_batch, comminfo, dst_aloc.allocator(), cuda_src_aloc.allocator(), tm, num_vars, len, nrepeats);
+  if (exec.cuda_batch.m_available && should_do_copy(exec.cuda_batch.get(), dst_aloc, cuda_src_aloc))
+    do_copy(exec.cuda_batch.get(), comminfo, dst_aloc.allocator(), cuda_src_aloc.allocator(), tm, num_vars, len, nrepeats);
 
-  if (exec_avail.cuda_persistent && should_do_copy(exec.cuda_persistent, dst_aloc, cuda_src_aloc))
-    do_copy(exec.cuda_persistent, comminfo, dst_aloc.allocator(), cuda_src_aloc.allocator(), tm, num_vars, len, nrepeats);
+  if (exec.cuda_persistent.m_available && should_do_copy(exec.cuda_persistent.get(), dst_aloc, cuda_src_aloc))
+    do_copy(exec.cuda_persistent.get(), comminfo, dst_aloc.allocator(), cuda_src_aloc.allocator(), tm, num_vars, len, nrepeats);
 
   {
     SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
-    if (exec_avail.cuda_batch_fewgs && should_do_copy(exec.cuda_batch, dst_aloc, cuda_src_aloc))
-      do_copy(exec.cuda_batch, comminfo, dst_aloc.allocator(), cuda_src_aloc.allocator(), tm, num_vars, len, nrepeats);
+    if (exec.cuda_batch_fewgs.m_available && should_do_copy(exec.cuda_batch_fewgs.get(), dst_aloc, cuda_src_aloc))
+      do_copy(exec.cuda_batch_fewgs.get(), comminfo, dst_aloc.allocator(), cuda_src_aloc.allocator(), tm, num_vars, len, nrepeats);
 
-    if (exec_avail.cuda_persistent_fewgs && should_do_copy(exec.cuda_persistent, dst_aloc, cuda_src_aloc))
-      do_copy(exec.cuda_persistent, comminfo, dst_aloc.allocator(), cuda_src_aloc.allocator(), tm, num_vars, len, nrepeats);
+    if (exec.cuda_persistent_fewgs.m_available && should_do_copy(exec.cuda_persistent_fewgs.get(), dst_aloc, cuda_src_aloc))
+      do_copy(exec.cuda_persistent_fewgs.get(), comminfo, dst_aloc.allocator(), cuda_src_aloc.allocator(), tm, num_vars, len, nrepeats);
   }
 
 #ifdef COMB_ENABLE_CUDA_GRAPH
-  if (exec_avail.cuda_graph && should_do_copy(exec.cuda_graph, dst_aloc, cuda_src_aloc))
-    do_copy(exec.cuda_graph, comminfo, dst_aloc.allocator(), cuda_src_aloc.allocator(), tm, num_vars, len, nrepeats);
+  if (exec.cuda_graph.m_available && should_do_copy(exec.cuda_graph.get(), dst_aloc, cuda_src_aloc))
+    do_copy(exec.cuda_graph.get(), comminfo, dst_aloc.allocator(), cuda_src_aloc.allocator(), tm, num_vars, len, nrepeats);
 #endif
 #else
   COMB::ignore_unused(cuda_src_aloc);
@@ -188,11 +187,10 @@ void test_copy_allocator(CommInfo& comminfo,
 }
 
 void test_copy_allocators(CommInfo& comminfo,
-                          COMB::ExecContexts& exec,
+                          COMB::Executors& exec,
                           COMB::Allocators& alloc,
                           AllocatorInfo& cpu_src_aloc,
                           AllocatorInfo& cuda_src_aloc,
-                          COMB::ExecutorsAvailable& exec_avail,
                           Timer& tm, IdxT num_vars, IdxT len, IdxT nrepeats)
 {
   test_copy_allocator(comminfo,
@@ -200,7 +198,6 @@ void test_copy_allocators(CommInfo& comminfo,
                       alloc.host,
                       cpu_src_aloc,
                       cuda_src_aloc,
-                      exec_avail,
                       tm, num_vars, len, nrepeats);
 
 #ifdef COMB_ENABLE_CUDA
@@ -210,7 +207,6 @@ void test_copy_allocators(CommInfo& comminfo,
                       alloc.cuda_hostpinned,
                       cpu_src_aloc,
                       cuda_src_aloc,
-                      exec_avail,
                       tm, num_vars, len, nrepeats);
 
   test_copy_allocator(comminfo,
@@ -218,7 +214,6 @@ void test_copy_allocators(CommInfo& comminfo,
                       alloc.cuda_device,
                       cpu_src_aloc,
                       cuda_src_aloc,
-                      exec_avail,
                       tm, num_vars, len, nrepeats);
 
   test_copy_allocator(comminfo,
@@ -226,7 +221,6 @@ void test_copy_allocators(CommInfo& comminfo,
                       alloc.cuda_managed,
                       cpu_src_aloc,
                       cuda_src_aloc,
-                      exec_avail,
                       tm, num_vars, len, nrepeats);
 
   test_copy_allocator(comminfo,
@@ -234,7 +228,6 @@ void test_copy_allocators(CommInfo& comminfo,
                       alloc.cuda_managed_host_preferred,
                       cpu_src_aloc,
                       cuda_src_aloc,
-                      exec_avail,
                       tm, num_vars, len, nrepeats);
 
   test_copy_allocator(comminfo,
@@ -242,7 +235,6 @@ void test_copy_allocators(CommInfo& comminfo,
                       alloc.cuda_managed_host_preferred_device_accessed,
                       cpu_src_aloc,
                       cuda_src_aloc,
-                      exec_avail,
                       tm, num_vars, len, nrepeats);
 
   test_copy_allocator(comminfo,
@@ -250,7 +242,6 @@ void test_copy_allocators(CommInfo& comminfo,
                       alloc.cuda_managed_device_preferred,
                       cpu_src_aloc,
                       cuda_src_aloc,
-                      exec_avail,
                       tm, num_vars, len, nrepeats);
 
   test_copy_allocator(comminfo,
@@ -258,7 +249,6 @@ void test_copy_allocators(CommInfo& comminfo,
                       alloc.cuda_managed_device_preferred_host_accessed,
                       cpu_src_aloc,
                       cuda_src_aloc,
-                      exec_avail,
                       tm, num_vars, len, nrepeats);
 
 #endif // COMB_ENABLE_CUDA
@@ -266,9 +256,8 @@ void test_copy_allocators(CommInfo& comminfo,
 }
 
 void test_copy(CommInfo& comminfo,
-               COMB::ExecContexts& exec,
+               COMB::Executors& exec,
                COMB::Allocators& alloc,
-               COMB::ExecutorsAvailable& exec_avail,
                Timer& tm, IdxT num_vars, IdxT len, IdxT nrepeats)
 {
 
@@ -287,7 +276,6 @@ void test_copy(CommInfo& comminfo,
                          alloc,
                          cpu_src_aloc,
                          cuda_src_aloc,
-                         exec_avail,
                          tm, num_vars, len, nrepeats);
 
   }
@@ -304,7 +292,6 @@ void test_copy(CommInfo& comminfo,
                          alloc,
                          cpu_src_aloc,
                          cuda_src_aloc,
-                         exec_avail,
                          tm, num_vars, len, nrepeats);
 
   }

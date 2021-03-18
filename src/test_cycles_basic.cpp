@@ -665,15 +665,14 @@ void do_cycles_basic(CommContext<pol_comm>& con_comm_in,
 
 
 void test_cycles_basic(CommInfo& comminfo, MeshInfo& info,
-                       COMB::ExecContexts& exec,
+                       COMB::Executors& exec,
                        COMB::Allocators& alloc,
-                       COMB::ExecutorsAvailable& /* exec_avail */,
                        IdxT num_vars, IdxT ncycles, Timer& tm, Timer& tm_total)
 {
 #ifdef COMB_ENABLE_MPI
-  CommContext<mpi_pol> con_comm{exec.base_mpi};
+  CommContext<mpi_pol> con_comm{exec.base_mpi.get()};
 #else
-  CommContext<mock_pol> con_comm{exec.base_cpu};
+  CommContext<mock_pol> con_comm{exec.base_cpu.get()};
 #endif
 
   {
@@ -682,9 +681,9 @@ void test_cycles_basic(CommInfo& comminfo, MeshInfo& info,
     do_cycles_basic(con_comm,
                     comminfo, info,
                     num_vars, ncycles,
-                    exec.seq, alloc.host.allocator(),
-                    exec.seq, alloc.host.allocator(),
-                    exec.seq, alloc.host.allocator(),
+                    exec.seq.get(), alloc.host.allocator(),
+                    exec.seq.get(), alloc.host.allocator(),
+                    exec.seq.get(), alloc.host.allocator(),
                     tm, tm_total);
   }
 
@@ -695,9 +694,9 @@ void test_cycles_basic(CommInfo& comminfo, MeshInfo& info,
     do_cycles_basic(con_comm,
                     comminfo, info,
                     num_vars, ncycles,
-                    exec.cuda, alloc.cuda_managed.allocator(),
-                    exec.cuda, alloc.cuda_hostpinned.allocator(),
-                    exec.cuda, alloc.cuda_hostpinned.allocator(),
+                    exec.cuda.get(), alloc.cuda_managed.allocator(),
+                    exec.cuda.get(), alloc.cuda_hostpinned.allocator(),
+                    exec.cuda.get(), alloc.cuda_hostpinned.allocator(),
                     tm, tm_total);
   }
 #endif

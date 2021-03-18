@@ -133,67 +133,58 @@ extern void print_message_info(CommInfo& comminfo, MeshInfo& info,
                                bool print_packing_sizes,
                                bool print_message_sizes);
 
-extern void warmup(COMB::ExecContexts& exec,
+extern void warmup(COMB::Executors& exec,
                    COMB::Allocators& alloc,
-                   COMB::ExecutorsAvailable& exec_avail,
                    Timer& tm, IdxT num_vars, IdxT len);
 
 extern void test_copy(CommInfo& comminfo,
-                      COMB::ExecContexts& exec,
+                      COMB::Executors& exec,
                       COMB::Allocators& alloc,
-                      COMB::ExecutorsAvailable& exec_avail,
                       Timer& tm, IdxT num_vars, IdxT len, IdxT nrepeats);
 
 extern void test_cycles_mock(CommInfo& comminfo, MeshInfo& info,
-                             COMB::ExecContexts& exec,
+                             COMB::Executors& exec,
                              COMB::Allocators& alloc,
-                             COMB::ExecutorsAvailable& exec_avail,
                              IdxT num_vars, IdxT ncycles, Timer& tm, Timer& tm_total);
 
 #ifdef COMB_ENABLE_MPI
 extern void test_cycles_mpi(CommInfo& comminfo, MeshInfo& info,
-                            COMB::ExecContexts& exec,
+                            COMB::Executors& exec,
                             COMB::Allocators& alloc,
-                            COMB::ExecutorsAvailable& exec_avail,
                             IdxT num_vars, IdxT ncycles, Timer& tm, Timer& tm_total);
 #endif
 
 #ifdef COMB_ENABLE_GDSYNC
 extern void test_cycles_gdsync(CommInfo& comminfo, MeshInfo& info,
-                              COMB::ExecContexts& exec,
+                              COMB::Executors& exec,
                               COMB::Allocators& alloc,
-                              COMB::ExecutorsAvailable& exec_avail,
                               IdxT num_vars, IdxT ncycles, Timer& tm, Timer& tm_total);
 #endif
 
 #ifdef COMB_ENABLE_GPUMP
 extern void test_cycles_gpump(CommInfo& comminfo, MeshInfo& info,
-                              COMB::ExecContexts& exec,
+                              COMB::Executors& exec,
                               COMB::Allocators& alloc,
-                              COMB::ExecutorsAvailable& exec_avail,
                               IdxT num_vars, IdxT ncycles, Timer& tm, Timer& tm_total);
 #endif
 
 #ifdef COMB_ENABLE_MP
 extern void test_cycles_mp(CommInfo& comminfo, MeshInfo& info,
-                           COMB::ExecContexts& exec,
+                           COMB::Executors& exec,
                            COMB::Allocators& alloc,
-                           COMB::ExecutorsAvailable& exec_avail,
                            IdxT num_vars, IdxT ncycles, Timer& tm, Timer& tm_total);
 #endif
 
 #ifdef COMB_ENABLE_UMR
 extern void test_cycles_umr(CommInfo& comminfo, MeshInfo& info,
-                            COMB::ExecContexts& exec,
+                            COMB::Executors& exec,
                             COMB::Allocators& alloc,
-                            COMB::ExecutorsAvailable& exec_avail,
                             IdxT num_vars, IdxT ncycles, Timer& tm, Timer& tm_total);
 #endif
 
 extern void test_cycles_basic(CommInfo& comm_info, MeshInfo& info,
-                              COMB::ExecContexts& exec,
+                              COMB::Executors& exec,
                               COMB::Allocators& alloc,
-                              COMB::ExecutorsAvailable& exec_avail,
                               IdxT num_vars, IdxT ncycles, Timer& tm, Timer& tm_total);
 
 } // namespace COMB

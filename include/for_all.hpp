@@ -20,6 +20,7 @@
 
 #include <cstdio>
 #include <cstdlib>
+#include <cassert>
 
 #include <type_traits>
 
@@ -112,64 +113,109 @@ struct adapter_3d {
 
 namespace COMB {
 
-struct ExecutorsAvailable
+template < typename my_context_type >
+struct ContextHolder
 {
-  bool seq = false;
-  bool omp = false;
-  bool cuda = false;
-  bool cuda_batch = false;
-  bool cuda_batch_fewgs = false;
-  bool cuda_persistent = false;
-  bool cuda_persistent_fewgs = false;
-  bool cuda_graph = false;
-  bool mpi_type = false;
+  using context_type = my_context_type;
+
+  bool m_available = false;
+
+  template < typename ... Ts >
+  void create(Ts&&... args)
+  {
+    destroy();
+    m_context = new context_type(std::forward<Ts>(args)...);
+  }
+
+  context_type& get()
+  {
+    assert(m_context != nullptr);
+    return *m_context;
+  }
+
+  void destroy()
+  {
+    if (m_context) {
+      delete m_context;
+      m_context = nullptr;
+    }
+  }
+
+  ~ContextHolder()
+  {
+    destroy();
+  }
+
+private:
+  context_type* m_context = nullptr;
 };
 
-struct ExecContexts
+struct Executors
 {
-  CPUContext base_cpu{};
-#ifdef COMB_ENABLE_MPI
-  MPIContext base_mpi{};
-#endif
-#ifdef COMB_ENABLE_CUDA
-  CudaContext base_cuda{};
-#endif
+  Executors()
+  { }
 
-  ExecContext<seq_pol> seq;
-#ifdef COMB_ENABLE_OPENMP
-  ExecContext<omp_pol> omp;
-#endif
-#ifdef COMB_ENABLE_CUDA
-  ExecContext<cuda_pol> cuda;
-  ExecContext<cuda_batch_pol> cuda_batch;
-  ExecContext<cuda_persistent_pol> cuda_persistent;
-#endif
-#ifdef COMB_ENABLE_CUDA_GRAPH
-  ExecContext<cuda_graph_pol> cuda_graph;
-#endif
-#ifdef COMB_ENABLE_MPI
-  ExecContext<mpi_type_pol> mpi_type;
-#endif
+  Executors(Executors const&) = delete;
+  Executors(Executors &&) = delete;
+  Executors& operator=(Executors const&) = delete;
+  Executors& operator=(Executors &&) = delete;
 
-  ExecContexts(Allocators& alocs)
-    : seq(base_cpu, alocs.host.allocator())
-#ifdef COMB_ENABLE_OPENMP
-    , omp(base_cpu, alocs.host.allocator())
-#endif
-#ifdef COMB_ENABLE_CUDA
-    , cuda(base_cuda, (alocs.access.use_device_preferred_for_cuda_util_aloc) ? alocs.cuda_managed_device_preferred_host_accessed.allocator() : alocs.cuda_hostpinned.allocator())
-    , cuda_batch(base_cuda, (alocs.access.use_device_preferred_for_cuda_util_aloc) ? alocs.cuda_managed_device_preferred_host_accessed.allocator() : alocs.cuda_hostpinned.allocator())
-    , cuda_persistent(base_cuda, (alocs.access.use_device_preferred_for_cuda_util_aloc) ? alocs.cuda_managed_device_preferred_host_accessed.allocator() : alocs.cuda_hostpinned.allocator())
-#endif
-#ifdef COMB_ENABLE_CUDA_GRAPH
-    , cuda_graph(base_cuda, (alocs.access.use_device_preferred_for_cuda_util_aloc) ? alocs.cuda_managed_device_preferred_host_accessed.allocator() : alocs.cuda_hostpinned.allocator())
-#endif
-#ifdef COMB_ENABLE_MPI
-    , mpi_type(base_mpi, alocs.host.allocator())
-#endif
+  void create_executors(Allocators& alocs)
   {
+    base_cpu.create();
+#ifdef COMB_ENABLE_MPI
+    base_mpi.create();
+#endif
+#ifdef COMB_ENABLE_CUDA
+    base_cuda.create();
+#endif
 
+    seq.create(base_cpu.get(), alocs.host.allocator());
+#ifdef COMB_ENABLE_OPENMP
+    omp.create(base_cpu.get(), alocs.host.allocator());
+#endif
+#ifdef COMB_ENABLE_CUDA
+    cuda.create(base_cuda.get(), (alocs.access.use_device_preferred_for_cuda_util_aloc) ? alocs.cuda_managed_device_preferred_host_accessed.allocator() : alocs.cuda_hostpinned.allocator());
+    cuda_batch.create(base_cuda.get(), (alocs.access.use_device_preferred_for_cuda_util_aloc) ? alocs.cuda_managed_device_preferred_host_accessed.allocator() : alocs.cuda_hostpinned.allocator());
+    cuda_batch_fewgs.create(base_cuda.get(), (alocs.access.use_device_preferred_for_cuda_util_aloc) ? alocs.cuda_managed_device_preferred_host_accessed.allocator() : alocs.cuda_hostpinned.allocator());
+    cuda_persistent.create(base_cuda.get(), (alocs.access.use_device_preferred_for_cuda_util_aloc) ? alocs.cuda_managed_device_preferred_host_accessed.allocator() : alocs.cuda_hostpinned.allocator());
+    cuda_persistent_fewgs.create(base_cuda.get(), (alocs.access.use_device_preferred_for_cuda_util_aloc) ? alocs.cuda_managed_device_preferred_host_accessed.allocator() : alocs.cuda_hostpinned.allocator());
+#endif
+#ifdef COMB_ENABLE_CUDA_GRAPH
+    cuda_graph.create(base_cuda.get(), (alocs.access.use_device_preferred_for_cuda_util_aloc) ? alocs.cuda_managed_device_preferred_host_accessed.allocator() : alocs.cuda_hostpinned.allocator());
+#endif
+#ifdef COMB_ENABLE_MPI
+    mpi_type.create(base_mpi.get(), alocs.host.allocator());
+#endif
   }
+
+  ContextHolder<CPUContext> base_cpu;
+#ifdef COMB_ENABLE_MPI
+  ContextHolder<MPIContext> base_mpi;
+#endif
+#ifdef COMB_ENABLE_CUDA
+  ContextHolder<CudaContext> base_cuda;
+#endif
+
+  ContextHolder<ExecContext<seq_pol>> seq;
+#ifdef COMB_ENABLE_OPENMP
+  ContextHolder<ExecContext<omp_pol>> omp;
+#else
+  ContextHolder<void> omp;
+#endif
+#ifdef COMB_ENABLE_CUDA
+  ContextHolder<ExecContext<cuda_pol>> cuda;
+  ContextHolder<ExecContext<cuda_batch_pol>> cuda_batch;
+  ContextHolder<ExecContext<cuda_batch_pol>> cuda_batch_fewgs;
+  ContextHolder<ExecContext<cuda_persistent_pol>> cuda_persistent;
+  ContextHolder<ExecContext<cuda_persistent_pol>> cuda_persistent_fewgs;
+#ifdef COMB_ENABLE_CUDA_GRAPH
+  ContextHolder<ExecContext<cuda_graph_pol>> cuda_graph;
+#endif
+#endif
+#ifdef COMB_ENABLE_MPI
+  ContextHolder<ExecContext<mpi_type_pol>> mpi_type;
+#endif
 };
 
 } // namespace COMB
