@@ -13,15 +13,20 @@
 ## Please also see the LICENSE file for MIT license.
 ##############################################################################
 
+cmake_policy(SET CMP0042 NEW)
+cmake_policy(SET CMP0048 NEW)
+
+if (APPLE)
+ cmake_policy(SET CMP0025 NEW)
+endif()
+
 set(COMB_VERSION_MAJOR 0)
 set(COMB_VERSION_MINOR 2)
 set(COMB_VERSION_PATCHLEVEL 0)
 
-cmake_minimum_required(VERSION 3.9)
-
 set(COMB_LOADED "${COMB_VERSION_MAJOR}.${COMB_VERSION_MINOR}.${COMB_VERSION_PATCHLEVEL}")
 
-project(COMB LANGUAGES CXX VERSION ${COMB_LOADED})
+project(COMB LANGUAGES CXX C VERSION ${COMB_LOADED})
 
 # Build options
 set(ENABLE_MPI ON CACHE BOOL "Build MPI support")
@@ -32,15 +37,49 @@ set(ENABLE_GPUMP OFF CACHE BOOL "Build GPUMP support")
 set(ENABLE_MP OFF CACHE BOOL "Build MP support")
 set(ENABLE_UMR OFF CACHE BOOL "Build UMR support")
 
+option(ENABLE_CLANG_CUDA "Use Clang's native CUDA support" OFF)
+
 set(COMB_CXX_STANDARD_FLAG "default" CACHE STRING "Specific c++ standard flag to use, default attempts to autodetect the highest available")
 
-option(ENABLE_CLANG_CUDA "Use Clang's native CUDA support" OFF)
-set(CUDA_ARCH "sm_70" CACHE STRING "Compute architecture to pass to CUDA builds")
+cmake_minimum_required(VERSION 3.9)
 
-# Separable compilation is required by comb, set before load BLT
-set(CUDA_SEPARABLE_COMPILATION ON CACHE BOOL "")
+if (ENABLE_CUDA)
+  # Separable compilation is required by comb, set before load BLT
+  set(CUDA_SEPARABLE_COMPILATION ON CACHE BOOL "")
+  if (NOT DEFINED CUDA_ARCH)
+    message(STATUS "CUDA compute architecture set to Comb default sm_35 since it was not specified")
+    set(CUDA_ARCH "sm_35" CACHE STRING "Set CUDA_ARCH to Comb minimum supported" FORCE)
+  endif()
+endif()
 
-# Load BLT
+# Detect C++ standard and add appropriate flag _before_ loading BLT
+set(COMPILERS_KNOWN_TO_CMAKE33 AppleClang Clang GNU MSVC)
+
+include(CheckCXXCompilerFlag)
+if(COMB_CXX_STANDARD_FLAG MATCHES default)
+  if("cxx_std_17" IN_LIST CMAKE_CXX_KNOWN_FEATURES)
+    #TODO set BLT_CXX_STANDARD
+    set(CMAKE_CXX_STANDARD 17)
+  elseif("cxx_std_14" IN_LIST CMAKE_CXX_KNOWN_FEATURES)
+    set(CMAKE_CXX_STANDARD 14)
+  elseif("${CMAKE_CXX_COMPILER_ID}" IN_LIST COMPILERS_KNOWN_TO_CMAKE33)
+    set(CMAKE_CXX_STANDARD 14)
+  else() #cmake has no idea what to do, do it ourselves...
+    foreach(flag_var "-std=c++17" "-std=c++1z" "-std=c++14" "-std=c++1y" "-std=c++11")
+      CHECK_CXX_COMPILER_FLAG(${flag_var} COMPILER_SUPPORTS_${flag_var})
+      if(COMPILER_SUPPORTS_${flag_var})
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${flag_var}")
+        break()
+      endif()
+    endforeach(flag_var)
+  endif()
+else()
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMB_CXX_STANDARD_FLAG}")
+  message("Using C++ standard flag: ${COMB_CXX_STANDARD_FLAG}")
+endif()
+
+set(CMAKE_CXX_EXTENSIONS OFF)
+
 if (NOT BLT_LOADED)
   if (DEFINED BLT_SOURCE_DIR)
     if (NOT EXISTS ${BLT_SOURCE_DIR}/SetupBLT.cmake)
