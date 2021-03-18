@@ -120,6 +120,11 @@ struct ContextHolder
 
   bool m_available = false;
 
+  bool available() const
+  {
+    return m_available;
+  }
+
   template < typename ... Ts >
   void create(Ts&&... args)
   {

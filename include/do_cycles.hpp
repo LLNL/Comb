@@ -23,28 +23,49 @@
 
 namespace COMB {
 
-template < typename pol_comm, typename pol_mesh, typename pol_many, typename pol_few >
-bool should_do_cycles(CommContext<pol_comm>& con_comm,
-                      ExecContext<pol_mesh>& con_mesh, AllocatorInfo& aloc_mesh,
-                      ExecContext<pol_many>& con_many, AllocatorInfo& aloc_many,
-                      ExecContext<pol_few>& con_few,  AllocatorInfo& aloc_few)
+template < typename pol_comm, typename exec_mesh, typename exec_many, typename exec_few >
+bool should_do_cycles(CommContext<pol_comm>& con_comm_in,
+                      ContextHolder<exec_mesh>& con_mesh_in, AllocatorInfo& aloc_mesh_in,
+                      ContextHolder<exec_many>& con_many_in, AllocatorInfo& aloc_many_in,
+                      ContextHolder<exec_few>& con_few_in,   AllocatorInfo& aloc_few_in)
 {
-  return aloc_mesh.available() // && aloc_many.available() && aloc_few.available()
-      && aloc_many.accessible(con_comm) && aloc_few.accessible(con_comm)
-      && aloc_mesh.accessible(con_mesh)
-      && aloc_mesh.accessible(con_many) && aloc_many.accessible(con_many)
-      && aloc_mesh.accessible(con_few)  && aloc_few.accessible(con_few) ;
+  return con_mesh_in.available() && con_many_in.available() && con_few_in.available()
+      && aloc_mesh_in.available() // && aloc_many_in.available() && aloc_few_in.available()
+      && aloc_many_in.accessible(con_comm_in) && aloc_few_in.accessible(con_comm_in)
+      && aloc_mesh_in.accessible(con_mesh_in.get())
+      && aloc_mesh_in.accessible(con_many_in.get()) && aloc_many_in.accessible(con_many_in.get())
+      && aloc_mesh_in.accessible(con_few_in.get())  && aloc_few_in.accessible(con_few_in.get()) ;
 }
 
-template < typename pol_comm, typename pol_mesh, typename pol_many, typename pol_few >
+template < typename pol_comm, typename exec_mesh, typename exec_many, typename exec_few >
 void do_cycles(CommContext<pol_comm>& con_comm_in,
                CommInfo& comm_info, MeshInfo& info,
                IdxT num_vars, IdxT ncycles,
-               ExecContext<pol_mesh>& con_mesh, COMB::Allocator& aloc_mesh,
-               ExecContext<pol_many>& con_many, COMB::Allocator& aloc_many,
-               ExecContext<pol_few>& con_few,  COMB::Allocator& aloc_few,
+               ContextHolder<exec_mesh>& con_mesh_in, AllocatorInfo& aloc_mesh_in,
+               ContextHolder<exec_many>& con_many_in, AllocatorInfo& aloc_many_in,
+               ContextHolder<exec_few>& con_few_in,   AllocatorInfo& aloc_few_in,
                Timer& tm, Timer& tm_total)
 {
+  if (!should_do_cycles(con_comm_in, con_mesh_in, aloc_mesh_in, con_many_in, aloc_many_in, con_few_in, aloc_few_in)) {
+    return;
+  }
+
+  using con_mesh_type = typename ContextHolder<exec_mesh>::context_type;
+  using con_many_type = typename ContextHolder<exec_many>::context_type;
+  using con_few_type  = typename ContextHolder<exec_few>::context_type;
+  using pol_mesh = typename con_mesh_type::pol;
+  using pol_many = typename con_many_type::pol;
+  using pol_few  = typename con_few_type::pol;
+
+  ExecContext<pol_mesh>& con_mesh = con_mesh_in.get();
+  ExecContext<pol_many>& con_many = con_many_in.get();
+  ExecContext<pol_few>&  con_few  = con_few_in.get();
+
+  COMB::Allocator& aloc_mesh = aloc_mesh_in.allocator();
+  COMB::Allocator& aloc_many = aloc_many_in.allocator();
+  COMB::Allocator& aloc_few  = aloc_few_in.allocator();
+
+
   CPUContext tm_con;
   tm_total.clear();
   tm.clear();
@@ -537,17 +558,14 @@ void do_cycles_mpi_type(std::true_type const&,
                         AllocatorInfo& mesh_aloc,
                         IdxT num_vars, IdxT ncycles, Timer& tm, Timer& tm_total)
 {
-  if (exec.seq.m_available && exec.mpi_type.m_available && exec.mpi_type.m_available && should_do_cycles(con_comm, exec.seq.get(), mesh_aloc, exec.mpi_type.get(), mesh_aloc, exec.mpi_type.get(), mesh_aloc))
-    do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.seq.get(), mesh_aloc.allocator(), exec.mpi_type.get(), mesh_aloc.allocator(), exec.mpi_type.get(), mesh_aloc.allocator(), tm, tm_total);
+  do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.seq, mesh_aloc, exec.mpi_type, mesh_aloc, exec.mpi_type, mesh_aloc, tm, tm_total);
 
 #ifdef COMB_ENABLE_OPENMP
-  if (exec.omp.m_available && exec.mpi_type.m_available && exec.mpi_type.m_available && should_do_cycles(con_comm, exec.omp.get(), mesh_aloc, exec.mpi_type.get(), mesh_aloc, exec.mpi_type.get(), mesh_aloc))
-    do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.omp.get(), mesh_aloc.allocator(), exec.mpi_type.get(), mesh_aloc.allocator(), exec.mpi_type.get(), mesh_aloc.allocator(), tm, tm_total);
+  do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.omp, mesh_aloc, exec.mpi_type, mesh_aloc, exec.mpi_type, mesh_aloc, tm, tm_total);
 #endif
 
 #ifdef COMB_ENABLE_CUDA
-  if (exec.cuda.m_available && exec.mpi_type.m_available && exec.mpi_type.m_available && should_do_cycles(con_comm, exec.cuda.get(), mesh_aloc, exec.mpi_type.get(), mesh_aloc, exec.mpi_type.get(), mesh_aloc))
-    do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda.get(), mesh_aloc.allocator(), exec.mpi_type.get(), mesh_aloc.allocator(), exec.mpi_type.get(), mesh_aloc.allocator(), tm, tm_total);
+  do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.mpi_type, mesh_aloc, exec.mpi_type, mesh_aloc, tm, tm_total);
 #endif
 }
 
@@ -575,73 +593,54 @@ void do_cycles_allocator(CommContext<comm_pol>& con_comm,
   char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.allocator().name());
   Range r0(name, Range::blue);
 
-  if (exec.seq.m_available && exec.seq.m_available && exec.seq.m_available && should_do_cycles(con_comm, exec.seq.get(), mesh_aloc, exec.seq.get(), cpu_many_aloc, exec.seq.get(), cpu_few_aloc))
-    do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.seq.get(), mesh_aloc.allocator(), exec.seq.get(), cpu_many_aloc.allocator(), exec.seq.get(), cpu_few_aloc.allocator(), tm, tm_total);
+  do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.seq, mesh_aloc, exec.seq, cpu_many_aloc, exec.seq, cpu_few_aloc, tm, tm_total);
 
 #ifdef COMB_ENABLE_OPENMP
-  if (exec.omp.m_available && exec.seq.m_available && exec.seq.m_available && should_do_cycles(con_comm, exec.omp.get(), mesh_aloc, exec.seq.get(), cpu_many_aloc, exec.seq.get(), cpu_few_aloc))
-    do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.omp.get(), mesh_aloc.allocator(), exec.seq.get(), cpu_many_aloc.allocator(), exec.seq.get(), cpu_few_aloc.allocator(), tm, tm_total);
+  do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.omp, mesh_aloc, exec.seq, cpu_many_aloc, exec.seq, cpu_few_aloc, tm, tm_total);
 
-  if (exec.omp.m_available && exec.omp.m_available && exec.seq.m_available && should_do_cycles(con_comm, exec.omp.get(), mesh_aloc, exec.omp.get(), cpu_many_aloc, exec.seq.get(), cpu_few_aloc))
-    do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.omp.get(), mesh_aloc.allocator(), exec.omp.get(), cpu_many_aloc.allocator(), exec.seq.get(), cpu_few_aloc.allocator(), tm, tm_total);
+  do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.omp, mesh_aloc, exec.omp, cpu_many_aloc, exec.seq, cpu_few_aloc, tm, tm_total);
 
-  if (exec.omp.m_available && exec.omp.m_available && exec.omp.m_available && should_do_cycles(con_comm, exec.omp.get(), mesh_aloc, exec.omp.get(), cpu_many_aloc, exec.omp.get(), cpu_few_aloc))
-    do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.omp.get(), mesh_aloc.allocator(), exec.omp.get(), cpu_many_aloc.allocator(), exec.omp.get(), cpu_few_aloc.allocator(), tm, tm_total);
+  do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.omp, mesh_aloc, exec.omp, cpu_many_aloc, exec.omp, cpu_few_aloc, tm, tm_total);
 #endif
 
 #ifdef COMB_ENABLE_CUDA
-  if (exec.cuda.m_available && exec.seq.m_available && exec.seq.m_available && should_do_cycles(con_comm, exec.cuda.get(), mesh_aloc, exec.seq.get(), cpu_many_aloc, exec.seq.get(), cpu_few_aloc))
-    do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda.get(), mesh_aloc.allocator(), exec.seq.get(), cpu_many_aloc.allocator(), exec.seq.get(), cpu_few_aloc.allocator(), tm, tm_total);
+  do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.seq, cpu_many_aloc, exec.seq, cpu_few_aloc, tm, tm_total);
 
 #ifdef COMB_ENABLE_OPENMP
-  if (exec.cuda.m_available && exec.omp.m_available && exec.seq.m_available && should_do_cycles(con_comm, exec.cuda.get(), mesh_aloc, exec.omp.get(), cpu_many_aloc, exec.seq.get(), cpu_few_aloc))
-    do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda.get(), mesh_aloc.allocator(), exec.omp.get(), cpu_many_aloc.allocator(), exec.seq.get(), cpu_few_aloc.allocator(), tm, tm_total);
+  do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.omp, cpu_many_aloc, exec.seq, cpu_few_aloc, tm, tm_total);
 
-  if (exec.cuda.m_available && exec.omp.m_available && exec.omp.m_available && should_do_cycles(con_comm, exec.cuda.get(), mesh_aloc, exec.omp.get(), cpu_many_aloc, exec.omp.get(), cpu_few_aloc))
-    do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda.get(), mesh_aloc.allocator(), exec.omp.get(), cpu_many_aloc.allocator(), exec.omp.get(), cpu_few_aloc.allocator(), tm, tm_total);
+  do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.omp, cpu_many_aloc, exec.omp, cpu_few_aloc, tm, tm_total);
 #endif
 
-  if (exec.cuda.m_available && exec.cuda.m_available && exec.seq.m_available && should_do_cycles(con_comm, exec.cuda.get(), mesh_aloc, exec.cuda.get(), cuda_many_aloc, exec.seq.get(), cpu_few_aloc))
-    do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda.get(), mesh_aloc.allocator(), exec.cuda.get(), cuda_many_aloc.allocator(), exec.seq.get(), cpu_few_aloc.allocator(), tm, tm_total);
+  do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda, cuda_many_aloc, exec.seq, cpu_few_aloc, tm, tm_total);
 
-  if (exec.cuda.m_available && exec.cuda.m_available && exec.cuda.m_available && should_do_cycles(con_comm, exec.cuda.get(), mesh_aloc, exec.cuda.get(), cuda_many_aloc, exec.cuda.get(), cuda_few_aloc))
-    do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda.get(), mesh_aloc.allocator(), exec.cuda.get(), cuda_many_aloc.allocator(), exec.cuda.get(), cuda_few_aloc.allocator(), tm, tm_total);
+  do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda, cuda_many_aloc, exec.cuda, cuda_few_aloc, tm, tm_total);
 
   {
-    if (exec.cuda.m_available && exec.cuda_batch.m_available && exec.seq.m_available && should_do_cycles(con_comm, exec.cuda.get(), mesh_aloc, exec.cuda_batch.get(), cuda_many_aloc, exec.seq.get(), cpu_few_aloc))
-      do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda.get(), mesh_aloc.allocator(), exec.cuda_batch.get(), cuda_many_aloc.allocator(), exec.seq.get(), cpu_few_aloc.allocator(), tm, tm_total);
+    do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, cuda_many_aloc, exec.seq, cpu_few_aloc, tm, tm_total);
 
-    if (exec.cuda.m_available && exec.cuda_batch.m_available && exec.cuda_batch.m_available && should_do_cycles(con_comm, exec.cuda.get(), mesh_aloc, exec.cuda_batch.get(), cuda_many_aloc, exec.cuda_batch.get(), cuda_few_aloc))
-      do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda.get(), mesh_aloc.allocator(), exec.cuda_batch.get(), cuda_many_aloc.allocator(), exec.cuda_batch.get(), cuda_few_aloc.allocator(), tm, tm_total);
+    do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, cuda_many_aloc, exec.cuda_batch, cuda_few_aloc, tm, tm_total);
 
-    if (exec.cuda.m_available && exec.cuda_persistent.m_available && exec.seq.m_available && should_do_cycles(con_comm, exec.cuda.get(), mesh_aloc, exec.cuda_persistent.get(), cuda_many_aloc, exec.seq.get(), cpu_few_aloc))
-      do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda.get(), mesh_aloc.allocator(), exec.cuda_persistent.get(), cuda_many_aloc.allocator(), exec.seq.get(), cpu_few_aloc.allocator(), tm, tm_total);
+    do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, cuda_many_aloc, exec.seq, cpu_few_aloc, tm, tm_total);
 
-    if (exec.cuda.m_available && exec.cuda_persistent.m_available && exec.cuda_persistent.m_available && should_do_cycles(con_comm, exec.cuda.get(), mesh_aloc, exec.cuda_persistent.get(), cuda_many_aloc, exec.cuda_persistent.get(), cuda_few_aloc))
-      do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda.get(), mesh_aloc.allocator(), exec.cuda_persistent.get(), cuda_many_aloc.allocator(), exec.cuda_persistent.get(), cuda_few_aloc.allocator(), tm, tm_total);
+    do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, cuda_many_aloc, exec.cuda_persistent, cuda_few_aloc, tm, tm_total);
 
 
     SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
-    if (exec.cuda.m_available && exec.cuda_batch_fewgs.m_available && exec.seq.m_available && should_do_cycles(con_comm, exec.cuda.get(), mesh_aloc, exec.cuda_batch.get(), cuda_many_aloc, exec.seq.get(), cpu_few_aloc))
-      do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda.get(), mesh_aloc.allocator(), exec.cuda_batch.get(), cuda_many_aloc.allocator(), exec.seq.get(), cpu_few_aloc.allocator(), tm, tm_total);
+    do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch_fewgs, cuda_many_aloc, exec.seq, cpu_few_aloc, tm, tm_total);
 
-    if (exec.cuda.m_available && exec.cuda_batch_fewgs.m_available && exec.cuda_batch_fewgs.m_available && should_do_cycles(con_comm, exec.cuda.get(), mesh_aloc, exec.cuda_batch.get(), cuda_many_aloc, exec.cuda_batch.get(), cuda_few_aloc))
-      do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda.get(), mesh_aloc.allocator(), exec.cuda_batch.get(), cuda_many_aloc.allocator(), exec.cuda_batch.get(), cuda_few_aloc.allocator(), tm, tm_total);
+    do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch_fewgs, cuda_many_aloc, exec.cuda_batch_fewgs, cuda_few_aloc, tm, tm_total);
 
-    if (exec.cuda.m_available && exec.cuda_persistent_fewgs.m_available && exec.seq.m_available && should_do_cycles(con_comm, exec.cuda.get(), mesh_aloc, exec.cuda_persistent.get(), cuda_many_aloc, exec.seq.get(), cpu_few_aloc))
-      do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda.get(), mesh_aloc.allocator(), exec.cuda_persistent.get(), cuda_many_aloc.allocator(), exec.seq.get(), cpu_few_aloc.allocator(), tm, tm_total);
+    do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent_fewgs, cuda_many_aloc, exec.seq, cpu_few_aloc, tm, tm_total);
 
-    if (exec.cuda.m_available && exec.cuda_persistent_fewgs.m_available && exec.cuda_persistent_fewgs.m_available && should_do_cycles(con_comm, exec.cuda.get(), mesh_aloc, exec.cuda_persistent.get(), cuda_many_aloc, exec.cuda_persistent.get(), cuda_few_aloc))
-      do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda.get(), mesh_aloc.allocator(), exec.cuda_persistent.get(), cuda_many_aloc.allocator(), exec.cuda_persistent.get(), cuda_few_aloc.allocator(), tm, tm_total);
+    do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent_fewgs, cuda_many_aloc, exec.cuda_persistent_fewgs, cuda_few_aloc, tm, tm_total);
   }
 
 #ifdef COMB_ENABLE_CUDA_GRAPH
-  if (exec.cuda.m_available && exec.cuda_graph.m_available && exec.seq.m_available && should_do_cycles(con_comm, exec.cuda.get(), mesh_aloc, exec.cuda_graph.get(), cuda_many_aloc, exec.seq.get(), cpu_few_aloc))
-    do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda.get(), mesh_aloc.allocator(), exec.cuda_graph.get(), cuda_many_aloc.allocator(), exec.seq.get(), cpu_few_aloc.allocator(), tm, tm_total);
+  do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_graph, cuda_many_aloc, exec.seq, cpu_few_aloc, tm, tm_total);
 
-  if (exec.cuda.m_available && exec.cuda_graph.m_available && exec.cuda_graph.m_available && should_do_cycles(con_comm, exec.cuda.get(), mesh_aloc, exec.cuda_graph.get(), cuda_many_aloc, exec.cuda_graph.get(), cuda_few_aloc))
-    do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda.get(), mesh_aloc.allocator(), exec.cuda_graph.get(), cuda_many_aloc.allocator(), exec.cuda_graph.get(), cuda_few_aloc.allocator(), tm, tm_total);
+  do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_graph, cuda_many_aloc, exec.cuda_graph, cuda_few_aloc, tm, tm_total);
 #endif
 #else
   COMB::ignore_unused(cuda_many_aloc, cuda_few_aloc);

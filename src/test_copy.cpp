@@ -18,23 +18,37 @@
 namespace COMB {
 
 
-template < typename pol >
-bool should_do_copy(ExecContext<pol>& con,
-                    COMB::AllocatorInfo& dst_aloc,
-                    COMB::AllocatorInfo& src_aloc)
+template < typename exec_type >
+bool should_do_copy(ContextHolder<exec_type>& con_in,
+                    COMB::AllocatorInfo& dst_aloc_in,
+                    COMB::AllocatorInfo& src_aloc_in)
 {
-  return dst_aloc.available() // && src_aloc.available()
-      && dst_aloc.accessible(con)
-      && src_aloc.accessible(con) ;
+  return con_in.available()
+      && dst_aloc_in.available() // && src_aloc_in.available()
+      && dst_aloc_in.accessible(con_in.get())
+      && src_aloc_in.accessible(con_in.get()) ;
 }
 
-template < typename pol >
-void do_copy(ExecContext<pol>& con,
+template < typename exec_type >
+void do_copy(ContextHolder<exec_type>& con_in,
              CommInfo& comminfo,
-             COMB::Allocator& dst_aloc,
-             COMB::Allocator& src_aloc,
+             COMB::AllocatorInfo& dst_aloc_in,
+             COMB::AllocatorInfo& src_aloc_in,
              Timer& tm, IdxT num_vars, IdxT len, IdxT nrepeats)
 {
+  if (!should_do_copy(con_in, dst_aloc_in, src_aloc_in)) {
+    return;
+  }
+
+  using con_type  = typename ContextHolder<exec_type>::context_type;
+  using pol  = typename con_type::pol;
+
+  ExecContext<pol>& con = con_in.get();
+
+  COMB::Allocator& dst_aloc = dst_aloc_in.allocator();
+  COMB::Allocator& src_aloc = src_aloc_in.allocator();
+
+
   CPUContext tm_con;
   tm.clear();
 
@@ -149,37 +163,29 @@ void test_copy_allocator(CommInfo& comminfo,
   char name[1024] = ""; snprintf(name, 1024, "set_vars %s", dst_aloc.allocator().name());
   Range r0(name, Range::green);
 
-  if (exec.seq.m_available && should_do_copy(exec.seq.get(), dst_aloc, cpu_src_aloc))
-    do_copy(exec.seq.get(), comminfo, dst_aloc.allocator(), cpu_src_aloc.allocator(), tm, num_vars, len, nrepeats);
+  do_copy(exec.seq, comminfo, dst_aloc, cpu_src_aloc, tm, num_vars, len, nrepeats);
 
 #ifdef COMB_ENABLE_OPENMP
-  if (exec.omp.m_available && should_do_copy(exec.omp.get(), dst_aloc, cpu_src_aloc))
-    do_copy(exec.omp.get(), comminfo, dst_aloc.allocator(), cpu_src_aloc.allocator(), tm, num_vars, len, nrepeats);
+  do_copy(exec.omp, comminfo, dst_aloc, cpu_src_aloc, tm, num_vars, len, nrepeats);
 #endif
 
 #ifdef COMB_ENABLE_CUDA
-  if (exec.cuda.m_available && should_do_copy(exec.cuda.get(), dst_aloc, cuda_src_aloc))
-    do_copy(exec.cuda.get(), comminfo, dst_aloc.allocator(), cuda_src_aloc.allocator(), tm, num_vars, len, nrepeats);
+  do_copy(exec.cuda, comminfo, dst_aloc, cuda_src_aloc, tm, num_vars, len, nrepeats);
 
-  if (exec.cuda_batch.m_available && should_do_copy(exec.cuda_batch.get(), dst_aloc, cuda_src_aloc))
-    do_copy(exec.cuda_batch.get(), comminfo, dst_aloc.allocator(), cuda_src_aloc.allocator(), tm, num_vars, len, nrepeats);
+  do_copy(exec.cuda_batch, comminfo, dst_aloc, cuda_src_aloc, tm, num_vars, len, nrepeats);
 
-  if (exec.cuda_persistent.m_available && should_do_copy(exec.cuda_persistent.get(), dst_aloc, cuda_src_aloc))
-    do_copy(exec.cuda_persistent.get(), comminfo, dst_aloc.allocator(), cuda_src_aloc.allocator(), tm, num_vars, len, nrepeats);
+  do_copy(exec.cuda_persistent, comminfo, dst_aloc, cuda_src_aloc, tm, num_vars, len, nrepeats);
 
   {
     SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
 
-    if (exec.cuda_batch_fewgs.m_available && should_do_copy(exec.cuda_batch_fewgs.get(), dst_aloc, cuda_src_aloc))
-      do_copy(exec.cuda_batch_fewgs.get(), comminfo, dst_aloc.allocator(), cuda_src_aloc.allocator(), tm, num_vars, len, nrepeats);
+    do_copy(exec.cuda_batch_fewgs, comminfo, dst_aloc, cuda_src_aloc, tm, num_vars, len, nrepeats);
 
-    if (exec.cuda_persistent_fewgs.m_available && should_do_copy(exec.cuda_persistent_fewgs.get(), dst_aloc, cuda_src_aloc))
-      do_copy(exec.cuda_persistent_fewgs.get(), comminfo, dst_aloc.allocator(), cuda_src_aloc.allocator(), tm, num_vars, len, nrepeats);
+    do_copy(exec.cuda_persistent_fewgs, comminfo, dst_aloc, cuda_src_aloc, tm, num_vars, len, nrepeats);
   }
 
 #ifdef COMB_ENABLE_CUDA_GRAPH
-  if (exec.cuda_graph.m_available && should_do_copy(exec.cuda_graph.get(), dst_aloc, cuda_src_aloc))
-    do_copy(exec.cuda_graph.get(), comminfo, dst_aloc.allocator(), cuda_src_aloc.allocator(), tm, num_vars, len, nrepeats);
+  do_copy(exec.cuda_graph, comminfo, dst_aloc, cuda_src_aloc, tm, num_vars, len, nrepeats);
 #endif
 #else
   COMB::ignore_unused(cuda_src_aloc);
