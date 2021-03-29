@@ -18,7 +18,7 @@
 #ifdef COMB_ENABLE_MPI
 
 #include "comm_pol_mpi.hpp"
-#include "do_cycles.hpp"
+#include "do_cycles_allocators.hpp"
 
 namespace COMB {
 

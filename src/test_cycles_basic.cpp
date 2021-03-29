@@ -17,7 +17,7 @@
 
 #include "comm_pol_mock.hpp"
 #include "comm_pol_mpi.hpp"
-#include "do_cycles.hpp"
+#include "CommFactory.hpp"
 
 namespace COMB {
 

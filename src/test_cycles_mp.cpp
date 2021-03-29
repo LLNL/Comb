@@ -18,7 +18,7 @@
 #ifdef COMB_ENABLE_MP
 
 #include "comm_pol_mp.hpp"
-#include "do_cycles.hpp"
+#include "do_cycles_allocators.hpp"
 
 namespace COMB {
 

@@ -16,7 +16,7 @@
 #include "comb.hpp"
 
 #include "comm_pol_mock.hpp"
-#include "do_cycles.hpp"
+#include "do_cycles_allocators.hpp"
 
 namespace COMB {
 

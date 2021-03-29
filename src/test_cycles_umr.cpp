@@ -18,7 +18,7 @@
 #ifdef COMB_ENABLE_UMR
 
 #include "comm_pol_umr.hpp"
-#include "do_cycles.hpp"
+#include "do_cycles_allocators.hpp"
 
 namespace COMB {
 

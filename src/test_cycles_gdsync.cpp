@@ -18,7 +18,7 @@
 #ifdef COMB_ENABLE_GDSYNC
 
 #include "comm_pol_gdsync.hpp"
-#include "do_cycles.hpp"
+#include "do_cycles_allocators.hpp"
 
 namespace COMB {
 

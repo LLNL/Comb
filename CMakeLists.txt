@@ -165,6 +165,10 @@ if (ENABLE_UMR)
   set(comb_depends ${comb_depends} umr)
 endif()
 
+add_subdirectory(src)
+
+set(comb_depends ${comb_depends} comb_do_cycles)
+
 blt_add_executable(
   NAME comb
   SOURCES ${comb_sources}
@@ -185,6 +189,6 @@ install(TARGETS comb
 
 target_include_directories(comb
   PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
   $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include>
   $<INSTALL_INTERFACE:include>)

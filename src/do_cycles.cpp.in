@@ -1,0 +1,35 @@
+//////////////////////////////////////////////////////////////////////////////
+// Copyright (c) 2018-2020, Lawrence Livermore National Security, LLC.
+//
+// Produced at the Lawrence Livermore National Laboratory
+//
+// LLNL-CODE-758885
+//
+// All rights reserved.
+//
+// This file is part of Comb.
+//
+// For details, see https://github.com/LLNL/Comb
+// Please also see the LICENSE file for MIT license.
+//////////////////////////////////////////////////////////////////////////////
+
+#include "comb.hpp"
+#include "comm_pol_@COMPOL@.hpp"
+#include "do_cycles.hpp"
+
+namespace COMB {
+
+// instantiate function template
+template void do_cycles<@COMPOL@_pol,
+                        ExecContext<@EXECMESH@_pol>,
+                        ExecContext<@EXECMANY@_pol>,
+                        ExecContext<@EXECFEW@_pol>>(
+    CommContext<@COMPOL@_pol>& con_comm_in,
+    CommInfo& comm_info, MeshInfo& info,
+    IdxT num_vars, IdxT ncycles,
+    ContextHolder<ExecContext<@EXECMESH@_pol>>& con_mesh_in, AllocatorInfo& aloc_mesh_in,
+    ContextHolder<ExecContext<@EXECMANY@_pol>>& con_many_in, AllocatorInfo& aloc_many_in,
+    ContextHolder<ExecContext<@EXECFEW@_pol>>& con_few_in,   AllocatorInfo& aloc_few_in,
+    Timer& tm, Timer& tm_total);
+
+} // namespace COMB
