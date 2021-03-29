@@ -57,6 +57,7 @@
 #cmakedefine COMB_ENABLE_MPI
 #cmakedefine COMB_ENABLE_OPENMP
 #cmakedefine COMB_ENABLE_CUDA
+#cmakedefine COMB_ENABLE_CUDA_GRAPH
 #cmakedefine COMB_ENABLE_CLANG_CUDA
 #cmakedefine COMB_ENABLE_GDSYNC
 #cmakedefine COMB_ENABLE_GPUMP
@@ -64,8 +65,8 @@
 #cmakedefine COMB_ENABLE_UMR
 
 #ifdef COMB_ENABLE_CUDA
-#if defined(CUDART_VERSION) && CUDART_VERSION >= 10000
-#define COMB_ENABLE_CUDA_GRAPH
+#if defined(CUDART_VERSION) && CUDART_VERSION < 10000
+#error COMB_ENABLE_CUDA_GRAPH setting invalid with cuda version
 #endif
 #if defined(CUDART_VERSION) && CUDART_VERSION >= 9000 && \
      (!defined(__CUDA_ARCH__) || __CUDA_ARCH__ >= 600)
