@@ -36,6 +36,7 @@ set(ENABLE_GDSYNC OFF CACHE BOOL "Build GDSYNC support")
 set(ENABLE_GPUMP OFF CACHE BOOL "Build GPUMP support")
 set(ENABLE_MP OFF CACHE BOOL "Build MP support")
 set(ENABLE_UMR OFF CACHE BOOL "Build UMR support")
+set(ENABLE_RAJA ON CACHE BOOL "Build RAJA support")
 
 option(ENABLE_CLANG_CUDA "Use Clang's native CUDA support" OFF)
 
@@ -163,6 +164,10 @@ endif()
 
 if (ENABLE_UMR)
   set(comb_depends ${comb_depends} umr)
+endif()
+
+if (ENABLE_RAJA)
+  set(comb_depends ${comb_depends} RAJA)
 endif()
 
 add_subdirectory(src)

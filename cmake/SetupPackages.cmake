@@ -142,3 +142,18 @@ if (ENABLE_UMR)
                        LINK_FLAGS    ${UMR_CXX_LINK_FLAGS}
                        DEFINES USE_UMR)
 endif()
+
+if (ENABLE_RAJA)
+  if (DEFINED RAJA_DIR)
+    find_package(RAJA REQUIRED)
+
+    if (RAJA_FOUND)
+    else()
+      message(FATAL_ERROR "RAJA NOT FOUND")
+    endif()
+
+    blt_print_target_properties(TARGET RAJA)
+  else ()
+    add_subdirectory(tpl/RAJA)
+  endif ()
+endif ()
