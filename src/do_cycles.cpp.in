@@ -19,7 +19,7 @@
 
 namespace COMB {
 
-// instantiate function template
+// instantiate function templates required by do_cycles_allocators.hpp
 template void do_cycles<@COMPOL@_pol,
                         ExecContext<@EXECMESH@_pol>,
                         ExecContext<@EXECMANY@_pol>,

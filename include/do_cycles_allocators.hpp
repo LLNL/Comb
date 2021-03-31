@@ -23,6 +23,9 @@
 
 namespace COMB {
 
+// Note that do_cycles instantiations are generated manually in cmake by
+// configuring do_cycles.cpp.in with each of the policy combinations used.
+// This speeds up compile times by increasing the number of independent files.
 template < typename pol_comm, typename exec_mesh, typename exec_many, typename exec_few >
 extern void do_cycles(
     CommContext<pol_comm>& con_comm_in,
