@@ -32,7 +32,6 @@
 #include "comm.hpp"
 #include "profiling.hpp"
 #include "utils.hpp"
-#include "SetReset.hpp"
 #include "MeshInfo.hpp"
 #include "MeshData.hpp"
 
