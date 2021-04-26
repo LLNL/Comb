@@ -23,7 +23,7 @@ namespace cuda {
 
 namespace graph_launch {
 
-// Ensure the current batch launched (actually launches batch)
+// Ensure the current graph launched (actually launches graph)
 void force_launch(cudaStream_t stream)
 {
    // NVTX_RANGE_COLOR(NVTX_CYAN)
@@ -34,7 +34,7 @@ void force_launch(cudaStream_t stream)
    }
 }
 
-// Wait for all batches to finish running
+// Wait for graph to finish running
 void synchronize(cudaStream_t stream)
 {
    // NVTX_RANGE_COLOR(NVTX_CYAN)
