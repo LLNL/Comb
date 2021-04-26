@@ -24,7 +24,7 @@
 
 #include <type_traits>
 
-#include "utils.hpp"
+#include "exec_utils.hpp"
 #include "memory.hpp"
 #include "ExecContext.hpp"
 
@@ -103,11 +103,11 @@ struct adapter_3d {
 
 } // namespace detail
 
-#include "pol_seq.hpp"
-#include "pol_omp.hpp"
-#include "pol_cuda.hpp"
-#include "pol_cuda_graph.hpp"
-#include "pol_mpi_type.hpp"
+#include "exec_pol_seq.hpp"
+#include "exec_pol_omp.hpp"
+#include "exec_pol_cuda.hpp"
+#include "exec_pol_cuda_graph.hpp"
+#include "exec_pol_mpi_type.hpp"
 
 namespace COMB {
 

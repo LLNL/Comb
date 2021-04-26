@@ -25,7 +25,7 @@
 #include "basic_mempool.hpp"
 
 #include "ExecContext.hpp"
-#include "utils_cuda.hpp"
+#include "exec_utils_cuda.hpp"
 
 namespace COMB {
 

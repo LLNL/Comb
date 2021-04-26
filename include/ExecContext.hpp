@@ -18,7 +18,7 @@
 
 #include "config.hpp"
 
-#include "utils_cuda.hpp"
+#include "exec_utils_cuda.hpp"
 
 enum struct ContextEnum
 {

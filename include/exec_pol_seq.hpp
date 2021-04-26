@@ -18,7 +18,7 @@
 
 #include "config.hpp"
 
-#include "utils.hpp"
+#include "exec_utils.hpp"
 #include "memory.hpp"
 
 struct seq_component

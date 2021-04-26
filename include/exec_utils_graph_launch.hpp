@@ -31,8 +31,8 @@
 #endif
 
 #include "ExecContext.hpp"
-#include "utils.hpp"
-#include "utils_cuda.hpp"
+#include "exec_utils.hpp"
+#include "exec_utils_cuda.hpp"
 #include <vector>
 #include <assert.h>
 
@@ -466,9 +466,26 @@ inline void destroyEvent(event_type event)
   delete event;
 }
 
+// Ensure the current graph launched (actually launches graph)
+inline void force_launch(cudaStream_t stream = 0)
+{
+   // NVTX_RANGE_COLOR(NVTX_CYAN)
+   if (get_group().graph != nullptr && get_group().graph->launchable()) {
+      get_group().graph->update(stream);
+      get_group().graph->launch(stream);
+      new_active_group();
+   }
+}
 
-extern void force_launch(cudaStream_t stream = 0);
-extern void synchronize(cudaStream_t stream = 0);
+// Wait for graph to finish running
+inline void synchronize(cudaStream_t stream = 0)
+{
+   // NVTX_RANGE_COLOR(NVTX_CYAN)
+   force_launch(stream);
+
+   // perform synchronization
+   cudaCheck(cudaStreamSynchronize(stream));
+}
 
 template < typename body_type >
 __global__

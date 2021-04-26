@@ -21,7 +21,7 @@
 #include "memory.hpp"
 
 #ifdef COMB_ENABLE_CUDA_GRAPH
-#include "graph_launch.hpp"
+#include "exec_utils_graph_launch.hpp"
 
 struct cuda_graph_pol {
   static const bool async = true;

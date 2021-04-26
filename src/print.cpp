@@ -15,7 +15,7 @@
 
 #include "print.hpp"
 #include "comm_utils_mpi.hpp"
-#include "utils_cuda.hpp"
+#include "exec_utils_cuda.hpp"
 
 #include <cassert>
 #include <cstdlib>

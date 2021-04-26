@@ -15,7 +15,6 @@
 
 set(comb_sources
   comb.cpp
-  graph_launch.cpp
   print.cpp
   print_timer.cpp
   warmup.cpp

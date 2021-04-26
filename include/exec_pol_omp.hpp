@@ -25,7 +25,7 @@
 // #define COMB_USE_OMP_COLLAPSE
 // #define COMB_USE_OMP_WEAK_COLLAPSE
 
-#include "utils.hpp"
+#include "exec_utils.hpp"
 #include "memory.hpp"
 
 struct omp_component

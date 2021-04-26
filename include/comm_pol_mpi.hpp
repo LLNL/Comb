@@ -20,8 +20,8 @@
 
 #ifdef COMB_ENABLE_MPI
 
-#include "for_all.hpp"
-#include "utils.hpp"
+#include "exec_for_all.hpp"
+#include "exec_utils.hpp"
 #include "comm_utils_mpi.hpp"
 #include "MessageBase.hpp"
 #include "ExecContext.hpp"

@@ -25,7 +25,7 @@
 #include <cassert>
 #include <cstdio>
 
-#include "utils.hpp"
+#include "exec_utils.hpp"
 #include "comm_utils_mpi.hpp"
 
 namespace detail {
