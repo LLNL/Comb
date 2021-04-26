@@ -23,19 +23,20 @@
 //
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~//
 
-#ifndef RAJA_util_mutex_HPP
-#define RAJA_util_mutex_HPP
+#ifndef COMBRAJA_util_mutex_HPP
+#define COMBRAJA_util_mutex_HPP
 
 //#include "RAJA/config.hpp"
+#include "config.hpp"
 
-#if defined(RAJA_ENABLE_OPENMP)
+#if defined(COMB_ENABLE_OPENMP)
 #include <omp.h>
 #endif
 
-namespace RAJA
+namespace COMBRAJA
 {
 
-#if defined(RAJA_ENABLE_OPENMP)
+#if defined(COMB_ENABLE_OPENMP)
 namespace omp
 {
 
@@ -67,7 +68,7 @@ private:
 };
 
 }  // namespace omp
-#endif  // closing endif for if defined(RAJA_ENABLE_OPENMP)
+#endif  // closing endif for if defined(COMB_ENABLE_OPENMP)
 
 //! class providing functionality of std::lock_guard
 template <typename mutex_type>
@@ -87,6 +88,6 @@ private:
   mutex_type& m_mutex;
 };
 
-}  // namespace RAJA
+}  // namespace COMBRAJA
 
 #endif  // closing endif for header file include guard

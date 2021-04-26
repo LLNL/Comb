@@ -23,19 +23,21 @@
 //
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~//
 
-#ifndef RAJA_ALIGN_HPP
-#define RAJA_ALIGN_HPP
+#ifndef COMBRAJA_ALIGN_HPP
+#define COMBRAJA_ALIGN_HPP
 
 //#include "RAJA/config.hpp"
-#define RAJA_INLINE inline
-namespace RAJA
+#include "config.hpp"
+
+#define COMBRAJA_INLINE inline
+namespace COMBRAJA
 {
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~//
 // Taken from libc++
 // See libc++ license in docs/Licenses/libc++ License
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~//
-RAJA_INLINE
+COMBRAJA_INLINE
 void* align(size_t alignment, size_t size, void*& ptr, size_t& space)
 {
   void* r = nullptr;
@@ -53,6 +55,6 @@ void* align(size_t alignment, size_t size, void*& ptr, size_t& space)
   return r;
 }
 
-}  // end namespace RAJA
+}  // end namespace COMBRAJA
 
 #endif

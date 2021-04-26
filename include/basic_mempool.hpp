@@ -23,8 +23,8 @@
 //
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~//
 
-#ifndef RAJA_BASIC_MEMPOOL_HPP
-#define RAJA_BASIC_MEMPOOL_HPP
+#ifndef COMBRAJA_BASIC_MEMPOOL_HPP
+#define COMBRAJA_BASIC_MEMPOOL_HPP
 
 //#include "RAJA/util/align.hpp"
 #include "align.hpp"
@@ -37,7 +37,7 @@
 #include <list>
 #include <map>
 
-namespace RAJA
+namespace COMBRAJA
 {
 
 namespace basic_mempool
@@ -107,7 +107,7 @@ public:
         size_t cap =
             static_cast<char*>(iter->second) - static_cast<char*>(adj_ptr);
 
-        if (::RAJA::align(alignment, nbytes, adj_ptr, cap)) {
+        if (::COMBRAJA::align(alignment, nbytes, adj_ptr, cap)) {
 
           ptr_out = adj_ptr;
 
@@ -319,7 +319,7 @@ public:
 
   void free_chunks()
   {
-#if defined(RAJA_ENABLE_OPENMP)
+#if defined(COMB_ENABLE_OPENMP)
     lock_guard<omp::mutex> lock(m_mutex);
 #endif
 
@@ -332,7 +332,7 @@ public:
 
   size_t arena_size()
   {
-#if defined(RAJA_ENABLE_OPENMP)
+#if defined(COMB_ENABLE_OPENMP)
     lock_guard<omp::mutex> lock(m_mutex);
 #endif
 
@@ -341,7 +341,7 @@ public:
 
   size_t arena_size(size_t new_size)
   {
-#if defined(RAJA_ENABLE_OPENMP)
+#if defined(COMB_ENABLE_OPENMP)
     lock_guard<omp::mutex> lock(m_mutex);
 #endif
 
@@ -353,7 +353,7 @@ public:
   template <typename T>
   T* malloc(size_t nTs, size_t alignment = std::max(alignof(T), alignof(std::max_align_t)))
   {
-#if defined(RAJA_ENABLE_OPENMP)
+#if defined(COMB_ENABLE_OPENMP)
     lock_guard<omp::mutex> lock(m_mutex);
 #endif
 
@@ -383,7 +383,7 @@ public:
 
   void free(const void* cptr)
   {
-#if defined(RAJA_ENABLE_OPENMP)
+#if defined(COMB_ENABLE_OPENMP)
     lock_guard<omp::mutex> lock(m_mutex);
 #endif
 
@@ -404,7 +404,7 @@ public:
 private:
   using arena_container_type = std::list<detail::MemoryArena>;
 
-#if defined(RAJA_ENABLE_OPENMP)
+#if defined(COMB_ENABLE_OPENMP)
   omp::mutex m_mutex;
 #endif
 
@@ -429,7 +429,7 @@ struct generic_allocator {
 
 } /* end namespace basic_mempool */
 
-} /* end namespace RAJA */
+} /* end namespace COMBRAJA */
 
 
 #endif /* BASIC_MEMPOOL_HXX_ */

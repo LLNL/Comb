@@ -32,7 +32,7 @@ namespace COMB {
 namespace detail {
 
 template < typename alloc >
-using mempool = RAJA::basic_mempool::MemPool<alloc>;
+using mempool = COMBRAJA::basic_mempool::MemPool<alloc>;
 
 #ifdef COMB_ENABLE_CUDA
   struct cuda_host_pinned_allocator {
