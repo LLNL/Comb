@@ -13,7 +13,23 @@
 ## Please also see the LICENSE file for MIT license.
 ##############################################################################
 
-set(comb_do_cycles_sources )
+set(comb_sources
+  comb.cpp
+  MultiBuffer.cpp
+  batch_launch.cpp
+  persistent_launch.cpp
+  graph_launch.cpp
+  print.cpp
+  print_timer.cpp
+  warmup.cpp
+  test_copy.cpp
+  test_cycles_mock.cpp
+  test_cycles_mpi.cpp
+  test_cycles_gdsync.cpp
+  test_cycles_gpump.cpp
+  test_cycles_mp.cpp
+  test_cycles_umr.cpp
+  test_cycles_basic.cpp)
 
 macro( builddocycles COMPOL_in EXECMESH_in EXECMANY_in EXECFEW_in)
 
@@ -24,7 +40,7 @@ macro( builddocycles COMPOL_in EXECMESH_in EXECMANY_in EXECFEW_in)
 
   configure_file( do_cycles.cpp.in
                   do_cycles-${COMPOL}-${EXECMESH}-${EXECMANY}-${EXECFEW}.cpp )
-  set(comb_do_cycles_sources ${comb_do_cycles_sources} ${CMAKE_CURRENT_BINARY_DIR}/do_cycles-${COMPOL}-${EXECMESH}-${EXECMANY}-${EXECFEW}.cpp)
+  set(comb_sources ${comb_sources} ${CMAKE_CURRENT_BINARY_DIR}/do_cycles-${COMPOL}-${EXECMESH}-${EXECMANY}-${EXECFEW}.cpp)
 
   unset(EXECFEW)
   unset(EXECMANY)
@@ -102,22 +118,52 @@ if (ENABLE_UMR)
 endif()
 
 
-blt_add_library(
-  NAME comb_do_cycles
-  SOURCES ${comb_do_cycles_sources}
-  DEPENDS_ON ${comb_depends})
+set(comb_depends )
 
-if(ENABLE_OPENMP)
-  if(ENABLE_CUDA AND (NOT ENABLE_CLANG_CUDA))
-    blt_add_target_compile_flags(TO comb_do_cycles FLAGS -Xcompiler ${OpenMP_CXX_FLAGS})
-  else()
-    blt_add_target_compile_flags(TO comb_do_cycles FLAGS ${OpenMP_CXX_FLAGS})
-  endif()
-  blt_add_target_link_flags(TO comb_do_cycles FLAGS ${OpenMP_CXX_FLAGS})
+if(ENABLE_MPI)
+  set(comb_depends ${comb_depends} mpi)
 endif()
 
-target_include_directories(comb_do_cycles
+if(ENABLE_OPENMP)
+  set(comb_depends ${comb_depends} openmp)
+endif()
+
+if (ENABLE_CUDA)
+  set(comb_depends ${comb_depends} cuda nvToolsExt)
+endif()
+
+if (ENABLE_GDSYNC)
+  set(comb_depends ${comb_depends} gdsync)
+endif()
+
+if (ENABLE_GPUMP)
+  set(comb_depends ${comb_depends} gpump)
+endif()
+
+if (ENABLE_MP)
+  set(comb_depends ${comb_depends} mp)
+endif()
+
+if (ENABLE_UMR)
+  set(comb_depends ${comb_depends} umr)
+endif()
+
+if (ENABLE_RAJA)
+  set(comb_depends ${comb_depends} RAJA)
+endif()
+
+
+blt_add_executable(
+  NAME comb
+  SOURCES ${comb_sources}
+  DEPENDS_ON ${comb_depends})
+
+target_include_directories(comb
   PUBLIC
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
   $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include>
   $<INSTALL_INTERFACE:include>)
+
+install(TARGETS comb
+  EXPORT comb
+  DESTINATION bin)
