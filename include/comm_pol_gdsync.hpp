@@ -29,7 +29,7 @@
 #include "for_all.hpp"
 #include "utils.hpp"
 #include "utils_cuda.hpp"
-#include "utils_gdsync.hpp"
+#include "comm_utils_gdsync.hpp"
 #include "MessageBase.hpp"
 #include "ExecContext.hpp"
 

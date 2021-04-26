@@ -26,7 +26,7 @@
 #include <cstdio>
 
 #include "utils.hpp"
-#include "utils_mpi.hpp"
+#include "comm_utils_mpi.hpp"
 
 namespace detail {
 

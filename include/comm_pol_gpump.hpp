@@ -29,7 +29,7 @@
 #include "for_all.hpp"
 #include "utils.hpp"
 #include "utils_cuda.hpp"
-#include "utils_gpump.hpp"
+#include "comm_utils_gpump.hpp"
 #include "MessageBase.hpp"
 #include "ExecContext.hpp"
 
