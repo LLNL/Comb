@@ -106,8 +106,6 @@ struct adapter_3d {
 #include "pol_seq.hpp"
 #include "pol_omp.hpp"
 #include "pol_cuda.hpp"
-#include "pol_cuda_batch.hpp"
-#include "pol_cuda_persistent.hpp"
 #include "pol_cuda_graph.hpp"
 #include "pol_mpi_type.hpp"
 
@@ -181,10 +179,6 @@ struct Executors
 #endif
 #ifdef COMB_ENABLE_CUDA
     cuda.create(base_cuda.get(), (alocs.access.use_device_preferred_for_cuda_util_aloc) ? alocs.cuda_managed_device_preferred_host_accessed.allocator() : alocs.cuda_hostpinned.allocator());
-    cuda_batch.create(base_cuda.get(), (alocs.access.use_device_preferred_for_cuda_util_aloc) ? alocs.cuda_managed_device_preferred_host_accessed.allocator() : alocs.cuda_hostpinned.allocator());
-    cuda_batch_fewgs.create(base_cuda.get(), (alocs.access.use_device_preferred_for_cuda_util_aloc) ? alocs.cuda_managed_device_preferred_host_accessed.allocator() : alocs.cuda_hostpinned.allocator());
-    cuda_persistent.create(base_cuda.get(), (alocs.access.use_device_preferred_for_cuda_util_aloc) ? alocs.cuda_managed_device_preferred_host_accessed.allocator() : alocs.cuda_hostpinned.allocator());
-    cuda_persistent_fewgs.create(base_cuda.get(), (alocs.access.use_device_preferred_for_cuda_util_aloc) ? alocs.cuda_managed_device_preferred_host_accessed.allocator() : alocs.cuda_hostpinned.allocator());
 #endif
 #ifdef COMB_ENABLE_CUDA_GRAPH
     cuda_graph.create(base_cuda.get(), (alocs.access.use_device_preferred_for_cuda_util_aloc) ? alocs.cuda_managed_device_preferred_host_accessed.allocator() : alocs.cuda_hostpinned.allocator());
@@ -210,10 +204,6 @@ struct Executors
 #endif
 #ifdef COMB_ENABLE_CUDA
   ContextHolder<ExecContext<cuda_pol>> cuda;
-  ContextHolder<ExecContext<cuda_batch_pol>> cuda_batch;
-  ContextHolder<ExecContext<cuda_batch_pol>> cuda_batch_fewgs;
-  ContextHolder<ExecContext<cuda_persistent_pol>> cuda_persistent;
-  ContextHolder<ExecContext<cuda_persistent_pol>> cuda_persistent_fewgs;
 #ifdef COMB_ENABLE_CUDA_GRAPH
   ContextHolder<ExecContext<cuda_graph_pol>> cuda_graph;
 #endif

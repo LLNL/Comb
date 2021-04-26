@@ -65,43 +65,13 @@ void warmup(COMB::Executors& exec,
   do_warmup(exec.cuda.get(), alloc.cuda_managed.allocator(), tm, num_vars, len);
 
   if (alloc.cuda_managed_host_preferred.available()) {
-    do_warmup(exec.seq.get(),        alloc.cuda_managed_host_preferred.allocator(), tm, num_vars, len);
-    if (exec.cuda_batch.m_available) {
-      do_warmup(exec.cuda_batch.get(), alloc.cuda_managed_host_preferred.allocator(), tm, num_vars, len);
-    } else {
-      do_warmup(exec.cuda.get(),       alloc.cuda_managed_host_preferred.allocator(), tm, num_vars, len);
-    }
+    do_warmup(exec.seq.get(),  alloc.cuda_managed_host_preferred.allocator(),   tm, num_vars, len);
+    do_warmup(exec.cuda.get(), alloc.cuda_managed_device_preferred.allocator(), tm, num_vars, len);
   }
 
   if (alloc.cuda_managed_host_preferred_device_accessed.available()) {
-    do_warmup(exec.seq.get(),             alloc.cuda_managed_host_preferred_device_accessed.allocator(), tm, num_vars, len);
-    if (exec.cuda_persistent.m_available) {
-      do_warmup(exec.cuda_persistent.get(), alloc.cuda_managed_host_preferred_device_accessed.allocator(), tm, num_vars, len);
-    } else {
-      do_warmup(exec.cuda.get(),            alloc.cuda_managed_host_preferred_device_accessed.allocator(), tm, num_vars, len);
-    }
-  }
-
-  {
-    SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
-
-    if (alloc.cuda_managed_device_preferred.available()) {
-      do_warmup(exec.seq.get(),        alloc.cuda_managed_device_preferred.allocator(), tm, num_vars, len);
-      if (exec.cuda_batch_fewgs.m_available) {
-        do_warmup(exec.cuda_batch_fewgs.get(), alloc.cuda_managed_device_preferred.allocator(), tm, num_vars, len);
-      } else {
-        do_warmup(exec.cuda.get(),       alloc.cuda_managed_device_preferred.allocator(), tm, num_vars, len);
-      }
-    }
-
-    if (alloc.cuda_managed_device_preferred_host_accessed.available()) {
-      do_warmup(exec.seq.get(),             alloc.cuda_managed_device_preferred_host_accessed.allocator(), tm, num_vars, len);
-      if (exec.cuda_persistent_fewgs.m_available) {
-        do_warmup(exec.cuda_persistent_fewgs.get(), alloc.cuda_managed_device_preferred_host_accessed.allocator(), tm, num_vars, len);
-      } else {
-        do_warmup(exec.cuda.get(),            alloc.cuda_managed_device_preferred_host_accessed.allocator(), tm, num_vars, len);
-      }
-    }
+    do_warmup(exec.seq.get(),  alloc.cuda_managed_host_preferred_device_accessed.allocator(), tm, num_vars, len);
+    do_warmup(exec.cuda.get(), alloc.cuda_managed_device_preferred_host_accessed.allocator(), tm, num_vars, len);
   }
 #endif
 

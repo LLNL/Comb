@@ -172,18 +172,6 @@ void test_copy_allocator(CommInfo& comminfo,
 #ifdef COMB_ENABLE_CUDA
   do_copy(exec.cuda, comminfo, dst_aloc, cuda_src_aloc, tm, num_vars, len, nrepeats);
 
-  do_copy(exec.cuda_batch, comminfo, dst_aloc, cuda_src_aloc, tm, num_vars, len, nrepeats);
-
-  do_copy(exec.cuda_persistent, comminfo, dst_aloc, cuda_src_aloc, tm, num_vars, len, nrepeats);
-
-  {
-    SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
-
-    do_copy(exec.cuda_batch_fewgs, comminfo, dst_aloc, cuda_src_aloc, tm, num_vars, len, nrepeats);
-
-    do_copy(exec.cuda_persistent_fewgs, comminfo, dst_aloc, cuda_src_aloc, tm, num_vars, len, nrepeats);
-  }
-
 #ifdef COMB_ENABLE_CUDA_GRAPH
   do_copy(exec.cuda_graph, comminfo, dst_aloc, cuda_src_aloc, tm, num_vars, len, nrepeats);
 #endif

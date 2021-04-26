@@ -105,27 +105,6 @@ void do_cycles_allocator(CommContext<comm_pol>& con_comm,
 
   do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda, cuda_many_aloc, exec.cuda, cuda_few_aloc, tm, tm_total);
 
-  {
-    do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, cuda_many_aloc, exec.seq, cpu_few_aloc, tm, tm_total);
-
-    do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch, cuda_many_aloc, exec.cuda_batch, cuda_few_aloc, tm, tm_total);
-
-    do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, cuda_many_aloc, exec.seq, cpu_few_aloc, tm, tm_total);
-
-    do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent, cuda_many_aloc, exec.cuda_persistent, cuda_few_aloc, tm, tm_total);
-
-
-    SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
-
-    do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch_fewgs, cuda_many_aloc, exec.seq, cpu_few_aloc, tm, tm_total);
-
-    do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_batch_fewgs, cuda_many_aloc, exec.cuda_batch_fewgs, cuda_few_aloc, tm, tm_total);
-
-    do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent_fewgs, cuda_many_aloc, exec.seq, cpu_few_aloc, tm, tm_total);
-
-    do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_persistent_fewgs, cuda_many_aloc, exec.cuda_persistent_fewgs, cuda_few_aloc, tm, tm_total);
-  }
-
 #ifdef COMB_ENABLE_CUDA_GRAPH
   do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_graph, cuda_many_aloc, exec.seq, cpu_few_aloc, tm, tm_total);
 

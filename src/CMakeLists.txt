@@ -15,9 +15,6 @@
 
 set(comb_sources
   comb.cpp
-  MultiBuffer.cpp
-  batch_launch.cpp
-  persistent_launch.cpp
   graph_launch.cpp
   print.cpp
   print_timer.cpp
@@ -68,14 +65,6 @@ macro( builddocyclescom COMPOL_in ENABLE_MPI_TYPE_in )
     endif()
     builddocycles(${COMPOL_in} cuda cuda seq)
     builddocycles(${COMPOL_in} cuda cuda cuda)
-    builddocycles(${COMPOL_in} cuda cuda_batch seq)
-    builddocycles(${COMPOL_in} cuda cuda_batch cuda_batch)
-    builddocycles(${COMPOL_in} cuda cuda_persistent seq)
-    builddocycles(${COMPOL_in} cuda cuda_persistent cuda_persistent)
-    # builddocycles(${COMPOL_in} cuda cuda_batch_fewgs seq)
-    # builddocycles(${COMPOL_in} cuda cuda_batch_fewgs cuda_batch_fewgs)
-    # builddocycles(${COMPOL_in} cuda cuda_persistent_fewgs seq)
-    # builddocycles(${COMPOL_in} cuda cuda_persistent_fewgs cuda_persistent_fewgs)
     if (COMB_ENABLE_CUDA_GRAPH)
       builddocycles(${COMPOL_in} cuda cuda_graph seq)
       builddocycles(${COMPOL_in} cuda cuda_graph cuda_graph)
