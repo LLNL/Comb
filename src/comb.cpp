@@ -302,15 +302,15 @@ int main(int argc, char** argv)
               ++i;
               if (strcmp(argv[i], "all") == 0) {
                 exec.seq.m_available = enabledisable;
-  #ifdef COMB_ENABLE_OPENMP
+#ifdef COMB_ENABLE_OPENMP
                 exec.omp.m_available = enabledisable;
-  #endif
-  #ifdef COMB_ENABLE_CUDA
+#endif
+#ifdef COMB_ENABLE_CUDA
                 exec.cuda.m_available = enabledisable;
-  #endif
-  #ifdef COMB_ENABLE_CUDA_GRAPH
+#endif
+#ifdef COMB_ENABLE_CUDA_GRAPH
                 exec.cuda_graph.m_available = enabledisable;
-  #endif
+#endif
 #ifdef COMB_ENABLE_MPI
                 exec.mpi_type.m_available = enabledisable;
 #endif
@@ -318,17 +318,17 @@ int main(int argc, char** argv)
                 exec.seq.m_available = enabledisable;
               } else if (strcmp(argv[i], "omp") == 0 ||
                          strcmp(argv[i], "openmp") == 0) {
-  #ifdef COMB_ENABLE_OPENMP
+#ifdef COMB_ENABLE_OPENMP
                 exec.omp.m_available = enabledisable;
-  #endif
+#endif
               } else if (strcmp(argv[i], "cuda") == 0) {
-  #ifdef COMB_ENABLE_CUDA
+#ifdef COMB_ENABLE_CUDA
                 exec.cuda.m_available = enabledisable;
-  #endif
+#endif
               } else if (strcmp(argv[i], "cuda_graph") == 0) {
-  #ifdef COMB_ENABLE_CUDA_GRAPH
+#ifdef COMB_ENABLE_CUDA_GRAPH
                 exec.cuda_graph.m_available = enabledisable;
-  #endif
+#endif
               } else if (strcmp(argv[i], "mpi_type") == 0) {
 #ifdef COMB_ENABLE_MPI
                 exec.mpi_type.m_available = enabledisable;
@@ -360,7 +360,7 @@ int main(int argc, char** argv)
               ++i;
               if (strcmp(argv[i], "all") == 0) {
                 alloc.host.m_available = enabledisable;
-  #ifdef COMB_ENABLE_CUDA
+#ifdef COMB_ENABLE_CUDA
                 alloc.cuda_hostpinned.m_available = enabledisable;
                 alloc.cuda_device.m_available = enabledisable;
                 alloc.cuda_managed.m_available = enabledisable;
@@ -368,37 +368,37 @@ int main(int argc, char** argv)
                 alloc.cuda_managed_host_preferred_device_accessed.m_available = enabledisable;
                 alloc.cuda_managed_device_preferred.m_available = enabledisable;
                 alloc.cuda_managed_device_preferred_host_accessed.m_available = enabledisable;
-  #endif
+#endif
               } else if (strcmp(argv[i], "host") == 0) {
                 alloc.host.m_available = enabledisable;
               } else if (strcmp(argv[i], "cuda_hostpinned") == 0) {
-  #ifdef COMB_ENABLE_CUDA
+#ifdef COMB_ENABLE_CUDA
                 alloc.cuda_hostpinned.m_available = enabledisable;
-  #endif
+#endif
               } else if (strcmp(argv[i], "cuda_device") == 0) {
-  #ifdef COMB_ENABLE_CUDA
+#ifdef COMB_ENABLE_CUDA
                 alloc.cuda_device.m_available = enabledisable;
-  #endif
+#endif
               } else if (strcmp(argv[i], "cuda_managed") == 0) {
-  #ifdef COMB_ENABLE_CUDA
+#ifdef COMB_ENABLE_CUDA
                 alloc.cuda_managed.m_available = enabledisable;
-  #endif
+#endif
               } else if (strcmp(argv[i], "cuda_managed_host_preferred") == 0) {
-  #ifdef COMB_ENABLE_CUDA
+#ifdef COMB_ENABLE_CUDA
                 alloc.cuda_managed_host_preferred.m_available = enabledisable;
-  #endif
+#endif
               } else if (strcmp(argv[i], "cuda_managed_host_preferred_device_accessed") == 0) {
-  #ifdef COMB_ENABLE_CUDA
+#ifdef COMB_ENABLE_CUDA
                 alloc.cuda_managed_host_preferred_device_accessed.m_available = enabledisable;
-  #endif
+#endif
               } else if (strcmp(argv[i], "cuda_managed_device_preferred") == 0) {
-  #ifdef COMB_ENABLE_CUDA
+#ifdef COMB_ENABLE_CUDA
                 alloc.cuda_managed_device_preferred.m_available = enabledisable;
-  #endif
+#endif
               } else if (strcmp(argv[i], "cuda_managed_device_preferred_host_accessed") == 0) {
-  #ifdef COMB_ENABLE_CUDA
+#ifdef COMB_ENABLE_CUDA
                 alloc.cuda_managed_device_preferred_host_accessed.m_available = enabledisable;
-  #endif
+#endif
               } else {
                 fgprintf(FileGroup::err_master, "Invalid argument to sub-option, ignoring %s %s %s.\n", argv[i-2], argv[i-1], argv[i]);
               }
