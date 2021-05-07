@@ -23,8 +23,7 @@
 #include <utility>
 
 #include "memory.hpp"
-#include "exec_for_all.hpp"
-#include "exec_utils.hpp"
+#include "exec.hpp"
 #include "comm_utils_mpi.hpp"
 
 namespace detail {

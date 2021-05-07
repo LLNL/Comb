@@ -26,9 +26,7 @@
 #include <unordered_set>
 #include <map>
 
-#include "exec_for_all.hpp"
-#include "exec_utils.hpp"
-#include "exec_utils_cuda.hpp"
+#include "exec.hpp"
 #include "comm_utils_gpump.hpp"
 #include "MessageBase.hpp"
 #include "ExecContext.hpp"

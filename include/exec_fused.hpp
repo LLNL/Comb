@@ -13,8 +13,8 @@
 // Please also see the LICENSE file for MIT license.
 //////////////////////////////////////////////////////////////////////////////
 
-#ifndef _FOR_ALL_HPP
-#define _FOR_ALL_HPP
+#ifndef _FUSED_HPP
+#define _FUSED_HPP
 
 #include "config.hpp"
 
@@ -24,9 +24,9 @@
 
 #include <type_traits>
 
-#include "exec_utils.hpp"
 #include "memory.hpp"
 #include "ExecContext.hpp"
+#include "exec_utils.hpp"
 
 
 inline bool& comb_allow_per_message_pack_fusing()
@@ -101,118 +101,103 @@ struct adapter_3d {
   }
 };
 
+struct fused_packer
+{
+  DataT const** srcs;
+  DataT**       bufs;
+  LidxT const** idxs;
+  IdxT const*   lens;
+
+  DataT const* src = nullptr;
+  DataT*       bufk = nullptr;
+  DataT*       buf = nullptr;
+  LidxT const* idx = nullptr;
+  IdxT         len = 0;
+
+  fused_packer(DataT const** srcs_, DataT** bufs_, LidxT const** idxs_, IdxT const* lens_)
+    : srcs(srcs_)
+    , bufs(bufs_)
+    , idxs(idxs_)
+    , lens(lens_)
+  { }
+
+  COMB_HOST COMB_DEVICE
+  void set_outer(IdxT k)
+  {
+    len = lens[k];
+    idx = idxs[k];
+    bufk = bufs[k];
+  }
+
+  COMB_HOST COMB_DEVICE
+  void set_inner(IdxT j)
+  {
+    src = srcs[j];
+    buf = bufk + j*len;
+  }
+
+  // must be run for all i in [0, len)
+  COMB_HOST COMB_DEVICE
+  void operator()(IdxT i, IdxT)
+  {
+    // if (i == 0) {
+    //   FGPRINTF(FileGroup::proc, "fused_packer buf %p, src %p, idx %p, len %i\n", buf, src, idx, len); FFLUSH(stdout);
+    // }
+    buf[i] = src[idx[i]];
+  }
+};
+
+struct fused_unpacker
+{
+  DataT**       dsts;
+  DataT const** bufs;
+  LidxT const** idxs;
+  IdxT  const*  lens;
+
+  DataT*       dst = nullptr;
+  DataT const* bufk = nullptr;
+  DataT const* buf = nullptr;
+  LidxT const* idx = nullptr;
+  IdxT         len = 0;
+
+  fused_unpacker(DataT** dsts_, DataT const** bufs_, LidxT const** idxs_, IdxT const* lens_)
+    : dsts(dsts_)
+    , bufs(bufs_)
+    , idxs(idxs_)
+    , lens(lens_)
+  { }
+
+  COMB_HOST COMB_DEVICE
+  void set_outer(IdxT k)
+  {
+    len = lens[k];
+    idx = idxs[k];
+    bufk = bufs[k];
+  }
+
+  COMB_HOST COMB_DEVICE
+  void set_inner(IdxT j)
+  {
+    dst = dsts[j];
+    buf = bufk + j*len;
+  }
+
+  // must be run for all i in [0, len)
+  COMB_HOST COMB_DEVICE
+  void operator()(IdxT i, IdxT)
+  {
+    // if (i == 0) {
+    //   FGPRINTF(FileGroup::proc, "fused_packer buf %p, dst %p, idx %p, len %i\n", buf, dst, idx, len); FFLUSH(stdout);
+    // }
+    dst[idx[i]] = buf[i];
+  }
+};
+
 } // namespace detail
 
-#include "exec_pol_seq.hpp"
-#include "exec_pol_omp.hpp"
-#include "exec_pol_cuda.hpp"
-#include "exec_pol_cuda_graph.hpp"
-#include "exec_pol_mpi_type.hpp"
 
 namespace COMB {
 
-template < typename my_context_type >
-struct ContextHolder
-{
-  using context_type = my_context_type;
-
-  bool m_available = false;
-
-  bool available() const
-  {
-    return m_available;
-  }
-
-  template < typename ... Ts >
-  void create(Ts&&... args)
-  {
-    destroy();
-    m_context = new context_type(std::forward<Ts>(args)...);
-  }
-
-  context_type& get()
-  {
-    assert(m_context != nullptr);
-    return *m_context;
-  }
-
-  void destroy()
-  {
-    if (m_context) {
-      delete m_context;
-      m_context = nullptr;
-    }
-  }
-
-  ~ContextHolder()
-  {
-    destroy();
-  }
-
-private:
-  context_type* m_context = nullptr;
-};
-
-struct Executors
-{
-  Executors()
-  { }
-
-  Executors(Executors const&) = delete;
-  Executors(Executors &&) = delete;
-  Executors& operator=(Executors const&) = delete;
-  Executors& operator=(Executors &&) = delete;
-
-  void create_executors(Allocators& alocs)
-  {
-    base_cpu.create();
-#ifdef COMB_ENABLE_MPI
-    base_mpi.create();
-#endif
-#ifdef COMB_ENABLE_CUDA
-    base_cuda.create();
-#endif
-
-    seq.create(base_cpu.get(), alocs.host.allocator());
-#ifdef COMB_ENABLE_OPENMP
-    omp.create(base_cpu.get(), alocs.host.allocator());
-#endif
-#ifdef COMB_ENABLE_CUDA
-    cuda.create(base_cuda.get(), (alocs.access.use_device_preferred_for_cuda_util_aloc) ? alocs.cuda_managed_device_preferred_host_accessed.allocator() : alocs.cuda_hostpinned.allocator());
-#endif
-#ifdef COMB_ENABLE_CUDA_GRAPH
-    cuda_graph.create(base_cuda.get(), (alocs.access.use_device_preferred_for_cuda_util_aloc) ? alocs.cuda_managed_device_preferred_host_accessed.allocator() : alocs.cuda_hostpinned.allocator());
-#endif
-#ifdef COMB_ENABLE_MPI
-    mpi_type.create(base_mpi.get(), alocs.host.allocator());
-#endif
-  }
-
-  ContextHolder<CPUContext> base_cpu;
-#ifdef COMB_ENABLE_MPI
-  ContextHolder<MPIContext> base_mpi;
-#endif
-#ifdef COMB_ENABLE_CUDA
-  ContextHolder<CudaContext> base_cuda;
-#endif
-
-  ContextHolder<ExecContext<seq_pol>> seq;
-#ifdef COMB_ENABLE_OPENMP
-  ContextHolder<ExecContext<omp_pol>> omp;
-#else
-  ContextHolder<void> omp;
-#endif
-#ifdef COMB_ENABLE_CUDA
-  ContextHolder<ExecContext<cuda_pol>> cuda;
-#ifdef COMB_ENABLE_CUDA_GRAPH
-  ContextHolder<ExecContext<cuda_graph_pol>> cuda_graph;
-#endif
-#endif
-#ifdef COMB_ENABLE_MPI
-  ContextHolder<ExecContext<mpi_type_pol>> mpi_type;
-#endif
-};
-
 } // namespace COMB
 
-#endif // _FOR_ALL_HPP
+#endif // _FUSED_HPP

@@ -21,7 +21,7 @@
 #include "memory.hpp"
 
 #ifdef COMB_ENABLE_CUDA
-#include <cuda.h>
+#include "exec_utils_cuda.hpp"
 
 template < typename body_type >
 __global__
