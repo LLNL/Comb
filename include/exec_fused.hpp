@@ -213,14 +213,14 @@ struct FuserStorage
   DataT      ** get_dsts() { return                m_vars; }
   DataT const** get_srcs() { return (DataT const**)m_vars; }
 
-  void allocate(context_type& con, std::vector<DataT*> const& variables, IdxT num_loops_)
+  void allocate(context_type& con, std::vector<DataT*> const& variables, IdxT num_loops)
   {
     if (m_vars == nullptr) {
 
       m_num_fused_iterations     = 0;
       m_num_fused_loops_enqueued = 0;
       m_num_fused_loops_executed = 0;
-      m_num_fused_loops_total    = num_loops_;
+      m_num_fused_loops_total    = num_loops;
 
       // allocate per variable vars
       m_num_vars = variables.size();
@@ -232,8 +232,8 @@ struct FuserStorage
       }
 
       // allocate per item vars
-      m_idxs = (LidxT const**)con.util_aloc.allocate(num_loops_*sizeof(LidxT const*));
-      m_lens = (IdxT*)        con.util_aloc.allocate(num_loops_*sizeof(IdxT));
+      m_idxs = (LidxT const**)con.util_aloc.allocate(num_loops*sizeof(LidxT const*));
+      m_lens = (IdxT*)        con.util_aloc.allocate(num_loops*sizeof(IdxT));
 
       // item vars initialized in pack
     }
