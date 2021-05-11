@@ -314,6 +314,15 @@ int main(int argc, char** argv)
 #ifdef COMB_ENABLE_MPI
                 exec.mpi_type.m_available = enabledisable;
 #endif
+#ifdef COMB_ENABLE_RAJA
+                exec.raja_seq.m_available = enabledisable;
+#ifdef COMB_ENABLE_OPENMP
+                exec.raja_omp.m_available = enabledisable;
+#endif
+#ifdef COMB_ENABLE_CUDA
+                exec.raja_cuda.m_available = enabledisable;
+#endif
+#endif
               } else if (strcmp(argv[i], "seq") == 0) {
                 exec.seq.m_available = enabledisable;
               } else if (strcmp(argv[i], "omp") == 0 ||
@@ -332,6 +341,19 @@ int main(int argc, char** argv)
               } else if (strcmp(argv[i], "mpi_type") == 0) {
 #ifdef COMB_ENABLE_MPI
                 exec.mpi_type.m_available = enabledisable;
+#endif
+#ifdef COMB_ENABLE_RAJA
+              } else if (strcmp(argv[i], "raja_seq") == 0) {
+                exec.raja_seq.m_available = enabledisable;
+#ifdef COMB_ENABLE_OPENMP
+              } else if (strcmp(argv[i], "raja_omp") == 0 ||
+                         strcmp(argv[i], "raja_openmp") == 0) {
+                exec.raja_omp.m_available = enabledisable;
+#endif
+#ifdef COMB_ENABLE_CUDA
+              } else if (strcmp(argv[i], "raja_cuda") == 0) {
+                exec.raja_cuda.m_available = enabledisable;
+#endif
 #endif
               } else {
                 fgprintf(FileGroup::err_master, "Invalid argument to sub-option, ignoring %s %s %s.\n", argv[i-2], argv[i-1], argv[i]);
