@@ -141,6 +141,10 @@ private:
       {
         setContext(other_context.cuda);
       } break;
+      default:
+      {
+        assert(0);
+      } break;
     }
   }
 
@@ -162,6 +166,10 @@ private:
       case (ContextEnum::cuda):
       {
         context.cuda.~CudaContext();
+      } break;
+      default:
+      {
+        assert(0);
       } break;
     }
     context_type = ContextEnum::invalid;
