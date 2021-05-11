@@ -144,6 +144,7 @@ if (ENABLE_UMR)
 endif()
 
 if (ENABLE_RAJA)
+  set(RAJA_ENABLE_EXERCISES Off)
   if (DEFINED RAJA_DIR)
     find_package(RAJA REQUIRED)
 
