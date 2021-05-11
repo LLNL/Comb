@@ -365,6 +365,13 @@ struct MessageGroup<MessageBase::Kind::send, mock_pol, exec_policy>
   using base::base;
 
 
+  void finalize()
+  {
+    // call base finalize
+    base::finalize();
+  }
+
+
   void allocate(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async /*async*/)
   {
     COMB::ignore_unused(con, con_comm);
@@ -603,6 +610,13 @@ struct MessageGroup<MessageBase::Kind::recv, mock_pol, exec_policy>
   using base::base;
 
 
+  void finalize()
+  {
+    // call base finalize
+    base::finalize();
+  }
+
+
   void allocate(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async /*async*/)
   {
     COMB::ignore_unused(con, con_comm);
@@ -767,6 +781,13 @@ struct MessageGroup<MessageBase::Kind::send, mock_pol, mpi_type_pol>
   using base::base;
 
 
+  void finalize()
+  {
+    // call base finalize
+    base::finalize();
+  }
+
+
   void allocate(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async /*async*/)
   {
     COMB::ignore_unused(con, con_comm);
@@ -917,6 +938,13 @@ struct MessageGroup<MessageBase::Kind::recv, mock_pol, mpi_type_pol>
 
   // use the base class constructor
   using base::base;
+
+
+  void finalize()
+  {
+    // call base finalize
+    base::finalize();
+  }
 
 
   void allocate(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async /*async*/)
