@@ -20,6 +20,8 @@
 
 #include <cstdio>
 #include <cstdlib>
+#include <limits>
+#include <utility>
 #include <stdexcept>
 
 #include "basic_mempool.hpp"
@@ -277,6 +279,61 @@ struct ManagedDevicePreferredHostAccessedAllocator : Allocator
   }
 #endif
 };
+
+
+template < typename T >
+struct std_allocator
+{
+  using value_type = T;
+
+  std_allocator(Allocator* aloc) noexcept
+    : m_aloc(aloc)
+  { }
+
+  template < typename U >
+  constexpr std_allocator(std_allocator<U> const& other) noexcept
+    : m_aloc(other.allocator())
+  { }
+
+  /*[[nodiscard]]*/
+  value_type* allocate(size_t num)
+  {
+    if (num > std::numeric_limits<size_t>::max() / sizeof(value_type)) {
+      throw std::bad_alloc();
+    }
+
+    value_type *ptr = m_aloc->allocate(sizeof(value_type)*num);
+
+    if (!ptr) {
+      throw std::bad_alloc();
+    }
+
+    return ptr;
+  }
+
+  void deallocate(value_type* ptr, size_t) noexcept
+  {
+    m_aloc->deallocate(ptr);
+  }
+
+  Allocator* allocator() const noexcept { return m_aloc; }
+
+private:
+  Allocator* m_aloc = nullptr;
+};
+
+template <typename T, typename U>
+bool operator==(std_allocator<T> const& lhs, std_allocator<U> const& rhs)
+{
+  return lhs.allocator() == rhs.allocator();
+}
+
+template <typename T, typename U>
+bool operator!=(std_allocator<T> const& lhs, std_allocator<U> const& rhs)
+{
+  return !(lhs == rhs);
+}
+
 
 struct AllocatorAccessibilityFlags
 {
