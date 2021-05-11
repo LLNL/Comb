@@ -495,8 +495,8 @@ void do_cycles_basic(CommContext<pol_comm>& con_comm_in,
         for (IdxT i = 0; i < num_recvs; ++i) {
           recv_message_type* message = &comm.m_recvs.message_group_many.messages[i];
 
-          comm.m_recvs.message_group_many.allocate(con_many, comm.con_comm, &message, 1);
-          comm.m_recvs.message_group_many.Irecv(con_many, comm.con_comm, &message, 1, &comm.m_recvs.requests[i]);
+          comm.m_recvs.message_group_many.allocate(con_many, comm.con_comm, &message, 1, ::detail::Async::no);
+          comm.m_recvs.message_group_many.Irecv(con_many, comm.con_comm, &message, 1, ::detail::Async::no, &comm.m_recvs.requests[i]);
         }
       }
 
@@ -520,10 +520,10 @@ void do_cycles_basic(CommContext<pol_comm>& con_comm_in,
         for (IdxT i = 0; i < num_sends; ++i) {
           send_message_type* message = &comm.m_sends.message_group_many.messages[i];
 
-          comm.m_sends.message_group_many.allocate(con_many, comm.con_comm, &message, 1);
+          comm.m_sends.message_group_many.allocate(con_many, comm.con_comm, &message, 1, ::detail::Async::no);
           comm.m_sends.message_group_many.pack(con_many, comm.con_comm, &message, 1, ::detail::Async::no);
           comm.m_sends.message_group_many.wait_pack_complete(con_many, comm.con_comm, &message, 1, ::detail::Async::no);
-          comm.m_sends.message_group_many.Isend(con_many, comm.con_comm, &message, 1, &comm.m_sends.requests[i]);
+          comm.m_sends.message_group_many.Isend(con_many, comm.con_comm, &message, 1, ::detail::Async::no, &comm.m_sends.requests[i]);
         }
       }
 
@@ -580,8 +580,8 @@ void do_cycles_basic(CommContext<pol_comm>& con_comm_in,
 
           recv_message_type* message = &comm.m_recvs.message_group_many.messages[idx];
 
-          comm.m_recvs.message_group_many.unpack(con_many, comm.con_comm, &message, 1);
-          comm.m_recvs.message_group_many.deallocate(con_many, comm.con_comm, &message, 1);
+          comm.m_recvs.message_group_many.unpack(con_many, comm.con_comm, &message, 1, ::detail::Async::no);
+          comm.m_recvs.message_group_many.deallocate(con_many, comm.con_comm, &message, 1, ::detail::Async::no);
 
           num_done += 1;
 
@@ -616,7 +616,7 @@ void do_cycles_basic(CommContext<pol_comm>& con_comm_in,
 
           send_message_type* message = &comm.m_sends.message_group_many.messages[idx];
 
-          comm.m_sends.message_group_many.deallocate(con_many, comm.con_comm, &message, 1);
+          comm.m_sends.message_group_many.deallocate(con_many, comm.con_comm, &message, 1, ::detail::Async::no);
 
           num_done += 1;
         }

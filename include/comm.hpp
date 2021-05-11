@@ -401,36 +401,39 @@ struct Comm
       case CommInfo::method::waitany:
       case CommInfo::method::testany:
       {
+        detail::Async async = (post_recv_method == CommInfo::method::waitany) ? detail::Async::no : detail::Async::yes;
         for (IdxT i_many = 0; i_many < num_many; i_many++) {
           messages_many[i_many] = &m_recvs.message_group_many.messages[i_many];
-          m_recvs.message_group_many.allocate(con_many, con_comm, &messages_many[i_many], 1);
-          m_recvs.message_group_many.Irecv(con_many, con_comm, &messages_many[i_many], 1, &requests_many[i_many]);
+          m_recvs.message_group_many.allocate(con_many, con_comm, &messages_many[i_many], 1, async);
+          m_recvs.message_group_many.Irecv(con_many, con_comm, &messages_many[i_many], 1, async, &requests_many[i_many]);
         }
 
         for (IdxT i_few = 0; i_few < num_few; i_few++) {
           messages_few[i_few] = &m_recvs.message_group_few.messages[i_few];
-          m_recvs.message_group_few.allocate(con_few, con_comm, &messages_few[i_few], 1);
-          m_recvs.message_group_few.Irecv(con_few, con_comm, &messages_few[i_few], 1, &requests_few[i_few]);
+          m_recvs.message_group_few.allocate(con_few, con_comm, &messages_few[i_few], 1, async);
+          m_recvs.message_group_few.Irecv(con_few, con_comm, &messages_few[i_few], 1, async, &requests_few[i_few]);
         }
       } break;
       case CommInfo::method::waitsome:
       case CommInfo::method::testsome:
       {
+        detail::Async async = (post_recv_method == CommInfo::method::waitsome) ? detail::Async::no : detail::Async::yes;
         for (IdxT i_many = 0; i_many < num_many; i_many++) {
           messages_many[i_many] = &m_recvs.message_group_many.messages[i_many];
         }
-        m_recvs.message_group_many.allocate(con_many, con_comm, &messages_many[0], num_many);
-        m_recvs.message_group_many.Irecv(con_many, con_comm, &messages_many[0], num_many, &requests_many[0]);
+        m_recvs.message_group_many.allocate(con_many, con_comm, &messages_many[0], num_many, async);
+        m_recvs.message_group_many.Irecv(con_many, con_comm, &messages_many[0], num_many, async, &requests_many[0]);
 
         for (IdxT i_few = 0; i_few < num_few; i_few++) {
           messages_few[i_few] = &m_recvs.message_group_few.messages[i_few];
         }
-        m_recvs.message_group_few.allocate(con_few, con_comm, &messages_few[0], num_few);
-        m_recvs.message_group_few.Irecv(con_few, con_comm, &messages_few[0], num_few, &requests_few[0]);
+        m_recvs.message_group_few.allocate(con_few, con_comm, &messages_few[0], num_few, async);
+        m_recvs.message_group_few.Irecv(con_few, con_comm, &messages_few[0], num_few, async, &requests_few[0]);
       } break;
       case CommInfo::method::waitall:
       case CommInfo::method::testall:
       {
+        detail::Async async = (post_recv_method == CommInfo::method::waitall) ? detail::Async::no : detail::Async::yes;
         for (IdxT i_many = 0; i_many < num_many; i_many++) {
           messages_many[i_many] = &m_recvs.message_group_many.messages[i_many];
         }
@@ -438,11 +441,11 @@ struct Comm
           messages_few[i_few] = &m_recvs.message_group_few.messages[i_few];
         }
 
-        m_recvs.message_group_many.allocate(con_many, con_comm, &messages_many[0], num_many);
-        m_recvs.message_group_few.allocate(con_few, con_comm, &messages_few[0], num_few);
+        m_recvs.message_group_many.allocate(con_many, con_comm, &messages_many[0], num_many, async);
+        m_recvs.message_group_few.allocate(con_few, con_comm, &messages_few[0], num_few, async);
 
-        m_recvs.message_group_many.Irecv(con_many, con_comm, &messages_many[0], num_many, &requests_many[0]);
-        m_recvs.message_group_few.Irecv(con_few, con_comm, &messages_few[0], num_few, &requests_few[0]);
+        m_recvs.message_group_many.Irecv(con_many, con_comm, &messages_many[0], num_many, async, &requests_many[0]);
+        m_recvs.message_group_few.Irecv(con_few, con_comm, &messages_few[0], num_few, async, &requests_few[0]);
       } break;
       default:
       {
@@ -477,18 +480,18 @@ struct Comm
       {
         for (IdxT i_many = 0; i_many < num_many; i_many++) {
           messages_many[i_many] = &m_sends.message_group_many.messages[i_many];
-          m_sends.message_group_many.allocate(con_many, con_comm, &messages_many[i_many], 1);
+          m_sends.message_group_many.allocate(con_many, con_comm, &messages_many[i_many], 1, detail::Async::no);
           m_sends.message_group_many.pack(con_many, con_comm, &messages_many[i_many], 1, detail::Async::no);
           m_sends.message_group_many.wait_pack_complete(con_many, con_comm, &messages_many[i_many], 1, detail::Async::no);
-          m_sends.message_group_many.Isend(con_many, con_comm, &messages_many[i_many], 1, &requests_many[i_many]);
+          m_sends.message_group_many.Isend(con_many, con_comm, &messages_many[i_many], 1, detail::Async::no, &requests_many[i_many]);
         }
 
         for (IdxT i_few = 0; i_few < num_few; i_few++) {
           messages_few[i_few] = &m_sends.message_group_few.messages[i_few];
-          m_sends.message_group_few.allocate(con_few, con_comm, &messages_few[i_few], 1);
+          m_sends.message_group_few.allocate(con_few, con_comm, &messages_few[i_few], 1, detail::Async::no);
           m_sends.message_group_few.pack(con_few, con_comm, &messages_few[i_few], 1, detail::Async::no);
           m_sends.message_group_few.wait_pack_complete(con_few, con_comm, &messages_few[i_few], 1, detail::Async::no);
-          m_sends.message_group_few.Isend(con_few, con_comm, &messages_few[i_few], 1, &requests_few[i_few]);
+          m_sends.message_group_few.Isend(con_few, con_comm, &messages_few[i_few], 1, detail::Async::no, &requests_few[i_few]);
         }
       } break;
       case CommInfo::method::testany:
@@ -500,8 +503,8 @@ struct Comm
           messages_few[i_few] = &m_sends.message_group_few.messages[i_few];
         }
 
-        m_sends.message_group_many.allocate(con_many, con_comm, &messages_many[0], num_many);
-        m_sends.message_group_few.allocate(con_few, con_comm, &messages_few[0], num_few);
+        m_sends.message_group_many.allocate(con_many, con_comm, &messages_many[0], num_many, detail::Async::yes);
+        m_sends.message_group_few.allocate(con_few, con_comm, &messages_few[0], num_few, detail::Async::yes);
 
         IdxT num_many = m_sends.message_group_many.messages.size();
         IdxT num_few = m_sends.message_group_few.messages.size();
@@ -538,7 +541,7 @@ struct Comm
           // have_many isends
           if (post_many_send < next_post_many_send) {
 
-            m_sends.message_group_many.Isend(con_many, con_comm, &messages_many[post_many_send], next_post_many_send-post_many_send, &requests_many[post_many_send]);
+            m_sends.message_group_many.Isend(con_many, con_comm, &messages_many[post_many_send], next_post_many_send-post_many_send, detail::Async::yes, &requests_many[post_many_send]);
             post_many_send = next_post_many_send;
           }
 
@@ -553,7 +556,7 @@ struct Comm
           // have_few isends
           if (post_few_send < next_post_few_send) {
 
-            m_sends.message_group_few.Isend(con_few, con_comm, &messages_few[post_few_send], next_post_few_send-post_few_send, &requests_few[post_few_send]);
+            m_sends.message_group_few.Isend(con_few, con_comm, &messages_few[post_few_send], next_post_few_send-post_few_send, detail::Async::yes, &requests_few[post_few_send]);
             post_few_send = next_post_few_send;
           }
         }
@@ -563,18 +566,18 @@ struct Comm
         for (IdxT i_many = 0; i_many < num_many; i_many++) {
           messages_many[i_many] = &m_sends.message_group_many.messages[i_many];
         }
-        m_sends.message_group_many.allocate(con_many, con_comm, &messages_many[0], num_many);
+        m_sends.message_group_many.allocate(con_many, con_comm, &messages_many[0], num_many, detail::Async::no);
         m_sends.message_group_many.pack(con_many, con_comm, &messages_many[0], num_many, detail::Async::no);
         m_sends.message_group_many.wait_pack_complete(con_many, con_comm, &messages_many[0], num_many, detail::Async::no);
-        m_sends.message_group_many.Isend(con_many, con_comm, &messages_many[0], num_many, &requests_many[0]);
+        m_sends.message_group_many.Isend(con_many, con_comm, &messages_many[0], num_many, detail::Async::no, &requests_many[0]);
 
         for (IdxT i_few = 0; i_few < num_few; i_few++) {
           messages_few[i_few] = &m_sends.message_group_few.messages[i_few];
         }
-        m_sends.message_group_few.allocate(con_few, con_comm, &messages_few[0], num_few);
+        m_sends.message_group_few.allocate(con_few, con_comm, &messages_few[0], num_few, detail::Async::no);
         m_sends.message_group_few.pack(con_few, con_comm, &messages_few[0], num_few, detail::Async::no);
         m_sends.message_group_few.wait_pack_complete(con_few, con_comm, &messages_few[0], num_few, detail::Async::no);
-        m_sends.message_group_few.Isend(con_few, con_comm, &messages_few[0], num_few, &requests_few[0]);
+        m_sends.message_group_few.Isend(con_few, con_comm, &messages_few[0], num_few, detail::Async::no, &requests_few[0]);
       } break;
       case CommInfo::method::testsome:
       {
@@ -585,8 +588,8 @@ struct Comm
           messages_few[i_few] = &m_sends.message_group_few.messages[i_few];
         }
 
-        m_sends.message_group_many.allocate(con_many, con_comm, &messages_many[0], num_many);
-        m_sends.message_group_few.allocate(con_few, con_comm, &messages_few[0], num_few);
+        m_sends.message_group_many.allocate(con_many, con_comm, &messages_many[0], num_many, detail::Async::yes);
+        m_sends.message_group_few.allocate(con_few, con_comm, &messages_few[0], num_few, detail::Async::yes);
 
         IdxT num_many = m_sends.message_group_many.messages.size();
         IdxT num_few = m_sends.message_group_few.messages.size();
@@ -623,7 +626,7 @@ struct Comm
           // have_many isends
           if (post_many_send < next_post_many_send) {
 
-            m_sends.message_group_many.Isend(con_many, con_comm, &messages_many[post_many_send], next_post_many_send-post_many_send, &requests_many[post_many_send]);
+            m_sends.message_group_many.Isend(con_many, con_comm, &messages_many[post_many_send], next_post_many_send-post_many_send, detail::Async::yes, &requests_many[post_many_send]);
             post_many_send = next_post_many_send;
           }
 
@@ -638,7 +641,7 @@ struct Comm
           // have_few isends
           if (post_few_send < next_post_few_send) {
 
-            m_sends.message_group_few.Isend(con_few, con_comm, &messages_few[post_few_send], next_post_few_send-post_few_send, &requests_few[post_few_send]);
+            m_sends.message_group_few.Isend(con_few, con_comm, &messages_few[post_few_send], next_post_few_send-post_few_send, detail::Async::yes, &requests_few[post_few_send]);
             post_few_send = next_post_few_send;
           }
         }
@@ -652,8 +655,8 @@ struct Comm
           messages_few[i_few] = &m_sends.message_group_few.messages[i_few];
         }
 
-        m_sends.message_group_many.allocate(con_many, con_comm, &messages_many[0], num_many);
-        m_sends.message_group_few.allocate(con_few, con_comm, &messages_few[0], num_few);
+        m_sends.message_group_many.allocate(con_many, con_comm, &messages_many[0], num_many, detail::Async::no);
+        m_sends.message_group_few.allocate(con_few, con_comm, &messages_few[0], num_few, detail::Async::no);
 
         m_sends.message_group_many.pack(con_many, con_comm, &messages_many[0], num_many, detail::Async::no);
         m_sends.message_group_few.pack(con_few, con_comm, &messages_few[0], num_few, detail::Async::no);
@@ -661,8 +664,8 @@ struct Comm
         m_sends.message_group_many.wait_pack_complete(con_many, con_comm, &messages_many[0], num_many, detail::Async::no);
         m_sends.message_group_few.wait_pack_complete(con_few, con_comm, &messages_few[0], num_few, detail::Async::no);
 
-        m_sends.message_group_many.Isend(con_many, con_comm, &messages_many[0], num_many, &requests_many[0]);
-        m_sends.message_group_few.Isend(con_few, con_comm, &messages_few[0], num_few, &requests_few[0]);
+        m_sends.message_group_many.Isend(con_many, con_comm, &messages_many[0], num_many, detail::Async::no, &requests_many[0]);
+        m_sends.message_group_few.Isend(con_few, con_comm, &messages_few[0], num_few, detail::Async::no, &requests_few[0]);
       } break;
       case CommInfo::method::testall:
       {
@@ -673,8 +676,8 @@ struct Comm
           messages_few[i_few] = &m_sends.message_group_few.messages[i_few];
         }
 
-        m_sends.message_group_many.allocate(con_many, con_comm, &messages_many[0], num_many);
-        m_sends.message_group_few.allocate(con_few, con_comm, &messages_few[0], num_few);
+        m_sends.message_group_many.allocate(con_many, con_comm, &messages_many[0], num_many, detail::Async::yes);
+        m_sends.message_group_few.allocate(con_few, con_comm, &messages_few[0], num_few, detail::Async::yes);
 
         IdxT num_many = m_sends.message_group_many.messages.size();
         IdxT num_few = m_sends.message_group_few.messages.size();
@@ -711,7 +714,7 @@ struct Comm
           // have_many isends
           if (post_many_send < next_post_many_send) {
 
-            m_sends.message_group_many.Isend(con_many, con_comm, &messages_many[post_many_send], next_post_many_send-post_many_send, &requests_many[post_many_send]);
+            m_sends.message_group_many.Isend(con_many, con_comm, &messages_many[post_many_send], next_post_many_send-post_many_send, detail::Async::yes, &requests_many[post_many_send]);
             post_many_send = next_post_many_send;
           }
 
@@ -726,7 +729,7 @@ struct Comm
           // have_few isends
           if (post_few_send < next_post_few_send) {
 
-            m_sends.message_group_few.Isend(con_few, con_comm, &messages_few[post_few_send], next_post_few_send-post_few_send, &requests_few[post_few_send]);
+            m_sends.message_group_few.Isend(con_few, con_comm, &messages_few[post_few_send], next_post_few_send-post_few_send, detail::Async::yes, &requests_few[post_few_send]);
             post_few_send = next_post_few_send;
           }
         }
@@ -763,6 +766,7 @@ struct Comm
       case CommInfo::method::waitany:
       case CommInfo::method::testany:
       {
+        detail::Async async = (post_recv_method == CommInfo::method::waitany) ? detail::Async::no : detail::Async::yes;
         IdxT num_done = 0;
         while (num_done < num_recvs) {
 
@@ -778,17 +782,17 @@ struct Comm
               assert(requests > (recv_request_type*)0x1);
 
           if (idx < num_many) {
-            m_recvs.message_group_many.unpack(con_many, con_comm, &messages[idx], 1);
+            m_recvs.message_group_many.unpack(con_many, con_comm, &messages[idx], 1, async);
               assert(0 <= idx && idx < num_recvs);
               assert(requests > (recv_request_type*)0x1);
-            m_recvs.message_group_many.deallocate(con_many, con_comm, &messages[idx], 1);
+            m_recvs.message_group_many.deallocate(con_many, con_comm, &messages[idx], 1, async);
               assert(0 <= idx && idx < num_recvs);
               assert(requests > (recv_request_type*)0x1);
           } else if (idx < num_recvs) {
-            m_recvs.message_group_few.unpack(con_few, con_comm, &messages[idx], 1);
+            m_recvs.message_group_few.unpack(con_few, con_comm, &messages[idx], 1, async);
               assert(0 <= idx && idx < num_recvs);
               assert(requests > (recv_request_type*)0x1);
-            m_recvs.message_group_few.deallocate(con_few, con_comm, &messages[idx], 1);
+            m_recvs.message_group_few.deallocate(con_few, con_comm, &messages[idx], 1, async);
               assert(0 <= idx && idx < num_recvs);
               assert(requests > (recv_request_type*)0x1);
           } else {
@@ -802,6 +806,7 @@ struct Comm
       case CommInfo::method::waitsome:
       case CommInfo::method::testsome:
       {
+        detail::Async async = (post_recv_method == CommInfo::method::waitsome) ? detail::Async::no : detail::Async::yes;
         std::vector<int> indices(num_recvs, -1);
         std::vector<recv_message_type*> recvd_messages(num_recvs, nullptr);
 
@@ -835,14 +840,14 @@ struct Comm
           }
 
           if (recvd_num_many < next_recvd_num_many) {
-            m_recvs.message_group_many.unpack(con_many, con_comm, &recvd_messages_many[recvd_num_many], next_recvd_num_many-recvd_num_many);
-            m_recvs.message_group_many.deallocate(con_many, con_comm, &recvd_messages_many[recvd_num_many], next_recvd_num_many-recvd_num_many);
+            m_recvs.message_group_many.unpack(con_many, con_comm, &recvd_messages_many[recvd_num_many], next_recvd_num_many-recvd_num_many, async);
+            m_recvs.message_group_many.deallocate(con_many, con_comm, &recvd_messages_many[recvd_num_many], next_recvd_num_many-recvd_num_many, async);
             recvd_num_many = next_recvd_num_many;
           }
 
           if (recvd_num_few < next_recvd_num_few) {
-            m_recvs.message_group_few.unpack(con_few, con_comm, &recvd_messages_few[recvd_num_few], next_recvd_num_few-recvd_num_few);
-            m_recvs.message_group_few.deallocate(con_few, con_comm, &recvd_messages_few[recvd_num_few], next_recvd_num_few-recvd_num_few);
+            m_recvs.message_group_few.unpack(con_few, con_comm, &recvd_messages_few[recvd_num_few], next_recvd_num_few-recvd_num_few, async);
+            m_recvs.message_group_few.deallocate(con_few, con_comm, &recvd_messages_few[recvd_num_few], next_recvd_num_few-recvd_num_few, async);
             recvd_num_few = next_recvd_num_few;
           }
         }
@@ -850,17 +855,18 @@ struct Comm
       case CommInfo::method::waitall:
       case CommInfo::method::testall:
       {
+        detail::Async async = (post_recv_method == CommInfo::method::waitall) ? detail::Async::no : detail::Async::yes;
         if (wait_recv_method == CommInfo::method::waitall) {
           recv_message_type::wait_recv_all(con_comm, num_recvs, &requests[0], &recv_statuses[0]);
         } else {
           while (!recv_message_type::test_recv_all(con_comm, num_recvs, &requests[0], &recv_statuses[0]));
         }
 
-        m_recvs.message_group_many.unpack(con_many, con_comm, &messages_many[0], num_many);
-        m_recvs.message_group_few.unpack(con_few, con_comm, &messages_few[0], num_few);
+        m_recvs.message_group_many.unpack(con_many, con_comm, &messages_many[0], num_many, async);
+        m_recvs.message_group_few.unpack(con_few, con_comm, &messages_few[0], num_few, async);
 
-        m_recvs.message_group_many.deallocate(con_many, con_comm, &messages_many[0], num_many);
-        m_recvs.message_group_few.deallocate(con_few, con_comm, &messages_few[0], num_few);
+        m_recvs.message_group_many.deallocate(con_many, con_comm, &messages_many[0], num_many, async);
+        m_recvs.message_group_few.deallocate(con_few, con_comm, &messages_few[0], num_few, async);
       } break;
       default:
       {
@@ -908,6 +914,7 @@ struct Comm
       case CommInfo::method::waitany:
       case CommInfo::method::testany:
       {
+        detail::Async async = (post_recv_method == CommInfo::method::waitany) ? detail::Async::no : detail::Async::yes;
         IdxT num_done = 0;
         while (num_done < num_sends) {
 
@@ -921,9 +928,9 @@ struct Comm
           }
 
           if (idx < num_many) {
-            m_sends.message_group_many.deallocate(con_many, con_comm, &messages[idx], 1);
+            m_sends.message_group_many.deallocate(con_many, con_comm, &messages[idx], 1, async);
           } else if (idx < num_sends) {
-            m_sends.message_group_few.deallocate(con_few, con_comm, &messages[idx], 1);
+            m_sends.message_group_few.deallocate(con_few, con_comm, &messages[idx], 1, async);
           } else {
             assert(0 <= idx || idx < num_sends);
           }
@@ -934,6 +941,7 @@ struct Comm
       case CommInfo::method::waitsome:
       case CommInfo::method::testsome:
       {
+        detail::Async async = (post_recv_method == CommInfo::method::waitsome) ? detail::Async::no : detail::Async::yes;
         std::vector<int> indices(num_sends, -1);
         std::vector<send_message_type*> sent_messages(num_sends, nullptr);
 
@@ -967,11 +975,11 @@ struct Comm
           }
 
           if (sent_num_many < next_sent_num_many) {
-            m_sends.message_group_many.deallocate(con_many, con_comm, &sent_messages_many[sent_num_many], next_sent_num_many-sent_num_many);
+            m_sends.message_group_many.deallocate(con_many, con_comm, &sent_messages_many[sent_num_many], next_sent_num_many-sent_num_many, async);
             sent_num_many = next_sent_num_many;
           }
           if (sent_num_few < next_sent_num_few) {
-            m_sends.message_group_few.deallocate(con_few, con_comm, &sent_messages_few[sent_num_few], next_sent_num_few-sent_num_few);
+            m_sends.message_group_few.deallocate(con_few, con_comm, &sent_messages_few[sent_num_few], next_sent_num_few-sent_num_few, async);
             sent_num_few = next_sent_num_few;
           }
         }
@@ -979,14 +987,15 @@ struct Comm
       case CommInfo::method::waitall:
       case CommInfo::method::testall:
       {
+        detail::Async async = (post_recv_method == CommInfo::method::waitall) ? detail::Async::no : detail::Async::yes;
         if (wait_send_method == CommInfo::method::waitall) {
           send_message_type::wait_send_all(con_comm, num_sends, &requests[0], &send_statuses[0]);
         } else {
           while(!send_message_type::test_send_all(con_comm, num_sends, &requests[0], &send_statuses[0]));
         }
 
-        m_sends.message_group_many.deallocate(con_many, con_comm, &messages_many[0], num_many);
-        m_sends.message_group_few.deallocate(con_few, con_comm, &messages_few[0], num_few);
+        m_sends.message_group_many.deallocate(con_many, con_comm, &messages_many[0], num_many, async);
+        m_sends.message_group_few.deallocate(con_few, con_comm, &messages_few[0], num_few, async);
       } break;
       default:
       {
