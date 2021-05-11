@@ -126,8 +126,6 @@ struct Executors
   ContextHolder<ExecContext<seq_pol>> seq;
 #ifdef COMB_ENABLE_OPENMP
   ContextHolder<ExecContext<omp_pol>> omp;
-#else
-  ContextHolder<void> omp;
 #endif
 #ifdef COMB_ENABLE_CUDA
   ContextHolder<ExecContext<cuda_pol>> cuda;
