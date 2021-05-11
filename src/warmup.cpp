@@ -78,6 +78,18 @@ void warmup(COMB::Executors& exec,
 #ifdef COMB_ENABLE_CUDA_GRAPH
   do_warmup(exec.cuda_graph.get(), alloc.cuda_device.allocator(), tm, num_vars, len);
 #endif
+
+#ifdef COMB_ENABLE_RAJA
+  do_warmup(exec.raja_seq.get(), alloc.host.allocator(), tm, num_vars, len);
+
+#ifdef COMB_ENABLE_OPENMP
+  do_warmup(exec.raja_omp.get(), alloc.host.allocator(), tm, num_vars, len);
+#endif
+
+#ifdef COMB_ENABLE_CUDA
+  do_warmup(exec.raja_cuda.get(), alloc.cuda_device.allocator(), tm, num_vars, len);
+#endif
+#endif
 }
 
 } // namespace COMB

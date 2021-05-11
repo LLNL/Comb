@@ -44,11 +44,15 @@ namespace detail {
      const DataT* other;
      set_copy(DataT* data_, const DataT* other_) : data(data_), other(other_) {}
      COMB_HOST COMB_DEVICE
-     void operator()(IdxT i, IdxT) const {
+     void operator()(IdxT i) const {
        IdxT zone = i;
        DataT next = other[zone];
        // FGPRINTF(FileGroup::proc, "%p[%i] = %f\n", data, zone, next);
        data[zone] = next;
+     }
+     COMB_HOST COMB_DEVICE
+     void operator()(IdxT i, IdxT) const {
+       operator()(i);
      }
   };
 
@@ -56,11 +60,15 @@ namespace detail {
      DataT* data;
      set_0(DataT* data_) : data(data_) {}
      COMB_HOST COMB_DEVICE
-     void operator()(IdxT i, IdxT) const {
+     void operator()(IdxT i) const {
        IdxT zone = i;
        DataT next = 0.0;
        // FGPRINTF(FileGroup::proc, "%p[%i] = %f\n", data, zone, next);
        data[zone] = next;
+     }
+     COMB_HOST COMB_DEVICE
+     void operator()(IdxT i, IdxT) const {
+       operator()(i);
      }
   };
 
@@ -68,11 +76,15 @@ namespace detail {
      DataT* data;
      set_n1(DataT* data_) : data(data_) {}
      COMB_HOST COMB_DEVICE
-     void operator()(IdxT i, IdxT) const {
+     void operator()(IdxT i) const {
        IdxT zone = i;
        DataT next = -1.0;
        // FGPRINTF(FileGroup::proc, "%p[%i] = %f\n", data, zone, next);
        data[zone] = next;
+     }
+     COMB_HOST COMB_DEVICE
+     void operator()(IdxT i, IdxT) const {
+       operator()(i);
      }
   };
 
@@ -81,12 +93,15 @@ namespace detail {
      DataT* data;
      set_1(IdxT ilen_, IdxT ijlen_, DataT* data_) : ilen(ilen_), ijlen(ijlen_), data(data_) {}
      COMB_HOST COMB_DEVICE
-     void operator()(IdxT k, IdxT j, IdxT i, IdxT idx) const {
-       COMB::ignore_unused(idx);
+     void operator()(IdxT k, IdxT j, IdxT i) const {
        IdxT zone = i + j * ilen + k * ijlen;
        DataT next = 1.0;
        // FGPRINTF(FileGroup::proc, "%p[%i] = %f\n", data, zone, next);
        data[zone] = next;
+     }
+     COMB_HOST COMB_DEVICE
+     void operator()(IdxT k, IdxT j, IdxT i, IdxT) const {
+       operator()(k, j, i);
      }
   };
 
@@ -101,8 +116,7 @@ namespace detail {
        , imax(imax_), jmax(jmax_), kmax(kmax_)
      {}
      COMB_HOST COMB_DEVICE
-     void operator()(IdxT k, IdxT j, IdxT i, IdxT idx) const {
-       COMB::ignore_unused(idx);
+     void operator()(IdxT k, IdxT j, IdxT i) const {
        IdxT zone = i + j * ilen + k * ijlen;
        // DataT expected, found, next;
        // if (k >= kmin && k < kmax &&
@@ -118,6 +132,10 @@ namespace detail {
        //FGPRINTF(FileGroup::proc, "%p[%i] = %f\n", data, zone, 1.0);
        DataT next = 1.0;
        data[zone] = next;
+     }
+     COMB_HOST COMB_DEVICE
+     void operator()(IdxT k, IdxT j, IdxT i, IdxT) const {
+       operator()(k, j, i);
      }
   };
 
