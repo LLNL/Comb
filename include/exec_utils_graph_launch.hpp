@@ -423,7 +423,7 @@ inline event_type createEvent()
   return new detail::Graph::Event();
 }
 
-inline void recordEvent(event_type event, cudaStream_t stream = 0)
+inline void recordEvent(event_type& event, cudaStream_t stream = 0)
 {
   assert(get_group().graph != nullptr);
   assert(event->graph == nullptr || event->graph == get_group().graph);
@@ -433,7 +433,7 @@ inline void recordEvent(event_type event, cudaStream_t stream = 0)
   }
 }
 
-inline bool queryEvent(event_type event)
+inline bool queryEvent(event_type& event)
 {
   if (event->graph == nullptr) return true;
   bool done = event->graph->query_event(event);
@@ -446,7 +446,7 @@ inline bool queryEvent(event_type event)
   return done;
 }
 
-inline void waitEvent(event_type event)
+inline void waitEvent(event_type& event)
 {
   if (event->graph == nullptr) return;
   event->graph->wait_event(event);
@@ -456,7 +456,7 @@ inline void waitEvent(event_type event)
   event->graph = nullptr;
 }
 
-inline void destroyEvent(event_type event)
+inline void destroyEvent(event_type& event)
 {
   if (event->graph == nullptr) return;
   if (event->graph->remove_event(event) <= 0) {

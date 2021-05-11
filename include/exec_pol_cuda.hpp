@@ -180,28 +180,28 @@ struct ExecContext<cuda_pol> : CudaContext
     return event;
   }
 
-  void recordEvent(event_type event)
+  void recordEvent(event_type& event)
   {
     cudaCheck(cudaEventRecord(event, base::stream()));
   }
 
-  void finish_component_recordEvent(group_type group, component_type component, event_type event)
+  void finish_component_recordEvent(group_type group, component_type component, event_type& event)
   {
     finish_component(group, component);
     recordEvent(event);
   }
 
-  bool queryEvent(event_type event)
+  bool queryEvent(event_type& event)
   {
     return cudaCheckReady(cudaEventQuery(event));
   }
 
-  void waitEvent(event_type event)
+  void waitEvent(event_type& event)
   {
     cudaCheck(cudaEventSynchronize(event));
   }
 
-  void destroyEvent(event_type event)
+  void destroyEvent(event_type& event)
   {
     cudaCheck(cudaEventDestroy(event));
   }

@@ -126,28 +126,28 @@ struct ExecContext<cuda_graph_pol> : CudaContext
     return cuda::graph_launch::createEvent();
   }
 
-  void recordEvent(event_type event)
+  void recordEvent(event_type& event)
   {
     return cuda::graph_launch::recordEvent(event, base::stream());
   }
 
-  void finish_component_recordEvent(group_type group, component_type component, event_type event)
+  void finish_component_recordEvent(group_type group, component_type component, event_type& event)
   {
     finish_component(group, component);
     recordEvent(event);
   }
 
-  bool queryEvent(event_type event)
+  bool queryEvent(event_type& event)
   {
     return cuda::graph_launch::queryEvent(event);
   }
 
-  void waitEvent(event_type event)
+  void waitEvent(event_type& event)
   {
     cuda::graph_launch::waitEvent(event);
   }
 
-  void destroyEvent(event_type event)
+  void destroyEvent(event_type& event)
   {
     cuda::graph_launch::destroyEvent(event);
   }

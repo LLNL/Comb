@@ -123,29 +123,29 @@ struct ExecContext<mpi_type_pol> : MPIContext
   }
 
   // event record functions
-  void recordEvent(event_type)
+  void recordEvent(event_type&)
   {
   }
 
-  void finish_component_recordEvent(group_type group, component_type component, event_type event)
+  void finish_component_recordEvent(group_type group, component_type component, event_type& event)
   {
     finish_component(group, component);
     recordEvent(event);
   }
 
   // event query functions
-  bool queryEvent(event_type)
+  bool queryEvent(event_type&)
   {
     return true;
   }
 
   // event wait functions
-  void waitEvent(event_type)
+  void waitEvent(event_type&)
   {
   }
 
   // event destroy functions
-  void destroyEvent(event_type)
+  void destroyEvent(event_type&)
   {
   }
 
