@@ -35,6 +35,7 @@
 #include "exec_pol_cuda.hpp"
 #include "exec_pol_cuda_graph.hpp"
 #include "exec_pol_mpi_type.hpp"
+#include "exec_pol_raja.hpp"
 
 namespace COMB {
 
@@ -99,6 +100,12 @@ struct Executors
 #ifdef COMB_ENABLE_CUDA
     base_cuda.create();
 #endif
+#ifdef COMB_ENABLE_RAJA
+    base_raja_cpu.create();
+#ifdef COMB_ENABLE_CUDA
+    base_raja_cuda.create();
+#endif
+#endif
 
     seq.create(base_cpu.get(), alocs.host.allocator());
 #ifdef COMB_ENABLE_OPENMP
@@ -113,6 +120,15 @@ struct Executors
 #ifdef COMB_ENABLE_MPI
     mpi_type.create(base_mpi.get(), alocs.host.allocator());
 #endif
+#ifdef COMB_ENABLE_RAJA
+    raja_seq.create(base_raja_cpu.get(), alocs.host.allocator());
+#ifdef COMB_ENABLE_OPENMP
+    raja_omp.create(base_raja_cpu.get(), alocs.host.allocator());
+#endif
+#ifdef COMB_ENABLE_CUDA
+    raja_cuda.create(base_raja_cuda.get(), (alocs.access.use_device_preferred_for_cuda_util_aloc) ? alocs.cuda_managed_device_preferred_host_accessed.allocator() : alocs.cuda_hostpinned.allocator());
+#endif
+#endif
   }
 
   ContextHolder<CPUContext> base_cpu;
@@ -121,6 +137,12 @@ struct Executors
 #endif
 #ifdef COMB_ENABLE_CUDA
   ContextHolder<CudaContext> base_cuda;
+#endif
+#ifdef COMB_ENABLE_RAJA
+  ContextHolder<RAJAContext<RAJA::resources::Host>> base_raja_cpu;
+#ifdef COMB_ENABLE_CUDA
+  ContextHolder<RAJAContext<RAJA::resources::Cuda>> base_raja_cuda;
+#endif
 #endif
 
   ContextHolder<ExecContext<seq_pol>> seq;
@@ -135,6 +157,15 @@ struct Executors
 #endif
 #ifdef COMB_ENABLE_MPI
   ContextHolder<ExecContext<mpi_type_pol>> mpi_type;
+#endif
+#ifdef COMB_ENABLE_RAJA
+  ContextHolder<ExecContext<raja_seq_pol>> raja_seq;
+#ifdef COMB_ENABLE_OPENMP
+  ContextHolder<ExecContext<raja_omp_pol>> raja_omp;
+#endif
+#ifdef COMB_ENABLE_CUDA
+  ContextHolder<ExecContext<raja_cuda_pol>> raja_cuda;
+#endif
 #endif
 };
 

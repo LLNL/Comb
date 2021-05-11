@@ -20,12 +20,18 @@
 
 #include "exec_utils_cuda.hpp"
 
+#ifdef COMB_ENABLE_RAJA
+#include "RAJA/RAJA.hpp"
+#endif
+
 enum struct ContextEnum
 {
   invalid = 0
  ,cpu = 1
  ,cuda = 2
  ,mpi = 3
+ ,raja_host = 4
+ ,raja_cuda = 5
 };
 
 struct CPUContext;
@@ -35,10 +41,17 @@ struct MPIContext;
 #endif
 
 #ifdef COMB_ENABLE_CUDA
-
 struct CudaContext;
+#endif
+
+#ifdef COMB_ENABLE_RAJA
+template < typename Resource >
+struct RAJAContext;
+#endif
 
 namespace detail {
+
+#ifdef COMB_ENABLE_CUDA
 
 struct CudaStream
 {
@@ -65,11 +78,16 @@ struct CudaStream
     }
   }
 
-  void waitEvent(CudaStream& other)
+  void waitEvent(cudaEvent_t other_event)
   {
-    cudaCheck(cudaStreamWaitEvent(m_stream, other.m_event, 0));
+    cudaCheck(cudaStreamWaitEvent(m_stream, other_event, 0));
     m_record_current = false;
     m_sync = false;
+  }
+
+  void waitEvent(CudaStream& other)
+  {
+    waitEvent(other.m_event);
   }
 
   void waitOn(CudaStream& other)
@@ -115,7 +133,67 @@ private:
   bool m_sync;
 };
 
+#endif
+
 } // namesapce detail
+
+
+struct CPUContext
+{
+  void waitOn(CPUContext const&) const
+  {
+    // do nothing
+  }
+
+#ifdef COMB_ENABLE_MPI
+  inline void waitOn(MPIContext const&) const;
+#endif
+
+#ifdef COMB_ENABLE_CUDA
+  inline void waitOn(CudaContext const& other) const;
+#endif
+
+#ifdef COMB_ENABLE_RAJA
+  template < typename Resource >
+  inline void waitOn(RAJAContext<Resource> const&) const;
+#endif
+
+  void synchronize() const
+  {
+    // do nothing
+  }
+};
+
+#ifdef COMB_ENABLE_MPI
+
+struct MPIContext
+{
+  inline void waitOn(CPUContext const&) const;
+
+  void waitOn(MPIContext const&) const
+  {
+    // do nothing
+  }
+
+#ifdef COMB_ENABLE_CUDA
+  inline void waitOn(CudaContext const& other) const;
+#endif
+
+#ifdef COMB_ENABLE_RAJA
+  template < typename Resource >
+  inline void waitOn(RAJAContext<Resource> const&) const;
+#endif
+
+  void synchronize() const
+  {
+    // do nothing
+  }
+};
+
+#endif
+
+
+#ifdef COMB_ENABLE_CUDA
 
 struct CudaContext
 {
@@ -131,7 +209,7 @@ struct CudaContext
     inc_ref();
   }
 
-  CudaContext(CudaContext && other)
+  CudaContext(CudaContext && other) noexcept
     : s(other.s)
   {
     other.s = nullptr;
@@ -172,16 +250,10 @@ struct CudaContext
     return s->stream_launch();
   }
 
-  void waitOn(CPUContext const&) const
-  {
-    // do nothing
-  }
+  inline void waitOn(CPUContext const&) const;
 
 #ifdef COMB_ENABLE_MPI
-  void waitOn(MPIContext const&) const
-  {
-    // do nothing
-  }
+  inline void waitOn(MPIContext const&) const;
 #endif
 
   void waitOn(CudaContext const& other) const
@@ -192,6 +264,11 @@ struct CudaContext
       s->waitOn(*other.s);
     }
   }
+
+#ifdef COMB_ENABLE_RAJA
+  template < typename Resource >
+  inline void waitOn(RAJAContext<Resource> const&) const;
+#endif
 
   void synchronize() const
   {
@@ -219,59 +296,172 @@ private:
 
 #endif
 
-struct CPUContext
+
+#ifdef COMB_ENABLE_RAJA
+
+template < typename Resource >
+struct RAJAContext
 {
-  void waitOn(CPUContext const&) const
+  Resource& resource()
   {
-    // do nothing
+    return r;
   }
 
-#ifdef COMB_ENABLE_MPI
-  void waitOn(MPIContext const&) const
+  Resource const& resource() const
   {
-    // do nothing
+    return r;
   }
+
+  Resource& res_launch()
+  {
+    return r;
+  }
+
+  inline void waitOn(CPUContext const&) const;
+
+#ifdef COMB_ENABLE_MPI
+  inline void waitOn(MPIContext const&) const;
 #endif
 
 #ifdef COMB_ENABLE_CUDA
-  void waitOn(CudaContext const& other) const
-  {
-    other.synchronize();
-  }
+  inline void waitOn(CudaContext const&) const;
 #endif
+
+  template < typename OResource >
+  void waitOn(RAJAContext<OResource> const& other) const
+  {
+    RAJA::resources::Event e = other.resource().get_event_erased();
+    auto r_copy = r;
+    r_copy.wait_for(&e);
+  }
 
   void synchronize() const
   {
-    // do nothing
+    auto r_copy = r;
+    r_copy.wait();
   }
+
+private:
+  // TODO: change this from default
+  Resource r = Resource::get_default();
 };
+
+#endif
+
+
+#ifdef COMB_ENABLE_MPI
+inline void CPUContext::waitOn(MPIContext const&) const
+{
+  // do nothing
+}
+#endif
+
+#ifdef COMB_ENABLE_CUDA
+inline void CPUContext::waitOn(CudaContext const& other) const
+{
+  other.synchronize();
+}
+#endif
+
+#ifdef COMB_ENABLE_RAJA
+template < typename Resource >
+inline void CPUContext::waitOn(RAJAContext<Resource> const& other) const
+{
+  other.synchronize();
+}
+#endif
+
 
 #ifdef COMB_ENABLE_MPI
 
-struct MPIContext
+inline void MPIContext::waitOn(CPUContext const&) const
 {
-  void waitOn(CPUContext const&) const
-  {
-    // do nothing
-  }
-
-  void waitOn(MPIContext const&) const
-  {
-    // do nothing
-  }
+  // do nothing
+}
 
 #ifdef COMB_ENABLE_CUDA
-  void waitOn(CudaContext const& other) const
-  {
-    other.synchronize();
-  }
+inline void MPIContext::waitOn(CudaContext const& other) const
+{
+  other.synchronize();
+}
 #endif
 
-  void synchronize() const
-  {
-    // do nothing
-  }
-};
+#ifdef COMB_ENABLE_RAJA
+template < typename Resource >
+inline void MPIContext::waitOn(RAJAContext<Resource> const& other) const
+{
+  other.synchronize();
+}
+#endif
+
+#endif
+
+
+#ifdef COMB_ENABLE_CUDA
+
+inline void CudaContext::waitOn(CPUContext const&) const
+{
+  // do nothing
+}
+
+#ifdef COMB_ENABLE_MPI
+inline void CudaContext::waitOn(MPIContext const&) const
+{
+  // do nothing
+}
+#endif
+
+#ifdef COMB_ENABLE_RAJA
+template < typename Resource >
+inline void CudaContext::waitOn(RAJAContext<Resource> const& other) const
+{
+  other.synchronize();
+}
+#ifdef COMB_ENABLE_CUDA
+template < >
+inline void CudaContext::waitOn(RAJAContext<RAJA::resources::Cuda> const& other) const
+{
+  auto r = other.resource();
+  auto e = r.get_event();
+  s->waitEvent(e.getCudaEvent_t());
+}
+#endif
+#endif
+
+#endif
+
+
+#ifdef COMB_ENABLE_RAJA
+
+template < typename Resource >
+inline void RAJAContext<Resource>::waitOn(CPUContext const&) const
+{
+  // do nothing
+}
+
+#ifdef COMB_ENABLE_MPI
+template < typename Resource >
+inline void RAJAContext<Resource>::waitOn(MPIContext const&) const
+{
+  // do nothing
+}
+#endif
+
+#ifdef COMB_ENABLE_CUDA
+template < typename Resource >
+inline void RAJAContext<Resource>::waitOn(CudaContext const& other) const
+{
+  other.synchronize();
+}
+///
+template < >
+inline void RAJAContext<RAJA::resources::Cuda>::waitOn(CudaContext const& other) const
+{
+  RAJA::resources::Event e(RAJA::resources::CudaEvent(other.stream()));
+  auto r_copy = r;
+  r_copy.wait_for(&e);
+}
+#endif
 
 #endif
 
