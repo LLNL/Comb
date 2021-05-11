@@ -21,7 +21,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cassert>
-
 #include <type_traits>
 
 #include "memory.hpp"
@@ -193,11 +192,169 @@ struct fused_unpacker
   }
 };
 
+
+template < typename context_type >
+struct FuserStorage
+{
+  // note that these numbers are missing a factor of m_num_vars
+  IdxT m_num_fused_iterations = 0;
+  IdxT m_num_fused_loops_enqueued = 0;
+  IdxT m_num_fused_loops_executed = 0;
+  IdxT m_num_fused_loops_total = 0;
+
+  // vars for fused loops, stored in backend accessible memory
+  DataT** m_vars = nullptr;
+  IdxT m_num_vars = 0;
+
+  LidxT const** m_idxs = nullptr;
+  IdxT*         m_lens = nullptr;
+
+
+  DataT      ** get_dsts() { return                m_vars; }
+  DataT const** get_srcs() { return (DataT const**)m_vars; }
+
+  void allocate(context_type& con, std::vector<DataT*> const& variables, IdxT num_loops_)
+  {
+    if (m_vars == nullptr) {
+
+      m_num_fused_iterations     = 0;
+      m_num_fused_loops_enqueued = 0;
+      m_num_fused_loops_executed = 0;
+      m_num_fused_loops_total    = num_loops_;
+
+      // allocate per variable vars
+      m_num_vars = variables.size();
+      m_vars = (DataT**)con.util_aloc.allocate(m_num_vars*sizeof(DataT const*));
+
+      // variable vars initialized here
+      for (IdxT i = 0; i < m_num_vars; ++i) {
+        m_vars[i] = variables[i];
+      }
+
+      // allocate per item vars
+      m_idxs = (LidxT const**)con.util_aloc.allocate(num_loops_*sizeof(LidxT const*));
+      m_lens = (IdxT*)        con.util_aloc.allocate(num_loops_*sizeof(IdxT));
+
+      // item vars initialized in pack
+    }
+  }
+
+  // There is potentially a race condition on these buffers as the allocations
+  // are released back into the pool and could be used for another fuser
+  // before this fuser is done executing.
+  // This is safe for messages because there is synchronization between the
+  // allocations (irecv, isend) and deallocations (wait_recv, wait_send).
+  void deallocate(context_type& con)
+  {
+    if (m_vars != nullptr && this->m_num_fused_loops_executed == this->m_num_fused_loops_total) {
+
+      // deallocate per variable vars
+      con.util_aloc.deallocate(m_vars); m_vars = nullptr;
+      m_num_vars = 0;
+
+      // deallocate per item vars
+      con.util_aloc.deallocate(m_idxs); m_idxs = nullptr;
+      con.util_aloc.deallocate(m_lens); m_lens = nullptr;
+    }
+  }
+};
+
+template < typename context_type >
+struct FuserPacker : FuserStorage<context_type>
+{
+  using base = FuserStorage<context_type>;
+
+  DataT** m_bufs = nullptr;
+
+  void allocate(context_type& con, std::vector<DataT*> const& variables, IdxT num_items)
+  {
+    if (this->m_vars == nullptr) {
+      base::allocate(con, variables, num_items);
+
+      this->m_bufs = (DataT**)con.util_aloc.allocate(num_items*sizeof(DataT*));
+    }
+  }
+
+  // enqueue packing loops for all variables
+  void enqueue(context_type& /*con*/, DataT* buf, LidxT const* indices, const IdxT nitems)
+  {
+    this->m_bufs[this->m_num_fused_loops_enqueued] = buf;
+    this->m_idxs[this->m_num_fused_loops_enqueued] = indices;
+    this->m_lens[this->m_num_fused_loops_enqueued] = nitems;
+    this->m_num_fused_iterations += nitems;
+    this->m_num_fused_loops_enqueued += 1;
+  }
+
+  void exec(context_type& con)
+  {
+    IdxT num_fused_loops = this->m_num_fused_loops_enqueued - this->m_num_fused_loops_executed;
+    IdxT avg_iterations = (this->m_num_fused_iterations + num_fused_loops - 1) / num_fused_loops;
+    con.fused(num_fused_loops, this->m_num_vars, avg_iterations,
+        fused_packer(this->get_srcs(), this->m_bufs+this->m_num_fused_loops_executed,
+                                       this->m_idxs+this->m_num_fused_loops_executed,
+                                       this->m_lens+this->m_num_fused_loops_executed));
+    this->m_num_fused_iterations = 0;
+    this->m_num_fused_loops_executed = this->m_num_fused_loops_enqueued;
+  }
+
+  void deallocate(context_type& con)
+  {
+    if (this->m_vars != nullptr && this->m_num_fused_loops_executed == this->m_num_fused_loops_total) {
+      base::deallocate(con);
+
+      con.util_aloc.deallocate(this->m_bufs); this->m_bufs = nullptr;
+    }
+  }
+};
+
+template < typename context_type >
+struct FuserUnpacker : FuserStorage<context_type>
+{
+  using base = FuserStorage<context_type>;
+
+  DataT const** m_bufs = nullptr;
+
+  void allocate(context_type& con, std::vector<DataT*> const& variables, IdxT num_items)
+  {
+    if (this->m_vars == nullptr) {
+      base::allocate(con, variables, num_items);
+
+      this->m_bufs = (DataT const**)con.util_aloc.allocate(num_items*sizeof(DataT const*));
+    }
+  }
+
+  // enqueue unpacking loops for all variables
+  void enqueue(context_type& /*con*/, DataT const* buf, LidxT const* indices, const IdxT nitems)
+  {
+    this->m_bufs[this->m_num_fused_loops_enqueued] = buf;
+    this->m_idxs[this->m_num_fused_loops_enqueued] = indices;
+    this->m_lens[this->m_num_fused_loops_enqueued] = nitems;
+    this->m_num_fused_iterations += nitems;
+    this->m_num_fused_loops_enqueued += 1;
+  }
+
+  void exec(context_type& con)
+  {
+    IdxT num_fused_loops = this->m_num_fused_loops_enqueued - this->m_num_fused_loops_executed;
+    IdxT avg_iterations = (this->m_num_fused_iterations + num_fused_loops - 1) / num_fused_loops;
+    con.fused(num_fused_loops, this->m_num_vars, avg_iterations,
+        fused_unpacker(this->get_dsts(), this->m_bufs+this->m_num_fused_loops_executed,
+                                         this->m_idxs+this->m_num_fused_loops_executed,
+                                         this->m_lens+this->m_num_fused_loops_executed));
+    this->m_num_fused_iterations = 0;
+    this->m_num_fused_loops_executed = this->m_num_fused_loops_enqueued;
+  }
+
+  void deallocate(context_type& con)
+  {
+    if (this->m_vars != nullptr && this->m_num_fused_loops_executed == this->m_num_fused_loops_total) {
+      base::deallocate(con);
+
+      con.util_aloc.deallocate(this->m_bufs); this->m_bufs = nullptr;
+    }
+  }
+};
+
 } // namespace detail
-
-
-namespace COMB {
-
-} // namespace COMB
 
 #endif // _FUSED_HPP

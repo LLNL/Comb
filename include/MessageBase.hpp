@@ -21,6 +21,7 @@
 #include <type_traits>
 #include <list>
 #include <utility>
+#include <vector>
 
 #include "memory.hpp"
 #include "exec.hpp"
@@ -211,6 +212,10 @@ struct MessageGroupInterface
   using group_type        = typename exec_policy::group_type;
   using component_type    = typename exec_policy::component_type;
 
+  using fuser_type        = typename std::conditional<kind == MessageBase::Kind::send,
+                                FuserPacker<context_type>,
+                                FuserUnpacker<context_type>>::type;
+
   std::vector<message_type> messages;
   std::vector<context_type> m_contexts;
   std::vector<event_type> m_events;
@@ -221,6 +226,8 @@ struct MessageGroupInterface
 
   std::vector<int> m_item_partner_ranks;
   std::vector<message_item_type> m_items;
+
+  fuser_type m_fuser;
 
   COMB::Allocator& m_aloc;
 
