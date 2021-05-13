@@ -360,6 +360,12 @@ struct AllocatorInfo
 #ifdef COMB_ENABLE_CUDA
   virtual bool accessible(CudaContext const&) = 0;
 #endif
+#ifdef COMB_ENABLE_RAJA
+  virtual bool accessible(RAJAContext<RAJA::resources::Host> const&) = 0;
+#ifdef COMB_ENABLE_CUDA
+  virtual bool accessible(RAJAContext<RAJA::resources::Cuda> const&) = 0;
+#endif
+#endif
 protected:
   AllocatorAccessibilityFlags& m_accessFlags;
 };
@@ -376,6 +382,12 @@ struct InvalidAllocatorInfo : AllocatorInfo
 #ifdef COMB_ENABLE_CUDA
   bool accessible(CudaContext const&) override { return false; }
 #endif
+#ifdef COMB_ENABLE_RAJA
+  bool accessible(RAJAContext<RAJA::resources::Host> const&) override { return false; }
+#ifdef COMB_ENABLE_CUDA
+  bool accessible(RAJAContext<RAJA::resources::Cuda> const&) override { return false; }
+#endif
+#endif
 };
 
 struct HostAllocatorInfo : AllocatorInfo
@@ -389,6 +401,12 @@ struct HostAllocatorInfo : AllocatorInfo
 #endif
 #ifdef COMB_ENABLE_CUDA
   bool accessible(CudaContext const&) override { return m_accessFlags.cuda_host_accessible_from_device; }
+#endif
+#ifdef COMB_ENABLE_RAJA
+  bool accessible(RAJAContext<RAJA::resources::Host> const&) override { return true; }
+#ifdef COMB_ENABLE_CUDA
+  bool accessible(RAJAContext<RAJA::resources::Cuda> const&) override { return m_accessFlags.cuda_host_accessible_from_device; }
+#endif
 #endif
 private:
   HostAllocator m_allocator;
@@ -406,6 +424,10 @@ struct HostPinnedAllocatorInfo : AllocatorInfo
   bool accessible(MPIContext const&) override { return true; }
 #endif
   bool accessible(CudaContext const&) override { return true; }
+#ifdef COMB_ENABLE_RAJA
+  bool accessible(RAJAContext<RAJA::resources::Host> const&) override { return true; }
+  bool accessible(RAJAContext<RAJA::resources::Cuda> const&) override { return true; }
+#endif
 private:
   HostPinnedAllocator m_allocator;
 };
@@ -420,6 +442,10 @@ struct DeviceAllocatorInfo : AllocatorInfo
   bool accessible(MPIContext const&) override { return m_accessFlags.cuda_aware_mpi; }
 #endif
   bool accessible(CudaContext const&) override { return true; }
+#ifdef COMB_ENABLE_RAJA
+  bool accessible(RAJAContext<RAJA::resources::Host> const&) override { return m_accessFlags.cuda_device_accessible_from_host; }
+  bool accessible(RAJAContext<RAJA::resources::Cuda> const&) override { return true; }
+#endif
 private:
   DeviceAllocator m_allocator;
 };
@@ -434,6 +460,10 @@ struct ManagedAllocatorInfo : AllocatorInfo
   bool accessible(MPIContext const&) override { return m_accessFlags.cuda_aware_mpi; }
 #endif
   bool accessible(CudaContext const&) override { return true; }
+#ifdef COMB_ENABLE_RAJA
+  bool accessible(RAJAContext<RAJA::resources::Host> const&) override { return true; }
+  bool accessible(RAJAContext<RAJA::resources::Cuda> const&) override { return true; }
+#endif
 private:
   ManagedAllocator m_allocator;
 };
@@ -448,6 +478,10 @@ struct ManagedHostPreferredAllocatorInfo : AllocatorInfo
   bool accessible(MPIContext const&) override { return m_accessFlags.cuda_aware_mpi; }
 #endif
   bool accessible(CudaContext const&) override { return true; }
+#ifdef COMB_ENABLE_RAJA
+  bool accessible(RAJAContext<RAJA::resources::Host> const&) override { return true; }
+  bool accessible(RAJAContext<RAJA::resources::Cuda> const&) override { return true; }
+#endif
 private:
   ManagedHostPreferredAllocator m_allocator;
 };
@@ -462,6 +496,10 @@ struct ManagedHostPreferredDeviceAccessedAllocatorInfo : AllocatorInfo
   bool accessible(MPIContext const&) override { return m_accessFlags.cuda_aware_mpi; }
 #endif
   bool accessible(CudaContext const&) override { return true; }
+#ifdef COMB_ENABLE_RAJA
+  bool accessible(RAJAContext<RAJA::resources::Host> const&) override { return true; }
+  bool accessible(RAJAContext<RAJA::resources::Cuda> const&) override { return true; }
+#endif
 private:
   ManagedHostPreferredDeviceAccessedAllocator m_allocator;
 };
@@ -476,6 +514,10 @@ struct ManagedDevicePreferredAllocatorInfo : AllocatorInfo
   bool accessible(MPIContext const&) override { return m_accessFlags.cuda_aware_mpi; }
 #endif
   bool accessible(CudaContext const&) override { return true; }
+#ifdef COMB_ENABLE_RAJA
+  bool accessible(RAJAContext<RAJA::resources::Host> const&) override { return true; }
+  bool accessible(RAJAContext<RAJA::resources::Cuda> const&) override { return true; }
+#endif
 private:
   ManagedDevicePreferredAllocator m_allocator;
 };
@@ -490,6 +532,10 @@ struct ManagedDevicePreferredHostAccessedAllocatorInfo : AllocatorInfo
   bool accessible(MPIContext const&) override { return m_accessFlags.cuda_aware_mpi; }
 #endif
   bool accessible(CudaContext const&) override { return true; }
+#ifdef COMB_ENABLE_RAJA
+  bool accessible(RAJAContext<RAJA::resources::Host> const&) override { return true; }
+  bool accessible(RAJAContext<RAJA::resources::Cuda> const&) override { return true; }
+#endif
 private:
   ManagedDevicePreferredHostAccessedAllocator m_allocator;
 };
