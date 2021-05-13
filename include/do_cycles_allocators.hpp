@@ -56,6 +56,18 @@ void do_cycles_mpi_type(std::true_type const&,
 #ifdef COMB_ENABLE_CUDA
   do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.mpi_type, mesh_aloc, exec.mpi_type, mesh_aloc, tm, tm_total);
 #endif
+
+#ifdef COMB_ENABLE_RAJA
+  do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.raja_seq, mesh_aloc, exec.mpi_type, mesh_aloc, exec.mpi_type, mesh_aloc, tm, tm_total);
+
+#ifdef COMB_ENABLE_OPENMP
+  do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.raja_omp, mesh_aloc, exec.mpi_type, mesh_aloc, exec.mpi_type, mesh_aloc, tm, tm_total);
+#endif
+
+#ifdef COMB_ENABLE_CUDA
+  do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.raja_cuda, mesh_aloc, exec.mpi_type, mesh_aloc, exec.mpi_type, mesh_aloc, tm, tm_total);
+#endif
+#endif
 }
 
 template < typename comm_pol >
@@ -112,6 +124,34 @@ void do_cycles_allocator(CommContext<comm_pol>& con_comm,
 #endif
 #else
   COMB::ignore_unused(cuda_many_aloc, cuda_few_aloc);
+#endif
+
+#ifdef COMB_ENABLE_RAJA
+  do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.raja_seq, mesh_aloc, exec.raja_seq, cpu_many_aloc, exec.raja_seq, cpu_few_aloc, tm, tm_total);
+
+#ifdef COMB_ENABLE_OPENMP
+  do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.raja_omp, mesh_aloc, exec.raja_seq, cpu_many_aloc, exec.raja_seq, cpu_few_aloc, tm, tm_total);
+
+  do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.raja_omp, mesh_aloc, exec.raja_omp, cpu_many_aloc, exec.raja_seq, cpu_few_aloc, tm, tm_total);
+
+  do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.raja_omp, mesh_aloc, exec.raja_omp, cpu_many_aloc, exec.raja_omp, cpu_few_aloc, tm, tm_total);
+#endif
+
+#ifdef COMB_ENABLE_CUDA
+  do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.raja_cuda, mesh_aloc, exec.raja_seq, cpu_many_aloc, exec.raja_seq, cpu_few_aloc, tm, tm_total);
+
+#ifdef COMB_ENABLE_OPENMP
+  do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.raja_cuda, mesh_aloc, exec.raja_omp, cpu_many_aloc, exec.raja_seq, cpu_few_aloc, tm, tm_total);
+
+  do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.raja_cuda, mesh_aloc, exec.raja_omp, cpu_many_aloc, exec.raja_omp, cpu_few_aloc, tm, tm_total);
+#endif
+
+  do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.raja_cuda, mesh_aloc, exec.raja_cuda, cuda_many_aloc, exec.raja_seq, cpu_few_aloc, tm, tm_total);
+
+  do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.raja_cuda, mesh_aloc, exec.raja_cuda, cuda_many_aloc, exec.raja_cuda, cuda_few_aloc, tm, tm_total);
+#else
+  COMB::ignore_unused(cuda_many_aloc, cuda_few_aloc);
+#endif
 #endif
 
 #ifdef COMB_ENABLE_MPI
