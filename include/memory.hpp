@@ -302,7 +302,7 @@ struct std_allocator
       throw std::bad_alloc();
     }
 
-    value_type *ptr = m_aloc->allocate(sizeof(value_type)*num);
+    value_type *ptr = static_cast<value_type*>(m_aloc->allocate(sizeof(value_type)*num));
 
     if (!ptr) {
       throw std::bad_alloc();
