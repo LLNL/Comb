@@ -178,6 +178,20 @@ void test_copy_allocator(CommInfo& comminfo,
 #else
   COMB::ignore_unused(cuda_src_aloc);
 #endif
+
+#ifdef COMB_ENABLE_RAJA
+  do_copy(exec.raja_seq, comminfo, dst_aloc, cpu_src_aloc, tm, num_vars, len, nrepeats);
+
+#ifdef COMB_ENABLE_OPENMP
+  do_copy(exec.raja_omp, comminfo, dst_aloc, cpu_src_aloc, tm, num_vars, len, nrepeats);
+#endif
+
+#ifdef COMB_ENABLE_CUDA
+  do_copy(exec.raja_cuda, comminfo, dst_aloc, cuda_src_aloc, tm, num_vars, len, nrepeats);
+#else
+  COMB::ignore_unused(cuda_src_aloc);
+#endif
+#endif
 }
 
 void test_copy_allocators(CommInfo& comminfo,
