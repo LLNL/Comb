@@ -243,7 +243,7 @@ struct ExecContext<raja_pol<base_policy>> : RAJAContext<typename base_policy::re
 
   void recordEvent(event_type& event)
   {
-    event = base::resource().get_event();
+    event = base::resource().get_event_erased();
   }
 
   void finish_component_recordEvent(group_type group, component_type component, event_type& event)
