@@ -50,6 +50,7 @@ The cmake configuration options change which execution patterns and memory space
   - __ENABLE_MPI__ Allow use of mpi and enable test combinations using mpi
   - __ENABLE_OPENMP__ Allow use of openmp and enable test combinations using openmp
   - __ENABLE_CUDA__  Allow use of cuda and enable test combinations using cuda
+  - __ENABLE_RAJA__  Allow use of RAJA performance portability library
 
 ### Runtime Options
 
@@ -110,6 +111,9 @@ The runtime options change the properties of the grid and its decomposition, as 
           -   __omp__ openmp threaded CPU execution pattern
           -   __cuda__ cuda GPU execution pattern
           -   __cuda_graph__ cuda GPU batched via cuda graph API execution pattern
+          -   __raja_seq__ RAJA sequential CPU execution pattern
+          -   __raja_omp__ RAJA openmp threaded CPU execution pattern
+          -   __raja_cuda__ RAJA cuda GPU execution pattern
           -   __mpi_type__ MPI datatypes MPI implementation execution pattern
   -   __\-memory *option*__ Memory space options
       -   __enable|disable *option*__ Enable or disable specific memory spaces for mesh allocations
@@ -195,6 +199,9 @@ The final three measure problem setup, correctness testing, and total benchmark 
   - __omp__ Parallel CPU execution via OpenMP
   - __cuda__ Parallel GPU execution via cuda
   - __cudaGraph__ Parallel GPU execution via cuda graphs
+  - __raja_seq__ RAJA Sequential CPU execution
+  - __raja_omp__ RAJA Parallel CPU execution via OpenMP
+  - __raja_cuda__ RAJA Parallel GPU execution via cuda
   - __mpi_type__ Packing or unpacking execution done via mpi datatypes used with MPI_Pack/MPI_Unpack
 
 ##### Memory Spaces
