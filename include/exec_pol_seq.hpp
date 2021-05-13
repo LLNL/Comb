@@ -147,35 +147,32 @@ struct ExecContext<seq_pol> : CPUContext
 
   // for_all functions
   template < typename body_type >
-  void for_all(IdxT begin, IdxT end, body_type&& body)
+  void for_all(IdxT len, body_type&& body)
   {
-    IdxT i = 0;
-    for(IdxT i0 = begin; i0 < end; ++i0) {
-      body(i0, i++);
+    for(IdxT i0 = 0; i0 < len; ++i0) {
+      body(i0);
     }
     // base::synchronize();
   }
 
   template < typename body_type >
-  void for_all_2d(IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, body_type&& body)
+  void for_all_2d(IdxT len0, IdxT len1, body_type&& body)
   {
-    IdxT i = 0;
-    for(IdxT i0 = begin0; i0 < end0; ++i0) {
-      for(IdxT i1 = begin1; i1 < end1; ++i1) {
-        body(i0, i1, i++);
+    for(IdxT i0 = 0; i0 < len0; ++i0) {
+      for(IdxT i1 = 0; i1 < len1; ++i1) {
+        body(i0, i1);
       }
     }
     // base::synchronize();
   }
 
   template < typename body_type >
-  void for_all_3d(IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, IdxT begin2, IdxT end2, body_type&& body)
+  void for_all_3d(IdxT len0, IdxT len1, IdxT len2, body_type&& body)
   {
-    IdxT i = 0;
-    for(IdxT i0 = begin0; i0 < end0; ++i0) {
-      for(IdxT i1 = begin1; i1 < end1; ++i1) {
-        for(IdxT i2 = begin2; i2 < end2; ++i2) {
-          body(i0, i1, i2, i++);
+    for(IdxT i0 = 0; i0 < len0; ++i0) {
+      for(IdxT i1 = 0; i1 < len1; ++i1) {
+        for(IdxT i2 = 0; i2 < len2; ++i2) {
+          body(i0, i1, i2);
         }
       }
     }
@@ -192,7 +189,7 @@ struct ExecContext<seq_pol> : CPUContext
       for (IdxT i_inner = 0; i_inner < len_inner; ++i_inner) {
         body.set_inner(i_inner);
         for (IdxT i = 0; i < body.len; ++i) {
-          body(i, i);
+          body(i);
         }
       }
     }

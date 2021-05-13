@@ -35,7 +35,7 @@ void do_warmup(ExecContext<pol>& con, COMB::Allocator& aloc, Timer& tm, IdxT num
 
     DataT* data = vars[i];
 
-    con.for_all(0, len, detail::set_n1{data});
+    con.for_all(len, detail::set_n1{data});
   }
 
   con.synchronize();

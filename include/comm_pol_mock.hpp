@@ -401,8 +401,8 @@ struct MessageGroup<MessageBase::Kind::send, mock_pol, exec_policy>
           LidxT const* indices = item->indices;
           for (DataT const* src : this->m_variables) {
             // FGPRINTF(FileGroup::proc, "%p pack %p = %p[%p] nitems %d\n", this, buf, src, indices, nitems);
-            this->m_contexts[msg_idx].for_all(0, nitems, make_copy_idxr_idxr(src, detail::indexer_list_idx{indices},
-                                               static_cast<DataT*>(static_cast<void*>(buf)), detail::indexer_idx{}));
+            this->m_contexts[msg_idx].for_all(nitems, make_copy_idxr_idxr(src, detail::indexer_list_i{indices},
+                                               static_cast<DataT*>(static_cast<void*>(buf)), detail::indexer_i{}));
             buf += nbytes;
           }
         }
@@ -597,8 +597,8 @@ struct MessageGroup<MessageBase::Kind::recv, mock_pol, exec_policy>
           LidxT const* indices = item->indices;
           for (DataT* dst : this->m_variables) {
             // FGPRINTF(FileGroup::proc, "%p unpack %p[%p] = %p nitems %d\n", this, dst, indices, buf, nitems);
-            this->m_contexts[msg_idx].for_all(0, nitems, make_copy_idxr_idxr(static_cast<DataT const*>(static_cast<void const*>(buf)), detail::indexer_idx{},
-                                               dst, detail::indexer_list_idx{indices}));
+            this->m_contexts[msg_idx].for_all(nitems, make_copy_idxr_idxr(static_cast<DataT const*>(static_cast<void const*>(buf)), detail::indexer_i{},
+                                               dst, detail::indexer_list_i{indices}));
             buf += nbytes;
           }
         }

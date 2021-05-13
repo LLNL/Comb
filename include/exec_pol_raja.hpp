@@ -268,19 +268,19 @@ struct ExecContext<raja_pol<base_policy>> : RAJAContext<typename base_policy::re
   }
 
   template < typename body_type >
-  void for_all(IdxT begin, IdxT end, body_type&& body)
+  void for_all(IdxT len, body_type&& body)
   {
-    RAJA::TypedRangeSegment<IdxT> seg(begin, end);
+    RAJA::TypedRangeSegment<IdxT> seg(0, len);
 
     RAJA::forall<for_all_policy>(base::res_launch(), seg, body);
     // base::synchronize();
   }
 
   template < typename body_type >
-  void for_all_2d(IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, body_type&& body)
+  void for_all_2d(IdxT len0, IdxT len1, body_type&& body)
   {
-    RAJA::TypedRangeSegment<IdxT> seg0(begin0, end0);
-    RAJA::TypedRangeSegment<IdxT> seg1(begin1, end1);
+    RAJA::TypedRangeSegment<IdxT> seg0(0, len0);
+    RAJA::TypedRangeSegment<IdxT> seg1(0, len1);
 
     RAJA::kernel_resource<for_all_2d_policy>(
         RAJA::make_tuple(seg0, seg1), base::res_launch(), body);
@@ -288,11 +288,11 @@ struct ExecContext<raja_pol<base_policy>> : RAJAContext<typename base_policy::re
   }
 
   template < typename body_type >
-  void for_all_3d(IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, IdxT begin2, IdxT end2, body_type&& body)
+  void for_all_3d(IdxT len0, IdxT len1, IdxT len2, body_type&& body)
   {
-    RAJA::TypedRangeSegment<IdxT> seg0(begin0, end0);
-    RAJA::TypedRangeSegment<IdxT> seg1(begin1, end1);
-    RAJA::TypedRangeSegment<IdxT> seg2(begin2, end2);
+    RAJA::TypedRangeSegment<IdxT> seg0(0, len0);
+    RAJA::TypedRangeSegment<IdxT> seg1(0, len1);
+    RAJA::TypedRangeSegment<IdxT> seg2(0, len2);
 
     RAJA::kernel_resource<for_all_3d_policy>(
         RAJA::make_tuple(seg0, seg1, seg2), base::res_launch(), body);

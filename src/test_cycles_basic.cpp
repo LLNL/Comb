@@ -118,8 +118,8 @@ void do_cycles_basic(CommContext<pol_comm>& con_comm_in,
         DataT* data = var.data();
         IdxT totallen = info.totallen;
 
-        con_mesh.for_all(0, totallen,
-                            detail::set_n1(data));
+        con_mesh.for_all(totallen,
+                         detail::set_n1(data));
         con_mesh.synchronize();
 
         // add variable to comm
@@ -189,11 +189,10 @@ void do_cycles_basic(CommContext<pol_comm>& con_comm_in,
         DataT* data = vars[i].data();
         IdxT var_i = i + 1;
 
-        con_mesh.for_all_3d(0, klen,
-                               0, jlen,
-                               0, ilen,
-                               [=] COMB_HOST COMB_DEVICE (IdxT k, IdxT j, IdxT i, IdxT idx) {
-          COMB::ignore_unused(idx);
+        con_mesh.for_all_3d(klen,
+                            jlen,
+                            ilen,
+                            [=] COMB_HOST COMB_DEVICE (IdxT k, IdxT j, IdxT i) {
           IdxT zone = i + j * ilen + k * ijlen;
           IdxT iglobal = i + iglobal_offset;
           if (iperiodic) {
@@ -281,11 +280,10 @@ void do_cycles_basic(CommContext<pol_comm>& con_comm_in,
       //   DataT* data = vars[i].data();
       //   IdxT var_i = i + 1;
 
-      //   con_mesh.for_all_3d(0, klen,
-      //                          0, jlen,
-      //                          0, ilen,
-      //                          [=] COMB_HOST COMB_DEVICE (IdxT k, IdxT j, IdxT i, IdxT idx) {
-      //     COMB::ignore_unused(idx);
+      //   con_mesh.for_all_3d(klen,
+      //                       jlen,
+      //                       ilen,
+      //                       [=] COMB_HOST COMB_DEVICE (IdxT k, IdxT j, IdxT i) {
       //     IdxT zone = i + j * ilen + k * ijlen;
       //     IdxT iglobal = i + iglobal_offset;
       //     if (iperiodic) {
@@ -357,11 +355,10 @@ void do_cycles_basic(CommContext<pol_comm>& con_comm_in,
         DataT* data = vars[i].data();
         IdxT var_i = i + 1;
 
-        con_mesh.for_all_3d(0, klen,
-                               0, jlen,
-                               0, ilen,
-                               [=] COMB_HOST COMB_DEVICE (IdxT k, IdxT j, IdxT i, IdxT idx) {
-          COMB::ignore_unused(idx);
+        con_mesh.for_all_3d(klen,
+                            jlen,
+                            ilen,
+                            [=] COMB_HOST COMB_DEVICE (IdxT k, IdxT j, IdxT i) {
           IdxT zone = i + j * ilen + k * ijlen;
           IdxT iglobal = i + iglobal_offset;
           if (iperiodic) {
@@ -467,10 +464,11 @@ void do_cycles_basic(CommContext<pol_comm>& con_comm_in,
 
         DataT* data = vars[i].data();
 
-        con_mesh.for_all_3d(kmin, kmax,
-                            jmin, jmax,
-                            imin, imax,
-                            detail::set_1(ilen, ijlen, data));
+        // set internal zones to 1
+        con_mesh.for_all_3d(kmax - kmin,
+                            jmax - jmin,
+                            imax - imin,
+                            detail::set_1(ilen, ijlen, data, imin, jmin, kmin));
       }
 
       con_mesh.synchronize();
@@ -535,10 +533,10 @@ void do_cycles_basic(CommContext<pol_comm>& con_comm_in,
 
         DataT* data = vars[i].data();
 
-        con_mesh.for_all_3d(0, klen,
-                               0, jlen,
-                               0, ilen,
-                               [=] COMB_HOST COMB_DEVICE (IdxT k, IdxT j, IdxT i, IdxT idx) {
+        con_mesh.for_all_3d(klen,
+                            jlen,
+                            ilen,
+                            [=] COMB_HOST COMB_DEVICE (IdxT k, IdxT j, IdxT i) {
           IdxT zone = i + j * ilen + k * ijlen;
           DataT expected, found, next;
           if (k >= kmin && k < kmax &&
@@ -632,10 +630,11 @@ void do_cycles_basic(CommContext<pol_comm>& con_comm_in,
 
         DataT* data = vars[i].data();
 
-        con_mesh.for_all_3d(0, klen,
-                               0, jlen,
-                               0, ilen,
-                               detail::reset_1(ilen, ijlen, data, imin, jmin, kmin, imax, jmax, kmax));
+        // set all zones to 1
+        con_mesh.for_all_3d(klen,
+                            jlen,
+                            ilen,
+                            detail::set_1(ilen, ijlen, data, 0, 0, 0));
       }
 
       con_mesh.synchronize();

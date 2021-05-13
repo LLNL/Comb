@@ -150,23 +150,23 @@ struct ExecContext<mpi_type_pol> : MPIContext
   }
 
   // template < typename body_type >
-  // void for_all(IdxT begin, IdxT end, body_type&& body)
+  // void for_all(IdxT len, body_type&& body)
   // {
-  //   COMB::ignore_unused(pol, begin, end, body);
+  //   COMB::ignore_unused(pol, len, body);
   //   static_assert(false, "This method should never be used");
   // }
 
   // template < typename body_type >
-  // void for_all_2d(IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, body_type&& body)
+  // void for_all_2d(IdxT len0, IdxT len1, body_type&& body)
   // {
-  //   COMB::ignore_unused(pol, begin0, end0, begin1, end1, body);
+  //   COMB::ignore_unused(pol, len0, len1, body);
   //   static_assert(false, "This method should never be used");
   // }
 
   // template < typename body_type >
-  // void for_all_3d(IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, IdxT begin2, IdxT end2, body_type&& body)
+  // void for_all_3d(IdxT len0, IdxT len1, IdxT len2, body_type&& body)
   // {
-  //   COMB::ignore_unused(pol, begin0, end0, begin1, end1, begin2, end2, body);
+  //   COMB::ignore_unused(pol, len0, len1, len2, body);
   //   static_assert(false, "This method should never be used");
   // }
 

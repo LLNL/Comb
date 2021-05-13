@@ -154,29 +154,24 @@ struct ExecContext<omp_pol> : CPUContext
 
   // for_all functions
   template < typename body_type >
-  void for_all(IdxT begin, IdxT end, body_type&& body)
+  void for_all(IdxT len, body_type&& body)
   {
-    const IdxT len = end - begin;
   #pragma omp parallel for
     for(IdxT i = 0; i < len; ++i) {
-      body(i + begin, i);
+      body(i);
     }
     // base::synchronize();
   }
 
   template < typename body_type >
-  void for_all_2d(IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, body_type&& body)
+  void for_all_2d(IdxT len0, IdxT len1, body_type&& body)
   {
-    const IdxT len0 = end0 - begin0;
-    const IdxT len1 = end1 - begin1;
-
   #ifdef COMB_USE_OMP_COLLAPSE
 
   #pragma omp parallel for collapse(2)
     for(IdxT i0 = 0; i0 < len0; ++i0) {
       for(IdxT i1 = 0; i1 < len1; ++i1) {
-        IdxT i = i0 * len1 + i1;
-        body(i0 + begin0, i1 + begin1, i);
+        body(i0, i1);
       }
     }
 
@@ -204,7 +199,7 @@ struct ExecContext<omp_pol> : CPUContext
 
       for (; i < iend; ++i) {
 
-        body(i0 + begin0, i1 + begin1, i);
+        body(i0, i1);
 
         i1 += 1;
 
@@ -221,8 +216,7 @@ struct ExecContext<omp_pol> : CPUContext
   #pragma omp parallel for
     for(IdxT i0 = 0; i0 < len0; ++i0) {
       for(IdxT i1 = 0; i1 < len1; ++i1) {
-        IdxT i = i0 * len1 + i1;
-        body(i0 + begin0, i1 + begin1, i);
+        body(i0, i1);
       }
     }
 
@@ -231,30 +225,24 @@ struct ExecContext<omp_pol> : CPUContext
   }
 
   template < typename body_type >
-  void for_all_3d(IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, IdxT begin2, IdxT end2, body_type&& body)
+  void for_all_3d(IdxT len0, IdxT len1, IdxT len2, body_type&& body)
   {
-    const IdxT len0 = end0 - begin0;
-    const IdxT len1 = end1 - begin1;
-    const IdxT len2 = end2 - begin2;
-    const IdxT len12 = len1 * len2;
-
-  #ifdef COMB_USE_OMP_COLLAPSE
+#ifdef COMB_USE_OMP_COLLAPSE
 
   #pragma omp parallel for collapse(3)
     for(IdxT i0 = 0; i0 < len0; ++i0) {
       for(IdxT i1 = 0; i1 < len1; ++i1) {
         for(IdxT i2 = 0; i2 < len2; ++i2) {
-          IdxT i = i0 * len12 + i1 * len2 + i2;
-          body(i0 + begin0, i1 + begin1, i2 + begin2, i);
+          body(i0, i1, i2);
         }
       }
     }
 
-  #elif defined(COMB_USE_OMP_WEAK_COLLAPSE)
+#elif defined(COMB_USE_OMP_WEAK_COLLAPSE)
 
     const IdxT len012 = len0 * len1 * len2;
 
-  #pragma omp parallel
+#pragma omp parallel
     {
       IdxT nthreads = omp_get_num_threads();
       IdxT threadid = omp_get_thread_num();
@@ -277,7 +265,7 @@ struct ExecContext<omp_pol> : CPUContext
 
       for (; i < iend; ++i) {
 
-        body(i0 + begin0, i1 + begin1, i2 + begin2, i);
+        body(i0, i1, i2);
 
         i2 += 1;
 
@@ -295,19 +283,18 @@ struct ExecContext<omp_pol> : CPUContext
       }
     }
 
-  #else
+#else
 
-  #pragma omp parallel for
+#pragma omp parallel for
     for(IdxT i0 = 0; i0 < len0; ++i0) {
       for(IdxT i1 = 0; i1 < len1; ++i1) {
         for(IdxT i2 = 0; i2 < len2; ++i2) {
-          IdxT i = i0 * len12 + i1 * len2 + i2;
-          body(i0 + begin0, i1 + begin1, i2 + begin2, i);
+          body(i0, i1, i2);
         }
       }
     }
 
-  #endif
+#endif
     // base::synchronize();
   }
 
@@ -325,7 +312,7 @@ struct ExecContext<omp_pol> : CPUContext
         body.set_outer(i_outer);
         body.set_inner(i_inner);
         for (IdxT i = 0; i < body.len; ++i) {
-          body(i, i);
+          body(i);
         }
       }
     }
@@ -339,7 +326,7 @@ struct ExecContext<omp_pol> : CPUContext
         body.set_outer(i_outer);
         body.set_inner(i_inner);
         for (IdxT i = 0; i < body.len; ++i) {
-          body(i, i);
+          body(i);
         }
       }
     }
@@ -353,7 +340,7 @@ struct ExecContext<omp_pol> : CPUContext
       for (IdxT i_inner = 0; i_inner < len_inner; ++i_inner) {
         body.set_inner(i_inner);
         for (IdxT i = 0; i < body.len; ++i) {
-          body(i, i);
+          body(i);
         }
       }
     }

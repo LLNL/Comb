@@ -50,10 +50,6 @@ namespace detail {
        // FGPRINTF(FileGroup::proc, "%p[%i] = %f\n", data, zone, next);
        data[zone] = next;
      }
-     COMB_HOST COMB_DEVICE
-     void operator()(IdxT i, IdxT) const {
-       operator()(i);
-     }
   };
 
   struct set_0 {
@@ -65,10 +61,6 @@ namespace detail {
        DataT next = 0.0;
        // FGPRINTF(FileGroup::proc, "%p[%i] = %f\n", data, zone, next);
        data[zone] = next;
-     }
-     COMB_HOST COMB_DEVICE
-     void operator()(IdxT i, IdxT) const {
-       operator()(i);
      }
   };
 
@@ -82,26 +74,22 @@ namespace detail {
        // FGPRINTF(FileGroup::proc, "%p[%i] = %f\n", data, zone, next);
        data[zone] = next;
      }
-     COMB_HOST COMB_DEVICE
-     void operator()(IdxT i, IdxT) const {
-       operator()(i);
-     }
   };
 
   struct set_1 {
      IdxT ilen, ijlen;
      DataT* data;
-     set_1(IdxT ilen_, IdxT ijlen_, DataT* data_) : ilen(ilen_), ijlen(ijlen_), data(data_) {}
+     IdxT imin, jmin, kmin;
+     set_1(IdxT ilen_, IdxT ijlen_, DataT* data_, IdxT imin_, IdxT jmin_, IdxT kmin_)
+       : ilen(ilen_), ijlen(ijlen_), data(data_)
+       , imin(imin_), jmin(jmin_), kmin(kmin_)
+     {}
      COMB_HOST COMB_DEVICE
      void operator()(IdxT k, IdxT j, IdxT i) const {
-       IdxT zone = i + j * ilen + k * ijlen;
+       IdxT zone = (i+imin) + (j+jmin) * ilen + (k+kmin) * ijlen;
        DataT next = 1.0;
        // FGPRINTF(FileGroup::proc, "%p[%i] = %f\n", data, zone, next);
        data[zone] = next;
-     }
-     COMB_HOST COMB_DEVICE
-     void operator()(IdxT k, IdxT j, IdxT i, IdxT) const {
-       operator()(k, j, i);
      }
   };
 
@@ -132,10 +120,6 @@ namespace detail {
        //FGPRINTF(FileGroup::proc, "%p[%i] = %f\n", data, zone, 1.0);
        DataT next = 1.0;
        data[zone] = next;
-     }
-     COMB_HOST COMB_DEVICE
-     void operator()(IdxT k, IdxT j, IdxT i, IdxT) const {
-       operator()(k, j, i);
      }
   };
 

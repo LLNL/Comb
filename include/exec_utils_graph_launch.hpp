@@ -489,24 +489,22 @@ inline void synchronize(cudaStream_t stream = 0)
 
 template < typename body_type >
 __global__
-void graph_for_all(IdxT begin, IdxT len, body_type body)
+void graph_for_all(IdxT len, body_type body)
 {
   const IdxT i = threadIdx.x + blockIdx.x * blockDim.x;
   if (i < len) {
-    body(i + begin, i);
+    body(i);
   }
 }
 
 template <typename body_type>
-inline void for_all(int begin, int end, body_type&& body
+inline void for_all(int len, body_type&& body
 #ifdef COMB_GRAPH_KERNEL_LAUNCH
     , cudaStream_t stream
 #endif
     )
 {
   using decayed_body_type = typename std::decay<body_type>::type;
-
-  int len = end - begin;
 
   const IdxT threads = 256;
   const IdxT blocks = (len + threads - 1) / threads;
@@ -516,7 +514,7 @@ inline void for_all(int begin, int end, body_type&& body
   params.gridDim = dim3{(unsigned int)blocks};
   params.blockDim = dim3{(unsigned int)threads};
   params.sharedMemBytes = 0;
-  void* args[]{&begin, &len, &body};
+  void* args[]{&len, &body};
   params.kernelParams = args;
   params.extra = nullptr;
 
@@ -529,29 +527,25 @@ inline void for_all(int begin, int end, body_type&& body
 
 template < typename body_type >
 __global__
-void graph_for_all_2d(IdxT begin0, IdxT len0, IdxT begin1, IdxT len1, body_type body)
+void graph_for_all_2d(IdxT len0, IdxT len1, body_type body)
 {
   const IdxT i0 = threadIdx.y + blockIdx.y * blockDim.y;
   const IdxT i1 = threadIdx.x + blockIdx.x * blockDim.x;
   if (i0 < len0) {
     if (i1 < len1) {
-      IdxT i = i0 * len1 + i1;
-      body(i0 + begin0, i1 + begin1, i);
+      body(i0, i1);
     }
   }
 }
 
 template < typename body_type >
-inline void for_all_2d(IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, body_type&& body
+inline void for_all_2d(IdxT len0, IdxT len1, body_type&& body
 #ifdef COMB_GRAPH_KERNEL_LAUNCH
     , cudaStream_t stream
 #endif
     )
 {
   using decayed_body_type = typename std::decay<body_type>::type;
-
-  IdxT len0 = end0 - begin0;
-  IdxT len1 = end1 - begin1;
 
   const IdxT threads0 = 8;
   const IdxT threads1 = 32;
@@ -563,7 +557,7 @@ inline void for_all_2d(IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, body_type
   params.gridDim = dim3{(unsigned int)blocks1, (unsigned int)blocks0, (unsigned int)1};
   params.blockDim = dim3{(unsigned int)threads1, (unsigned int)threads0, (unsigned int)1};
   params.sharedMemBytes = 0;
-  void* args[]{&begin0, &len0, &begin1, &len1, &body};
+  void* args[]{&len0, &len1, &body};
   params.kernelParams = args;
   params.extra = nullptr;
 
@@ -576,7 +570,7 @@ inline void for_all_2d(IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, body_type
 
 template < typename body_type >
 __global__
-void graph_for_all_3d(IdxT begin0, IdxT len0, IdxT begin1, IdxT len1, IdxT begin2, IdxT len2, IdxT len12, body_type body)
+void graph_for_all_3d(IdxT len0, IdxT len1, IdxT len2, body_type body)
 {
   const IdxT i0 = blockIdx.z;
   const IdxT i1 = threadIdx.y + blockIdx.y * blockDim.y;
@@ -584,26 +578,20 @@ void graph_for_all_3d(IdxT begin0, IdxT len0, IdxT begin1, IdxT len1, IdxT begin
   if (i0 < len0) {
     if (i1 < len1) {
       if (i2 < len2) {
-        IdxT i = i0 * len12 + i1 * len2 + i2;
-        body(i0 + begin0, i1 + begin1, i2 + begin2, i);
+        body(i0, i1, i2);
       }
     }
   }
 }
 
 template < typename body_type >
-inline void for_all_3d(IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, IdxT begin2, IdxT end2, body_type&& body
+inline void for_all_3d(IdxT len0, IdxT len1, IdxT len2, body_type&& body
 #ifdef COMB_GRAPH_KERNEL_LAUNCH
     , cudaStream_t stream
 #endif
     )
 {
   using decayed_body_type = typename std::decay<body_type>::type;
-
-  IdxT len0 = end0 - begin0;
-  IdxT len1 = end1 - begin1;
-  IdxT len2 = end2 - begin2;
-  IdxT len12 = len1 * len2;
 
   const IdxT threads0 = 1;
   const IdxT threads1 = 8;
@@ -617,7 +605,7 @@ inline void for_all_3d(IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, IdxT begi
   params.gridDim = dim3{(unsigned int)blocks2, (unsigned int)blocks1, (unsigned int)blocks0};
   params.blockDim = dim3{(unsigned int)threads2, (unsigned int)threads1, (unsigned int)threads0};
   params.sharedMemBytes = 0;
-  void* args[]{&begin0, &len0, &begin1, &len1, &begin2, &len2, &len12, &body};
+  void* args[]{&len0, &len1, &len2, &body};
   params.kernelParams = args;
   params.extra = nullptr;
 

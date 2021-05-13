@@ -153,9 +153,9 @@ struct ExecContext<cuda_graph_pol> : CudaContext
   }
 
   template < typename body_type >
-  void for_all(IdxT begin, IdxT end, body_type&& body)
+  void for_all(IdxT len, body_type&& body)
   {
-    cuda::graph_launch::for_all(begin, end, std::forward<body_type>(body)
+    cuda::graph_launch::for_all(len, std::forward<body_type>(body)
 #ifdef COMB_GRAPH_KERNEL_LAUNCH
         , m_component.m_con.stream_launch()
 #endif
@@ -164,9 +164,9 @@ struct ExecContext<cuda_graph_pol> : CudaContext
   }
 
   template < typename body_type >
-  void for_all_2d(IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, body_type&& body)
+  void for_all_2d(IdxT len0, IdxT len1, body_type&& body)
   {
-    cuda::graph_launch::for_all_2d(begin0, end0, begin1, end1, std::forward<body_type>(body)
+    cuda::graph_launch::for_all_2d(len0, len1, std::forward<body_type>(body)
 #ifdef COMB_GRAPH_KERNEL_LAUNCH
         , m_component.m_con.stream_launch()
 #endif
@@ -175,9 +175,9 @@ struct ExecContext<cuda_graph_pol> : CudaContext
   }
 
   template < typename body_type >
-  void for_all_3d(IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, IdxT begin2, IdxT end2, body_type&& body)
+  void for_all_3d(IdxT len0, IdxT len1, IdxT len2, body_type&& body)
   {
-    cuda::graph_launch::for_all_3d(begin0, end0, begin1, end1, begin2, end2, std::forward<body_type>(body)
+    cuda::graph_launch::for_all_3d(len0, len1, len2, std::forward<body_type>(body)
 #ifdef COMB_GRAPH_KERNEL_LAUNCH
         , m_component.m_con.stream_launch()
 #endif
@@ -194,7 +194,7 @@ struct ExecContext<cuda_graph_pol> : CudaContext
       body.set_outer(i_outer);
       for (IdxT i_inner = 0; i_inner < len_inner; ++i_inner) {
         body.set_inner(i_inner);
-        cuda::graph_launch::for_all(0, body.len, body
+        cuda::graph_launch::for_all(body.len, body
 #ifdef COMB_GRAPH_KERNEL_LAUNCH
             , m_component.m_con.stream_launch()
 #endif

@@ -25,31 +25,30 @@
 
 template < typename body_type >
 __global__
-void cuda_for_all(IdxT begin, IdxT len, body_type body)
+void cuda_for_all(IdxT len, body_type body)
 {
   const IdxT i = threadIdx.x + blockIdx.x * blockDim.x;
   if (i < len) {
-    body(i + begin, i);
+    body(i);
   }
 }
 
 template < typename body_type >
 __global__
-void cuda_for_all_2d(IdxT begin0, IdxT len0, IdxT begin1, IdxT len1, body_type body)
+void cuda_for_all_2d(IdxT len0, IdxT len1, body_type body)
 {
   const IdxT i0 = threadIdx.y + blockIdx.y * blockDim.y;
   const IdxT i1 = threadIdx.x + blockIdx.x * blockDim.x;
   if (i0 < len0) {
     if (i1 < len1) {
-      IdxT i = i0 * len1 + i1;
-      body(i0 + begin0, i1 + begin1, i);
+      body(i0, i1);
     }
   }
 }
 
 template < typename body_type >
 __global__
-void cuda_for_all_3d(IdxT begin0, IdxT len0, IdxT begin1, IdxT len1, IdxT begin2, IdxT len2, IdxT len12, body_type body)
+void cuda_for_all_3d(IdxT len0, IdxT len1, IdxT len2, body_type body)
 {
   const IdxT i0 = blockIdx.z;
   const IdxT i1 = threadIdx.y + blockIdx.y * blockDim.y;
@@ -57,8 +56,7 @@ void cuda_for_all_3d(IdxT begin0, IdxT len0, IdxT begin1, IdxT len1, IdxT begin2
   if (i0 < len0) {
     if (i1 < len1) {
       if (i2 < len2) {
-        IdxT i = i0 * len12 + i1 * len2 + i2;
-        body(i0 + begin0, i1 + begin1, i2 + begin2, i);
+        body(i0, i1, i2);
       }
     }
   }
@@ -76,7 +74,7 @@ void cuda_fused(body_type body_in)
   body.set_outer(i_outer);
   body.set_inner(i_inner);
   for (IdxT i = ii; i < body.len; i += i_stride) {
-    body(i, i);
+    body(i);
   }
 }
 
@@ -207,11 +205,9 @@ struct ExecContext<cuda_pol> : CudaContext
   }
 
   template < typename body_type >
-  void for_all(IdxT begin, IdxT end, body_type&& body)
+  void for_all(IdxT len, body_type&& body)
   {
     using decayed_body_type = typename std::decay<body_type>::type;
-
-    IdxT len = end - begin;
 
     const IdxT threads = 256;
     const IdxT blocks = (len + threads - 1) / threads;
@@ -219,7 +215,7 @@ struct ExecContext<cuda_pol> : CudaContext
     void* func = (void*)&cuda_for_all<decayed_body_type>;
     dim3 gridDim(blocks);
     dim3 blockDim(threads);
-    void* args[]{&begin, &len, &body};
+    void* args[]{&len, &body};
     size_t sharedMem = 0;
     cudaStream_t stream = base::stream_launch();
 
@@ -228,12 +224,9 @@ struct ExecContext<cuda_pol> : CudaContext
   }
 
   template < typename body_type >
-  void for_all_2d(IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, body_type&& body)
+  void for_all_2d(IdxT len0, IdxT len1, body_type&& body)
   {
     using decayed_body_type = typename std::decay<body_type>::type;
-
-    IdxT len0 = end0 - begin0;
-    IdxT len1 = end1 - begin1;
 
     const IdxT threads0 = 8;
     const IdxT threads1 = 32;
@@ -243,7 +236,7 @@ struct ExecContext<cuda_pol> : CudaContext
     void* func = (void*)&cuda_for_all_2d<decayed_body_type>;
     dim3 gridDim(blocks1, blocks0, 1);
     dim3 blockDim(threads1, threads0, 1);
-    void* args[]{&begin0, &len0, &begin1, &len1, &body};
+    void* args[]{&len0, &len1, &body};
     size_t sharedMem = 0;
     cudaStream_t stream = base::stream_launch();
 
@@ -252,14 +245,9 @@ struct ExecContext<cuda_pol> : CudaContext
   }
 
   template < typename body_type >
-  void for_all_3d(IdxT begin0, IdxT end0, IdxT begin1, IdxT end1, IdxT begin2, IdxT end2, body_type&& body)
+  void for_all_3d(IdxT len0, IdxT len1, IdxT len2, body_type&& body)
   {
     using decayed_body_type = typename std::decay<body_type>::type;
-
-    IdxT len0 = end0 - begin0;
-    IdxT len1 = end1 - begin1;
-    IdxT len2 = end2 - begin2;
-    IdxT len12 = len1 * len2;
 
     const IdxT threads0 = 1;
     const IdxT threads1 = 8;
@@ -271,7 +259,7 @@ struct ExecContext<cuda_pol> : CudaContext
     void* func =(void*)&cuda_for_all_3d<decayed_body_type>;
     dim3 gridDim(blocks2, blocks1, blocks0);
     dim3 blockDim(threads2, threads1, threads0);
-    void* args[]{&begin0, &len0, &begin1, &len1, &begin2, &len2, &len12, &body};
+    void* args[]{&len0, &len1, &len2, &body};
     size_t sharedMem = 0;
     cudaStream_t stream = base::stream_launch();
 

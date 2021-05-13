@@ -62,59 +62,43 @@ struct Count<T, T0, types...> {
 struct indexer_kji {
   IdxT ijlen, ilen;
   indexer_kji(IdxT ijlen_, IdxT ilen_) : ijlen(ijlen_), ilen(ilen_) {}
-  COMB_HOST COMB_DEVICE IdxT operator()(IdxT k, IdxT j, IdxT i, IdxT) const { return i + j * ilen + k * ijlen; }
+  COMB_HOST COMB_DEVICE IdxT operator()(IdxT k, IdxT j, IdxT i) const { return i + j * ilen + k * ijlen; }
 };
 struct indexer_ji {
-  IdxT ilen, koff;
-  indexer_ji(IdxT ilen_, IdxT koff_) : ilen(ilen_), koff(koff_) {}
-  COMB_HOST COMB_DEVICE IdxT operator()(IdxT j, IdxT i, IdxT) const { return i + j * ilen + koff; }
+  IdxT ilen;
+  indexer_ji(IdxT ilen_) : ilen(ilen_) {}
+  COMB_HOST COMB_DEVICE IdxT operator()(IdxT j, IdxT i) const { return i + j * ilen; }
 };
-struct indexer_ki {
-  IdxT ijlen, joff;
-  indexer_ki(IdxT ijlen_, IdxT joff_) : ijlen(ijlen_), joff(joff_) {}
-  COMB_HOST COMB_DEVICE IdxT operator()(IdxT k, IdxT i, IdxT) const { return i + joff + k * ijlen; }
-};
-struct indexer_kj {
-  IdxT ijlen, ilen, ioff;
-  indexer_kj(IdxT ijlen_, IdxT ilen_, IdxT ioff_) : ijlen(ijlen_), ilen(ilen_), ioff(ioff_) {}
-  COMB_HOST COMB_DEVICE IdxT operator()(IdxT k, IdxT j, IdxT) const { return ioff + j * ilen + k * ijlen; }
-};
-
 struct indexer_i {
-  IdxT off;
-  indexer_i(IdxT off_) : off(off_) {}
-  COMB_HOST COMB_DEVICE IdxT operator()(IdxT i, IdxT) const { return i + off; }
-};
-struct indexer_j {
-  IdxT ilen, off;
-  indexer_j(IdxT ilen_, IdxT off_) : ilen(ilen_), off(off_) {}
-  COMB_HOST COMB_DEVICE IdxT operator()(IdxT j, IdxT) const { return j * ilen + off; }
-};
-struct indexer_k {
-  IdxT ijlen, off;
-  indexer_k(IdxT ijlen_, IdxT off_) : ijlen(ijlen_), off(off_) {}
-  COMB_HOST COMB_DEVICE IdxT operator()(IdxT k, IdxT) const { return k * ijlen + off; }
+  indexer_i() {}
+  COMB_HOST COMB_DEVICE IdxT operator()(IdxT i) const { return i; }
 };
 
-struct indexer_ {
-  IdxT off;
-  indexer_(IdxT off_) : off(off_) {}
-  COMB_HOST COMB_DEVICE IdxT operator()(IdxT, IdxT) const { return off; }
+struct indexer_offset_kji {
+  IdxT ijlen, ilen;
+  IdxT imin, jmin, kmin;
+  indexer_offset_kji(IdxT kmin_, IdxT jmin_, IdxT imin_, IdxT ijlen_, IdxT ilen_)
+    : ijlen(ijlen_), ilen(ilen_)
+    , imin(imin_), jmin(jmin_), kmin(kmin_) {}
+  COMB_HOST COMB_DEVICE IdxT operator()(IdxT k, IdxT j, IdxT i) const { return (i+imin) + (j+jmin) * ilen + (k+kmin) * ijlen; }
 };
 
-struct indexer_idx {
-  indexer_idx() {}
-  COMB_HOST COMB_DEVICE IdxT operator()(IdxT, IdxT idx) const { return idx; }
-  COMB_HOST COMB_DEVICE IdxT operator()(IdxT, IdxT, IdxT idx) const { return idx; }
-  COMB_HOST COMB_DEVICE IdxT operator()(IdxT, IdxT, IdxT, IdxT idx) const { return idx; }
-};
-
-struct indexer_list_idx {
+struct indexer_list_kji {
   LidxT const* indices;
-  indexer_list_idx(LidxT const* indices_) : indices(indices_) {}
-  COMB_HOST COMB_DEVICE IdxT operator()(IdxT, IdxT idx) const { return indices[idx]; }
-  COMB_HOST COMB_DEVICE IdxT operator()(IdxT, IdxT, IdxT idx) const { return indices[idx]; }
-  COMB_HOST COMB_DEVICE IdxT operator()(IdxT, IdxT, IdxT, IdxT idx) const { return indices[idx]; }
+  IdxT ijlen, ilen;
+  indexer_list_kji(LidxT const* indices_, IdxT ijlen_, IdxT ilen_) : indices(indices_), ijlen(ijlen_), ilen(ilen_) {}
+  COMB_HOST COMB_DEVICE IdxT operator()(IdxT k, IdxT j, IdxT i) const { return indices[i + j * ilen + k * ijlen]; }
+};
+struct indexer_list_ji {
+  LidxT const* indices;
+  IdxT ilen;
+  indexer_list_ji(LidxT const* indices_, IdxT ilen_) : indices(indices_), ilen(ilen_) {}
+  COMB_HOST COMB_DEVICE IdxT operator()(IdxT j, IdxT i) const { return indices[i + j * ilen]; }
+};
+struct indexer_list_i {
+  LidxT const* indices;
+  indexer_list_i(LidxT const* indices_) : indices(indices_) {}
+  COMB_HOST COMB_DEVICE IdxT operator()(IdxT i) const { return indices[i]; }
 };
 
 template < typename T_src, typename I_src, typename T_dst, typename I_dst >

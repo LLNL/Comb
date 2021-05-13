@@ -69,9 +69,9 @@ void do_copy(ContextHolder<exec_type>& con_in,
 
   // setup
   for (IdxT i = 0; i < num_vars; ++i) {
-    con.for_all(0, len, detail::set_n1{dst[i]});
-    con.for_all(0, len, detail::set_0{src[i]});
-    con.for_all(0, len, detail::set_copy{dst[i], src[i]});
+    con.for_all(len, detail::set_n1{dst[i]});
+    con.for_all(len, detail::set_0{src[i]});
+    con.for_all(len, detail::set_copy{dst[i], src[i]});
   }
 
   con.synchronize();
@@ -87,7 +87,7 @@ void do_copy(ContextHolder<exec_type>& con_in,
     con.start_group(g1);
     con.start_component(g1, c1);
     for (IdxT i = 0; i < num_vars; ++i) {
-      con.for_all(0, len, detail::set_copy{src[i], dst[i]});
+      con.for_all(len, detail::set_copy{src[i], dst[i]});
     }
     con.finish_component(g1, c1);
     con.finish_group(g1);
@@ -99,7 +99,7 @@ void do_copy(ContextHolder<exec_type>& con_in,
     con.start_group(g2);
     con.start_component(g2, c2);
     for (IdxT i = 0; i < num_vars; ++i) {
-      con.for_all(0, len, detail::set_copy{dst[i], src[i]});
+      con.for_all(len, detail::set_copy{dst[i], src[i]});
     }
     con.finish_component(g2, c2);
     con.finish_group(g2);
@@ -114,7 +114,7 @@ void do_copy(ContextHolder<exec_type>& con_in,
     con.start_group(g1);
     con.start_component(g1, c1);
     for (IdxT i = 0; i < num_vars; ++i) {
-      con.for_all(0, len, detail::set_copy{src[i], dst[i]});
+      con.for_all(len, detail::set_copy{src[i], dst[i]});
     }
     con.finish_component(g1, c1);
     con.finish_group(g1);
@@ -126,7 +126,7 @@ void do_copy(ContextHolder<exec_type>& con_in,
     con.start_group(g2);
     con.start_component(g2, c2);
     for (IdxT i = 0; i < num_vars; ++i) {
-      con.for_all(0, len, detail::set_copy{dst[i], src[i]});
+      con.for_all(len, detail::set_copy{dst[i], src[i]});
     }
     con.finish_component(g2, c2);
     con.finish_group(g2);

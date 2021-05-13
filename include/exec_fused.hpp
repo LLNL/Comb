@@ -55,16 +55,16 @@ struct adapter_2d {
     , body(std::forward<body_type_>(body_))
   { COMB::ignore_unused(end0_); }
   COMB_HOST COMB_DEVICE
-  void operator() (IdxT, IdxT idx) const
+  void operator() (IdxT i) const
   {
-    IdxT i0 = idx / len1;
-    IdxT i1 = idx - i0 * len1;
+    IdxT i0 = i / len1;
+    IdxT i1 = i - i0 * len1;
 
-    //FGPRINTF(FileGroup::proc, "adapter_2d (%i+%i %i+%i)%i\n", i0, begin0, i1, begin1, idx);
+    //FGPRINTF(FileGroup::proc, "adapter_2d (%i+%i %i+%i)%i\n", i0, begin0, i1, begin1, i);
     //assert(0 <= i0 + begin0 && i0 + begin0 < 3);
     //assert(0 <= i1 + begin1 && i1 + begin1 < 3);
 
-    body(i0 + begin0, i1 + begin1, idx);
+    body(i0 + begin0, i1 + begin1);
   }
 };
 
@@ -83,20 +83,20 @@ struct adapter_3d {
     , body(std::forward<body_type_>(body_))
   { COMB::ignore_unused(end0_); }
   COMB_HOST COMB_DEVICE
-  void operator() (IdxT, IdxT idx) const
+  void operator() (IdxT i) const
   {
-    IdxT i0 = idx / len12;
-    IdxT idx12 = idx - i0 * len12;
+    IdxT i0 = i / len12;
+    IdxT idx12 = i - i0 * len12;
 
     IdxT i1 = idx12 / len2;
     IdxT i2 = idx12 - i1 * len2;
 
-    //FGPRINTF(FileGroup::proc, "adapter_3d (%i+%i %i+%i %i+%i)%i\n", i0, begin0, i1, begin1, i2, begin2, idx);
+    //FGPRINTF(FileGroup::proc, "adapter_3d (%i+%i %i+%i %i+%i)%i\n", i0, begin0, i1, begin1, i2, begin2, i);
     //assert(0 <= i0 + begin0 && i0 + begin0 < 3);
     //assert(0 <= i1 + begin1 && i1 + begin1 < 3);
     //assert(0 <= i2 + begin2 && i2 + begin2 < 13);
 
-    body(i0 + begin0, i1 + begin1, i2 + begin2, idx);
+    body(i0 + begin0, i1 + begin1, i2 + begin2);
   }
 };
 
@@ -137,7 +137,7 @@ struct fused_packer
 
   // must be run for all i in [0, len)
   COMB_HOST COMB_DEVICE
-  void operator()(IdxT i, IdxT)
+  void operator()(IdxT i)
   {
     // if (i == 0) {
     //   FGPRINTF(FileGroup::proc, "fused_packer buf %p, src %p, idx %p, len %i\n", buf, src, idx, len); FFLUSH(stdout);
@@ -183,7 +183,7 @@ struct fused_unpacker
 
   // must be run for all i in [0, len)
   COMB_HOST COMB_DEVICE
-  void operator()(IdxT i, IdxT)
+  void operator()(IdxT i)
   {
     // if (i == 0) {
     //   FGPRINTF(FileGroup::proc, "fused_packer buf %p, dst %p, idx %p, len %i\n", buf, dst, idx, len); FFLUSH(stdout);
@@ -483,8 +483,8 @@ struct FuserPacker<ExecContext<raja_pol<base_policy>>> : FuserStorage<ExecContex
 
     RAJA::TypedRangeSegment<IdxT> seg(0, nitems);
     for (DataT const* src : this->m_variables) {
-      this->m_workGroup_it->m_pool.enqueue(seg, make_copy_idxr_idxr(src, detail::indexer_list_idx{indices},
-                                                                    buf, detail::indexer_idx{}));
+      this->m_workGroup_it->m_pool.enqueue(seg, make_copy_idxr_idxr(src, detail::indexer_list_i{indices},
+                                                                    buf, detail::indexer_i{}));
       buf += nitems;
     }
     this->m_num_fused_loops_enqueued += 1;
@@ -523,8 +523,8 @@ struct FuserUnpacker<ExecContext<raja_pol<base_policy>>> : FuserStorage<ExecCont
 
     RAJA::TypedRangeSegment<IdxT> seg(0, nitems);
     for (DataT* dst : this->m_variables) {
-      this->m_workGroup_it->m_pool.enqueue(seg, make_copy_idxr_idxr(buf, detail::indexer_idx{},
-                                                                    dst, detail::indexer_list_idx{indices}));
+      this->m_workGroup_it->m_pool.enqueue(seg, make_copy_idxr_idxr(buf, detail::indexer_i{},
+                                                                    dst, detail::indexer_list_i{indices}));
       buf += nitems;
     }
     this->m_num_fused_loops_enqueued += 1;

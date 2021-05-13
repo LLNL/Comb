@@ -268,10 +268,13 @@ struct Box3d
     IdxT imax = min[0] + sizes[0];
     IdxT jmax = min[1] + sizes[1];
     IdxT kmax = min[2] + sizes[2];
-    con.for_all_3d(kmin, kmax, jmin, jmax, imin, imax, make_set_idxr_idxr(detail::indexer_kji{info.len[0]*info.len[1], info.len[0]}, index_list, detail::indexer_idx{}));
-    //for(IdxT idx = 0; idx < (imax-imin)*(jmax-jmin)*(kmax-kmin); ++idx) {
+    IdxT ilen = imax - imin;
+    IdxT jlen = jmax - jmin;
+    IdxT klen = kmax - kmin;
+    con.for_all_3d(klen, jlen, ilen, make_set_idxr_idxr(detail::indexer_offset_kji{kmin, jmin, imin, info.len[0]*info.len[1], info.len[0]}, index_list, detail::indexer_kji{ilen*jlen, ilen}));
+    //for(IdxT idx = 0; idx < ilen*jlen*klen; ++idx) {
     //  FGPRINTF(FileGroup::proc, "indices[%i] = %i\n", idx, index_list[idx]);
-    //  assert(0 <= index_list[idx] && index_list[idx] < (imax-imin)*(jmax-jmin)*(kmax-kmin));
+    //  assert(0 <= index_list[idx] && index_list[idx] < ilen*jlen*klen);
     //}
     con.synchronize();
   }
