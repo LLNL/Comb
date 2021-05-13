@@ -31,7 +31,7 @@ struct base { };
 struct seq : base
 {
   static const bool async = false;
-  static const char* get_name() { return "raja<seq>"; }
+  static const char* get_name() { return "raja_seq"; }
   using resource_type = RAJA::resources::Host;
   using for_all_policy = RAJA::loop_exec;
   using for_all_2d_policy =
@@ -57,7 +57,7 @@ struct seq : base
 struct omp : base
 {
   static const bool async = false;
-  static const char* get_name() { return "raja<omp>"; }
+  static const char* get_name() { return "raja_omp"; }
   using resource_type = RAJA::resources::Host;
   using for_all_policy = RAJA::loop_exec;
 #if defined(COMB_USE_OMP_COLLAPSE) || defined(COMB_USE_OMP_WEAK_COLLAPSE)
@@ -98,7 +98,7 @@ struct omp : base
 struct cuda : base
 {
   static const bool async = true;
-  static const char* get_name() { return "raja<cuda>"; }
+  static const char* get_name() { return "raja_cuda"; }
   using resource_type = RAJA::resources::Cuda;
   using for_all_policy = RAJA::cuda_exec_async<256>;
   using for_all_2d_policy =
