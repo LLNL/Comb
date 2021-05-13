@@ -3,7 +3,7 @@
 Comb is a communication performance benchmarking tool. It is used to determine performance tradeoffs in implementing communication patterns on high performance computing (HPC) platforms. At its core comb runs combinations of communication patterns with execution patterns, and memory spaces in order to find efficient combinations. The current set of capabilities Comb provides includes:
   - Configurable structured mesh halo exchange communication.
   - A variety of communication patterns based on grouping messages.
-  - A variety of execution patterns including serial, openmp threading, cuda, cuda batched kernels, and cuda persistent kernels.
+  - A variety of execution patterns including serial, openmp threading, cuda, cuda fused kernels.
   - A variety of memory spaces including default system allocated memory, pinned host memory, cuda device memory, and cuda managed memory with different cuda memory advice.
 
 It is important to note that Comb is very much a work-in-progress. Additional features will appear in future releases.
@@ -110,10 +110,6 @@ The runtime options change the properties of the grid and its decomposition, as 
           -   __omp__ openmp threaded CPU execution pattern
           -   __cuda__ cuda GPU execution pattern
           -   __cuda_graph__ cuda GPU batched via cuda graph API execution pattern
-          -   __cuda_batch__ cuda GPU batched kernel execution pattern
-          -   __cuda_batch_fewgs__ cuda GPU batched kernel with few grid synchronizations execution pattern
-          -   __cuda_persistent__ cuda GPU persistent kernel execution pattern
-          -   __cuda_persistent_fewgs__ cuda GPU persistent kernel with few grid synchronizations execution pattern
           -   __mpi_type__ MPI datatypes MPI implementation execution pattern
   -   __\-memory *option*__ Memory space options
       -   __enable|disable *option*__ Enable or disable specific memory spaces for mesh allocations
@@ -199,10 +195,6 @@ The final three measure problem setup, correctness testing, and total benchmark 
   - __omp__ Parallel CPU execution via OpenMP
   - __cuda__ Parallel GPU execution via cuda
   - __cudaGraph__ Parallel GPU execution via cuda graphs
-  - __cudaBatch__ Parallel GPU execution via kernel batching
-  - __cudaBatch_fewgs__ Parallel GPU execution via kernel batching without grid synchronization between kernels
-  - __cudaPersistent__ Parallel GPU execution via persistent kernel batching
-  - __cudaPersistent_fewgs__ Parallel GPU execution via persistent kernel batching without grid synchronization between kernels
   - __mpi_type__ Packing or unpacking execution done via mpi datatypes used with MPI_Pack/MPI_Unpack
 
 ##### Memory Spaces
