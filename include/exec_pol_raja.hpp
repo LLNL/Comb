@@ -179,97 +179,113 @@ struct ExecContext<raja_pol<base_policy>> : RAJAContext<typename base_policy::re
   ExecContext(base const& b, COMB::Allocator& util_aloc_)
     : base(b)
     , util_aloc(util_aloc_)
-  { }
+  {
+    LOGPRINTF("%p ExecContext<raja>::ExecContext\n", this);
+  }
 
   void ensure_waitable()
   {
-
+    LOGPRINTF("%p ExecContext<raja>::ensure_waitable\n", this);
   }
 
   template < typename context >
   void waitOn(context& con)
   {
+    LOGPRINTF("%p ExecContext<raja>::waitOn\n", this);
     con.ensure_waitable();
     base::waitOn(con);
   }
 
   void synchronize()
   {
+    LOGPRINTF("%p ExecContext<raja>::synchronize\n", this);
     base::synchronize();
   }
 
   group_type create_group()
   {
+    LOGPRINTF("%p ExecContext<raja>::create_group\n", this);
     return group_type{};
   }
 
   void start_group(group_type)
   {
+    LOGPRINTF("%p ExecContext<raja>::start_group\n", this);
   }
 
   void finish_group(group_type)
   {
+    LOGPRINTF("%p ExecContext<raja>::finish_group\n", this);
   }
 
   void destroy_group(group_type)
   {
-
+    LOGPRINTF("%p ExecContext<raja>::destroy_group\n", this);
   }
 
   component_type create_component()
   {
+    LOGPRINTF("%p ExecContext<raja>::create_component\n", this);
     return component_type{};
   }
 
   void start_component(group_type, component_type)
   {
-
+    LOGPRINTF("%p ExecContext<raja>::start_component\n", this);
   }
 
   void finish_component(group_type, component_type)
   {
-
+    LOGPRINTF("%p ExecContext<raja>::finish_component\n", this);
   }
 
   void destroy_component(component_type)
   {
-
+    LOGPRINTF("%p ExecContext<raja>::destroy_component\n", this);
   }
 
   event_type createEvent()
   {
+    LOGPRINTF("%p ExecContext<raja>::createEvent\n", this);
     return event_type{};
   }
 
   void recordEvent(event_type& event)
   {
+    LOGPRINTF("%p ExecContext<raja>::recordEvent event %p\n", this, &event);
     event = base::resource().get_event_erased();
   }
 
   void finish_component_recordEvent(group_type group, component_type component, event_type& event)
   {
+    LOGPRINTF("%p ExecContext<raja>::finish_component_recordEvent event %p\n", this, &event);
     finish_component(group, component);
     recordEvent(event);
   }
 
   bool queryEvent(event_type& event)
   {
+    LOGPRINTF("%p ExecContext<raja>::queryEvent event %p\n", this, &event);
     return event.check();
   }
 
   void waitEvent(event_type& event)
   {
+    LOGPRINTF("%p ExecContext<raja>::waitEvent event %p\n", this, &event);
     event.wait();
   }
 
   void destroyEvent(event_type& event)
   {
+    LOGPRINTF("%p ExecContext<raja>::destroyEvent event %p\n", this, &event);
     event = event_type{};
   }
 
   template < typename body_type >
   void for_all(IdxT len, body_type&& body)
   {
+    LOGPRINTF("%p ExecContext<raja>::for_all len %d\n", this, len);
+
     RAJA::TypedRangeSegment<IdxT> seg(0, len);
 
     RAJA::forall<for_all_policy>(base::res_launch(), seg, body);
@@ -279,6 +295,8 @@ struct ExecContext<raja_pol<base_policy>> : RAJAContext<typename base_policy::re
   template < typename body_type >
   void for_all_2d(IdxT len0, IdxT len1, body_type&& body)
   {
+    LOGPRINTF("%p ExecContext<raja>::for_all_2d len0 %d len1 %d\n", this, len0, len1);
+
     RAJA::TypedRangeSegment<IdxT> seg0(0, len0);
     RAJA::TypedRangeSegment<IdxT> seg1(0, len1);
 
@@ -290,6 +308,8 @@ struct ExecContext<raja_pol<base_policy>> : RAJAContext<typename base_policy::re
   template < typename body_type >
   void for_all_3d(IdxT len0, IdxT len1, IdxT len2, body_type&& body)
   {
+    LOGPRINTF("%p ExecContext<raja>::for_all_3d len0 %d len1 %d len2 %d\n", this, len0, len1, len2);
+
     RAJA::TypedRangeSegment<IdxT> seg0(0, len0);
     RAJA::TypedRangeSegment<IdxT> seg1(0, len1);
     RAJA::TypedRangeSegment<IdxT> seg2(0, len2);
@@ -334,7 +354,14 @@ struct FuserStorage<ExecContext<raja_pol<base_policy>>>
       : m_pool(workgroup_allocator{&con.util_aloc})
       , m_group(m_pool.instantiate())
       , m_site(m_group.run())
-    { }
+    {
+      LOGPRINTF("%p FuserStorage<raja>::WorkObjects::WorkObjects\n", this);
+    }
+
+    ~WorkObjects()
+    {
+      LOGPRINTF("%p FuserStorage<raja>::WorkObjects::~WorkObjects\n", this);
+    }
 
     workpool  m_pool;
     workgroup m_group;
@@ -357,6 +384,7 @@ struct FuserStorage<ExecContext<raja_pol<base_policy>>>
 
   void allocate(context_type& con, std::vector<DataT*> const& variables, IdxT num_loops)
   {
+    LOGPRINTF("%p FuserStorage<raja>::allocate num_loops %d\n", this, num_loops);
     if (m_variables.empty()) {
 
       m_num_fused_loops_enqueued = 0;
@@ -367,6 +395,7 @@ struct FuserStorage<ExecContext<raja_pol<base_policy>>>
       m_variables = variables;
 
       m_workGroup_it = m_workGroups_list.begin();
+      LOGPRINTF("%p FuserStorage<raja>::allocate num_vars %zu\n", this, m_variables.size());
     }
   }
 
@@ -375,13 +404,15 @@ struct FuserStorage<ExecContext<raja_pol<base_policy>>>
     if (this->m_workGroup_it == this->m_workGroups_list.end()) {
       this->m_workGroups_list.emplace_back(con);
       this->m_workGroup_it = --this->m_workGroups_list.end();
+      LOGPRINTF("%p FuserStorage<raja>::enqueue WorkObjects %p\n", this, &*this->m_workGroup_it);
     }
   }
 
   void exec(context_type& con)
   {
+    LOGPRINTF("%p FuserStorage<raja>::exec WorkObjects %p\n", this, &*this->m_workGroup_it);
     this->m_workGroup_it->m_group = this->m_workGroup_it->m_pool.instantiate();
-    this->m_workGroup_it->m_site  = this->m_workGroup_it->m_group.run(con.res_launch());
+    this->m_workGroup_it->m_site  = this->m_workGroup_it->m_group.run(/*con.res_launch()*/);
     this->m_num_fused_loops_executed = this->m_num_fused_loops_enqueued;
     ++this->m_workGroup_it;
   }
@@ -393,8 +424,10 @@ struct FuserStorage<ExecContext<raja_pol<base_policy>>>
   // allocations (irecv, isend) and deallocations (wait_recv, wait_send).
   void deallocate(context_type& con)
   {
+    LOGPRINTF("%p FuserStorage<raja>::deallocate \n", this);
     if (!this->m_variables.empty() && this->m_num_fused_loops_executed == this->m_num_fused_loops_total) {
 
+      LOGPRINTF("%p FuserStorage<raja>::deallocate clear\n", this);
       // deallocate per variable vars
       this->m_variables.clear();
 
@@ -413,20 +446,23 @@ struct FuserPacker<ExecContext<raja_pol<base_policy>>> : FuserStorage<ExecContex
   using base = FuserStorage<ExecContext<raja_pol<base_policy>>>;
   using context_type = typename base::context_type;
 
-  void allocate(context_type& con, std::vector<DataT*> const& variables, IdxT num_items)
+  void allocate(context_type& con, std::vector<DataT*> const& variables, IdxT num_loops)
   {
+    LOGPRINTF("%p FuserPacker<raja>::allocate num_loops %d\n", this, num_loops);
     if (this->m_variables.empty()) {
-      base::allocate(con, variables, num_items);
+      base::allocate(con, variables, num_loops);
     }
   }
 
   // enqueue packing loops for all variables
   void enqueue(context_type& con, DataT* buf, LidxT const* indices, const IdxT nitems)
   {
+    LOGPRINTF("%p FuserPacker<raja>::enqueue buf %p indices %p nitems %i\n", this, buf, indices, nitems);
     base::enqueue(con);
 
     RAJA::TypedRangeSegment<IdxT> seg(0, nitems);
     for (DataT const* src : this->m_variables) {
+      LOGPRINTF("%p FuserPacker<raja>::enqueue enqueue %p buf %p[i] = src %p[indices %p] nitems %i\n", this, &*this->m_workGroup_it, buf, src, indices, nitems);
       this->m_workGroup_it->m_pool.enqueue(seg, make_copy_idxr_idxr(src, detail::indexer_list_i{indices},
                                                                     buf, detail::indexer_i{}));
       buf += nitems;
@@ -436,11 +472,13 @@ struct FuserPacker<ExecContext<raja_pol<base_policy>>> : FuserStorage<ExecContex
 
   void exec(context_type& con)
   {
+    LOGPRINTF("%p FuserPacker<raja>::exec\n", this);
     base::exec(con);
   }
 
   void deallocate(context_type& con)
   {
+    LOGPRINTF("%p FuserPacker<raja>::deallocate\n", this);
     if (!this->m_variables.empty() && this->m_num_fused_loops_executed == this->m_num_fused_loops_total) {
       base::deallocate(con);
     }
@@ -453,20 +491,23 @@ struct FuserUnpacker<ExecContext<raja_pol<base_policy>>> : FuserStorage<ExecCont
   using base = FuserStorage<ExecContext<raja_pol<base_policy>>>;
   using context_type = typename base::context_type;
 
-  void allocate(context_type& con, std::vector<DataT*> const& variables, IdxT num_items)
+  void allocate(context_type& con, std::vector<DataT*> const& variables, IdxT num_loops)
   {
+    LOGPRINTF("%p FuserUnpacker<raja>::allocate num_loops %d\n", this, num_loops);
     if (this->m_variables.empty()) {
-      base::allocate(con, variables, num_items);
+      base::allocate(con, variables, num_loops);
     }
   }
 
   // enqueue unpacking loops for all variables
   void enqueue(context_type& con, DataT const* buf, LidxT const* indices, const IdxT nitems)
   {
+    LOGPRINTF("%p FuserUnpacker<raja>::enqueue buf %p indices %p nitems %i\n", this, buf, indices, nitems);
     base::enqueue(con);
 
     RAJA::TypedRangeSegment<IdxT> seg(0, nitems);
     for (DataT* dst : this->m_variables) {
+      LOGPRINTF("%p FuserUnpacker<raja>::enqueue enqueue %p dst %p[indices %p] = buf %p[i] nitems %i\n", this, &*this->m_workGroup_it, dst, indices, buf, nitems);
       this->m_workGroup_it->m_pool.enqueue(seg, make_copy_idxr_idxr(buf, detail::indexer_i{},
                                                                     dst, detail::indexer_list_i{indices}));
       buf += nitems;
@@ -476,11 +517,13 @@ struct FuserUnpacker<ExecContext<raja_pol<base_policy>>> : FuserStorage<ExecCont
 
   void exec(context_type& con)
   {
+    LOGPRINTF("%p FuserUnpacker<raja>::exec\n", this);
     base::exec(con);
   }
 
   void deallocate(context_type& con)
   {
+    LOGPRINTF("%p FuserUnpacker<raja>::deallocate\n", this);
     if (!this->m_variables.empty() && this->m_num_fused_loops_executed == this->m_num_fused_loops_total) {
       base::deallocate(con);
     }
