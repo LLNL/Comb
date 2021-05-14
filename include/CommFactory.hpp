@@ -215,8 +215,8 @@ private:
     { }
   };
 
-  using msg_info_map_type  = std::map<int, message_info_type>;
-  using mesh_info_map_type = std::map<MeshInfo, msg_info_map_type>;
+  using message_info_map_type  = std::map<int, message_info_type>;
+  using mesh_info_map_type = std::map<MeshInfo, message_info_map_type>;
 
   using msg_map_type  = std::map<Box3d, Box3d>; // maps recv boxes to send boxes
   using data_map_type = std::map<MeshInfo, std::list<MeshData const*>>; // maps meshinfo to lists of meshdata
@@ -374,11 +374,11 @@ private:
         auto mesh_info_iter = mesh_info_map.find(msg_box.info);
         if (mesh_info_iter == mesh_info_map.end()) {
           // didn't find existing entry, add new
-          auto ret = mesh_info_map.emplace(msg_box.info, std::map<int, message_info_type>{});
+          auto ret = mesh_info_map.emplace(msg_box.info, message_info_map_type{});
           assert(ret.second);
           mesh_info_iter = ret.first;
         }
-        msg_info_map_type& msg_info_map = mesh_info_iter->second;
+        message_info_map_type& msg_info_map = mesh_info_iter->second;
 
         auto msg_info_iter = msg_info_map.find(partner_rank);
         if (msg_info_iter == msg_info_map.end()) {
@@ -511,7 +511,7 @@ private:
 
     for (auto& mesh_msg_item : mesh_info_map) {
 
-      msg_info_map_type& msg_info_map = mesh_msg_item.second;
+      message_info_map_type& msg_info_map = mesh_msg_item.second;
 
       for (auto msg_info_item : msg_info_map) {
 
@@ -549,7 +549,7 @@ private:
     for (auto& mesh_msg_item : mesh_info_map) {
 
       MeshInfo const& meshinfo = mesh_msg_item.first;
-      msg_info_map_type& msg_info_map = mesh_msg_item.second;
+      message_info_map_type& msg_info_map = mesh_msg_item.second;
 
       std::list<MeshData const*> const& msg_data_list = data_map.at(meshinfo);
 
@@ -656,7 +656,7 @@ private:
     for (auto& mesh_msg_item : mesh_info_map) {
 
       MeshInfo const& meshinfo = mesh_msg_item.first;
-      msg_info_map_type const& msg_info_map = mesh_msg_item.second;
+      message_info_map_type const& msg_info_map = mesh_msg_item.second;
 
       std::list<MeshData const*> const& msg_data_list = data_map.at(meshinfo);
 
