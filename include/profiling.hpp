@@ -75,14 +75,14 @@ struct Timer {
 #endif
     }
 
-    void record(CPUContext const&)
+    void record(CPUContext&)
     {
       tp_cpu = std::chrono::high_resolution_clock::now();
       type = cpu;
     }
 
 #ifdef COMB_ENABLE_MPI
-    void record(MPIContext const&)
+    void record(MPIContext&)
     {
       tp_cpu = std::chrono::high_resolution_clock::now();
       type = cpu;
@@ -90,7 +90,7 @@ struct Timer {
 #endif
 
 #ifdef COMB_ENABLE_CUDA
-    void record(CudaContext const& con)
+    void record(CudaContext& con)
     {
       cudaCheck(cudaEventRecord(tp_cuda, con.stream()));
       type = cuda;
@@ -127,7 +127,7 @@ struct Timer {
   Timer& operator=(const Timer&) = delete;
 
   template < typename Context >
-  void start(Context const& con, const char* str) {
+  void start(Context& con, const char* str) {
     if (idx >= times.size()) {
       resize(2*idx+2);
       assert(idx < times.size());
@@ -138,12 +138,12 @@ struct Timer {
   }
 
   template < typename Context >
-  void restart(Context const& con, const char* str) {
+  void restart(Context& con, const char* str) {
     start(con, str);
   }
 
   template < typename Context >
-  void stop(Context const& con) {
+  void stop(Context& con) {
     start(con, nullptr);
   }
 

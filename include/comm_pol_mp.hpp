@@ -1014,32 +1014,32 @@ struct MessageGroup<MessageBase::Kind::send, mp_pol, exec_policy>
   }
 
 private:
-  void start_Isend(CPUContext const&, communicator_type& con_comm, int partner_rank, IdxT nbytes, message_request_type& msg_request)
+  void start_Isend(CPUContext&, communicator_type& con_comm, int partner_rank, IdxT nbytes, message_request_type& msg_request)
   {
     detail::mp::isend(con_comm.g, partner_rank, msg_request.region.mr, msg_request.region.offset, nbytes);
   }
 
-  void start_Isend(CudaContext const& con, communicator_type& con_comm, int partner_rank, IdxT nbytes, message_request_type& msg_request)
+  void start_Isend(CudaContext& con, communicator_type& con_comm, int partner_rank, IdxT nbytes, message_request_type& msg_request)
   {
     detail::mp::stream_send(con_comm.g, partner_rank, con.stream_launch(), msg_request.region.mr, msg_request.region.offset, nbytes);
   }
 
-  static void cork_Isends(CPUContext const&, communicator_type& con_comm)
+  static void cork_Isends(CPUContext&, communicator_type& con_comm)
   {
     COMB::ignore_unused(con_comm);
   }
 
-  static void cork_Isends(CudaContext const&, communicator_type& con_comm)
+  static void cork_Isends(CudaContext&, communicator_type& con_comm)
   {
     detail::mp::cork(con_comm.g);
   }
 
-  static void uncork_Isends(CPUContext const&, communicator_type& con_comm)
+  static void uncork_Isends(CPUContext&, communicator_type& con_comm)
   {
     COMB::ignore_unused(con_comm);
   }
 
-  static void uncork_Isends(CudaContext const&, communicator_type& con_comm)
+  static void uncork_Isends(CudaContext&, communicator_type& con_comm)
   {
     detail::mp::uncork(con_comm.g, con_comm.stream_launch());
   }
