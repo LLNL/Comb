@@ -353,28 +353,32 @@ public:
   template <typename T>
   T* malloc(size_t nTs, size_t alignment = std::max(alignof(T), alignof(std::max_align_t)))
   {
-#if defined(COMB_ENABLE_OPENMP)
-    lock_guard<omp::mutex> lock(m_mutex);
-#endif
 
     const size_t size = nTs * sizeof(T);
     void* ptr = nullptr;
-    arena_container_type::iterator end = m_arenas.end();
-    for (arena_container_type::iterator iter = m_arenas.begin(); iter != end;
-         ++iter) {
-      ptr = iter->get(size, alignment);
-      if (ptr != nullptr) {
-        break;
-      }
-    }
 
-    if (ptr == nullptr) {
-      const size_t alloc_size =
-          std::max(size + alignment, m_default_arena_size);
-      void* arena_ptr = m_alloc.malloc(alloc_size);
-      if (arena_ptr != nullptr) {
-        m_arenas.emplace_front(arena_ptr, alloc_size);
-        ptr = m_arenas.front().get(size, alignment);
+    if (size > 0u) {
+#if defined(COMB_ENABLE_OPENMP)
+      lock_guard<omp::mutex> lock(m_mutex);
+#endif
+
+      arena_container_type::iterator end = m_arenas.end();
+      for (arena_container_type::iterator iter = m_arenas.begin(); iter != end;
+           ++iter) {
+        ptr = iter->get(size, alignment);
+        if (ptr != nullptr) {
+          break;
+        }
+      }
+
+      if (ptr == nullptr) {
+        const size_t alloc_size =
+            std::max(size + alignment, m_default_arena_size);
+        void* arena_ptr = m_alloc.malloc(alloc_size);
+        if (arena_ptr != nullptr) {
+          m_arenas.emplace_front(arena_ptr, alloc_size);
+          ptr = m_arenas.front().get(size, alignment);
+        }
       }
     }
 
@@ -383,17 +387,19 @@ public:
 
   void free(const void* cptr)
   {
+    void* ptr = const_cast<void*>(cptr);
+    if (ptr != nullptr) {
 #if defined(COMB_ENABLE_OPENMP)
-    lock_guard<omp::mutex> lock(m_mutex);
+      lock_guard<omp::mutex> lock(m_mutex);
 #endif
 
-    void* ptr = const_cast<void*>(cptr);
-    arena_container_type::iterator end = m_arenas.end();
-    for (arena_container_type::iterator iter = m_arenas.begin(); iter != end;
-         ++iter) {
-      if (iter->give(ptr)) {
-        ptr = nullptr;
-        break;
+      arena_container_type::iterator end = m_arenas.end();
+      for (arena_container_type::iterator iter = m_arenas.begin(); iter != end;
+           ++iter) {
+        if (iter->give(ptr)) {
+          ptr = nullptr;
+          break;
+        }
       }
     }
     if (ptr != nullptr) {
