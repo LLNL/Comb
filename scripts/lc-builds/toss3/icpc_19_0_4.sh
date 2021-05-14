@@ -15,7 +15,7 @@
 ## Please also see the LICENSE file for MIT license.
 ##############################################################################
 
-BUILD_SUFFIX=lc_toss3_icpc_19_0_beta
+BUILD_SUFFIX=lc_toss3_icpc_19_0_4
 
 rm -rf build_${BUILD_SUFFIX} 2>/dev/null
 mkdir build_${BUILD_SUFFIX} && cd build_${BUILD_SUFFIX}
@@ -26,7 +26,7 @@ cmake \
   -DCMAKE_BUILD_TYPE=Release \
   -DENABLE_OPENMP=ON \
   -DENABLE_CUDA=OFF \
-  -C ../host-configs/lc-builds/toss3/icpc_19_0_beta.cmake \
+  -C ../host-configs/lc-builds/toss3/icpc_19_0_4.cmake \
   -DCMAKE_INSTALL_PREFIX=../install_${BUILD_SUFFIX} \
   "$@" \
   ..
