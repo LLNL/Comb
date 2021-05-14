@@ -129,7 +129,11 @@ void do_cycles(CommContext<pol_comm>& con_comm_in,
     vars.reserve(num_vars);
 
     {
+      Range r2("setup factory", Range::yellow);
+
       CommFactory factory(comminfo);
+
+      r2.restart("add vars", Range::yellow);
 
       for (IdxT i = 0; i < num_vars; ++i) {
 
@@ -152,6 +156,8 @@ void do_cycles(CommContext<pol_comm>& con_comm_in,
 
         con_mesh.synchronize();
       }
+
+      r2.restart("populate comm", Range::yellow);
 
       factory.populate(comm, con_many, con_few);
     }
