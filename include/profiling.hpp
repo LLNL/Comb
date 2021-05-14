@@ -26,6 +26,7 @@
 #include <string>
 #include <utility>
 
+#include "print.hpp"
 #include "comm_utils_mpi.hpp"
 #include "exec_utils_cuda.hpp"
 
@@ -258,6 +259,7 @@ struct Range {
   void start(const char* name_, uint32_t color) {
     COMB::ignore_unused(color);
     if (name_ != nullptr) {
+      LOGPRINTF("%p Range::start name %s\n", this, name_);
 #ifdef COMB_ENABLE_CUDA
       nvtxEventAttributes_t eventAttrib = {0};
       eventAttrib.version = NVTX_VERSION;
@@ -275,6 +277,7 @@ struct Range {
   void stop()
   {
     if(name != nullptr) {
+      LOGPRINTF("%p Range::stop name %s\n", this, name);
 #ifdef COMB_ENABLE_CUDA
       nvtxRangeEnd(id);
 #endif
