@@ -290,7 +290,7 @@ private:
         // neighbor_recv.print("neighbor_recv_corrected");
         // neighbor_send.print("neighbor_send_corrected");
 
-        {
+        if (neighbor_recv.size() > 0u) {
           int neighbor_recv_rank = comminfo.cart.get_rank(neighbor_recv.info.global_coords);
           assert(neighbor_rank == neighbor_recv_rank);
 
@@ -305,7 +305,7 @@ private:
           assert(iter->second == neighbor_rank);
         }
 
-        {
+        if (neighbor_send.size() > 0u) {
           int neighbor_send_rank = comminfo.cart.get_rank(neighbor_send.info.global_coords);
           assert(neighbor_rank == neighbor_send_rank);
 
@@ -321,23 +321,27 @@ private:
         }
 
 
-        auto my_recv_to_sends_iter = msg_map.find(self_recv);
-        if (my_recv_to_sends_iter == msg_map.end()) {
-          auto res = msg_map.emplace(self_recv, neighbor_send);
-          assert(res.second);
-          my_recv_to_sends_iter = res.first;
+        if (self_recv.size() > 0u) {
+          auto my_recv_to_sends_iter = msg_map.find(self_recv);
+          if (my_recv_to_sends_iter == msg_map.end()) {
+            auto res = msg_map.emplace(self_recv, neighbor_send);
+            assert(res.second);
+            my_recv_to_sends_iter = res.first;
+          }
+          assert(my_recv_to_sends_iter->first  == self_recv);
+          assert(my_recv_to_sends_iter->second == neighbor_send);
         }
-        assert(my_recv_to_sends_iter->first  == self_recv);
-        assert(my_recv_to_sends_iter->second == neighbor_send);
 
-        auto neighbor_recv_to_sends_iter = msg_map.find(neighbor_recv);
-        if (neighbor_recv_to_sends_iter == msg_map.end()) {
-          auto res = msg_map.emplace(neighbor_recv, self_send);
-          assert(res.second);
-          neighbor_recv_to_sends_iter = res.first;
+        if (self_send.size() > 0u) {
+          auto neighbor_recv_to_sends_iter = msg_map.find(neighbor_recv);
+          if (neighbor_recv_to_sends_iter == msg_map.end()) {
+            auto res = msg_map.emplace(neighbor_recv, self_send);
+            assert(res.second);
+            neighbor_recv_to_sends_iter = res.first;
+          }
+          assert(neighbor_recv_to_sends_iter->first == neighbor_recv);
+          assert(neighbor_recv_to_sends_iter->second == self_send);
         }
-        assert(neighbor_recv_to_sends_iter->first == neighbor_recv);
-        assert(neighbor_recv_to_sends_iter->second == self_send);
       });
     }
   }
