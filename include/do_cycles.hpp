@@ -141,7 +141,12 @@ void do_cycles(CommContext<pol_comm>& con_comm_in,
         IdxT totallen = info.totallen;
 
         con_mesh.for_all(totallen,
-                         detail::set_n1(data));
+                         [=] COMB_HOST COMB_DEVICE (IdxT i) {
+
+
+          LOGPRINTF("init-var %p[%i] = %f\n", data, i, -1.0);
+          data[i] = -1.0;
+        });
 
         factory.add_var(vars[i]);
 
@@ -248,9 +253,9 @@ void do_cycles(CommContext<pol_comm>& con_comm_in,
           }
           if (!mock_communication) {
             if (found != expected) {
-              FGPRINTF(FileGroup::proc, "%p %i zone %i(%i %i %i) g%i(%i %i %i) = %f expected %f next %f\n", data, branchid, zone, i, j, k, zone_global, iglobal, jglobal, kglobal, found, expected, next);
+              FGPRINTF(FileGroup::proc, "test pre-comm %p %i zone %i(%i %i %i) g%i(%i %i %i) = %f expected %f next %f\n", data, branchid, zone, i, j, k, zone_global, iglobal, jglobal, kglobal, found, expected, next);
             }
-            LOGPRINTF("%p[%i] = %f\n", data, zone, 1.0);
+            LOGPRINTF("test pre-comm %p[%i]{%f} = %f\n", data, zone, found, next);
             assert(found == expected);
           }
           data[zone] = next;
@@ -310,9 +315,9 @@ void do_cycles(CommContext<pol_comm>& con_comm_in,
       //       branchid = 0;
       //       if (!mock_communication) {
       //         if (found != expected) {
-      //           FGPRINTF(FileGroup::proc, "%p %i zone %i(%i %i %i) g%i(%i %i %i) = %f expected %f next %f\n", data, branchid, zone, i, j, k, zone_global, iglobal, jglobal, kglobal, found, expected, next);
+      //           FGPRINTF(FileGroup::proc, "test mid-comm %p %i zone %i(%i %i %i) g%i(%i %i %i) = %f expected %f next %f\n", data, branchid, zone, i, j, k, zone_global, iglobal, jglobal, kglobal, found, expected, next);
       //         }
-      //         LOGPRINTF("%p[%i] = %f\n", data, zone, 1.0);
+      //         LOGPRINTF("test mid-comm %p[%i]{%f} = %f\n", data, zone, found, next);
       //         assert(found == expected);
       //       }
       //       data[zone] = next;
@@ -394,9 +399,9 @@ void do_cycles(CommContext<pol_comm>& con_comm_in,
           }
           if (!mock_communication) {
             if (found != expected) {
-              FGPRINTF(FileGroup::proc, "%p %i zone %i(%i %i %i) g%i(%i %i %i) = %f expected %f next %f\n", data, branchid, zone, i, j, k, zone_global, iglobal, jglobal, kglobal, found, expected, next);
+              FGPRINTF(FileGroup::proc, "test post-comm %p %i zone %i(%i %i %i) g%i(%i %i %i) = %f expected %f next %f\n", data, branchid, zone, i, j, k, zone_global, iglobal, jglobal, kglobal, found, expected, next);
             }
-            LOGPRINTF("%p[%i] = %f\n", data, zone, 1.0);
+            LOGPRINTF("test post-comm %p[%i]{%p} = %f\n", data, zone, found, next);
             assert(found == expected);
           }
           data[zone] = next;
