@@ -104,19 +104,19 @@ struct cuda : base
   using for_all_2d_policy =
       RAJA::KernelPolicy<
         RAJA::statement::CudaKernelFixedAsync<256,
-          RAJA::statement::Tile<0, RAJA::tile_fixed<32>, RAJA::cuda_block_x_direct,
-            RAJA::statement::Tile<1, RAJA::tile_fixed<8>, RAJA::cuda_block_y_direct,
-              RAJA::statement::For<0, RAJA::cuda_thread_x_direct,
-                RAJA::statement::For<1, RAJA::cuda_thread_y_direct,
+          RAJA::statement::Tile<0, RAJA::tile_fixed<8>, RAJA::cuda_block_y_direct,
+            RAJA::statement::Tile<1, RAJA::tile_fixed<32>, RAJA::cuda_block_x_direct,
+              RAJA::statement::For<0, RAJA::cuda_thread_y_direct,
+                RAJA::statement::For<1, RAJA::cuda_thread_x_direct,
                   RAJA::statement::Lambda<0> > > > > > >;
   using for_all_3d_policy =
       RAJA::KernelPolicy<
         RAJA::statement::CudaKernelFixedAsync<256,
-          RAJA::statement::Tile<0, RAJA::tile_fixed<32>, RAJA::cuda_block_x_direct,
+          RAJA::statement::For<0, RAJA::cuda_block_z_direct,
             RAJA::statement::Tile<1, RAJA::tile_fixed<8>, RAJA::cuda_block_y_direct,
-              RAJA::statement::For<0, RAJA::cuda_thread_x_direct,
+              RAJA::statement::Tile<2, RAJA::tile_fixed<32>, RAJA::cuda_block_x_direct,
                 RAJA::statement::For<1, RAJA::cuda_thread_y_direct,
-                  RAJA::statement::For<2, RAJA::cuda_block_z_direct,
+                  RAJA::statement::For<2, RAJA::cuda_thread_x_direct,
                     RAJA::statement::Lambda<0> > > > > > > >;
   using fused_policy =
       RAJA::WorkGroupPolicy<
