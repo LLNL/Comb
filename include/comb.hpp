@@ -47,7 +47,7 @@ namespace detail {
      void operator()(IdxT i) const {
        IdxT zone = i;
        DataT next = other[zone];
-       // FGPRINTF(FileGroup::proc, "%p[%i] = %f\n", data, zone, next);
+       // LOGPRINTF("%p[%i] = %f\n", data, zone, next);
        data[zone] = next;
      }
   };
@@ -59,7 +59,7 @@ namespace detail {
      void operator()(IdxT i) const {
        IdxT zone = i;
        DataT next = 0.0;
-       // FGPRINTF(FileGroup::proc, "%p[%i] = %f\n", data, zone, next);
+       // LOGPRINTF("%p[%i] = %f\n", data, zone, next);
        data[zone] = next;
      }
   };
@@ -71,7 +71,7 @@ namespace detail {
      void operator()(IdxT i) const {
        IdxT zone = i;
        DataT next = -1.0;
-       // FGPRINTF(FileGroup::proc, "%p[%i] = %f\n", data, zone, next);
+       // LOGPRINTF("%p[%i] = %f\n", data, zone, next);
        data[zone] = next;
      }
   };
@@ -88,7 +88,7 @@ namespace detail {
      void operator()(IdxT k, IdxT j, IdxT i) const {
        IdxT zone = (i+imin) + (j+jmin) * ilen + (k+kmin) * ijlen;
        DataT next = 1.0;
-       // FGPRINTF(FileGroup::proc, "%p[%i] = %f\n", data, zone, next);
+       // LOGPRINTF("%p[%i] = %f\n", data, zone, next);
        data[zone] = next;
      }
   };
@@ -117,7 +117,7 @@ namespace detail {
        // if (found != expected) {
        //   FGPRINTF(FileGroup::proc, "zone %i(%i %i %i) = %f expected %f\n", zone, i, j, k, found, expected);
        // }
-       //FGPRINTF(FileGroup::proc, "%p[%i] = %f\n", data, zone, 1.0);
+       //LOGPRINTF("%p[%i] = %f\n", data, zone, 1.0);
        DataT next = 1.0;
        data[zone] = next;
      }

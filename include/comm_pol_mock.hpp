@@ -400,7 +400,7 @@ struct MessageGroup<MessageBase::Kind::send, mock_pol, exec_policy>
           const IdxT nbytes = item->nbytes;
           LidxT const* indices = item->indices;
           for (DataT const* src : this->m_variables) {
-            // FGPRINTF(FileGroup::proc, "%p pack %p = %p[%p] nitems %d\n", this, buf, src, indices, nitems);
+            // LOGPRINTF("%p pack %p = %p[%p] nitems %d\n", this, buf, src, indices, nitems);
             this->m_contexts[msg_idx].for_all(nitems, make_copy_idxr_idxr(src, detail::indexer_list_i{indices},
                                                static_cast<DataT*>(static_cast<void*>(buf)), detail::indexer_i{}));
             buf += nbytes;
@@ -448,7 +448,7 @@ struct MessageGroup<MessageBase::Kind::send, mock_pol, exec_policy>
 
   IdxT wait_pack_complete(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async async)
   {
-    // FGPRINTF(FileGroup::proc, "wait_pack_complete\n");
+    // LOGPRINTF("wait_pack_complete\n");
     if (len <= 0) return 0;
     if (async == detail::Async::no) {
       con_comm.waitOn(con);
@@ -466,7 +466,7 @@ struct MessageGroup<MessageBase::Kind::send, mock_pol, exec_policy>
 
   static void start_Isends(context_type& con, communicator_type& con_comm)
   {
-    // FGPRINTF(FileGroup::proc, "start_Isends\n");
+    // LOGPRINTF("start_Isends\n");
     COMB::ignore_unused(con, con_comm);
   }
 
@@ -482,7 +482,7 @@ struct MessageGroup<MessageBase::Kind::send, mock_pol, exec_policy>
       // const int tag = msg->msg_tag;
       for (const MessageItemBase* msg_item : msg->message_items) {
         const IdxT nbytes = msg_item->nbytes * this->m_variables.size();
-        // FGPRINTF(FileGroup::proc, "%p Isend %p nbytes %d to %i tag %i\n", this, buf, nbytes, partner_rank, tag);
+        // LOGPRINTF("%p Isend %p nbytes %d to %i tag %i\n", this, buf, nbytes, partner_rank, tag);
         buf += nbytes;
       }
       requests[i] = 1;
@@ -492,7 +492,7 @@ struct MessageGroup<MessageBase::Kind::send, mock_pol, exec_policy>
 
   static void finish_Isends(context_type& con, communicator_type& con_comm)
   {
-    // FGPRINTF(FileGroup::proc, "finish_Isends\n");
+    // LOGPRINTF("finish_Isends\n");
     COMB::ignore_unused(con, con_comm);
   }
 
@@ -573,7 +573,7 @@ struct MessageGroup<MessageBase::Kind::recv, mock_pol, exec_policy>
       // const int partner_rank = msg->partner_rank;
       // const int tag = msg->msg_tag;
       // const IdxT nbytes = msg->nbytes() * this->m_variables.size();
-      // FGPRINTF(FileGroup::proc, "%p Irecv %p nbytes %d to %i tag %i\n", this, buf, nbytes, partner_rank, tag);
+      // LOGPRINTF("%p Irecv %p nbytes %d to %i tag %i\n", this, buf, nbytes, partner_rank, tag);
       requests[i] = -1;
     }
   }
@@ -596,7 +596,7 @@ struct MessageGroup<MessageBase::Kind::recv, mock_pol, exec_policy>
           const IdxT nbytes = item->nbytes;
           LidxT const* indices = item->indices;
           for (DataT* dst : this->m_variables) {
-            // FGPRINTF(FileGroup::proc, "%p unpack %p[%p] = %p nitems %d\n", this, dst, indices, buf, nitems);
+            // LOGPRINTF("%p unpack %p[%p] = %p nitems %d\n", this, dst, indices, buf, nitems);
             this->m_contexts[msg_idx].for_all(nitems, make_copy_idxr_idxr(static_cast<DataT const*>(static_cast<void const*>(buf)), detail::indexer_i{},
                                                dst, detail::indexer_list_i{indices}));
             buf += nbytes;
@@ -711,7 +711,7 @@ struct MessageGroup<MessageBase::Kind::send, mock_pol, mpi_type_pol>
           MPI_Datatype mpi_type = item->mpi_type;
           int old_pos = pos;
           for (DataT const* src : this->m_variables) {
-            // FGPRINTF(FileGroup::proc, "%p pack %p[%i] = %p\n", this, buf, pos, src);
+            // LOGPRINTF("%p pack %p[%i] = %p\n", this, buf, pos, src);
             detail::MPI::Pack(src, nitems, mpi_type,
                               buf, nbytes, &pos, con_comm.comm);
           }
@@ -729,7 +729,7 @@ struct MessageGroup<MessageBase::Kind::send, mock_pol, mpi_type_pol>
 
   IdxT wait_pack_complete(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async async)
   {
-    // FGPRINTF(FileGroup::proc, "wait_pack_complete\n");
+    // LOGPRINTF("wait_pack_complete\n");
     if (len <= 0) return 0;
     if (async == detail::Async::no) {
       con_comm.waitOn(con);
@@ -746,7 +746,7 @@ struct MessageGroup<MessageBase::Kind::send, mock_pol, mpi_type_pol>
 
   static void start_Isends(context_type& con, communicator_type& con_comm)
   {
-    // FGPRINTF(FileGroup::proc, "start_Isends\n");
+    // LOGPRINTF("start_Isends\n");
     COMB::ignore_unused(con, con_comm);
   }
 
@@ -763,7 +763,7 @@ struct MessageGroup<MessageBase::Kind::send, mock_pol, mpi_type_pol>
         // const IdxT nitems = 1;
         // const message_item_type* item = static_cast<const message_item_type*>(msg->message_items.front());
         // MPI_Datatype mpi_type = item->mpi_type;
-        // FGPRINTF(FileGroup::proc, "%p Isend %p to %i tag %i\n", this, src, partner_rank, tag);
+        // LOGPRINTF("%p Isend %p to %i tag %i\n", this, src, partner_rank, tag);
         requests[i] = 1;
       } else {
         char* buf = static_cast<char*>(msg->buf);
@@ -772,7 +772,7 @@ struct MessageGroup<MessageBase::Kind::send, mock_pol, mpi_type_pol>
         // for (const MessageItemBase* msg_item : msg->message_items) {
         //   packed_nbytes += item->packed_nbytes;
         // }
-        // FGPRINTF(FileGroup::proc, "%p Isend %p nbytes %i to %i tag %i\n", this, buf, packed_nbytes, partner_rank, tag);
+        // LOGPRINTF("%p Isend %p nbytes %i to %i tag %i\n", this, buf, packed_nbytes, partner_rank, tag);
         requests[i] = 1;
       }
     }
@@ -781,7 +781,7 @@ struct MessageGroup<MessageBase::Kind::send, mock_pol, mpi_type_pol>
 
   static void finish_Isends(context_type& con, communicator_type& con_comm)
   {
-    // FGPRINTF(FileGroup::proc, "finish_Isends\n");
+    // LOGPRINTF("finish_Isends\n");
     COMB::ignore_unused(con, con_comm);
   }
 
@@ -864,13 +864,13 @@ struct MessageGroup<MessageBase::Kind::recv, mock_pol, mpi_type_pol>
         // IdxT nitems = 1;
         // const message_item_type* item = static_cast<const message_item_type*>(msg->message_items.front());
         // MPI_Datatype mpi_type = item.mpi_type;
-        // FGPRINTF(FileGroup::proc, "%p Irecv %p to %i tag %i\n", this, dst, partner_rank, tag);
+        // LOGPRINTF("%p Irecv %p to %i tag %i\n", this, dst, partner_rank, tag);
         requests[i] = -1;
       } else {
         char* buf = static_cast<char*>(msg->buf);
         assert(buf != nullptr);
         // const IdxT nbytes = msg->nbytes() * this->m_variables.size();
-        // FGPRINTF(FileGroup::proc, "%p Irecv %p maxnbytes %i to %i tag %i\n", this, buf, nbytes, partner_rank, tag);
+        // LOGPRINTF("%p Irecv %p maxnbytes %i to %i tag %i\n", this, buf, nbytes, partner_rank, tag);
         requests[i] = -1;
       }
     }
@@ -897,7 +897,7 @@ struct MessageGroup<MessageBase::Kind::recv, mock_pol, mpi_type_pol>
           MPI_Datatype mpi_type = item->mpi_type;
           int old_pos = pos;
           for (DataT* dst : this->m_variables) {
-            // FGPRINTF(FileGroup::proc, "%p unpack %p = %p[%i]\n", this, dst, buf, pos);
+            // LOGPRINTF("%p unpack %p = %p[%i]\n", this, dst, buf, pos);
             detail::MPI::Unpack(buf, nbytes, &pos,
                                 dst, nitems, mpi_type, con_comm.comm);
           }

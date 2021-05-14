@@ -58,5 +58,11 @@ extern void print_proc_memory_stats();
 #define FGPRINTF(fg, ...) fgprintf(fg, __VA_ARGS__)
 #endif
 
+#ifdef COMB_ENABLE_LOG
+#define LOGPRINTF(...) FGPRINTF(FileGroup::proc, __VA_ARGS__)
+#else
+#define LOGPRINTF(...) do { COMB::ignore_unused(__VA_ARGS__); } while(0)
+#endif
+
 #endif // _PRINT_HPP
 

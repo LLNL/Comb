@@ -935,7 +935,7 @@ struct MessageGroup<MessageBase::Kind::send, mp_pol, exec_policy>
         const IdxT nbytes = item->nbytes;
         LidxT const* indices = item->indices;
         for (DataT const* src : this->m_variables) {
-          // FGPRINTF(FileGroup::proc, "%p pack %p = %p[%p] len %d\n", this, buf, src, indices, len);
+          // LOGPRINTF("%p pack %p = %p[%p] len %d\n", this, buf, src, indices, len);
           this->m_contexts[msg->idx].for_all(len, make_copy_idxr_idxr(src, detail::indexer_list_i{indices},
                                              static_cast<DataT*>(static_cast<void*>(buf)), detail::indexer_i{}));
           buf += nbytes;
@@ -952,7 +952,7 @@ struct MessageGroup<MessageBase::Kind::send, mp_pol, exec_policy>
 
   IdxT wait_pack_complete(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async async)
   {
-    // FGPRINTF(FileGroup::proc, "wait_pack_complete\n");
+    // LOGPRINTF("wait_pack_complete\n");
 
     // mp isends use message packing context and don't need synchronization
     COMB::ignore_unused(con, con_comm, msgs, async);
@@ -961,7 +961,7 @@ struct MessageGroup<MessageBase::Kind::send, mp_pol, exec_policy>
 
   static void start_Isends(context_type& con, communicator_type& con_comm)
   {
-    // FGPRINTF(FileGroup::proc, "start_Isends\n");
+    // LOGPRINTF("start_Isends\n");
     cork_Isends(con, con_comm);
   }
 
@@ -977,7 +977,7 @@ struct MessageGroup<MessageBase::Kind::send, mp_pol, exec_policy>
       // const int tag = msg->msg_tag;
       const IdxT nbytes = msg->nbytes() * this->m_variables.size();
 
-      // FGPRINTF(FileGroup::proc, "%p Isend %p nbytes %d to %i tag %i\n", this, buf, nbytes, partner_rank, tag);
+      // LOGPRINTF("%p Isend %p nbytes %d to %i tag %i\n", this, buf, nbytes, partner_rank, tag);
       message_request_type& msg_request = m_msg_requests[msg->idx];
       start_Isend(con, con_comm, partner_rank, nbytes, msg_request);
       msg_request.request.status = 1;
@@ -992,7 +992,7 @@ struct MessageGroup<MessageBase::Kind::send, mp_pol, exec_policy>
 
   static void finish_Isends(context_type& con, communicator_type& con_comm)
   {
-    // FGPRINTF(FileGroup::proc, "finish_Isends\n");
+    // LOGPRINTF("finish_Isends\n");
     uncork_Isends(con, con_comm);
   }
 
@@ -1121,7 +1121,7 @@ struct MessageGroup<MessageBase::Kind::recv, mp_pol, exec_policy>
       const int partner_rank = msg->partner_rank;
       // const int tag = msg->msg_tag;
       const IdxT nbytes = msg->nbytes() * this->m_variables.size();
-      // FGPRINTF(FileGroup::proc, "%p Irecv %p nbytes %d to %i tag %i\n", this, buf, nbytes, partner_rank, tag);
+      // LOGPRINTF("%p Irecv %p nbytes %d to %i tag %i\n", this, buf, nbytes, partner_rank, tag);
       message_request_type& msg_request = m_msg_requests[msg->idx];
       detail::mp::receive(con_comm.g, partner_rank, msg_request.region.mr, msg_request.region.offset, nbytes);
       msg_request.request.status = -1;
@@ -1149,7 +1149,7 @@ struct MessageGroup<MessageBase::Kind::recv, mp_pol, exec_policy>
         const IdxT nbytes = item->nbytes;
         LidxT const* indices = item->indices;
         for (DataT* dst : this->m_variables) {
-          // FGPRINTF(FileGroup::proc, "%p unpack %p[%p] = %p len %d\n", this, dst, indices, buf, len);
+          // LOGPRINTF("%p unpack %p[%p] = %p len %d\n", this, dst, indices, buf, len);
           this->m_contexts[msg->idx].for_all(len, make_copy_idxr_idxr(static_cast<DataT*>(static_cast<void*>(buf)), detail::indexer_i{},
                                              dst, detail::indexer_list_i{indices}));
           buf += nbytes;

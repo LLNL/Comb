@@ -37,6 +37,8 @@
 #include <list>
 #include <map>
 
+#include "print.hpp"
+
 namespace COMBRAJA
 {
 
@@ -73,6 +75,7 @@ public:
         m_free_space({free_value_type{ptr, static_cast<char*>(ptr) + size}}),
         m_used_space()
   {
+    LOGPRINTF("%p MemoryArena::MemoryArena mem %p nbytes %zu\n", this, get_allocation(), capacity());
     if (m_allocation.begin == nullptr) {
       fprintf(stderr, "Attempt to create MemoryArena with no memory");
       std::abort();
@@ -97,6 +100,7 @@ public:
 
   void* get(size_t nbytes, size_t alignment)
   {
+    LOGPRINTF("%p MemoryArena::get nbytes %zu align %zu\n", this, nbytes, alignment);
     void* ptr_out = nullptr;
     if (capacity() >= nbytes) {
       free_type::iterator end = m_free_space.end();
@@ -121,11 +125,13 @@ public:
         }
       }
     }
+    LOGPRINTF("%p MemoryArena::get return ptr %p\n", this, ptr_out);
     return ptr_out;
   }
 
   bool give(void* ptr)
   {
+    LOGPRINTF("%p MemoryArena::give return ptr %p\n", this, ptr);
     if (m_allocation.begin <= ptr && ptr < m_allocation.end) {
 
       used_type::iterator found = m_used_space.find(ptr);
@@ -141,8 +147,10 @@ public:
         std::abort();
       }
 
+      LOGPRINTF("%p MemoryArena::give return true\n", this);
       return true;
     } else {
+      LOGPRINTF("%p MemoryArena::give return false\n", this);
       return false;
     }
   }
@@ -155,6 +163,7 @@ private:
 
   void add_free_chunk(void* begin, void* end)
   {
+    LOGPRINTF("%p MemoryArena::add_free_chunk begin %p end %p\n", this, begin, end);
     // integrates a chunk of memory into free_space
     free_type::iterator invl = m_free_space.end();
     free_type::iterator next = m_free_space.lower_bound(begin);
@@ -203,7 +212,7 @@ private:
 
   void remove_free_chunk(free_type::iterator iter, void* begin, void* end)
   {
-
+    LOGPRINTF("%p MemoryArena::remove_free_chunk iter(%p, %p) begin %p end %p\n", this, iter->first, iter->second, begin, end);
     void* ptr = iter->first;
     void* ptr_end = iter->second;
 
@@ -238,6 +247,7 @@ private:
 
   void add_used_chunk(void* begin, void* end)
   {
+    LOGPRINTF("%p MemoryArena::add_used_chunk begin %p end %p\n", this, begin, end);
     // simply inserts a chunk of memory into used_space
     m_used_space.insert(used_value_type{begin, end});
   }
@@ -307,10 +317,12 @@ public:
   MemPool()
       : m_arenas(), m_default_arena_size(default_default_arena_size), m_alloc()
   {
+    LOGPRINTF("%p MemPool::MemPool m_default_arena_size %zu\n", this, m_default_arena_size);
   }
 
   ~MemPool()
   {
+    // LOGPRINTF("%p MemPool::~MemPool\n", this);
     // With static objects like MemPool, cudaErrorCudartUnloading is a possible
     // error with cudaFree
     // So no more cuda calls here
@@ -319,6 +331,7 @@ public:
 
   void free_chunks()
   {
+    LOGPRINTF("%p MemPool::free_chunks\n", this);
 #if defined(COMB_ENABLE_OPENMP)
     lock_guard<omp::mutex> lock(m_mutex);
 #endif
@@ -353,6 +366,7 @@ public:
   template <typename T>
   T* malloc(size_t nTs, size_t alignment = std::max(alignof(T), alignof(std::max_align_t)))
   {
+    LOGPRINTF("%p MemPool::malloc sizeof(T) %zu nTs %zu align %zu\n", this, sizeof(T), nTs, alignment);
 
     const size_t size = nTs * sizeof(T);
     void* ptr = nullptr;
@@ -382,12 +396,15 @@ public:
       }
     }
 
+    LOGPRINTF("%p MemPool::malloc return %p\n", this, ptr);
     return static_cast<T*>(ptr);
   }
 
   void free(const void* cptr)
   {
     void* ptr = const_cast<void*>(cptr);
+    LOGPRINTF("%p MemPool::free ptr %p\n", this, ptr);
+
     if (ptr != nullptr) {
 #if defined(COMB_ENABLE_OPENMP)
       lock_guard<omp::mutex> lock(m_mutex);

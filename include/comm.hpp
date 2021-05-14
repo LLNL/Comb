@@ -326,7 +326,7 @@ struct Comm
   void finish_populating(ExecContext<policy_many>& con_many, ExecContext<policy_few>& con_few)
   {
     COMB::ignore_unused(con_many, con_few);
-    //FGPRINTF(FileGroup::proc, "finish populating comm\n");
+    //LOGPRINTF("finish populating comm\n");
 
     std::vector<int> send_ranks;
     std::vector<int> recv_ranks;
@@ -381,7 +381,7 @@ struct Comm
   void postRecv(ExecContext<policy_many>& con_many, ExecContext<policy_few>& con_few)
   {
     COMB::ignore_unused(con_many, con_few);
-    //FGPRINTF(FileGroup::proc, "posting receives\n");
+    //LOGPRINTF("posting receives\n");
 
     IdxT num_many = m_recvs.message_group_many.messages.size();
     IdxT num_few = m_recvs.message_group_few.messages.size();
@@ -459,7 +459,7 @@ struct Comm
   void postSend(ExecContext<policy_many>& con_many, ExecContext<policy_few>& con_few)
   {
     COMB::ignore_unused(con_many, con_few);
-    //FGPRINTF(FileGroup::proc, "posting sends\n");
+    //LOGPRINTF("posting sends\n");
 
     IdxT num_many = m_sends.message_group_many.messages.size();
     IdxT num_few = m_sends.message_group_few.messages.size();
@@ -745,7 +745,7 @@ struct Comm
 
   void waitRecv(ExecContext<policy_many>& con_many, ExecContext<policy_few>& con_few)
   {
-    //FGPRINTF(FileGroup::proc, "waiting receives\n");
+    //LOGPRINTF("waiting receives\n");
 
     IdxT num_many = m_recvs.message_group_many.messages.size();
     IdxT num_few = m_recvs.message_group_few.messages.size();
@@ -890,7 +890,7 @@ struct Comm
   void waitSend(ExecContext<policy_many>& con_many, ExecContext<policy_few>& con_few)
   {
     COMB::ignore_unused(con_many, con_few);
-    //FGPRINTF(FileGroup::proc, "posting sends\n");
+    //LOGPRINTF("posting sends\n");
 
     IdxT num_many = m_sends.message_group_many.messages.size();
     IdxT num_few = m_sends.message_group_few.messages.size();

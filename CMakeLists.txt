@@ -38,6 +38,8 @@ set(ENABLE_MP OFF CACHE BOOL "Build MP support")
 set(ENABLE_UMR OFF CACHE BOOL "Build UMR support")
 set(ENABLE_RAJA ON CACHE BOOL "Build RAJA support")
 
+set(COMB_ENABLE_LOG OFF CACHE BOOL "Build logging support")
+
 option(ENABLE_CLANG_CUDA "Use Clang's native CUDA support" OFF)
 
 # Build options for libraries, disable extras

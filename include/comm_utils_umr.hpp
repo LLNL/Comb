@@ -32,9 +32,9 @@ namespace UMR {
 inline int Init_thread(int* argc, char***argv, int required)
 {
   int provided = required;
-  // FGPRINTF(FileGroup::proc, "UMR_Init_thread\n");
+  // LOGPRINTF("UMR_Init_thread\n");
   int ret = UMR_Init_thread(argc, argv, required, &provided);
-  // FGPRINTF(FileGroup::proc, "UMR_Init_thread done rank(w%i)\n", Comm_rank(UMR_COMM_WORLD));
+  // LOGPRINTF("UMR_Init_thread done rank(w%i)\n", Comm_rank(UMR_COMM_WORLD));
   assert(ret == UMR_SUCCESS);
   //assert(required == provided);
   return provided;
@@ -42,28 +42,28 @@ inline int Init_thread(int* argc, char***argv, int required)
 
 inline void Finalize()
 {
-  // FGPRINTF(FileGroup::proc, "UMR_Finalize\n");
+  // LOGPRINTF("UMR_Finalize\n");
   int ret = UMR_Finalize();
   assert(ret == UMR_SUCCESS);
 }
 
 inline void Irecv(void *buf, int count, UMR_Datatype umr_type, int src, int tag, UMR_Comm comm, UMR_Request *request)
 {
-  // FGPRINTF(FileGroup::proc, "UMR_Irecv rank(w%i) %p[%i] src(%i) tag(%i)\n", Comm_rank(UMR_COMM_WORLD), buf, count, src, tag);
+  // LOGPRINTF("UMR_Irecv rank(w%i) %p[%i] src(%i) tag(%i)\n", Comm_rank(UMR_COMM_WORLD), buf, count, src, tag);
   int ret = UMR_Irecv(buf, count, umr_type, src, tag, comm, request);
   assert(ret == UMR_SUCCESS);
 }
 
 inline void Isend(const void *buf, int count, UMR_Datatype umr_type, int dest, int tag, UMR_Comm comm, UMR_Request *request)
 {
-  // FGPRINTF(FileGroup::proc, "UMR_Isend rank(w%i) %p[%i] dst(%i) tag(%i)\n", Comm_rank(UMR_COMM_WORLD), buf, count, dest, tag);
+  // LOGPRINTF("UMR_Isend rank(w%i) %p[%i] dst(%i) tag(%i)\n", Comm_rank(UMR_COMM_WORLD), buf, count, dest, tag);
   int ret = UMR_Isend(buf, count, umr_type, dest, tag, comm, request);
   assert(ret == UMR_SUCCESS);
 }
 
 inline void Wait(UMR_Request *request, UMR_Status *status)
 {
-  // FGPRINTF(FileGroup::proc, "UMR_Wait rank(w%i)\n", Comm_rank(UMR_COMM_WORLD));
+  // LOGPRINTF("UMR_Wait rank(w%i)\n", Comm_rank(UMR_COMM_WORLD));
   int ret = UMR_Wait(request, status);
   assert(ret == UMR_SUCCESS);
 }
@@ -71,7 +71,7 @@ inline void Wait(UMR_Request *request, UMR_Status *status)
 inline bool Test(UMR_Request *request, UMR_Status *status)
 {
   int completed = 0;
-  // FGPRINTF(FileGroup::proc, "UMR_Test rank(w%i)\n", Comm_rank(UMR_COMM_WORLD));
+  // LOGPRINTF("UMR_Test rank(w%i)\n", Comm_rank(UMR_COMM_WORLD));
   int ret = UMR_Test(request, &completed, status);
   assert(ret == UMR_SUCCESS);
   return completed;
@@ -80,7 +80,7 @@ inline bool Test(UMR_Request *request, UMR_Status *status)
 inline int Waitany(int count, UMR_Request *requests, UMR_Status *status)
 {
   int idx = -1;
-  // FGPRINTF(FileGroup::proc, "UMR_Waitany rank(w%i) count(%i)\n", Comm_rank(UMR_COMM_WORLD), count);
+  // LOGPRINTF("UMR_Waitany rank(w%i) count(%i)\n", Comm_rank(UMR_COMM_WORLD), count);
   int ret = UMR_Waitany(count, requests, &idx, status);
   assert(ret == UMR_SUCCESS);
   return idx;
@@ -90,7 +90,7 @@ inline int Testany(int count, UMR_Request *requests, UMR_Status *status)
 {
   int completed = 0;
   int indx = -1;
-  // FGPRINTF(FileGroup::proc, "UMR_Testany rank(w%i) count(%i)\n", Comm_rank(UMR_COMM_WORLD), count);
+  // LOGPRINTF("UMR_Testany rank(w%i) count(%i)\n", Comm_rank(UMR_COMM_WORLD), count);
   int ret = UMR_Testany(count, requests, &indx, &completed, status);
   assert(ret == UMR_SUCCESS);
   return completed ? indx : -1;
@@ -99,7 +99,7 @@ inline int Testany(int count, UMR_Request *requests, UMR_Status *status)
 inline int Waitsome(int incount, UMR_Request *requests, int* indcs, UMR_Status *statuses)
 {
   int outcount = 0;
-  // FGPRINTF(FileGroup::proc, "UMR_Waitsome rank(w%i) incount(%i)\n", Comm_rank(UMR_COMM_WORLD), incount);
+  // LOGPRINTF("UMR_Waitsome rank(w%i) incount(%i)\n", Comm_rank(UMR_COMM_WORLD), incount);
   int ret = UMR_Waitsome(incount, requests, &outcount, indcs, statuses);
   assert(ret == UMR_SUCCESS);
   return outcount;
@@ -108,7 +108,7 @@ inline int Waitsome(int incount, UMR_Request *requests, int* indcs, UMR_Status *
 inline int Testsome(int incount, UMR_Request *requests, int* indcs, UMR_Status *statuses)
 {
   int outcount = 0;
-  // FGPRINTF(FileGroup::proc, "UMR_Testsome rank(w%i) incount(%i)\n", Comm_rank(UMR_COMM_WORLD), incount);
+  // LOGPRINTF("UMR_Testsome rank(w%i) incount(%i)\n", Comm_rank(UMR_COMM_WORLD), incount);
   int ret = UMR_Testsome(incount, requests, &outcount, indcs, statuses);
   assert(ret == UMR_SUCCESS);
   return outcount;
@@ -116,7 +116,7 @@ inline int Testsome(int incount, UMR_Request *requests, int* indcs, UMR_Status *
 
 inline void Waitall(int count, UMR_Request *requests, UMR_Status *statuses)
 {
-  // FGPRINTF(FileGroup::proc, "UMR_Waitall rank(w%i) count(%i)\n", Comm_rank(UMR_COMM_WORLD), count);
+  // LOGPRINTF("UMR_Waitall rank(w%i) count(%i)\n", Comm_rank(UMR_COMM_WORLD), count);
   int ret = UMR_Waitall(count, requests, statuses);
   assert(ret == UMR_SUCCESS);
 }
@@ -124,7 +124,7 @@ inline void Waitall(int count, UMR_Request *requests, UMR_Status *statuses)
 inline bool Testall(int count, UMR_Request *requests, UMR_Status *statuses)
 {
   int completed = 0;
-  // FGPRINTF(FileGroup::proc, "UMR_Testall rank(w%i) count(%i)\n", Comm_rank(UMR_COMM_WORLD), count);
+  // LOGPRINTF("UMR_Testall rank(w%i) count(%i)\n", Comm_rank(UMR_COMM_WORLD), count);
   int ret = UMR_Testall(count, requests, &completed, statuses);
   assert(ret == UMR_SUCCESS);
   return completed;

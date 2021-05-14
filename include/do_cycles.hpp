@@ -250,7 +250,7 @@ void do_cycles(CommContext<pol_comm>& con_comm_in,
             if (found != expected) {
               FGPRINTF(FileGroup::proc, "%p %i zone %i(%i %i %i) g%i(%i %i %i) = %f expected %f next %f\n", data, branchid, zone, i, j, k, zone_global, iglobal, jglobal, kglobal, found, expected, next);
             }
-            // FGPRINTF(FileGroup::proc, "%p[%i] = %f\n", data, zone, 1.0);
+            LOGPRINTF("%p[%i] = %f\n", data, zone, 1.0);
             assert(found == expected);
           }
           data[zone] = next;
@@ -312,7 +312,7 @@ void do_cycles(CommContext<pol_comm>& con_comm_in,
       //         if (found != expected) {
       //           FGPRINTF(FileGroup::proc, "%p %i zone %i(%i %i %i) g%i(%i %i %i) = %f expected %f next %f\n", data, branchid, zone, i, j, k, zone_global, iglobal, jglobal, kglobal, found, expected, next);
       //         }
-      //         // FGPRINTF(FileGroup::proc, "%p[%i] = %f\n", data, zone, 1.0);
+      //         LOGPRINTF("%p[%i] = %f\n", data, zone, 1.0);
       //         assert(found == expected);
       //       }
       //       data[zone] = next;
@@ -396,7 +396,7 @@ void do_cycles(CommContext<pol_comm>& con_comm_in,
             if (found != expected) {
               FGPRINTF(FileGroup::proc, "%p %i zone %i(%i %i %i) g%i(%i %i %i) = %f expected %f next %f\n", data, branchid, zone, i, j, k, zone_global, iglobal, jglobal, kglobal, found, expected, next);
             }
-            // FGPRINTF(FileGroup::proc, "%p[%i] = %f\n", data, zone, 1.0);
+            LOGPRINTF("%p[%i] = %f\n", data, zone, 1.0);
             assert(found == expected);
           }
           data[zone] = next;
@@ -489,7 +489,7 @@ void do_cycles(CommContext<pol_comm>& con_comm_in,
           // if (found != expected) {
           //   FGPRINTF(FileGroup::proc, "zone %i(%i %i %i) = %f expected %f\n", zone, i, j, k, found, expected);
           // }
-          //FGPRINTF(FileGroup::proc, "%p[%i] = %f\n", data, zone, 1.0);
+          // LOGPRINTF("%p[%i] = %f\n", data, zone, 1.0);
           data[zone] = next;
         });
       }

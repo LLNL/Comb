@@ -34,130 +34,130 @@ namespace mp {
 
 inline struct ::mp* init(MPI_Comm mpi_comm)
 {
-  // FGPRINTF(FileGroup::proc, "mp_init rank(w%i)\n", MPI::Comm_rank(MPI_COMM_WORLD));
+  // LOGPRINTF("mp_init rank(w%i)\n", MPI::Comm_rank(MPI_COMM_WORLD));
   struct ::mp* g = mp_init(mpi_comm);
-  // FGPRINTF(FileGroup::proc, "mp_init rank(w%i) done -> %p\n", MPI::Comm_rank(MPI_COMM_WORLD), g);
+  // LOGPRINTF("mp_init rank(w%i) done -> %p\n", MPI::Comm_rank(MPI_COMM_WORLD), g);
   assert(g != nullptr);
   return g;
 }
 
 inline void term(struct ::mp* g)
 {
-  // FGPRINTF(FileGroup::proc, "mp_term(%p) rank(w%i)\n", g, MPI::Comm_rank(MPI_COMM_WORLD));
+  // LOGPRINTF("mp_term(%p) rank(w%i)\n", g, MPI::Comm_rank(MPI_COMM_WORLD));
   mp_term(g);
 }
 
 inline void connect_propose(struct ::mp* g, int target)
 {
-  // FGPRINTF(FileGroup::proc, "mp_connect_propose(%p) rank(w%i) %i\n", g, MPI::Comm_rank(MPI_COMM_WORLD), target);
+  // LOGPRINTF("mp_connect_propose(%p) rank(w%i) %i\n", g, MPI::Comm_rank(MPI_COMM_WORLD), target);
   mp_connect_propose(g, target);
 }
 
 inline void connect_accept(struct ::mp* g, int target)
 {
-  // FGPRINTF(FileGroup::proc, "mp_connect_accept(%p) rank(w%i) %i\n", g, MPI::Comm_rank(MPI_COMM_WORLD), target);
+  // LOGPRINTF("mp_connect_accept(%p) rank(w%i) %i\n", g, MPI::Comm_rank(MPI_COMM_WORLD), target);
   mp_connect_accept(g, target);
 }
 
 inline void disconnect(struct ::mp* g, int target)
 {
-  // FGPRINTF(FileGroup::proc, "mp_disconnect(%p) rank(w%i) %i\n", g, MPI::Comm_rank(MPI_COMM_WORLD), target);
+  // LOGPRINTF("mp_disconnect(%p) rank(w%i) %i\n", g, MPI::Comm_rank(MPI_COMM_WORLD), target);
   mp_disconnect(g, target);
 }
 
 inline struct ::ibv_mr* register_region(struct ::mp* g, void* ptr, size_t size)
 {
-  // FGPRINTF(FileGroup::proc, "mp_register_region(%p) rank(w%i) %p[%zu]\n", g, MPI::Comm_rank(MPI_COMM_WORLD), ptr, size);
+  // LOGPRINTF("mp_register_region(%p) rank(w%i) %p[%zu]\n", g, MPI::Comm_rank(MPI_COMM_WORLD), ptr, size);
   struct ::ibv_mr* mr = mp_register_region(g, ptr, size);
-  // FGPRINTF(FileGroup::proc, "mp_register_region(%p) rank(w%i) %p[%zu] done -> %p\n", g, MPI::Comm_rank(MPI_COMM_WORLD), ptr, size, mr);
+  // LOGPRINTF("mp_register_region(%p) rank(w%i) %p[%zu] done -> %p\n", g, MPI::Comm_rank(MPI_COMM_WORLD), ptr, size, mr);
   return mr;
 }
 
 inline void deregister_region(struct ::mp* g, struct ::ibv_mr* mr)
 {
-  // FGPRINTF(FileGroup::proc, "mp_deregister_region(%p) rank(w%i) %p\n", g, MPI::Comm_rank(MPI_COMM_WORLD), mr);
+  // LOGPRINTF("mp_deregister_region(%p) rank(w%i) %p\n", g, MPI::Comm_rank(MPI_COMM_WORLD), mr);
   mp_deregister_region(g, mr);
 }
 
 inline void cork(struct ::mp* g)
 {
-  // FGPRINTF(FileGroup::proc, "mp_cork(%p) rank(w%i)\n", g, MPI::Comm_rank(MPI_COMM_WORLD));
+  // LOGPRINTF("mp_cork(%p) rank(w%i)\n", g, MPI::Comm_rank(MPI_COMM_WORLD));
   mp_cork(g);
 }
 
 inline void uncork(struct ::mp* g, cudaStream_t stream)
 {
-  // FGPRINTF(FileGroup::proc, "mp_uncork(%p) rank(w%i) stream(%p)\n", g, MPI::Comm_rank(MPI_COMM_WORLD), (void*)stream);
+  // LOGPRINTF("mp_uncork(%p) rank(w%i) stream(%p)\n", g, MPI::Comm_rank(MPI_COMM_WORLD), (void*)stream);
   mp_uncork(g, stream);
 }
 
 inline void receive(struct ::mp* g, int src, struct ::ibv_mr* buf_mr, size_t offset, size_t size)
 {
-  // FGPRINTF(FileGroup::proc, "mp_receive(%p) rank(w%i) %p+%zu[%zu] src(%i)\n", g, MPI::Comm_rank(MPI_COMM_WORLD), buf_mr, offset, size, src);
+  // LOGPRINTF("mp_receive(%p) rank(w%i) %p+%zu[%zu] src(%i)\n", g, MPI::Comm_rank(MPI_COMM_WORLD), buf_mr, offset, size, src);
   mp_receive(g, src, buf_mr, offset, size);
 }
 
 inline void stream_wait_recv_complete(struct ::mp* g, int src, cudaStream_t stream)
 {
-  // FGPRINTF(FileGroup::proc, "mp_stream_wait_recv_complete(%p) rank(w%i) src(%i) stream(%p)\n", g, MPI::Comm_rank(MPI_COMM_WORLD), src, (void*)stream);
+  // LOGPRINTF("mp_stream_wait_recv_complete(%p) rank(w%i) src(%i) stream(%p)\n", g, MPI::Comm_rank(MPI_COMM_WORLD), src, (void*)stream);
   mp_stream_wait_recv_complete(g, src, stream);
 }
 
 inline void cpu_ack_recv(struct ::mp* g, int src)
 {
-  // FGPRINTF(FileGroup::proc, "mp_cpu_ack_recv(%p) rank(w%i) src(%i)\n", g, MPI::Comm_rank(MPI_COMM_WORLD), src);
+  // LOGPRINTF("mp_cpu_ack_recv(%p) rank(w%i) src(%i)\n", g, MPI::Comm_rank(MPI_COMM_WORLD), src);
   mp_cpu_ack_recv(g, src);
 }
 
 inline int is_receive_complete(struct ::mp* g, int src)
 {
-  // FGPRINTF(FileGroup::proc, "mp_is_receive_complete(%p) rank(w%i) src(%i)\n", g, MPI::Comm_rank(MPI_COMM_WORLD), src);
+  // LOGPRINTF("mp_is_receive_complete(%p) rank(w%i) src(%i)\n", g, MPI::Comm_rank(MPI_COMM_WORLD), src);
   int complete = mp_is_receive_complete(g, src);
-  // FGPRINTF(FileGroup::proc, "mp_is_receive_complete(%p) rank(w%i) src(%i) done -> %i\n", g, MPI::Comm_rank(MPI_COMM_WORLD), src, complete);
+  // LOGPRINTF("mp_is_receive_complete(%p) rank(w%i) src(%i) done -> %i\n", g, MPI::Comm_rank(MPI_COMM_WORLD), src, complete);
   return complete;
 }
 
 inline void wait_receive_complete(struct ::mp* g, int src)
 {
-  // FGPRINTF(FileGroup::proc, "mp_wait_receive_complete(%p) rank(w%i) src(%i)\n", g, MPI::Comm_rank(MPI_COMM_WORLD), src);
+  // LOGPRINTF("mp_wait_receive_complete(%p) rank(w%i) src(%i)\n", g, MPI::Comm_rank(MPI_COMM_WORLD), src);
   mp_wait_receive_complete(g, src);
 }
 
 inline void stream_send(struct ::mp* g, int dest, cudaStream_t stream, struct ::ibv_mr* buf_mr, size_t offset, size_t size)
 {
-  // FGPRINTF(FileGroup::proc, "mp_stream_send(%p) rank(w%i) %p+%zu[%zu] dst(%i) stream(%p)\n", g, MPI::Comm_rank(MPI_COMM_WORLD), buf_mr, offset, size, dest, (void*)stream);
+  // LOGPRINTF("mp_stream_send(%p) rank(w%i) %p+%zu[%zu] dst(%i) stream(%p)\n", g, MPI::Comm_rank(MPI_COMM_WORLD), buf_mr, offset, size, dest, (void*)stream);
   mp_stream_send(g, dest, stream, buf_mr, offset, size);
 }
 
 inline void isend(struct ::mp* g, int dest, struct ::ibv_mr* buf_mr, size_t offset, size_t size)
 {
-  // FGPRINTF(FileGroup::proc, "mp_isend(%p) rank(w%i) %p+%zu[%zu] dst(%i)\n", g, MPI::Comm_rank(MPI_COMM_WORLD), buf_mr, offset, size, dest);
+  // LOGPRINTF("mp_isend(%p) rank(w%i) %p+%zu[%zu] dst(%i)\n", g, MPI::Comm_rank(MPI_COMM_WORLD), buf_mr, offset, size, dest);
   mp_isend(g, dest, buf_mr, offset, size);
 }
 
 inline void stream_wait_send_complete(struct ::mp* g, int dest, cudaStream_t stream)
 {
-  // FGPRINTF(FileGroup::proc, "mp_stream_wait_send_complete(%p) rank(w%i) dst(%i) stream(%p)\n", g, MPI::Comm_rank(MPI_COMM_WORLD), dest, stream);
+  // LOGPRINTF("mp_stream_wait_send_complete(%p) rank(w%i) dst(%i) stream(%p)\n", g, MPI::Comm_rank(MPI_COMM_WORLD), dest, stream);
   mp_stream_wait_send_complete(g, dest, stream);
 }
 
 inline void cpu_ack_isend(struct ::mp* g, int dest)
 {
-  // FGPRINTF(FileGroup::proc, "mp_cpu_ack_isend(%p) rank(w%i) dst(%i)\n", g, MPI::Comm_rank(MPI_COMM_WORLD), dest);
+  // LOGPRINTF("mp_cpu_ack_isend(%p) rank(w%i) dst(%i)\n", g, MPI::Comm_rank(MPI_COMM_WORLD), dest);
   mp_cpu_ack_isend(g, dest);
 }
 
 inline int is_send_complete(struct ::mp* g, int dest)
 {
-  // FGPRINTF(FileGroup::proc, "mp_is_send_complete(%p) rank(w%i) dst(%i)\n", g, MPI::Comm_rank(MPI_COMM_WORLD), dest);
+  // LOGPRINTF("mp_is_send_complete(%p) rank(w%i) dst(%i)\n", g, MPI::Comm_rank(MPI_COMM_WORLD), dest);
   int complete = mp_is_send_complete(g, dest);
-  // FGPRINTF(FileGroup::proc, "mp_is_send_complete(%p) rank(w%i) dst(%i) done -> %i\n", g, MPI::Comm_rank(MPI_COMM_WORLD), dest, complete);
+  // LOGPRINTF("mp_is_send_complete(%p) rank(w%i) dst(%i) done -> %i\n", g, MPI::Comm_rank(MPI_COMM_WORLD), dest, complete);
   return complete;
 }
 
 inline void wait_send_complete(struct ::mp* g, int dest)
 {
-  // FGPRINTF(FileGroup::proc, "mp_wait_send_complete(%p) rank(w%i) dst(%i)\n", g, MPI::Comm_rank(MPI_COMM_WORLD), dest);
+  // LOGPRINTF("mp_wait_send_complete(%p) rank(w%i) dst(%i)\n", g, MPI::Comm_rank(MPI_COMM_WORLD), dest);
   mp_wait_send_complete(g, dest);
 }
 

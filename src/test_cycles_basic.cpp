@@ -241,7 +241,7 @@ void do_cycles_basic(CommContext<pol_comm>& con_comm_in,
             if (found != expected) {
               FGPRINTF(FileGroup::proc, "%p %i zone %i(%i %i %i) g%i(%i %i %i) = %f expected %f next %f\n", data, branchid, zone, i, j, k, zone_global, iglobal, jglobal, kglobal, found, expected, next);
             }
-            // FGPRINTF(FileGroup::proc, "%p[%i] = %f\n", data, zone, 1.0);
+            // LOGPRINTF("%p[%i] = %f\n", data, zone, 1.0);
             assert(found == expected);
           }
           data[zone] = next;
@@ -313,7 +313,7 @@ void do_cycles_basic(CommContext<pol_comm>& con_comm_in,
       //         if (found != expected) {
       //           FGPRINTF(FileGroup::proc, "%p %i zone %i(%i %i %i) g%i(%i %i %i) = %f expected %f next %f\n", data, branchid, zone, i, j, k, zone_global, iglobal, jglobal, kglobal, found, expected, next);
       //         }
-      //         // FGPRINTF(FileGroup::proc, "%p[%i] = %f\n", data, zone, 1.0);
+      //         // LOGPRINTF("%p[%i] = %f\n", data, zone, 1.0);
       //         assert(found == expected);
       //       }
       //       data[zone] = next;
@@ -407,7 +407,7 @@ void do_cycles_basic(CommContext<pol_comm>& con_comm_in,
             if (found != expected) {
               FGPRINTF(FileGroup::proc, "%p %i zone %i(%i %i %i) g%i(%i %i %i) = %f expected %f next %f\n", data, branchid, zone, i, j, k, zone_global, iglobal, jglobal, kglobal, found, expected, next);
             }
-            // FGPRINTF(FileGroup::proc, "%p[%i] = %f\n", data, zone, 1.0);
+            // LOGPRINTF("%p[%i] = %f\n", data, zone, 1.0);
             assert(found == expected);
           }
           data[zone] = next;
@@ -484,7 +484,7 @@ void do_cycles_basic(CommContext<pol_comm>& con_comm_in,
       ************************************************************************/
       // comm.postRecv(con_many, con_few);
       {
-        // FGPRINTF(FileGroup::proc, "posting receives\n");
+        // LOGPRINTF("posting receives\n");
 
         IdxT num_recvs = comm.m_recvs.message_group_many.messages.size();
 
@@ -509,7 +509,7 @@ void do_cycles_basic(CommContext<pol_comm>& con_comm_in,
       ************************************************************************/
       // comm.postSend(con_many, con_few);
       {
-        // FGPRINTF(FileGroup::proc, "posting sends\n");
+        // LOGPRINTF("posting sends\n");
 
         const IdxT num_sends = comm.m_sends.message_group_many.messages.size();
 
@@ -549,7 +549,7 @@ void do_cycles_basic(CommContext<pol_comm>& con_comm_in,
           // if (found != expected) {
           //   FGPRINTF(FileGroup::proc, "zone %i(%i %i %i) = %f expected %f\n", zone, i, j, k, found, expected);
           // }
-          //FGPRINTF(FileGroup::proc, "%p[%i] = %f\n", data, zone, 1.0);
+          //LOGPRINTF("%p[%i] = %f\n", data, zone, 1.0);
           data[zone] = next;
         });
       }
@@ -565,7 +565,7 @@ void do_cycles_basic(CommContext<pol_comm>& con_comm_in,
       ************************************************************************/
       // comm.waitRecv(con_many, con_few);
       {
-        // FGPRINTF(FileGroup::proc, "waiting receives\n");
+        // LOGPRINTF("waiting receives\n");
 
         IdxT num_recvs = comm.m_recvs.message_group_many.messages.size();
 
@@ -601,7 +601,7 @@ void do_cycles_basic(CommContext<pol_comm>& con_comm_in,
       ************************************************************************/
       // comm.waitSend(con_many, con_few);
       {
-        // FGPRINTF(FileGroup::proc, "posting sends\n");
+        // LOGPRINTF("posting sends\n");
 
         IdxT num_sends = comm.m_sends.message_group_many.messages.size();
 

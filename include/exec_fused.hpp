@@ -60,7 +60,7 @@ struct adapter_2d {
     IdxT i0 = i / len1;
     IdxT i1 = i - i0 * len1;
 
-    //FGPRINTF(FileGroup::proc, "adapter_2d (%i+%i %i+%i)%i\n", i0, begin0, i1, begin1, i);
+    //LOGPRINTF("adapter_2d (%i+%i %i+%i)%i\n", i0, begin0, i1, begin1, i);
     //assert(0 <= i0 + begin0 && i0 + begin0 < 3);
     //assert(0 <= i1 + begin1 && i1 + begin1 < 3);
 
@@ -91,7 +91,7 @@ struct adapter_3d {
     IdxT i1 = idx12 / len2;
     IdxT i2 = idx12 - i1 * len2;
 
-    //FGPRINTF(FileGroup::proc, "adapter_3d (%i+%i %i+%i %i+%i)%i\n", i0, begin0, i1, begin1, i2, begin2, i);
+    //LOGPRINTF("adapter_3d (%i+%i %i+%i %i+%i)%i\n", i0, begin0, i1, begin1, i2, begin2, i);
     //assert(0 <= i0 + begin0 && i0 + begin0 < 3);
     //assert(0 <= i1 + begin1 && i1 + begin1 < 3);
     //assert(0 <= i2 + begin2 && i2 + begin2 < 13);
@@ -140,7 +140,7 @@ struct fused_packer
   void operator()(IdxT i)
   {
     // if (i == 0) {
-    //   FGPRINTF(FileGroup::proc, "fused_packer buf %p, src %p, idx %p, len %i\n", buf, src, idx, len); FFLUSH(stdout);
+    //   LOGPRINTF("fused_packer buf %p, src %p, idx %p, len %i\n", buf, src, idx, len); FFLUSH(stdout);
     // }
     buf[i] = src[idx[i]];
   }
@@ -186,7 +186,7 @@ struct fused_unpacker
   void operator()(IdxT i)
   {
     // if (i == 0) {
-    //   FGPRINTF(FileGroup::proc, "fused_packer buf %p, dst %p, idx %p, len %i\n", buf, dst, idx, len); FFLUSH(stdout);
+    //   LOGPRINTF("fused_packer buf %p, dst %p, idx %p, len %i\n", buf, dst, idx, len); FFLUSH(stdout);
     // }
     dst[idx[i]] = buf[i];
   }
