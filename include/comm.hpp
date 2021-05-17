@@ -321,12 +321,14 @@ struct Comm
     , wait_send_method(comminfo_.wait_send_method)
     , m_sends(many_aloc_, few_aloc_)
     , m_recvs(many_aloc_, few_aloc_)
-  { }
+  {
+    LOGPRINTF("%p Comm::Comm\n", this);
+  }
 
   void finish_populating(ExecContext<policy_many>& con_many, ExecContext<policy_few>& con_few)
   {
     COMB::ignore_unused(con_many, con_few);
-    //LOGPRINTF("finish populating comm\n");
+    LOGPRINTF("%p Comm::finish_populating begin\n", this);
 
     std::vector<int> send_ranks;
     std::vector<int> recv_ranks;
@@ -345,10 +347,13 @@ struct Comm
     con_comm.connect_ranks(send_ranks, recv_ranks);
 
     con_comm.setup_mempool(many_aloc, few_aloc);
+    LOGPRINTF("%p Comm::finish_populating end\n", this);
   }
 
   ~Comm()
   {
+    LOGPRINTF("%p Comm::~Comm begin\n", this);
+
     con_comm.teardown_mempool();
 
     std::vector<int> send_ranks;
@@ -366,6 +371,7 @@ struct Comm
       recv_ranks.emplace_back(msg.partner_rank);
     }
     con_comm.disconnect_ranks(send_ranks, recv_ranks);
+    LOGPRINTF("%p Comm::~Comm end\n", this);
   }
 
   bool mock_communication() const
@@ -375,13 +381,14 @@ struct Comm
 
   void barrier()
   {
+    LOGPRINTF("%p Comm::barrier begin\n", this);
     comminfo.barrier();
+    LOGPRINTF("%p Comm::barrier end\n", this);
   }
 
   void postRecv(ExecContext<policy_many>& con_many, ExecContext<policy_few>& con_few)
   {
-    COMB::ignore_unused(con_many, con_few);
-    //LOGPRINTF("posting receives\n");
+    LOGPRINTF("%p Comm::postRecv begin\n", this);
 
     IdxT num_many = m_recvs.message_group_many.messages.size();
     IdxT num_few = m_recvs.message_group_few.messages.size();
@@ -406,6 +413,8 @@ struct Comm
       case CommInfo::method::waitany:
       case CommInfo::method::testany:
       {
+        LOGPRINTF("%p Comm::postRecv %s\n", this, (async == detail::Async::no) ? "waitany" : "testany");
+
         for (IdxT i_many = 0; i_many < num_many; i_many++) {
           messages_many[i_many] = &m_recvs.message_group_many.messages[i_many];
           m_recvs.message_group_many.allocate(con_many, con_comm, &messages_many[i_many], 1, async);
@@ -421,6 +430,8 @@ struct Comm
       case CommInfo::method::waitsome:
       case CommInfo::method::testsome:
       {
+        LOGPRINTF("%p Comm::postRecv %s\n", this, (async == detail::Async::no) ? "waitsome" : "testsome");
+
         for (IdxT i_many = 0; i_many < num_many; i_many++) {
           messages_many[i_many] = &m_recvs.message_group_many.messages[i_many];
         }
@@ -436,6 +447,8 @@ struct Comm
       case CommInfo::method::waitall:
       case CommInfo::method::testall:
       {
+        LOGPRINTF("%p Comm::postRecv %s\n", this, (async == detail::Async::no) ? "waitall" : "testall");
+
         for (IdxT i_many = 0; i_many < num_many; i_many++) {
           messages_many[i_many] = &m_recvs.message_group_many.messages[i_many];
         }
@@ -454,14 +467,14 @@ struct Comm
         assert(0);
       } break;
     }
+    LOGPRINTF("%p Comm::postRecv end\n", this);
   }
 
 
 
   void postSend(ExecContext<policy_many>& con_many, ExecContext<policy_few>& con_few)
   {
-    COMB::ignore_unused(con_many, con_few);
-    //LOGPRINTF("posting sends\n");
+    LOGPRINTF("%p Comm::postSend begin\n", this);
 
     IdxT num_many = m_sends.message_group_many.messages.size();
     IdxT num_few = m_sends.message_group_few.messages.size();
@@ -480,6 +493,8 @@ struct Comm
     switch (post_send_method) {
       case CommInfo::method::waitany:
       {
+        LOGPRINTF("%p Comm::postSend waitany\n", this);
+
         for (IdxT i_many = 0; i_many < num_many; i_many++) {
           messages_many[i_many] = &m_sends.message_group_many.messages[i_many];
           m_sends.message_group_many.allocate(con_many, con_comm, &messages_many[i_many], 1, detail::Async::no);
@@ -498,6 +513,8 @@ struct Comm
       } break;
       case CommInfo::method::testany:
       {
+        LOGPRINTF("%p Comm::postSend testany\n", this);
+
         for (IdxT i_many = 0; i_many < num_many; i_many++) {
           messages_many[i_many] = &m_sends.message_group_many.messages[i_many];
         }
@@ -565,6 +582,8 @@ struct Comm
       } break;
       case CommInfo::method::waitsome:
       {
+        LOGPRINTF("%p Comm::postSend waitsome\n", this);
+
         for (IdxT i_many = 0; i_many < num_many; i_many++) {
           messages_many[i_many] = &m_sends.message_group_many.messages[i_many];
         }
@@ -583,6 +602,8 @@ struct Comm
       } break;
       case CommInfo::method::testsome:
       {
+        LOGPRINTF("%p Comm::postSend testsome\n", this);
+
         for (IdxT i_many = 0; i_many < num_many; i_many++) {
           messages_many[i_many] = &m_sends.message_group_many.messages[i_many];
         }
@@ -650,6 +671,8 @@ struct Comm
       } break;
       case CommInfo::method::waitall:
       {
+        LOGPRINTF("%p Comm::postSend waitall\n", this);
+
         for (IdxT i_many = 0; i_many < num_many; i_many++) {
           messages_many[i_many] = &m_sends.message_group_many.messages[i_many];
         }
@@ -671,6 +694,8 @@ struct Comm
       } break;
       case CommInfo::method::testall:
       {
+        LOGPRINTF("%p Comm::postSend testall\n", this);
+
         for (IdxT i_many = 0; i_many < num_many; i_many++) {
           messages_many[i_many] = &m_sends.message_group_many.messages[i_many];
         }
@@ -741,13 +766,14 @@ struct Comm
        assert(0);
       } break;
     }
+    LOGPRINTF("%p Comm::postSend end\n", this);
   }
 
 
 
   void waitRecv(ExecContext<policy_many>& con_many, ExecContext<policy_few>& con_few)
   {
-    //LOGPRINTF("waiting receives\n");
+    LOGPRINTF("%p Comm::waitRecv begin\n", this);
 
     IdxT num_many = m_recvs.message_group_many.messages.size();
     IdxT num_few = m_recvs.message_group_few.messages.size();
@@ -773,6 +799,8 @@ struct Comm
       case CommInfo::method::waitany:
       case CommInfo::method::testany:
       {
+        LOGPRINTF("%p Comm::waitRecv %s\n", this, (async == detail::Async::no) ? "waitany" : "testany");
+
         IdxT num_done = 0;
         while (num_done < num_recvs) {
 
@@ -802,6 +830,8 @@ struct Comm
       case CommInfo::method::waitsome:
       case CommInfo::method::testsome:
       {
+        LOGPRINTF("%p Comm::waitRecv %s\n", this, (async == detail::Async::no) ? "waitsome" : "testsome");
+
         std::vector<int> indices(num_recvs, -1);
         std::vector<recv_message_type*> recvd_messages(num_recvs, nullptr);
 
@@ -850,6 +880,8 @@ struct Comm
       case CommInfo::method::waitall:
       case CommInfo::method::testall:
       {
+        LOGPRINTF("%p Comm::waitRecv %s\n", this, (async == detail::Async::no) ? "waitall" : "testall");
+
         if (async == detail::Async::no) {
           recv_message_type::wait_recv_all(con_comm, num_recvs, &requests[0], &recv_statuses[0]);
         } else {
@@ -871,20 +903,23 @@ struct Comm
     m_recvs.messages.clear();
     m_recvs.requests.clear();
 
+    LOGPRINTF("%p Comm::waitRecv synchronize\n", this);
+
     if (num_few > 0) {
       con_few.synchronize();
     }
     if (num_many > 0) {
       con_many.synchronize();
     }
+
+    LOGPRINTF("%p Comm::waitRecv end\n", this);
   }
 
 
 
   void waitSend(ExecContext<policy_many>& con_many, ExecContext<policy_few>& con_few)
   {
-    COMB::ignore_unused(con_many, con_few);
-    //LOGPRINTF("posting sends\n");
+    LOGPRINTF("%p Comm::waitSend begin\n", this);
 
     IdxT num_many = m_sends.message_group_many.messages.size();
     IdxT num_few = m_sends.message_group_few.messages.size();
@@ -913,6 +948,8 @@ struct Comm
       case CommInfo::method::waitany:
       case CommInfo::method::testany:
       {
+        LOGPRINTF("%p Comm::waitSend %s\n", this, (async == detail::Async::no) ? "waitany" : "testany");
+
         IdxT num_done = 0;
         while (num_done < num_sends) {
 
@@ -939,6 +976,8 @@ struct Comm
       case CommInfo::method::waitsome:
       case CommInfo::method::testsome:
       {
+        LOGPRINTF("%p Comm::waitSend %s\n", this, (async == detail::Async::no) ? "waitsome" : "testsome");
+
         std::vector<int> indices(num_sends, -1);
         std::vector<send_message_type*> sent_messages(num_sends, nullptr);
 
@@ -984,6 +1023,8 @@ struct Comm
       case CommInfo::method::waitall:
       case CommInfo::method::testall:
       {
+        LOGPRINTF("%p Comm::waitSend %s\n", this, (async == detail::Async::no) ? "waitall" : "testall");
+
         if (wait_send_method == CommInfo::method::waitall) {
           send_message_type::wait_send_all(con_comm, num_sends, &requests[0], &send_statuses[0]);
         } else {
@@ -1001,6 +1042,8 @@ struct Comm
 
     m_sends.messages.clear();
     m_sends.requests.clear();
+
+    LOGPRINTF("%p Comm::waitSend end\n", this);
   }
 };
 
