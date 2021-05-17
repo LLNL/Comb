@@ -396,14 +396,20 @@ struct FuserStorage<ExecContext<raja_pol<base_policy>>>
 
       m_workGroup_it = m_workGroups_list.begin();
       LOGPRINTF("%p FuserStorage<raja>::allocate num_vars %zu\n", this, m_variables.size());
+
+      // clear WorkObjects here so they live past synchronization
+      for (WorkObjects& wo : this->m_workGroups_list) {
+        wo.m_site.clear();
+        wo.m_group.clear();
+        wo.m_pool.clear();
+      }
     }
   }
 
   void enqueue(context_type& con)
   {
     if (this->m_workGroup_it == this->m_workGroups_list.end()) {
-      this->m_workGroups_list.emplace_back(con);
-      this->m_workGroup_it = --this->m_workGroups_list.end();
+      this->m_workGroup_it = this->m_workGroups_list.emplace(this->m_workGroups_list.end(), con);
       LOGPRINTF("%p FuserStorage<raja>::enqueue WorkObjects %p\n", this, &*this->m_workGroup_it);
     }
   }
@@ -431,11 +437,7 @@ struct FuserStorage<ExecContext<raja_pol<base_policy>>>
       // deallocate per variable vars
       this->m_variables.clear();
 
-      for (WorkObjects& wo : this->m_workGroups_list) {
-        wo.m_site.clear();
-        wo.m_group.clear();
-        wo.m_pool.clear();
-      }
+      // do not clear WorkObjects here, not yet synchronized
     }
   }
 };
