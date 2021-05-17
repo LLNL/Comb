@@ -397,11 +397,15 @@ struct Comm
     recv_request_type* requests_many = &m_recvs.requests[0];
     recv_request_type* requests_few  = &m_recvs.requests[num_many];
 
+    const detail::Async async = (post_recv_method == CommInfo::method::waitany ||
+                                 post_recv_method == CommInfo::method::waitsome ||
+                                 post_recv_method == CommInfo::method::waitall)
+                                ? detail::Async::no : detail::Async::yes;
+
     switch (post_recv_method) {
       case CommInfo::method::waitany:
       case CommInfo::method::testany:
       {
-        detail::Async async = (post_recv_method == CommInfo::method::waitany) ? detail::Async::no : detail::Async::yes;
         for (IdxT i_many = 0; i_many < num_many; i_many++) {
           messages_many[i_many] = &m_recvs.message_group_many.messages[i_many];
           m_recvs.message_group_many.allocate(con_many, con_comm, &messages_many[i_many], 1, async);
@@ -417,7 +421,6 @@ struct Comm
       case CommInfo::method::waitsome:
       case CommInfo::method::testsome:
       {
-        detail::Async async = (post_recv_method == CommInfo::method::waitsome) ? detail::Async::no : detail::Async::yes;
         for (IdxT i_many = 0; i_many < num_many; i_many++) {
           messages_many[i_many] = &m_recvs.message_group_many.messages[i_many];
         }
@@ -433,7 +436,6 @@ struct Comm
       case CommInfo::method::waitall:
       case CommInfo::method::testall:
       {
-        detail::Async async = (post_recv_method == CommInfo::method::waitall) ? detail::Async::no : detail::Async::yes;
         for (IdxT i_many = 0; i_many < num_many; i_many++) {
           messages_many[i_many] = &m_recvs.message_group_many.messages[i_many];
         }
@@ -762,41 +764,35 @@ struct Comm
     using recv_status_type = typename policy_comm::recv_status_type;
     std::vector<recv_status_type> recv_statuses(num_recvs, con_comm.recv_status_null());
 
+    const detail::Async async = (wait_recv_method == CommInfo::method::waitany ||
+                                 wait_recv_method == CommInfo::method::waitsome ||
+                                 wait_recv_method == CommInfo::method::waitall)
+                                ? detail::Async::no : detail::Async::yes;
+
     switch (wait_recv_method) {
       case CommInfo::method::waitany:
       case CommInfo::method::testany:
       {
-        detail::Async async = (post_recv_method == CommInfo::method::waitany) ? detail::Async::no : detail::Async::yes;
         IdxT num_done = 0;
         while (num_done < num_recvs) {
 
           IdxT idx = num_recvs;
-          if (wait_recv_method == CommInfo::method::waitany) {
+          if (async == detail::Async::no) {
             idx = recv_message_type::wait_recv_any(con_comm, num_recvs, &requests[0], &recv_statuses[0]);
           } else {
             while(idx < 0 || idx >= num_recvs) {
               idx = recv_message_type::test_recv_any(con_comm, num_recvs, &requests[0], &recv_statuses[0]);
             }
           }
-              assert(0 <= idx && idx < num_recvs);
-              assert(requests > (recv_request_type*)0x1);
+          assert(0 <= idx && idx < num_recvs);
+          assert(requests > (recv_request_type*)0x1);
 
           if (idx < num_many) {
             m_recvs.message_group_many.unpack(con_many, con_comm, &messages[idx], 1, async);
-              assert(0 <= idx && idx < num_recvs);
-              assert(requests > (recv_request_type*)0x1);
             m_recvs.message_group_many.deallocate(con_many, con_comm, &messages[idx], 1, async);
-              assert(0 <= idx && idx < num_recvs);
-              assert(requests > (recv_request_type*)0x1);
           } else if (idx < num_recvs) {
             m_recvs.message_group_few.unpack(con_few, con_comm, &messages[idx], 1, async);
-              assert(0 <= idx && idx < num_recvs);
-              assert(requests > (recv_request_type*)0x1);
             m_recvs.message_group_few.deallocate(con_few, con_comm, &messages[idx], 1, async);
-              assert(0 <= idx && idx < num_recvs);
-              assert(requests > (recv_request_type*)0x1);
-          } else {
-            assert(0 <= idx && idx < num_recvs);
           }
 
           num_done += 1;
@@ -806,7 +802,6 @@ struct Comm
       case CommInfo::method::waitsome:
       case CommInfo::method::testsome:
       {
-        detail::Async async = (post_recv_method == CommInfo::method::waitsome) ? detail::Async::no : detail::Async::yes;
         std::vector<int> indices(num_recvs, -1);
         std::vector<recv_message_type*> recvd_messages(num_recvs, nullptr);
 
@@ -819,7 +814,7 @@ struct Comm
         while (recvd_num_many < num_many || recvd_num_few < num_few) {
 
           IdxT num_recvd = 0;
-          if (wait_recv_method == CommInfo::method::waitsome) {
+          if (async == detail::Async::no) {
             num_recvd = recv_message_type::wait_recv_some(con_comm, num_recvs, &requests[0], &indices[0], &recv_statuses[0]);
           } else {
             num_recvd = recv_message_type::test_recv_some(con_comm, num_recvs, &requests[0], &indices[0], &recv_statuses[0]);
@@ -855,8 +850,7 @@ struct Comm
       case CommInfo::method::waitall:
       case CommInfo::method::testall:
       {
-        detail::Async async = (post_recv_method == CommInfo::method::waitall) ? detail::Async::no : detail::Async::yes;
-        if (wait_recv_method == CommInfo::method::waitall) {
+        if (async == detail::Async::no) {
           recv_message_type::wait_recv_all(con_comm, num_recvs, &requests[0], &recv_statuses[0]);
         } else {
           while (!recv_message_type::test_recv_all(con_comm, num_recvs, &requests[0], &recv_statuses[0]));
@@ -910,11 +904,15 @@ struct Comm
     using send_status_type = typename policy_comm::send_status_type;
     std::vector<send_status_type> send_statuses(num_sends, con_comm.send_status_null());
 
+    const detail::Async async = (wait_send_method == CommInfo::method::waitany ||
+                                 wait_send_method == CommInfo::method::waitsome ||
+                                 wait_send_method == CommInfo::method::waitall)
+                                ? detail::Async::no : detail::Async::yes;
+
     switch (wait_send_method) {
       case CommInfo::method::waitany:
       case CommInfo::method::testany:
       {
-        detail::Async async = (post_recv_method == CommInfo::method::waitany) ? detail::Async::no : detail::Async::yes;
         IdxT num_done = 0;
         while (num_done < num_sends) {
 
@@ -941,7 +939,6 @@ struct Comm
       case CommInfo::method::waitsome:
       case CommInfo::method::testsome:
       {
-        detail::Async async = (post_recv_method == CommInfo::method::waitsome) ? detail::Async::no : detail::Async::yes;
         std::vector<int> indices(num_sends, -1);
         std::vector<send_message_type*> sent_messages(num_sends, nullptr);
 
@@ -987,7 +984,6 @@ struct Comm
       case CommInfo::method::waitall:
       case CommInfo::method::testall:
       {
-        detail::Async async = (post_recv_method == CommInfo::method::waitall) ? detail::Async::no : detail::Async::yes;
         if (wait_send_method == CommInfo::method::waitall) {
           send_message_type::wait_send_all(con_comm, num_sends, &requests[0], &send_statuses[0]);
         } else {
