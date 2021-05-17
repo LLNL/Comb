@@ -127,42 +127,59 @@ struct Message<MessageBase::Kind::send, mpi_pol>
                            int count, request_type* requests,
                            status_type* statuses)
   {
-    return detail::MPI::Waitany(count, requests, statuses);
+    LOGPRINTF("Message<mpi>::wait_send_any count %d requests %p statuses %p\n", count, requests, statuses);
+    int ret = detail::MPI::Waitany(count, requests, statuses);
+    LOGPRINTF("Message<mpi>::wait_send_any return %d\n", ret);
+    return std::move(ret);
   }
 
   static int test_send_any(communicator_type&,
                            int count, request_type* requests,
                            status_type* statuses)
   {
-    return detail::MPI::Testany(count, requests, statuses);
+    LOGPRINTF("Message<mpi>::test_send_any count %d requests %p statuses %p\n", count, requests, statuses);
+    int ret = detail::MPI::Testany(count, requests, statuses);
+    LOGPRINTF("Message<mpi>::test_send_any return %d\n", ret);
+    return std::move(ret);
   }
 
   static int wait_send_some(communicator_type&,
                             int count, request_type* requests,
                             int* indices, status_type* statuses)
   {
-    return detail::MPI::Waitsome(count, requests, indices, statuses);
+    LOGPRINTF("Message<mpi>::wait_send_some count %d requests %p indices %p statuses %p\n", count, requests, indices, statuses);
+    int ret = detail::MPI::Waitsome(count, requests, indices, statuses);
+    LOGPRINTF("Message<mpi>::wait_send_some return %d\n", ret);
+    return std::move(ret);
   }
 
   static int test_send_some(communicator_type&,
                             int count, request_type* requests,
                             int* indices, status_type* statuses)
   {
-    return detail::MPI::Testsome(count, requests, indices, statuses);
+    LOGPRINTF("Message<mpi>::test_send_some count %d requests %p indices %p statuses %p\n", count, requests, indices, statuses);
+    int ret = detail::MPI::Testsome(count, requests, indices, statuses);
+    LOGPRINTF("Message<mpi>::test_send_some return %d\n", ret);
+    return std::move(ret);
   }
 
   static void wait_send_all(communicator_type&,
                             int count, request_type* requests,
                             status_type* statuses)
   {
+    LOGPRINTF("Message<mpi>::wait_send_all count %d requests %p statuses %p\n", count, requests, statuses);
     detail::MPI::Waitall(count, requests, statuses);
+    LOGPRINTF("Message<mpi>::wait_send_all return\n");
   }
 
   static bool test_send_all(communicator_type&,
                             int count, request_type* requests,
                             status_type* statuses)
   {
-    return detail::MPI::Testall(count, requests, statuses);
+    LOGPRINTF("Message<mpi>::test_send_all count %d requests %p statuses %p\n", count, requests, statuses);
+    bool ret = detail::MPI::Testall(count, requests, statuses);
+    LOGPRINTF("Message<mpi>::test_send_all return %s\n", ret ? "true" : "false");
+    return std::move(ret);
   }
 };
 
@@ -186,42 +203,59 @@ struct Message<MessageBase::Kind::recv, mpi_pol>
                            int count, request_type* requests,
                            status_type* statuses)
   {
-    return detail::MPI::Waitany(count, requests, statuses);
+    LOGPRINTF("Message<mpi>::wait_recv_any count %d requests %p statuses %p\n", count, requests, statuses);
+    int ret = detail::MPI::Waitany(count, requests, statuses);
+    LOGPRINTF("Message<mpi>::wait_recv_any return %d\n", ret);
+    return std::move(ret);
   }
 
   static int test_recv_any(communicator_type&,
                            int count, request_type* requests,
                            status_type* statuses)
   {
-    return detail::MPI::Testany(count, requests, statuses);
+    LOGPRINTF("Message<mpi>::test_recv_any count %d requests %p statuses %p\n", count, requests, statuses);
+    int ret = detail::MPI::Testany(count, requests, statuses);
+    LOGPRINTF("Message<mpi>::test_recv_any return %d\n", ret);
+    return std::move(ret);
   }
 
   static int wait_recv_some(communicator_type&,
                             int count, request_type* requests,
                             int* indices, status_type* statuses)
   {
-    return detail::MPI::Waitsome(count, requests, indices, statuses);
+    LOGPRINTF("Message<mpi>::wait_recv_some count %d requests %p indices %p statuses %p\n", count, requests, indices, statuses);
+    int ret = detail::MPI::Waitsome(count, requests, indices, statuses);
+    LOGPRINTF("Message<mpi>::wait_recv_some return %d\n", ret);
+    return std::move(ret);
   }
 
   static int test_recv_some(communicator_type&,
                             int count, request_type* requests,
                             int* indices, status_type* statuses)
   {
-    return detail::MPI::Testsome(count, requests, indices, statuses);
+    LOGPRINTF("Message<mpi>::test_recv_some count %d requests %p indices %p statuses %p\n", count, requests, indices, statuses);
+    int ret = detail::MPI::Testsome(count, requests, indices, statuses);
+    LOGPRINTF("Message<mpi>::test_recv_some return %d\n", ret);
+    return std::move(ret);
   }
 
   static void wait_recv_all(communicator_type&,
                             int count, request_type* requests,
                             status_type* statuses)
   {
+    LOGPRINTF("Message<mpi>::wait_recv_all count %d requests %p statuses %p\n", count, requests, statuses);
     detail::MPI::Waitall(count, requests, statuses);
+    LOGPRINTF("Message<mpi>::wait_recv_all return\n");
   }
 
   static bool test_recv_all(communicator_type&,
                             int count, request_type* requests,
                             status_type* statuses)
   {
-    return detail::MPI::Testall(count, requests, statuses);
+    LOGPRINTF("Message<mpi>::test_recv_all count %d requests %p statuses %p\n", count, requests, statuses);
+    bool ret = detail::MPI::Testall(count, requests, statuses);
+    LOGPRINTF("Message<mpi>::test_recv_all return %s\n", ret ? "true" : "false");
+    return std::move(ret);
   }
 };
 
@@ -278,7 +312,7 @@ struct MessageGroup<MessageBase::Kind::send, mpi_pol, exec_policy>
   void pack(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async async)
   {
     COMB::ignore_unused(con_comm);
-    LOGPRINTF("%p send pack msgs %p len %d\n", this, msgs, len);
+    LOGPRINTF("%p send pack con %p msgs %p len %d\n", this, &con, msgs, len);
     if (len <= 0) return;
     con.start_group(this->m_groups[len-1]);
     if (!comb_allow_pack_loop_fusion()) {
@@ -291,7 +325,7 @@ struct MessageGroup<MessageBase::Kind::send, mpi_pol, exec_policy>
         this->m_contexts[msg_idx].start_component(this->m_groups[len-1], this->m_components[msg_idx]);
         for (const MessageItemBase* msg_item : msg->message_items) {
           const message_item_type* item = static_cast<const message_item_type*>(msg_item);
-          LOGPRINTF("%p send pack item %p buf %p = srcs[indices %p] nitems %d\n", this, item, buf, item->indices, item->size);
+          LOGPRINTF("%p send pack con %p item %p buf %p = srcs[indices %p] nitems %d\n", this, &this->m_contexts[msg_idx], item, buf, item->indices, item->size);
           const IdxT nitems = item->size;
           const IdxT nbytes = item->nbytes;
           LidxT const* indices = item->indices;
@@ -316,7 +350,7 @@ struct MessageGroup<MessageBase::Kind::send, mpi_pol, exec_policy>
         assert(buf != nullptr);
         for (const MessageItemBase* msg_item : msg->message_items) {
           const message_item_type* item = static_cast<const message_item_type*>(msg_item);
-          LOGPRINTF("%p send pack item %p buf %p = srcs[indices %p] nitems %d\n", this, item, buf, item->indices, item->size);
+          LOGPRINTF("%p send pack con %p item %p buf %p = srcs[indices %p] nitems %d\n", this, &con, item, buf, item->indices, item->size);
           this->m_fuser.enqueue(con, (DataT*)buf, item->indices, item->size);
           buf += item->nbytes * this->m_variables.size();
           assert(static_cast<IdxT>(item->size*sizeof(DataT)) == item->nbytes);
@@ -334,7 +368,7 @@ struct MessageGroup<MessageBase::Kind::send, mpi_pol, exec_policy>
         this->m_contexts[msg_idx].start_component(this->m_groups[len-1], this->m_components[msg_idx]);
         for (const MessageItemBase* msg_item : msg->message_items) {
           const message_item_type* item = static_cast<const message_item_type*>(msg_item);
-          LOGPRINTF("%p send pack item %p buf %p = srcs[indices %p] nitems %d\n", this, item, buf, item->indices, item->size);
+          LOGPRINTF("%p send pack con %p item %p buf %p = srcs[indices %p] nitems %d\n", this, &this->m_contexts[msg_idx], item, buf, item->indices, item->size);
           this->m_fuser.enqueue(this->m_contexts[msg_idx], (DataT*)buf, item->indices, item->size);
           buf += item->nbytes * this->m_variables.size();
           assert(static_cast<IdxT>(item->size*sizeof(DataT)) == item->nbytes);
@@ -348,7 +382,7 @@ struct MessageGroup<MessageBase::Kind::send, mpi_pol, exec_policy>
 
   IdxT wait_pack_complete(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async async)
   {
-    LOGPRINTF("%p send wait_pack_complete msgs %p len %d\n", this, msgs, len);
+    LOGPRINTF("%p send wait_pack_complete con %p msgs %p len %d\n", this, &con, msgs, len);
     if (len <= 0) return 0;
     if (async == detail::Async::no) {
       con_comm.waitOn(con);
@@ -365,25 +399,44 @@ struct MessageGroup<MessageBase::Kind::send, mpi_pol, exec_policy>
 
   static void start_Isends(context_type& con, communicator_type& con_comm)
   {
-    LOGPRINTF("send start_Isends\n");
+    LOGPRINTF("send start_Isends con %p\n", &con);
     COMB::ignore_unused(con, con_comm);
   }
 
   void Isend(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async /*async*/, request_type* requests)
   {
-    LOGPRINTF("%p send Isend msgs %p len %d\n", this, msgs, len);
+    LOGPRINTF("%p send Isend con %p msgs %p len %d\n", this, &con, msgs, len);
     if (len <= 0) return;
     start_Isends(con, con_comm);
     for (IdxT i = 0; i < len; ++i) {
       const message_type* msg = msgs[i];
-      LOGPRINTF("%p send Isend msg %p %p nbytes %d to %i tag %i\n",
-                                this, msg, msg->buf, msg->nbytes() * this->m_variables.size(), msg->partner_rank, msg->msg_tag);
+      LOGPRINTF("%p send Isend msg %p buf %p nbytes %d to %i tag %i\n",
+                this, msg, msg->buf, msg->nbytes() * this->m_variables.size(), msg->partner_rank, msg->msg_tag);
       char* buf = static_cast<char*>(msg->buf);
       assert(buf != nullptr);
       const int partner_rank = msg->partner_rank;
       const int tag = msg->msg_tag;
-      const IdxT nbytes = msg->nbytes() * this->m_variables.size();
-      detail::MPI::Isend(buf, nbytes, MPI_BYTE,
+      const IdxT msg_nbytes = msg->nbytes() * this->m_variables.size();
+
+      // char const* print_buf = buf;
+      // for (const MessageItemBase* msg_item : msg->message_items) {
+      //   const message_item_type* item = static_cast<const message_item_type*>(msg_item);
+      //   const IdxT nitems = item->size;
+      //   const IdxT nbytes = item->nbytes;
+      //   LidxT const* indices = item->indices;
+      //   for (DataT const* src : this->m_variables) {
+      //     if (nitems*sizeof(DataT) == nbytes) {
+      //       LOGPRINTF("  buf %p nitems %d nbytes %d [ ", print_buf, nitems, nbytes);
+      //       for (IdxT idx = 0; idx < nitems; ++idx) {
+      //         LOGPRINTF("%f ", (double)((DataT const*)print_buf)[idx]);
+      //       }
+      //       LOGPRINTF("] src %p[indices %p]\n", src, indices);
+      //     }
+      //     print_buf += nbytes;
+      //   }
+      // }
+
+      detail::MPI::Isend(buf, msg_nbytes, MPI_BYTE,
                          partner_rank, tag, con_comm.comm, &requests[i]);
     }
     finish_Isends(con, con_comm);
@@ -391,14 +444,14 @@ struct MessageGroup<MessageBase::Kind::send, mpi_pol, exec_policy>
 
   static void finish_Isends(context_type& con, communicator_type& con_comm)
   {
-    LOGPRINTF("send finish_Isends\n");
+    LOGPRINTF("send finish_Isends con %p\n", &con);
     COMB::ignore_unused(con, con_comm);
   }
 
   void deallocate(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async /*async*/)
   {
     COMB::ignore_unused(con, con_comm);
-    LOGPRINTF("%p send deallocate msgs %p len %d\n", this, msgs, len);
+    LOGPRINTF("%p send deallocate con %p msgs %p len %d\n", this, &con, msgs, len);
     if (len <= 0) return;
     for (IdxT i = 0; i < len; ++i) {
       message_type* msg = msgs[i];
@@ -447,7 +500,7 @@ struct MessageGroup<MessageBase::Kind::recv, mpi_pol, exec_policy>
   void allocate(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async /*async*/)
   {
     COMB::ignore_unused(con, con_comm);
-    LOGPRINTF("%p recv allocate msgs %p len %d\n", this, msgs, len);
+    LOGPRINTF("%p recv allocate con %p msgs %p len %d\n", this, &con, msgs, len);
     if (len <= 0) return;
     for (IdxT i = 0; i < len; ++i) {
       message_type* msg = msgs[i];
@@ -468,7 +521,7 @@ struct MessageGroup<MessageBase::Kind::recv, mpi_pol, exec_policy>
   void Irecv(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async /*async*/, request_type* requests)
   {
     COMB::ignore_unused(con, con_comm);
-    LOGPRINTF("%p recv Irecv msgs %p len %d\n", this, msgs, len);
+    LOGPRINTF("%p recv Irecv con %p msgs %p len %d\n", this, &con, msgs, len);
     if (len <= 0) return;
     for (IdxT i = 0; i < len; ++i) {
       const message_type* msg = msgs[i];
@@ -487,7 +540,7 @@ struct MessageGroup<MessageBase::Kind::recv, mpi_pol, exec_policy>
   void unpack(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async /*async*/)
   {
     COMB::ignore_unused(con_comm);
-    LOGPRINTF("%p recv unpack msgs %p len %d\n", this, msgs, len);
+    LOGPRINTF("%p recv unpack con %p msgs %p len %d\n", this, &con, msgs, len);
     if (len <= 0) return;
     con.start_group(this->m_groups[len-1]);
     if (!comb_allow_pack_loop_fusion()) {
@@ -500,11 +553,20 @@ struct MessageGroup<MessageBase::Kind::recv, mpi_pol, exec_policy>
         this->m_contexts[msg_idx].start_component(this->m_groups[len-1], this->m_components[msg_idx]);
         for (const MessageItemBase* msg_item : msg->message_items) {
           const message_item_type* item = static_cast<const message_item_type*>(msg_item);
-          LOGPRINTF("%p recv unpack item %p buf %p = srcs[indices %p] nitems %d\n", this, item, buf, item->indices, item->size);
+          LOGPRINTF("%p recv unpack con %p item %p dsts[indices %p] = buf %p[i] nitems %d\n", this, &this->m_contexts[msg_idx], item, item->indices, buf, item->size);
           const IdxT nitems = item->size;
           const IdxT nbytes = item->nbytes;
           LidxT const* indices = item->indices;
           for (DataT* dst : this->m_variables) {
+
+            // if (nitems*sizeof(DataT) == nbytes) {
+            //   LOGPRINTF("  buf %p nitems %d nbytes %d [ ", buf, nitems, nbytes);
+            //   for (IdxT idx = 0; idx < nitems; ++idx) {
+            //     LOGPRINTF("%f ", (double)((DataT const*)buf)[idx]);
+            //   }
+            //   LOGPRINTF("] dst %p[indices %p]\n", dst, indices);
+            // }
+
             this->m_contexts[msg_idx].for_all(nitems, make_copy_idxr_idxr(static_cast<DataT const*>(static_cast<void const*>(buf)), detail::indexer_i{},
                                                dst, detail::indexer_list_i{indices}));
             buf += nbytes;
@@ -521,10 +583,26 @@ struct MessageGroup<MessageBase::Kind::recv, mpi_pol, exec_policy>
         assert(buf != nullptr);
         for (const MessageItemBase* msg_item : msg->message_items) {
           const message_item_type* item = static_cast<const message_item_type*>(msg_item);
-          LOGPRINTF("%p recv unpack item %p buf %p = srcs[indices %p] nitems %d\n", this, item, buf, item->indices, item->size);
-          this->m_fuser.enqueue(con, (DataT const*)buf, item->indices, item->size);
-          buf += item->nbytes * this->m_variables.size();
-          assert(static_cast<IdxT>(item->size*sizeof(DataT)) == item->nbytes);
+          LOGPRINTF("%p recv unpack con %p item %p dsts[indices %p] = buf %p[i] nitems %d\n", this, &con, item, item->indices, buf, item->size);
+          const IdxT nitems = item->size;
+          const IdxT nbytes = item->nbytes;
+          LidxT const* indices = item->indices;
+
+          // for (DataT* dst : this->m_variables) {
+          //   char const* print_buf = buf;
+          //   if (nitems*sizeof(DataT) == nbytes) {
+          //     LOGPRINTF("  buf %p nitems %d nbytes %d [ ", print_buf, nitems, nbytes);
+          //     for (IdxT idx = 0; idx < nitems; ++idx) {
+          //       LOGPRINTF("%f ", (double)((DataT const*)print_buf)[idx]);
+          //     }
+          //     LOGPRINTF("] dst %p[indices %p]\n", dst, indices);
+          //   }
+          //   print_buf += nbytes;
+          // }
+
+          this->m_fuser.enqueue(con, (DataT const*)buf, indices, nitems);
+          buf += nbytes * this->m_variables.size();
+          assert(static_cast<IdxT>(nitems*sizeof(DataT)) == nbytes);
         }
       }
       this->m_fuser.exec(con);
@@ -535,7 +613,7 @@ struct MessageGroup<MessageBase::Kind::recv, mpi_pol, exec_policy>
   void deallocate(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async /*async*/)
   {
     COMB::ignore_unused(con, con_comm);
-    LOGPRINTF("%p recv deallocate msgs %p len %d\n", this, msgs, len);
+    LOGPRINTF("%p recv deallocate con %p msgs %p len %d\n", this, &con, msgs, len);
     if (len <= 0) return;
     for (IdxT i = 0; i < len; ++i) {
       message_type* msg = msgs[i];
