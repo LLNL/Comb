@@ -38,7 +38,9 @@ module load cmake/3.14.5
 cmake \
   -DCMAKE_BUILD_TYPE=Release \
   -DMPI_CXX_COMPILER=/usr/tce/packages/mvapich2/mvapich2-2.3-gcc-${COMP_VER}/bin/mpic++ \
+  -DMPI_C_COMPILER=/usr/tce/packages/mvapich2/mvapich2-2.3-gcc-${COMP_VER}/bin/mpicc \
   -DCMAKE_CXX_COMPILER=/usr/tce/packages/gcc/gcc-${COMP_VER}/bin/g++ \
+  -DCMAKE_C_COMPILER=/usr/tce/packages/gcc/gcc-${COMP_VER}/bin/gcc \
   -C ../host-configs/lc-builds/toss3/gcc_X.cmake \
   -DENABLE_MPI=On \
   -DENABLE_OPENMP=On \
