@@ -444,15 +444,13 @@ struct RAJAContext
   {
     LOGPRINTF("%p RAJAContext::waitOn RAJAContext %p\n", this, &other);
     RAJA::resources::Event e = other.resource().get_event_erased();
-    auto r_copy = r;
-    r_copy.wait_for(&e);
+    r.wait_for(&e);
   }
 
   void synchronize()
   {
     LOGPRINTF("%p RAJAContext::synchronize\n", this);
-    auto r_copy = r;
-    r_copy.wait();
+    r.wait();
   }
 
 private:
@@ -545,8 +543,7 @@ template < >
 inline void CudaContext::waitOn(RAJAContext<RAJA::resources::Cuda>& other)
 {
   LOGPRINTF("%p CudaContext::waitOn RAJAContext %p\n", this, &other);
-  auto r = other.resource();
-  auto e = r.get_event();
+  auto e = other.resource().get_event();
   s->waitEvent(e.getCudaEvent_t());
 }
 #endif
@@ -586,8 +583,7 @@ inline void RAJAContext<RAJA::resources::Cuda>::waitOn(CudaContext& other)
 {
   LOGPRINTF("%p RAJAContext::waitOn CudaContext %p\n", this, &other);
   RAJA::resources::Event e(RAJA::resources::CudaEvent(other.stream()));
-  auto r_copy = r;
-  r_copy.wait_for(&e);
+  r.wait_for(&e);
 }
 #endif
 
