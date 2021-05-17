@@ -355,7 +355,7 @@ struct FuserStorage<ExecContext<raja_pol<base_policy>>>
       , m_group(m_pool.instantiate())
       , m_site(m_group.run())
     {
-      LOGPRINTF("%p FuserStorage<raja>::WorkObjects::WorkObjects\n", this);
+      LOGPRINTF("%p FuserStorage<raja>::WorkObjects::WorkObjects con %p\n", this, &con);
     }
 
     ~WorkObjects()
@@ -384,7 +384,7 @@ struct FuserStorage<ExecContext<raja_pol<base_policy>>>
 
   void allocate(context_type& con, std::vector<DataT*> const& variables, IdxT num_loops)
   {
-    LOGPRINTF("%p FuserStorage<raja>::allocate num_loops %d\n", this, num_loops);
+    LOGPRINTF("%p FuserStorage<raja>::allocate con %p num_loops %d\n", this, &con, num_loops);
     if (m_variables.empty()) {
 
       m_num_fused_loops_enqueued = 0;
@@ -410,13 +410,13 @@ struct FuserStorage<ExecContext<raja_pol<base_policy>>>
   {
     if (this->m_workGroup_it == this->m_workGroups_list.end()) {
       this->m_workGroup_it = this->m_workGroups_list.emplace(this->m_workGroups_list.end(), con);
-      LOGPRINTF("%p FuserStorage<raja>::enqueue WorkObjects %p\n", this, &*this->m_workGroup_it);
+      LOGPRINTF("%p FuserStorage<raja>::enqueue con %p WorkObjects %p\n", this, &con, &*this->m_workGroup_it);
     }
   }
 
   void exec(context_type& con)
   {
-    LOGPRINTF("%p FuserStorage<raja>::exec WorkObjects %p\n", this, &*this->m_workGroup_it);
+    LOGPRINTF("%p FuserStorage<raja>::exec con %p WorkObjects %p\n", this, &con, &*this->m_workGroup_it);
     this->m_workGroup_it->m_group = this->m_workGroup_it->m_pool.instantiate();
     this->m_workGroup_it->m_site  = this->m_workGroup_it->m_group.run(/*con.res_launch()*/);
     this->m_num_fused_loops_executed = this->m_num_fused_loops_enqueued;
@@ -430,7 +430,7 @@ struct FuserStorage<ExecContext<raja_pol<base_policy>>>
   // allocations (irecv, isend) and deallocations (wait_recv, wait_send).
   void deallocate(context_type& con)
   {
-    LOGPRINTF("%p FuserStorage<raja>::deallocate \n", this);
+    LOGPRINTF("%p FuserStorage<raja>::deallocate con %p\n", this, &con);
     if (!this->m_variables.empty() && this->m_num_fused_loops_executed == this->m_num_fused_loops_total) {
 
       LOGPRINTF("%p FuserStorage<raja>::deallocate clear\n", this);
@@ -450,7 +450,7 @@ struct FuserPacker<ExecContext<raja_pol<base_policy>>> : FuserStorage<ExecContex
 
   void allocate(context_type& con, std::vector<DataT*> const& variables, IdxT num_loops)
   {
-    LOGPRINTF("%p FuserPacker<raja>::allocate num_loops %d\n", this, num_loops);
+    LOGPRINTF("%p FuserPacker<raja>::allocate con %p num_loops %d\n", this, &con, num_loops);
     if (this->m_variables.empty()) {
       base::allocate(con, variables, num_loops);
     }
@@ -459,12 +459,12 @@ struct FuserPacker<ExecContext<raja_pol<base_policy>>> : FuserStorage<ExecContex
   // enqueue packing loops for all variables
   void enqueue(context_type& con, DataT* buf, LidxT const* indices, const IdxT nitems)
   {
-    LOGPRINTF("%p FuserPacker<raja>::enqueue buf %p indices %p nitems %i\n", this, buf, indices, nitems);
+    LOGPRINTF("%p FuserPacker<raja>::enqueue con %p buf %p indices %p nitems %i\n", this, &con, buf, indices, nitems);
     base::enqueue(con);
 
     RAJA::TypedRangeSegment<IdxT> seg(0, nitems);
     for (DataT const* src : this->m_variables) {
-      LOGPRINTF("%p FuserPacker<raja>::enqueue enqueue %p buf %p[i] = src %p[indices %p] nitems %i\n", this, &*this->m_workGroup_it, buf, src, indices, nitems);
+      LOGPRINTF("%p FuserPacker<raja>::enqueue enqueue con %p WorkObjects %p buf %p[i] = src %p[indices %p] nitems %i\n", this, &con, &*this->m_workGroup_it, buf, src, indices, nitems);
       this->m_workGroup_it->m_pool.enqueue(seg, make_copy_idxr_idxr(src, detail::indexer_list_i{indices},
                                                                     buf, detail::indexer_i{}));
       buf += nitems;
@@ -474,13 +474,13 @@ struct FuserPacker<ExecContext<raja_pol<base_policy>>> : FuserStorage<ExecContex
 
   void exec(context_type& con)
   {
-    LOGPRINTF("%p FuserPacker<raja>::exec\n", this);
+    LOGPRINTF("%p FuserPacker<raja>::exec con %p\n", this, &con);
     base::exec(con);
   }
 
   void deallocate(context_type& con)
   {
-    LOGPRINTF("%p FuserPacker<raja>::deallocate\n", this);
+    LOGPRINTF("%p FuserPacker<raja>::deallocate con %p\n", this, &con);
     if (!this->m_variables.empty() && this->m_num_fused_loops_executed == this->m_num_fused_loops_total) {
       base::deallocate(con);
     }
@@ -495,7 +495,7 @@ struct FuserUnpacker<ExecContext<raja_pol<base_policy>>> : FuserStorage<ExecCont
 
   void allocate(context_type& con, std::vector<DataT*> const& variables, IdxT num_loops)
   {
-    LOGPRINTF("%p FuserUnpacker<raja>::allocate num_loops %d\n", this, num_loops);
+    LOGPRINTF("%p FuserUnpacker<raja>::allocate con %p num_loops %d\n", this, &con, num_loops);
     if (this->m_variables.empty()) {
       base::allocate(con, variables, num_loops);
     }
@@ -504,7 +504,7 @@ struct FuserUnpacker<ExecContext<raja_pol<base_policy>>> : FuserStorage<ExecCont
   // enqueue unpacking loops for all variables
   void enqueue(context_type& con, DataT const* buf, LidxT const* indices, const IdxT nitems)
   {
-    LOGPRINTF("%p FuserUnpacker<raja>::enqueue buf %p indices %p nitems %i\n", this, buf, indices, nitems);
+    LOGPRINTF("%p FuserUnpacker<raja>::enqueue con %p buf %p indices %p nitems %i\n", this, &con, buf, indices, nitems);
     base::enqueue(con);
 
     RAJA::TypedRangeSegment<IdxT> seg(0, nitems);
@@ -519,13 +519,13 @@ struct FuserUnpacker<ExecContext<raja_pol<base_policy>>> : FuserStorage<ExecCont
 
   void exec(context_type& con)
   {
-    LOGPRINTF("%p FuserUnpacker<raja>::exec\n", this);
+    LOGPRINTF("%p FuserUnpacker<raja>::exec con %p\n", this, &con);
     base::exec(con);
   }
 
   void deallocate(context_type& con)
   {
-    LOGPRINTF("%p FuserUnpacker<raja>::deallocate\n", this);
+    LOGPRINTF("%p FuserUnpacker<raja>::deallocate con %p\n", this, &con);
     if (!this->m_variables.empty() && this->m_num_fused_loops_executed == this->m_num_fused_loops_total) {
       base::deallocate(con);
     }
