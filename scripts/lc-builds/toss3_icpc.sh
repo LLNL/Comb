@@ -48,11 +48,6 @@ mkdir build_${BUILD_SUFFIX} && cd build_${BUILD_SUFFIX}
 
 module load cmake/3.14.5
 
-##
-# CMake option -DENABLE_FORCEINLINE_RECURSIVE=Off used to speed up compile
-# times at a potential cost of slower 'forall' execution.
-##
-
 cmake \
   -DCMAKE_BUILD_TYPE=Release \
   -DMPI_CXX_COMPILER=/usr/tce/packages/mvapich2/mvapich2-2.3-intel-${COMP_VER}/bin/mpic++ \
@@ -61,7 +56,6 @@ cmake \
   -DCMAKE_C_COMPILER=/usr/tce/packages/intel/intel-${COMP_VER}/bin/icc \
   -DBLT_CXX_STD=c++11 \
   -C ../host-configs/lc-builds/toss3/icpc_X_gcc${GCC_HEADER_VER}headers.cmake \
-  -DENABLE_FORCEINLINE_RECURSIVE=Off \
   -DENABLE_MPI=On \
   -DENABLE_OPENMP=On \
   -DENABLE_TBB=${USE_TBB} \
