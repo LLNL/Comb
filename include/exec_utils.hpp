@@ -113,9 +113,9 @@ struct copy_idxr_idxr {
   {
     IdxT dst_i = idxr_dst(args...);
     IdxT src_i = idxr_src(args...);
-    LOGPRINTF("copy_idxr_idxr %p[%i]{%f} = %p[%i]{%f} (%i)\n",
-                              ptr_dst, dst_i, (double)ptr_dst[dst_i],
-                              ptr_src, src_i, (double)ptr_src[src_i], args...);
+    // LOGPRINTF("copy_idxr_idxr %p[%i]{%f} = %p[%i]{%f} (%i)\n",
+    //                           ptr_dst, dst_i, (double)ptr_dst[dst_i],
+    //                           ptr_src, src_i, (double)ptr_src[src_i], args...);
     ptr_dst[dst_i] = ptr_src[src_i];
   }
 };
