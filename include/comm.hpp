@@ -817,15 +817,16 @@ struct Comm
 
           if (idx < num_many) {
             m_recvs.message_group_many.unpack(con_many, con_comm, &messages[idx], 1, async);
-            m_recvs.message_group_many.deallocate(con_many, con_comm, &messages[idx], 1, async);
           } else if (idx < num_recvs) {
             m_recvs.message_group_few.unpack(con_few, con_comm, &messages[idx], 1, async);
-            m_recvs.message_group_few.deallocate(con_few, con_comm, &messages[idx], 1, async);
           }
 
           num_done += 1;
-
         }
+
+        // deallocate at the end to avoid async memory reuse issues
+        m_recvs.message_group_many.deallocate(con_many, con_comm, &messages_many[0], num_many, async);
+        m_recvs.message_group_few.deallocate(con_few, con_comm, &messages_few[0], num_few, async);
       } break;
       case CommInfo::method::waitsome:
       case CommInfo::method::testsome:
@@ -866,16 +867,18 @@ struct Comm
 
           if (recvd_num_many < next_recvd_num_many) {
             m_recvs.message_group_many.unpack(con_many, con_comm, &recvd_messages_many[recvd_num_many], next_recvd_num_many-recvd_num_many, async);
-            m_recvs.message_group_many.deallocate(con_many, con_comm, &recvd_messages_many[recvd_num_many], next_recvd_num_many-recvd_num_many, async);
             recvd_num_many = next_recvd_num_many;
           }
 
           if (recvd_num_few < next_recvd_num_few) {
             m_recvs.message_group_few.unpack(con_few, con_comm, &recvd_messages_few[recvd_num_few], next_recvd_num_few-recvd_num_few, async);
-            m_recvs.message_group_few.deallocate(con_few, con_comm, &recvd_messages_few[recvd_num_few], next_recvd_num_few-recvd_num_few, async);
             recvd_num_few = next_recvd_num_few;
           }
         }
+
+        // deallocate at the end to avoid async memory reuse issues
+        m_recvs.message_group_many.deallocate(con_many, con_comm, &messages_many[0], num_many, async);
+        m_recvs.message_group_few.deallocate(con_few, con_comm, &messages_few[0], num_few, async);
       } break;
       case CommInfo::method::waitall:
       case CommInfo::method::testall:
@@ -891,6 +894,7 @@ struct Comm
         m_recvs.message_group_many.unpack(con_many, con_comm, &messages_many[0], num_many, async);
         m_recvs.message_group_few.unpack(con_few, con_comm, &messages_few[0], num_few, async);
 
+        // deallocate at the end to avoid async memory reuse issues
         m_recvs.message_group_many.deallocate(con_many, con_comm, &messages_many[0], num_many, async);
         m_recvs.message_group_few.deallocate(con_few, con_comm, &messages_few[0], num_few, async);
       } break;
