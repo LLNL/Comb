@@ -496,7 +496,7 @@ struct MessageGroup<MessageBase::Kind::send, mock_pol, exec_policy>
     COMB::ignore_unused(con, con_comm);
   }
 
-  void deallocate(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async async)
+  void deallocate(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async /*async*/)
   {
     COMB::ignore_unused(con, con_comm);
     if (len <= 0) return;

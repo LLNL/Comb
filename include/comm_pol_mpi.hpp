@@ -358,7 +358,6 @@ struct MessageGroup<MessageBase::Kind::send, mpi_pol, exec_policy>
       }
       this->m_fuser.exec(con);
     } else {
-      IdxT num_vars = this->m_variables.size();
       for (IdxT i = 0; i < len; ++i) {
         const message_type* msg = msgs[i];
         LOGPRINTF("%p send pack msg %p buf %p\n", this, msg, msg->buf);
