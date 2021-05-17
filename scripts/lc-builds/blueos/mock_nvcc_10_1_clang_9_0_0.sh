@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ##############################################################################
-## Copyright (c) 2018-2020, Lawrence Livermore National Security, LLC.
+## Copyright (c) 2018-2021, Lawrence Livermore National Security, LLC.
 ##
 ## Produced at the Lawrence Livermore National Laboratory
 ##
