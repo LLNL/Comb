@@ -31,6 +31,11 @@
 #include <linux/sched.h>
 #endif
 
+#ifdef COMB_ENABLE_CALIPER
+#include <caliper/cali.h>
+#include <caliper/cali-manager.h>
+#endif
+
 int main(int argc, char** argv)
 {
 #ifdef COMB_ENABLE_MPI
@@ -119,6 +124,9 @@ int main(int argc, char** argv)
 
   bool do_print_packing_sizes = false;
   bool do_print_message_sizes = false;
+
+  // Caliper profiling config, if enabled
+  std::string caliper_config;
 
   // stores whether each comm policy is available for use
   COMB::CommunicatorsAvailable comm_avail;
@@ -547,7 +555,16 @@ int main(int argc, char** argv)
         do_print_packing_sizes = true;
       } else if (strcmp(&argv[i][1], "print_message_sizes") == 0) {
         do_print_message_sizes = true;
+      } else if (strcmp(&argv[i][1], "caliper_config") == 0) {
+      if (i+1 < argc && argv[i+1][0] != '-') {
+        caliper_config = argv[++i];
+#ifndef COMB_ENABLE_CALIPER
+        fgprintf(FileGroup::err_master, "Caliper is not enabled, ignoring caliper_config.\n");
+#endif
       } else {
+        fgprintf(FileGroup::err_master, "No argument to option, ignoring %s.\n", argv[i]);
+      }
+    } else {
         fgprintf(FileGroup::err_master, "Unknown option, ignoring %s.\n", argv[i]);
       }
     } else if (std::isdigit(argv[i][0]) && s < 1) {
@@ -586,6 +603,21 @@ int main(int argc, char** argv)
     fgprintf(FileGroup::err_master, "Invalid mesh divisions\n");
     comminfo.abort();
   }
+
+#ifdef COMB_ENABLE_CALIPER
+  cali::ConfigManager mgr;
+  mgr.add(caliper_config.c_str());
+
+  if (mgr.error()) {
+    std::string msg = mgr.error_msg();
+    fgprintf(FileGroup::err_master, "Caliper config error: %s", msg.c_str());
+    comminfo.abort();
+  }
+
+  mgr.start();
+
+  CALI_MARK_FUNCTION_BEGIN;
+#endif
 
 #ifdef COMB_ENABLE_OPENMP
   // OMP setup
@@ -738,6 +770,11 @@ int main(int argc, char** argv)
 #endif
 
   }
+
+#ifdef COMB_ENABLE_CALIPER
+  CALI_MARK_FUNCTION_END;
+  mgr.flush();
+#endif
 
   } // end region MPI communication via comminfo
 

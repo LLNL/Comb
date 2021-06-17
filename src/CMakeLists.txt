@@ -169,6 +169,9 @@ if (ENABLE_RAJA)
   set(comb_depends ${comb_depends} RAJA)
 endif()
 
+if (ENABLE_CALIPER)
+  list(APPEND comb_depends Caliper)
+endif()
 
 blt_add_executable(
   NAME comb

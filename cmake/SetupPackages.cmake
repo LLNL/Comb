@@ -158,3 +158,21 @@ if (ENABLE_RAJA)
     add_subdirectory(tpl/RAJA)
   endif ()
 endif ()
+
+
+if (ENABLE_CALIPER)
+  find_package(caliper REQUIRED)
+
+  if (caliper_FOUND)
+    message(STATUS "Caliper Enabled")
+    message(STATUS "Caliper Path:        ${caliper_INSTALL_PREFIX}")
+  else()
+    message(FATAL_ERROR "Caliper NOT FOUND")
+  endif()
+
+  # register Caliper with blt
+  blt_register_library(NAME Caliper
+                       INCLUDES ${caliper_INCLUDE_PATH}
+                       LIBRARIES caliper
+                       DEFINES USE_CALIPER)
+endif()
