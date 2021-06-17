@@ -173,6 +173,10 @@ if (ENABLE_CALIPER)
   list(APPEND comb_depends Caliper)
 endif()
 
+if (ENABLE_ADIAK)
+  list(APPEND comb_depends Adiak)
+endif()
+
 blt_add_executable(
   NAME comb
   SOURCES ${comb_sources}

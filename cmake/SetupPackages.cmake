@@ -159,7 +159,6 @@ if (ENABLE_RAJA)
   endif ()
 endif ()
 
-
 if (ENABLE_CALIPER)
   find_package(caliper REQUIRED)
 
@@ -175,4 +174,21 @@ if (ENABLE_CALIPER)
                        INCLUDES ${caliper_INCLUDE_PATH}
                        LIBRARIES caliper
                        DEFINES USE_CALIPER)
+endif()
+
+if (ENABLE_ADIAK)
+  find_package(adiak REQUIRED)
+
+  if (adiak_FOUND)
+    message(STATUS "Adiak Enabled")
+    message(STATUS "Adiak Path:        ${adiak_INCLUDE_DIRS}")
+  else()
+    message(FATAL_ERROR "Adiak NOT FOUND")
+  endif()
+
+  # register Adiak with blt
+  blt_register_library(NAME Adiak
+                       INCLUDES ${adiak_INCLUDE_DIRS}
+                       LIBRARIES adiak
+                       DEFINES USE_ADIAK)
 endif()
