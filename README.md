@@ -52,6 +52,7 @@ The cmake configuration options change which execution patterns and memory space
   - __ENABLE_CUDA__  Allow use of cuda and enable test combinations using cuda
   - __ENABLE_RAJA__  Allow use of RAJA performance portability library
   - __ENABLE_CALIPER__ Allow use of the Caliper performance profiling library
+  - __ENABLE_ADIAK__ Allow use of the Adiak library for recording program metadata
 
 ### Runtime Options
 
