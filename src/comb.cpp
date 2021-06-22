@@ -568,15 +568,15 @@ int main(int argc, char** argv)
       } else if (strcmp(&argv[i][1], "print_message_sizes") == 0) {
         do_print_message_sizes = true;
       } else if (strcmp(&argv[i][1], "caliper_config") == 0) {
-      if (i+1 < argc && argv[i+1][0] != '-') {
-        caliper_config = argv[++i];
+        if (i+1 < argc && argv[i+1][0] != '-') {
+          caliper_config = argv[++i];
 #ifndef COMB_ENABLE_CALIPER
-        fgprintf(FileGroup::err_master, "Caliper is not enabled, ignoring caliper_config.\n");
+          fgprintf(FileGroup::err_master, "Caliper is not enabled, ignoring caliper_config.\n");
 #endif
+        } else {
+          fgprintf(FileGroup::err_master, "No argument to option, ignoring %s.\n", argv[i]);
+        }
       } else {
-        fgprintf(FileGroup::err_master, "No argument to option, ignoring %s.\n", argv[i]);
-      }
-    } else {
         fgprintf(FileGroup::err_master, "Unknown option, ignoring %s.\n", argv[i]);
       }
     } else if (std::isdigit(argv[i][0]) && s < 1) {
