@@ -31,11 +31,28 @@
 #include <linux/sched.h>
 #endif
 
+#ifdef COMB_ENABLE_CALIPER
+#include <caliper/cali.h>
+#include <caliper/cali-manager.h>
+#endif
+#ifdef COMB_ENABLE_ADIAK
+#include <adiak.hpp>
+#endif
+
 int main(int argc, char** argv)
 {
+  void* adiak_comm_p = nullptr;
+
 #ifdef COMB_ENABLE_MPI
   int required = MPI_THREAD_FUNNELED; // MPI_THREAD_SINGLE, MPI_THREAD_FUNNELED, MPI_THREAD_SERIALIZED, MPI_THREAD_MULTIPLE
   int provided = detail::MPI::Init_thread(&argc, &argv, required);
+
+  MPI_Comm adiak_comm = detail::MPI::Comm_dup(MPI_COMM_WORLD);
+  adiak_comm_p = &adiak_comm;
+#endif
+
+#ifdef COMB_ENABLE_ADIAK
+  adiak_init(adiak_comm_p);
 #endif
 
   comb_setup_files();
@@ -119,6 +136,9 @@ int main(int argc, char** argv)
 
   bool do_print_packing_sizes = false;
   bool do_print_message_sizes = false;
+
+  // Caliper profiling config, if enabled
+  std::string caliper_config;
 
   // stores whether each comm policy is available for use
   COMB::CommunicatorsAvailable comm_avail;
@@ -547,6 +567,15 @@ int main(int argc, char** argv)
         do_print_packing_sizes = true;
       } else if (strcmp(&argv[i][1], "print_message_sizes") == 0) {
         do_print_message_sizes = true;
+      } else if (strcmp(&argv[i][1], "caliper_config") == 0) {
+        if (i+1 < argc && argv[i+1][0] != '-') {
+          caliper_config = argv[++i];
+#ifndef COMB_ENABLE_CALIPER
+          fgprintf(FileGroup::err_master, "Caliper is not enabled, ignoring caliper_config.\n");
+#endif
+        } else {
+          fgprintf(FileGroup::err_master, "No argument to option, ignoring %s.\n", argv[i]);
+        }
       } else {
         fgprintf(FileGroup::err_master, "Unknown option, ignoring %s.\n", argv[i]);
       }
@@ -586,6 +615,21 @@ int main(int argc, char** argv)
     fgprintf(FileGroup::err_master, "Invalid mesh divisions\n");
     comminfo.abort();
   }
+
+#ifdef COMB_ENABLE_CALIPER
+  cali::ConfigManager mgr;
+  mgr.add(caliper_config.c_str());
+
+  if (mgr.error()) {
+    std::string msg = mgr.error_msg();
+    fgprintf(FileGroup::err_master, "Caliper config error: %s", msg.c_str());
+    comminfo.abort();
+  }
+
+  mgr.start();
+
+  CALI_MARK_FUNCTION_BEGIN;
+#endif
 
 #ifdef COMB_ENABLE_OPENMP
   // OMP setup
@@ -689,6 +733,29 @@ int main(int argc, char** argv)
       }
       fgprintf(FileGroup::all, "\n");
     }
+
+    // save config info in Adiak
+#ifdef COMB_ENABLE_ADIAK
+    adiak_namevalue("cart_coords",   adiak_general, nullptr, "[%ld]", print_coords,       3);
+    adiak_namevalue("ghost_width",   adiak_general, nullptr, "[%ld]", print_ghost_widths, 3);
+    adiak_namevalue("sizes",         adiak_general, nullptr, "[%ld]", print_sizes,        3);
+    adiak_namevalue("divisions",     adiak_general, nullptr, "[%ld]", print_divisions,    3);
+    adiak_namevalue("periodic",      adiak_general, nullptr, "[%ld]", print_periodic,     3);
+
+    adiak::value("policy_cutoff",    print_cutoff);
+    adiak::value("ncycles",          print_ncycles);
+    adiak::value("num_vars",         print_num_vars);
+    adiak::value("post_recv_method", CommInfo::method_str(comminfo.post_recv_method));
+    adiak::value("post_send_method", CommInfo::method_str(comminfo.post_send_method));
+    adiak::value("wait_recv_method", CommInfo::method_str(comminfo.wait_recv_method));
+    adiak::value("wait_send_method", CommInfo::method_str(comminfo.wait_send_method));
+
+    adiak_user();
+    adiak_launchdate();
+    adiak_cmdline();
+    adiak_clustername();
+    adiak_job_size();
+#endif
   }
 
   COMB::print_message_info(comminfo, info, alloc.host.allocator(), num_vars, do_print_packing_sizes, do_print_message_sizes);
@@ -739,9 +806,19 @@ int main(int argc, char** argv)
 
   }
 
+#ifdef COMB_ENABLE_CALIPER
+  CALI_MARK_FUNCTION_END;
+  mgr.flush();
+#endif
+
   } // end region MPI communication via comminfo
 
   comb_teardown_files();
+
+#ifdef COMB_ENABLE_ADIAK
+  adiak_walltime();
+  adiak_fini();
+#endif
 
 #ifdef COMB_ENABLE_MPI
   detail::MPI::Finalize();
