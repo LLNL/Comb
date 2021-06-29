@@ -215,6 +215,30 @@ inline void Isend(const void *buf, int count, MPI_Datatype mpi_type, int dest, i
   assert(ret == MPI_SUCCESS);
 }
 
+inline void Recv_init(void *buf, int count, MPI_Datatype mpi_type, int src, int tag, MPI_Comm comm, MPI_Request *request)
+{
+  int ret = MPI_Recv_init(buf, count, mpi_type, src, tag, comm, request); 
+  assert(ret == MPI_SUCCESS);
+}
+
+inline void Send_init(void *buf, int count, MPI_Datatype mpi_type, int dest, int tag, MPI_Comm comm, MPI_Request *request)
+{
+  int ret = MPI_Send_init(buf, count, mpi_type, dest, tag, comm, request);
+  assert(ret == MPI_SUCCESS);
+}
+
+inline void Start(MPI_Request *request)
+{
+  int ret = MPI_Start(request);
+  assert(ret == MPI_SUCCESS);
+}
+
+inline void Startall(int count, MPI_Request *requests)
+{
+  int ret = MPI_Startall(count, requests);
+  assert(ret == MPI_SUCCESS); 
+}
+
 inline void Wait(MPI_Request *request, MPI_Status *status)
 {
   // LOGPRINTF("MPI_Wait rank(w%i)\n", Comm_rank(MPI_COMM_WORLD));
@@ -282,6 +306,12 @@ inline bool Testall(int count, MPI_Request *requests, MPI_Status *statuses)
   int ret = MPI_Testall(count, requests, &completed, statuses);
   assert(ret == MPI_SUCCESS);
   return completed;
+}
+
+inline void Request_free(MPI_Request *request)
+{
+  int ret = MPI_Request_free(request);
+  assert(ret == MPI_SUCCESS);
 }
 
 } // namespace MPI

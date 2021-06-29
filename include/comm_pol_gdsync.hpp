@@ -320,6 +320,7 @@ struct gdsync_pol {
   static const bool mock = false;
   // compile mpi_type packing/unpacking tests for this comm policy
   static const bool use_mpi_type = false;
+  static const bool persistent = false;
   static const char* get_name() { return "gdsync"; }
   using send_request_type = detail::gdsync::Request*;
   using recv_request_type = detail::gdsync::Request*;
@@ -901,6 +902,15 @@ struct MessageGroup<MessageBase::Kind::send, gdsync_pol, exec_policy>
     m_msg_requests.resize(this->messages.size(), message_request_type{MessageBase::Kind::send});
   }
 
+  void setup(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, request_type* requests)
+  {
+    COMB::ignore_unused(con, con_comm, msgs, len, requests);
+  }
+
+  void cleanup(communicator_type& con_comm, message_type** msgs, IdxT len, request_type* requests)
+  {
+    COMB::ignore_unused(con_comm, msgs, len, requests);
+  }
 
   void allocate(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async /*async*/)
   {
@@ -1134,6 +1144,15 @@ struct MessageGroup<MessageBase::Kind::recv, gdsync_pol, exec_policy>
     m_msg_requests.resize(this->messages.size(), message_request_type{MessageBase::Kind::recv});
   }
 
+  void setup(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, request_type* requests)
+  {
+    COMB::ignore_unused(con, con_comm, msgs, len, requests);
+  }
+
+  void cleanup(communicator_type& con_comm, message_type** msgs, IdxT len, request_type* requests)
+  {
+    COMB::ignore_unused(con_comm, msgs, len, requests);
+  }
 
   void allocate(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async /*async*/)
   {

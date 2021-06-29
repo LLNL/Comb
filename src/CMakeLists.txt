@@ -21,6 +21,7 @@ set(comb_sources
   test_copy.cpp
   test_cycles_mock.cpp
   test_cycles_mpi.cpp
+  test_cycles_mpi_persistent.cpp
   test_cycles_gdsync.cpp
   test_cycles_gpump.cpp
   test_cycles_mp.cpp
@@ -116,6 +117,10 @@ builddocyclescom(mock On)
 
 if(ENABLE_MPI)
   builddocyclescom(mpi On)
+endif()
+
+if(ENABLE_MPI)
+  builddocyclescom(mpi_persistent On)
 endif()
 
 if (ENABLE_GDSYNC)

@@ -13,8 +13,8 @@
 // Please also see the LICENSE file for MIT license.
 //////////////////////////////////////////////////////////////////////////////
 
-#ifndef _COMM_POL_MPI_HPP
-#define _COMM_POL_MPI_HPP
+#ifndef _COMM_POL_MPI_PERSISTENT_HPP
+#define _COMM_POL_MPI_PERSISTENT_HPP
 
 #include "config.hpp"
 
@@ -25,13 +25,13 @@
 #include "MessageBase.hpp"
 #include "ExecContext.hpp"
 
-struct mpi_pol {
+struct mpi_persistent_pol {
   // static const bool async = false;
   static const bool mock = false;
   // compile mpi_type packing/unpacking tests for this comm policy
   static const bool use_mpi_type = true;
-  static const bool persistent = false;
-  static const char* get_name() { return "mpi"; }
+  static const bool persistent = true;
+  static const char* get_name() { return "mpi_persistent"; }
   using send_request_type = MPI_Request;
   using recv_request_type = MPI_Request;
   using send_status_type = MPI_Status;
@@ -39,11 +39,11 @@ struct mpi_pol {
 };
 
 template < >
-struct CommContext<mpi_pol> : MPIContext
+struct CommContext<mpi_persistent_pol> : MPIContext
 {
   using base = MPIContext;
 
-  using pol = mpi_pol;
+  using pol = mpi_persistent_pol;
 
   using send_request_type = typename pol::send_request_type;
   using recv_request_type = typename pol::recv_request_type;
@@ -110,10 +110,10 @@ struct CommContext<mpi_pol> : MPIContext
 namespace detail {
 
 template < >
-struct Message<MessageBase::Kind::send, mpi_pol>
-  : MessageInterface<MessageBase::Kind::send, mpi_pol>
+struct Message<MessageBase::Kind::send, mpi_persistent_pol>
+  : MessageInterface<MessageBase::Kind::send, mpi_persistent_pol>
 {
-  using base = MessageInterface<MessageBase::Kind::send, mpi_pol>;
+  using base = MessageInterface<MessageBase::Kind::send, mpi_persistent_pol>;
 
   using policy_comm = typename base::policy_comm;
   using communicator_type = typename base::communicator_type;
@@ -186,10 +186,10 @@ struct Message<MessageBase::Kind::send, mpi_pol>
 
 
 template < >
-struct Message<MessageBase::Kind::recv, mpi_pol>
-  : MessageInterface<MessageBase::Kind::recv, mpi_pol>
+struct Message<MessageBase::Kind::recv, mpi_persistent_pol>
+  : MessageInterface<MessageBase::Kind::recv, mpi_persistent_pol>
 {
-  using base = MessageInterface<MessageBase::Kind::recv, mpi_pol>;
+  using base = MessageInterface<MessageBase::Kind::recv, mpi_persistent_pol>;
 
   using policy_comm = typename base::policy_comm;
   using communicator_type = typename base::communicator_type;
@@ -262,10 +262,10 @@ struct Message<MessageBase::Kind::recv, mpi_pol>
 
 
 template < typename exec_policy >
-struct MessageGroup<MessageBase::Kind::send, mpi_pol, exec_policy>
-  : detail::MessageGroupInterface<MessageBase::Kind::send, mpi_pol, exec_policy>
+struct MessageGroup<MessageBase::Kind::send, mpi_persistent_pol, exec_policy>
+  : detail::MessageGroupInterface<MessageBase::Kind::send, mpi_persistent_pol, exec_policy>
 {
-  using base = detail::MessageGroupInterface<MessageBase::Kind::send, mpi_pol, exec_policy>;
+  using base = detail::MessageGroupInterface<MessageBase::Kind::send, mpi_persistent_pol, exec_policy>;
 
   using policy_comm       = typename base::policy_comm;
   using communicator_type = typename base::communicator_type;
@@ -291,19 +291,37 @@ struct MessageGroup<MessageBase::Kind::send, mpi_pol, exec_policy>
 
   void setup(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, request_type* requests)
   {
-    COMB::ignore_unused(con, con_comm, msgs, len, requests);
+    COMB::ignore_unused(con);
+    LOGPRINTF("%p initialize persistent communication\n", this);
+    for (IdxT i = 0; i < len; ++i) {
+      message_type* msg = msgs[i];
+      IdxT msg_nbytes = msg->nbytes() * this->m_variables.size();
+      msg->buf = this->m_aloc.allocate(msg_nbytes);
+      LOGPRINTF("%p send allocate msg %p buf %p nbytes %d\n", this, msg, msg->buf, msg_nbytes);
+      char* buf = static_cast<char*>(msg->buf);
+      int partner_rank = msg->partner_rank;
+      int tag = msg->msg_tag;
+      detail::MPI::Send_init(buf, msg_nbytes, MPI_BYTE, partner_rank, tag, con_comm.comm, &requests[i]);
+    }
+    LOGPRINTF("%p finished initializing persistent communication\n", this);
   }
 
   void cleanup(communicator_type& con_comm, message_type** msgs, IdxT len, request_type* requests)
   {
-    COMB::ignore_unused(con_comm, msgs, len, requests);
+    COMB::ignore_unused(con_comm);
+    for (IdxT i = 0; i < len; i++) {
+      message_type* msg = msgs[i];
+      detail::MPI::Request_free(&requests[i]);
+      this->m_aloc.deallocate(msg->buf);
+    }
   }
 
   void allocate(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async /*async*/)
   {
-    COMB::ignore_unused(con, con_comm);
+    COMB::ignore_unused(con, con_comm, msgs);
     LOGPRINTF("%p send allocate msgs %p len %d\n", this, msgs, len);
     if (len <= 0) return;
+    /*
     for (IdxT i = 0; i < len; ++i) {
       message_type* msg = msgs[i];
       assert(msg->buf == nullptr);
@@ -312,7 +330,7 @@ struct MessageGroup<MessageBase::Kind::send, mpi_pol, exec_policy>
 
       msg->buf = this->m_aloc.allocate(nbytes);
       LOGPRINTF("%p send allocate msg %p buf %p nbytes %d\n", this, msg, msg->buf, nbytes);
-    }
+    }*/
 
     if (comb_allow_pack_loop_fusion()) {
       this->m_fuser.allocate(con, this->m_variables, this->m_items.size());
@@ -419,35 +437,10 @@ struct MessageGroup<MessageBase::Kind::send, mpi_pol, exec_policy>
     if (len <= 0) return;
     start_Isends(con, con_comm);
     for (IdxT i = 0; i < len; ++i) {
-      const message_type* msg = msgs[i];
+      message_type* msg = msgs[i];
       LOGPRINTF("%p send Isend msg %p buf %p nbytes %d to %i tag %i\n",
                 this, msg, msg->buf, msg->nbytes() * this->m_variables.size(), msg->partner_rank, msg->msg_tag);
-      char* buf = static_cast<char*>(msg->buf);
-      assert(buf != nullptr);
-      const int partner_rank = msg->partner_rank;
-      const int tag = msg->msg_tag;
-      const IdxT msg_nbytes = msg->nbytes() * this->m_variables.size();
-
-      // char const* print_buf = buf;
-      // for (const MessageItemBase* msg_item : msg->message_items) {
-      //   const message_item_type* item = static_cast<const message_item_type*>(msg_item);
-      //   const IdxT nitems = item->size;
-      //   const IdxT nbytes = item->nbytes;
-      //   LidxT const* indices = item->indices;
-      //   for (DataT const* src : this->m_variables) {
-      //     if (nitems*sizeof(DataT) == nbytes) {
-      //       LOGPRINTF("  buf %p nitems %d nbytes %d [ ", print_buf, nitems, nbytes);
-      //       for (IdxT idx = 0; idx < nitems; ++idx) {
-      //         LOGPRINTF("%f ", (double)((DataT const*)print_buf)[idx]);
-      //       }
-      //       LOGPRINTF("] src %p[indices %p]\n", src, indices);
-      //     }
-      //     print_buf += nbytes;
-      //   }
-      // }
-
-      detail::MPI::Isend(buf, msg_nbytes, MPI_BYTE,
-                         partner_rank, tag, con_comm.comm, &requests[i]);
+      detail::MPI::Start(&requests[i]);
     }
     finish_Isends(con, con_comm);
   }
@@ -460,9 +453,10 @@ struct MessageGroup<MessageBase::Kind::send, mpi_pol, exec_policy>
 
   void deallocate(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async /*async*/)
   {
-    COMB::ignore_unused(con, con_comm);
+    COMB::ignore_unused(con, con_comm, msgs);
     LOGPRINTF("%p send deallocate con %p msgs %p len %d\n", this, &con, msgs, len);
     if (len <= 0) return;
+    /*
     for (IdxT i = 0; i < len; ++i) {
       message_type* msg = msgs[i];
       LOGPRINTF("%p send deallocate msg %p buf %p\n", this, msg, msg->buf);
@@ -471,7 +465,7 @@ struct MessageGroup<MessageBase::Kind::send, mpi_pol, exec_policy>
       this->m_aloc.deallocate(msg->buf);
 
       msg->buf = nullptr;
-    }
+    }*/
 
     if (comb_allow_pack_loop_fusion()) {
       this->m_fuser.deallocate(con);
@@ -480,10 +474,10 @@ struct MessageGroup<MessageBase::Kind::send, mpi_pol, exec_policy>
 };
 
 template < typename exec_policy >
-struct MessageGroup<MessageBase::Kind::recv, mpi_pol, exec_policy>
-  : detail::MessageGroupInterface<MessageBase::Kind::recv, mpi_pol, exec_policy>
+struct MessageGroup<MessageBase::Kind::recv, mpi_persistent_pol, exec_policy>
+  : detail::MessageGroupInterface<MessageBase::Kind::recv, mpi_persistent_pol, exec_policy>
 {
-  using base = detail::MessageGroupInterface<MessageBase::Kind::recv, mpi_pol, exec_policy>;
+  using base = detail::MessageGroupInterface<MessageBase::Kind::recv, mpi_persistent_pol, exec_policy>;
 
   using policy_comm       = typename base::policy_comm;
   using communicator_type = typename base::communicator_type;
@@ -509,19 +503,37 @@ struct MessageGroup<MessageBase::Kind::recv, mpi_pol, exec_policy>
 
   void setup(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, request_type* requests)
   {
-    COMB::ignore_unused(con, con_comm, msgs, len, requests);
+    COMB::ignore_unused(con);
+    LOGPRINTF("%p initialize persistent communication\n", this);
+    for (IdxT i = 0; i < len; ++i) {
+      message_type* msg = msgs[i];
+      IdxT msg_nbytes = msg->nbytes() * this->m_variables.size();
+      msg->buf = this->m_aloc.allocate(msg_nbytes);
+      LOGPRINTF("%p send allocate msg %p buf %p nbytes %d\n", this, msg, msg->buf, msg_nbytes);
+      char* buf = static_cast<char*>(msg->buf);
+      int partner_rank = msg->partner_rank;
+      int tag = msg->msg_tag;
+      detail::MPI::Recv_init(buf, msg_nbytes, MPI_BYTE, partner_rank, tag, con_comm.comm, &requests[i]);
+    }
+    LOGPRINTF("%p finished initializing persistent communication\n", this);
   }
 
   void cleanup(communicator_type& con_comm, message_type** msgs, IdxT len, request_type* requests)
   {
-    COMB::ignore_unused(con_comm, msgs, len, requests);
+    COMB::ignore_unused(con_comm);
+    for (IdxT i = 0; i < len; i++) {
+      message_type* msg = msgs[i];
+      detail::MPI::Request_free(&requests[i]);
+      this->m_aloc.deallocate(msg->buf);
+    }
   }
 
   void allocate(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async /*async*/)
   {
-    COMB::ignore_unused(con, con_comm);
+    COMB::ignore_unused(con, con_comm, msgs);
     LOGPRINTF("%p recv allocate con %p msgs %p len %d\n", this, &con, msgs, len);
     if (len <= 0) return;
+    /*
     for (IdxT i = 0; i < len; ++i) {
       message_type* msg = msgs[i];
       assert(msg->buf == nullptr);
@@ -531,7 +543,7 @@ struct MessageGroup<MessageBase::Kind::recv, mpi_pol, exec_policy>
       msg->buf = this->m_aloc.allocate(nbytes);
       LOGPRINTF("%p recv allocate msg %p buf %p nbytes %d\n",
                                 this, msg, msg->buf, msg->nbytes() * this->m_variables.size());
-    }
+    }*/
 
     if (comb_allow_pack_loop_fusion()) {
       this->m_fuser.allocate(con, this->m_variables, this->m_items.size());
@@ -544,16 +556,10 @@ struct MessageGroup<MessageBase::Kind::recv, mpi_pol, exec_policy>
     LOGPRINTF("%p recv Irecv con %p msgs %p len %d\n", this, &con, msgs, len);
     if (len <= 0) return;
     for (IdxT i = 0; i < len; ++i) {
-      const message_type* msg = msgs[i];
+      message_type* msg = msgs[i];
       LOGPRINTF("%p recv Irecv msg %p buf %p nbytes %d to %d tag %d\n",
                                 this, msg, msg->buf, msg->nbytes() * this->m_variables.size(), msg->partner_rank, msg->msg_tag);
-      char* buf = static_cast<char*>(msg->buf);
-      assert(buf != nullptr);
-      const int partner_rank = msg->partner_rank;
-      const int tag = msg->msg_tag;
-      const IdxT nbytes = msg->nbytes() * this->m_variables.size();
-      detail::MPI::Irecv(buf, nbytes, MPI_BYTE,
-                         partner_rank, tag, con_comm.comm, &requests[i]);
+      detail::MPI::Start(&requests[i]);
     }
   }
 
@@ -632,9 +638,10 @@ struct MessageGroup<MessageBase::Kind::recv, mpi_pol, exec_policy>
 
   void deallocate(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async /*async*/)
   {
-    COMB::ignore_unused(con, con_comm);
+    COMB::ignore_unused(con, con_comm, msgs);
     LOGPRINTF("%p recv deallocate con %p msgs %p len %d\n", this, &con, msgs, len);
     if (len <= 0) return;
+    /*
     for (IdxT i = 0; i < len; ++i) {
       message_type* msg = msgs[i];
       LOGPRINTF("%p recv deallocate msg %p buf %p\n", this, msg, msg->buf);
@@ -643,7 +650,7 @@ struct MessageGroup<MessageBase::Kind::recv, mpi_pol, exec_policy>
       this->m_aloc.deallocate(msg->buf);
 
       msg->buf = nullptr;
-    }
+    }*/
 
     if (comb_allow_pack_loop_fusion()) {
       this->m_fuser.deallocate(con);
@@ -653,10 +660,10 @@ struct MessageGroup<MessageBase::Kind::recv, mpi_pol, exec_policy>
 
 
 template < >
-struct MessageGroup<MessageBase::Kind::send, mpi_pol, mpi_type_pol>
-  : detail::MessageGroupInterface<MessageBase::Kind::send, mpi_pol, mpi_type_pol>
+struct MessageGroup<MessageBase::Kind::send, mpi_persistent_pol, mpi_type_pol>
+  : detail::MessageGroupInterface<MessageBase::Kind::send, mpi_persistent_pol, mpi_type_pol>
 {
-  using base = detail::MessageGroupInterface<MessageBase::Kind::send, mpi_pol, mpi_type_pol>;
+  using base = detail::MessageGroupInterface<MessageBase::Kind::send, mpi_persistent_pol, mpi_type_pol>;
 
   using policy_comm       = typename base::policy_comm;
   using communicator_type = typename base::communicator_type;
@@ -682,18 +689,36 @@ struct MessageGroup<MessageBase::Kind::send, mpi_pol, mpi_type_pol>
 
   void setup(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, request_type* requests)
   {
-    COMB::ignore_unused(con, con_comm, msgs, len, requests);
+    COMB::ignore_unused(con, con_comm);
+    LOGPRINTF("%p initialize persistent communication\n", this);
+    for (IdxT i = 0; i < len; ++i) {
+      message_type* msg = msgs[i];
+      IdxT msg_nbytes = msg->nbytes() * this->m_variables.size();
+      msg->buf = this->m_aloc.allocate(msg_nbytes);
+      LOGPRINTF("%p send allocate msg %p buf %p nbytes %d\n", this, msg, msg->buf, msg_nbytes);
+      char* buf = static_cast<char*>(msg->buf);
+      int partner_rank = msg->partner_rank;
+      int tag = msg->msg_tag;
+      detail::MPI::Send_init(buf, msg_nbytes, MPI_BYTE, partner_rank, tag, con_comm.comm, &requests[i]);
+    }
+    LOGPRINTF("%p finished initializing persistent communication\n", this);
   }
 
   void cleanup(communicator_type& con_comm, message_type** msgs, IdxT len, request_type* requests)
   {
-    COMB::ignore_unused(con_comm, msgs, len, requests);
+    COMB::ignore_unused(con_comm);
+    for (IdxT i = 0; i < len; i++) {
+      message_type* msg = msgs[i];
+      detail::MPI::Request_free(&requests[i]);
+      this->m_aloc.deallocate(msg->buf);
+    }
   }
 
   void allocate(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async /*async*/)
   {
-    COMB::ignore_unused(con, con_comm);
+    COMB::ignore_unused(con, con_comm, msgs);
     if (len <= 0) return;
+    /*
     for (IdxT i = 0; i < len; ++i) {
       message_type* msg = msgs[i];
       assert(msg->buf == nullptr);
@@ -705,7 +730,7 @@ struct MessageGroup<MessageBase::Kind::send, mpi_pol, mpi_type_pol>
 
         msg->buf = this->m_aloc.allocate(nbytes);
       }
-    }
+    }*/
   }
 
   void pack(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async async)
@@ -769,35 +794,18 @@ struct MessageGroup<MessageBase::Kind::send, mpi_pol, mpi_type_pol>
 
   void Isend(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async /*async*/, request_type* requests)
   {
+    LOGPRINTF("%p send Isend con %p msgs %p len %d\n", this, &con, msgs, len);
     if (len <= 0) return;
     start_Isends(con, con_comm);
     for (IdxT i = 0; i < len; ++i) {
-      const message_type* msg = msgs[i];
-      const int partner_rank = msg->partner_rank;
-      const int tag = msg->msg_tag;
-      if (msg->message_items.size() == 1 && this->m_variables.size() == 1) {
-        const DataT* src = this->m_variables.front();
-        const IdxT len = 1;
-        const message_item_type* item = static_cast<const message_item_type*>(msg->message_items.front());
-        MPI_Datatype mpi_type = item->mpi_type;
-        // LOGPRINTF("%p Isend %p to %i tag %i\n", this, src, partner_rank, tag);
-        detail::MPI::Isend(src, len, mpi_type,
-                           partner_rank, tag, con_comm.comm, &requests[i]);
-      } else {
-        char* buf = static_cast<char*>(msg->buf);
-        assert(buf != nullptr);
-        int packed_nbytes = 0;
-        for (const MessageItemBase* msg_item : msg->message_items) {
-          const message_item_type* item = static_cast<const message_item_type*>(msg_item);
-          packed_nbytes += item->packed_nbytes;
-        }
-        // LOGPRINTF("%p Isend %p nbytes %i to %i tag %i\n", this, buf, packed_nbytes, partner_rank, tag);
-        detail::MPI::Isend(buf, packed_nbytes, MPI_PACKED,
-                           partner_rank, tag, con_comm.comm, &requests[i]);
-      }
+      message_type* msg = msgs[i];
+      LOGPRINTF("%p send Isend msg %p buf %p nbytes %d to %i tag %i\n",
+                this, msg, msg->buf, msg->nbytes() * this->m_variables.size(), msg->partner_rank, msg->msg_tag);
+      detail::MPI::Start(&requests[i]);
     }
     finish_Isends(con, con_comm);
   }
+
 
   static void finish_Isends(context_type& con, communicator_type& con_comm)
   {
@@ -807,8 +815,9 @@ struct MessageGroup<MessageBase::Kind::send, mpi_pol, mpi_type_pol>
 
   void deallocate(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async /*async*/)
   {
-    COMB::ignore_unused(con, con_comm);
+    COMB::ignore_unused(con, con_comm, msgs);
     if (len <= 0) return;
+    /*
     for (IdxT i = 0; i < len; ++i) {
       message_type* msg = msgs[i];
       if (msg->message_items.size() == 1 && this->m_variables.size() == 1) {
@@ -819,15 +828,15 @@ struct MessageGroup<MessageBase::Kind::send, mpi_pol, mpi_type_pol>
         this->m_aloc.deallocate(msg->buf);
         msg->buf = nullptr;
       }
-    }
+    }*/
   }
 };
 
 template < >
-struct MessageGroup<MessageBase::Kind::recv, mpi_pol, mpi_type_pol>
-  : detail::MessageGroupInterface<MessageBase::Kind::recv, mpi_pol, mpi_type_pol>
+struct MessageGroup<MessageBase::Kind::recv, mpi_persistent_pol, mpi_type_pol>
+  : detail::MessageGroupInterface<MessageBase::Kind::recv, mpi_persistent_pol, mpi_type_pol>
 {
-  using base = detail::MessageGroupInterface<MessageBase::Kind::recv, mpi_pol, mpi_type_pol>;
+  using base = detail::MessageGroupInterface<MessageBase::Kind::recv, mpi_persistent_pol, mpi_type_pol>;
 
   using policy_comm       = typename base::policy_comm;
   using communicator_type = typename base::communicator_type;
@@ -853,18 +862,36 @@ struct MessageGroup<MessageBase::Kind::recv, mpi_pol, mpi_type_pol>
 
   void setup(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, request_type* requests)
   {
-    COMB::ignore_unused(con, con_comm, msgs, len, requests);
+    COMB::ignore_unused(con, con_comm);
+    LOGPRINTF("%p initialize persistent communication\n", this);
+    for (IdxT i = 0; i < len; ++i) {
+      message_type* msg = msgs[i];
+      IdxT msg_nbytes = msg->nbytes() * this->m_variables.size();
+      msg->buf = this->m_aloc.allocate(msg_nbytes);
+      LOGPRINTF("%p send allocate msg %p buf %p nbytes %d\n", this, msg, msg->buf, msg_nbytes);
+      char* buf = static_cast<char*>(msg->buf);
+      int partner_rank = msg->partner_rank;
+      int tag = msg->msg_tag;
+      detail::MPI::Recv_init(buf, msg_nbytes, MPI_BYTE, partner_rank, tag, con_comm.comm, &requests[i]);
+    }
+    LOGPRINTF("%p finished initializing persistent communication\n", this);
   }
 
   void cleanup(communicator_type& con_comm, message_type** msgs, IdxT len, request_type* requests)
   {
-    COMB::ignore_unused(con_comm, msgs, len, requests);
+    COMB::ignore_unused(con_comm);
+    for (IdxT i = 0; i < len; i++) {
+      message_type* msg = msgs[i];
+      detail::MPI::Request_free(&requests[i]);
+      this->m_aloc.deallocate(msg->buf);
+    }
   }
 
   void allocate(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async /*async*/)
   {
-    COMB::ignore_unused(con, con_comm);
+    COMB::ignore_unused(con, con_comm, msgs);
     if (len <= 0) return;
+    /*
     for (IdxT i = 0; i < len; ++i) {
       message_type* msg = msgs[i];
       assert(msg->buf == nullptr);
@@ -876,34 +903,19 @@ struct MessageGroup<MessageBase::Kind::recv, mpi_pol, mpi_type_pol>
 
         msg->buf = this->m_aloc.allocate(nbytes);
       }
-    }
+    }*/
   }
 
   void Irecv(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async /*async*/, request_type* requests)
   {
     COMB::ignore_unused(con, con_comm);
+    LOGPRINTF("%p recv Irecv con %p msgs %p len %d\n", this, &con, msgs, len);
     if (len <= 0) return;
     for (IdxT i = 0; i < len; ++i) {
-      const message_type* msg = msgs[i];
-      const int partner_rank = msg->partner_rank;
-      const int tag = msg->msg_tag;
-      if (msg->message_items.size() == 1 && this->m_variables.size() == 1) {
-        DataT* dst = m_variables.front();
-        assert(dst != nullptr);
-        IdxT len = 1;
-        const message_item_type* item = static_cast<const message_item_type*>(msg->message_items.front());
-        MPI_Datatype mpi_type = item->mpi_type;
-        // LOGPRINTF("%p Irecv %p to %i tag %i\n", this, dst, partner_rank, tag);
-        detail::MPI::Irecv(dst, len, mpi_type,
-                           partner_rank, tag, con_comm.comm, &requests[i]);
-      } else {
-        char* buf = static_cast<char*>(msg->buf);
-        assert(buf != nullptr);
-        const IdxT nbytes = msg->nbytes() * this->m_variables.size();
-        // LOGPRINTF("%p Irecv %p maxnbytes %i to %i tag %i\n", this, dst, nbytes, partner_rank, tag);
-        detail::MPI::Irecv(buf, nbytes, MPI_PACKED,
-                           partner_rank, tag, con_comm.comm, &requests[i]);
-      }
+      message_type* msg = msgs[i];
+      LOGPRINTF("%p recv Irecv msg %p buf %p nbytes %d to %d tag %d\n",
+                                this, msg, msg->buf, msg->nbytes() * this->m_variables.size(), msg->partner_rank, msg->msg_tag);
+      detail::MPI::Start(&requests[i]);
     }
   }
 
@@ -942,8 +954,9 @@ struct MessageGroup<MessageBase::Kind::recv, mpi_pol, mpi_type_pol>
 
   void deallocate(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async /*async*/)
   {
-    COMB::ignore_unused(con, con_comm);
+    COMB::ignore_unused(con, con_comm, msgs);
     if (len <= 0) return;
+    /*
     for (IdxT i = 0; i < len; ++i) {
       message_type* msg = msgs[i];
       if (msg->message_items.size() == 1 && this->m_variables.size() == 1) {
@@ -954,7 +967,7 @@ struct MessageGroup<MessageBase::Kind::recv, mpi_pol, mpi_type_pol>
         this->m_aloc.deallocate(msg->buf);
         msg->buf = nullptr;
       }
-    }
+    }*/
   }
 };
 
@@ -962,4 +975,4 @@ struct MessageGroup<MessageBase::Kind::recv, mpi_pol, mpi_type_pol>
 
 #endif
 
-#endif // _COMM_POL_MPI_HPP
+#endif // _COMM_POL_MPI_PERSISTENT_HPP
