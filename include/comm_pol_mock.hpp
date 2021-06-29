@@ -30,6 +30,7 @@ struct mock_pol {
   // compile mpi_type packing/unpacking tests for this comm policy
   static const bool use_mpi_type = true;
 #endif
+  static const bool persistent = false;
   static const char* get_name() { return "mock"; }
   using send_request_type = int;
   using recv_request_type = int;
@@ -363,6 +364,15 @@ struct MessageGroup<MessageBase::Kind::send, mock_pol, exec_policy>
     base::finalize();
   }
 
+  void setup(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, request_type* requests)
+  {
+    COMB::ignore_unused(con, con_comm, msgs, len, requests);
+  }
+
+  void cleanup(communicator_type& con_comm, message_type** msgs, IdxT len, request_type* requests)
+  {
+    COMB::ignore_unused(con_comm, msgs, len, requests);
+  }
 
   void allocate(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async /*async*/)
   {
@@ -543,6 +553,15 @@ struct MessageGroup<MessageBase::Kind::recv, mock_pol, exec_policy>
     base::finalize();
   }
 
+  void setup(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, request_type* requests)
+  {
+    COMB::ignore_unused(con, con_comm, msgs, len, requests);
+  }
+
+  void cleanup(communicator_type& con_comm, message_type** msgs, IdxT len, request_type* requests)
+  {
+    COMB::ignore_unused(con_comm, msgs, len, requests);
+  }
 
   void allocate(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async /*async*/)
   {
@@ -672,6 +691,15 @@ struct MessageGroup<MessageBase::Kind::send, mock_pol, mpi_type_pol>
     base::finalize();
   }
 
+  void setup(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, request_type* requests)
+  {
+    COMB::ignore_unused(con, con_comm, msgs, len, requests);
+  }
+
+  void cleanup(communicator_type& con_comm, message_type** msgs, IdxT len, request_type* requests)
+  {
+    COMB::ignore_unused(con_comm, msgs, len, requests);
+  }
 
   void allocate(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async /*async*/)
   {
@@ -831,6 +859,15 @@ struct MessageGroup<MessageBase::Kind::recv, mock_pol, mpi_type_pol>
     base::finalize();
   }
 
+  void setup(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, request_type* requests)
+  {
+    COMB::ignore_unused(con, con_comm, msgs, len, requests);
+  }
+
+  void cleanup(communicator_type& con_comm, message_type** msgs, IdxT len, request_type* requests)
+  {
+    COMB::ignore_unused(con_comm, msgs, len, requests);
+  }
 
   void allocate(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async /*async*/)
   {

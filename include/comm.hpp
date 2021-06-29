@@ -249,6 +249,8 @@ struct Comm
   static_assert(pol_many_is_mpi_type == pol_few_is_mpi_type,
       "pol_many and pol_few must both be mpi_type_pol if either is mpi_type_pol");
 #endif
+  
+  static const bool persistent = policy_comm::persistent;
 
   COMB::Allocator& mesh_aloc;
   COMB::Allocator& many_aloc;
@@ -350,6 +352,89 @@ struct Comm
     LOGPRINTF("%p Comm::finish_populating end\n", this);
   }
 
+  void init_persistent_comm(ExecContext<policy_many>& con_many, ExecContext<policy_few>& con_few)
+  {
+    IdxT num_many = m_sends.message_group_many.messages.size();
+    IdxT num_few = m_sends.message_group_few.messages.size();
+
+    IdxT num_sends = num_many + num_few;
+    IdxT num_recvs = num_many + num_few;
+
+    m_sends.messages.resize(num_sends, nullptr);
+    m_sends.requests.resize(num_sends, con_comm.send_request_null());
+    m_recvs.messages.resize(num_recvs, nullptr);
+    m_recvs.requests.resize(num_recvs, con_comm.recv_request_null());
+
+    send_message_type** send_messages_many = &m_sends.messages[0];
+    send_message_type** send_messages_few  = &m_sends.messages[num_many];
+    recv_message_type** recv_messages_many = &m_recvs.messages[0];
+    recv_message_type** recv_messages_few  = &m_recvs.messages[num_many];
+
+    send_request_type* send_requests_many = &m_sends.requests[0];
+    send_request_type* send_requests_few  = &m_sends.requests[num_many];
+    recv_request_type* recv_requests_many = &m_recvs.requests[0];
+    recv_request_type* recv_requests_few  = &m_recvs.requests[num_many];
+
+    const detail::Async async = (post_recv_method == CommInfo::method::waitany ||
+                               post_recv_method == CommInfo::method::waitsome ||
+                               post_recv_method == CommInfo::method::waitall)
+                               ? detail::Async::no : detail::Async::yes;
+
+    for (IdxT i_many = 0; i_many < num_many; i_many++) {
+      send_messages_many[i_many] = &m_sends.message_group_many.messages[i_many];
+      recv_messages_many[i_many] = &m_recvs.message_group_many.messages[i_many];
+      m_sends.message_group_many.allocate(con_many, con_comm, &send_messages_many[i_many], 1, async);
+      m_recvs.message_group_many.allocate(con_many, con_comm, &recv_messages_many[i_many], 1, async);
+    }
+    for (IdxT i_few = 0; i_few < num_few; i_few++) {
+      send_messages_few[i_few] = &m_sends.message_group_few.messages[i_few];
+      recv_messages_few[i_few] = &m_recvs.message_group_few.messages[i_few];
+      m_sends.message_group_few.allocate(con_few, con_comm, &send_messages_few[i_few], 1, async);
+      m_recvs.message_group_few.allocate(con_few, con_comm, &recv_messages_few[i_few], 1, async);
+    }
+
+    m_sends.message_group_many.setup(con_many, con_comm, send_messages_many, num_many, send_requests_many);
+    m_sends.message_group_few.setup(con_few, con_comm, send_messages_few, num_few, send_requests_few);
+    m_recvs.message_group_many.setup(con_many, con_comm, recv_messages_many, num_many, recv_requests_many);
+    m_recvs.message_group_few.setup(con_few, con_comm, recv_messages_few, num_few, recv_requests_few);
+  }
+
+  void cleanup_persistent_comm()
+  {
+    IdxT num_many = m_sends.message_group_many.messages.size();
+    IdxT num_few = m_sends.message_group_few.messages.size();
+
+    send_message_type** send_messages_many = &m_sends.messages[0];
+    send_message_type** send_messages_few  = &m_sends.messages[num_many];
+    recv_message_type** recv_messages_many = &m_recvs.messages[0];
+    recv_message_type** recv_messages_few  = &m_recvs.messages[num_many];
+
+    send_request_type* send_requests_many = &m_sends.requests[0];
+    send_request_type* send_requests_few  = &m_sends.requests[num_many];
+    recv_request_type* recv_requests_many = &m_recvs.requests[0];
+    recv_request_type* recv_requests_few  = &m_recvs.requests[num_many];
+
+    for (IdxT i_many = 0; i_many < num_many; i_many++) {
+      send_messages_many[i_many] = &m_sends.message_group_many.messages[i_many];
+      recv_messages_many[i_many] = &m_recvs.message_group_many.messages[i_many];
+    }
+
+    for (IdxT i_few = 0; i_few < num_few; i_few++) {
+      send_messages_few[i_few] = &m_sends.message_group_few.messages[i_few];
+      recv_messages_few[i_few] = &m_recvs.message_group_few.messages[i_few];
+    }
+
+    m_sends.message_group_many.cleanup(con_comm, send_messages_many, num_many, send_requests_many);
+    m_sends.message_group_few.cleanup(con_comm, send_messages_few, num_few, send_requests_few);
+    m_recvs.message_group_many.cleanup(con_comm, recv_messages_many, num_many, recv_requests_many);
+    m_recvs.message_group_few.cleanup(con_comm, recv_messages_few, num_few, recv_requests_few);
+
+    m_sends.messages.clear();
+    m_sends.requests.clear();
+    m_recvs.messages.clear();
+    m_recvs.requests.clear();
+  }
+
   ~Comm()
   {
     LOGPRINTF("%p Comm::~Comm begin\n", this);
@@ -395,8 +480,10 @@ struct Comm
 
     IdxT num_recvs = num_many + num_few;
 
-    m_recvs.messages.resize(num_recvs, nullptr);
-    m_recvs.requests.resize(num_recvs, con_comm.recv_request_null());
+    if (!persistent) {
+      m_recvs.messages.resize(num_recvs, nullptr);
+      m_recvs.requests.resize(num_recvs, con_comm.recv_request_null());
+    }
 
     recv_message_type** messages_many = &m_recvs.messages[0];
     recv_message_type** messages_few  = &m_recvs.messages[num_many];
@@ -481,8 +568,10 @@ struct Comm
 
     IdxT num_sends = num_many + num_few;
 
-    m_sends.messages.resize(num_sends, nullptr);
-    m_sends.requests.resize(num_sends, con_comm.send_request_null());
+    if (!persistent) {
+      m_sends.messages.resize(num_sends, nullptr);
+      m_sends.requests.resize(num_sends, con_comm.send_request_null());
+    }
 
     send_message_type** messages_many = &m_sends.messages[0];
     send_message_type** messages_few  = &m_sends.messages[num_many];
@@ -904,8 +993,10 @@ struct Comm
       } break;
     }
 
-    m_recvs.messages.clear();
-    m_recvs.requests.clear();
+    if (!persistent) {
+      m_recvs.messages.clear();
+      m_recvs.requests.clear();
+    }
 
     LOGPRINTF("%p Comm::waitRecv synchronize\n", this);
 
@@ -930,8 +1021,10 @@ struct Comm
 
     IdxT num_sends = num_many + num_few;
 
-    m_sends.messages.resize(num_sends, nullptr);
-    m_sends.requests.resize(num_sends, con_comm.send_request_null());
+    if (!persistent) {
+      m_sends.messages.resize(num_sends, nullptr);
+      m_sends.requests.resize(num_sends, con_comm.send_request_null());
+    }
 
     send_message_type** messages = &m_sends.messages[0];
 
@@ -1044,8 +1137,10 @@ struct Comm
       } break;
     }
 
-    m_sends.messages.clear();
-    m_sends.requests.clear();
+    if (!persistent) {
+      m_sends.messages.clear();
+      m_sends.requests.clear();
+    }
 
     LOGPRINTF("%p Comm::waitSend end\n", this);
   }
@@ -1057,6 +1152,7 @@ struct CommunicatorsAvailable
 {
   bool mock = false;
   bool mpi = false;
+  bool mpi_persistent = false;
   bool gdsync = false;
   bool gpump = false;
   bool mp = false;

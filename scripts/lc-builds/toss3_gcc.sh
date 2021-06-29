@@ -43,5 +43,7 @@ cmake \
   -DENABLE_MPI=On \
   -DENABLE_OPENMP=On \
   -DCMAKE_INSTALL_PREFIX=../install_${BUILD_SUFFIX} \
+  -DENABLE_CALIPER=On \
+  -Dcaliper_DIR=${HOME}/local/caliper/v2.6.0/share/cmake/caliper \
   "$@" \
   ..

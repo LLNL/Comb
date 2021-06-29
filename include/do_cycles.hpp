@@ -168,6 +168,12 @@ void do_cycles(CommContext<pol_comm>& con_comm_in,
 
     tm_total.start(tm_con, "test-comm");
 
+    if (comm.persistent) {
+      tm.start(tm_con, "init-persistent-comm");
+      comm.init_persistent_comm(con_many, con_few);
+      tm.stop(tm_con);
+    }
+
     IdxT ntestcycles = std::max(IdxT{1}, ncycles/IdxT{10});
     for (IdxT test_cycle = 0; test_cycle < ntestcycles; ++test_cycle) { // test comm
 
@@ -420,6 +426,12 @@ void do_cycles(CommContext<pol_comm>& con_comm_in,
       r2.stop();
     }
 
+    if (comm.persistent) {
+      tm.start(tm_con, "cleanup-persistent-comm");
+      comm.cleanup_persistent_comm();
+      tm.stop(tm_con);
+    }
+
     comm.barrier();
 
     tm_total.stop(tm_con);
@@ -429,6 +441,12 @@ void do_cycles(CommContext<pol_comm>& con_comm_in,
     r1.restart("bench comm", Range::magenta);
 
     tm_total.start(tm_con, "bench-comm");
+
+    if (comm.persistent) {
+      tm.start(tm_con, "init-persistent-comm");
+      comm.init_persistent_comm(con_many, con_few);
+      tm.stop(tm_con);
+    }
 
     for(IdxT cycle = 0; cycle < ncycles; cycle++) {
 
@@ -537,6 +555,12 @@ void do_cycles(CommContext<pol_comm>& con_comm_in,
 
       r2.stop();
 
+    }
+
+    if (comm.persistent) {
+      tm.start(tm_con, "cleanup-persistent-comm");
+      comm.cleanup_persistent_comm();
+      tm.stop(tm_con);
     }
 
     comm.barrier();
