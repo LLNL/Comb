@@ -347,6 +347,15 @@ struct Comm
     con_comm.connect_ranks(send_ranks, recv_ranks);
 
     con_comm.setup_mempool(many_aloc, few_aloc);
+
+    // TODO: add Setup to interface or maybe branch if Setup is defined 
+    // TODO: need to loop over variables?
+    m_sends.message_group_many.Setup(con_many, con_comm, m_sends.message_group_many, m_sends.message_group_many.size())
+    m_sends.message_group_few.Setup(con_few, con_comm, m_sends.message_group_few, m_sends.message_group_few.size())
+    m_recvs.message_group_many.Setup(con_many, con_comm, m_recvs.message_group_many, m_recvs.message_group_many.size())
+    m_recvs.message_group_few.Setup(con_few, con_comm, m_recvs.message_group_few, m_recvs.message_group_few.size())
+    // TODO: call cleanup
+
     LOGPRINTF("%p Comm::finish_populating end\n", this);
   }
 
