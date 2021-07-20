@@ -64,6 +64,8 @@
 #cmakedefine COMB_ENABLE_MP
 #cmakedefine COMB_ENABLE_UMR
 #cmakedefine COMB_ENABLE_RAJA
+#cmakedefine COMB_ENABLE_CALIPER
+#cmakedefine COMB_ENABLE_ADIAK
 #cmakedefine COMB_ENABLE_LOG
 
 #ifdef COMB_ENABLE_CUDA
