@@ -51,6 +51,8 @@ The cmake configuration options change which execution patterns and memory space
   - __ENABLE_OPENMP__ Allow use of openmp and enable test combinations using openmp
   - __ENABLE_CUDA__  Allow use of cuda and enable test combinations using cuda
   - __ENABLE_RAJA__  Allow use of RAJA performance portability library
+  - __ENABLE_CALIPER__ Allow use of the Caliper performance profiling library
+  - __ENABLE_ADIAK__ Allow use of the Adiak library for recording program metadata
 
 ### Runtime Options
 
@@ -131,6 +133,7 @@ The runtime options change the properties of the grid and its decomposition, as 
   -   __\-use_device_preferred_for_cuda_util_aloc__ Use device preferred host accessed memory for cuda utility allocations instead of host pinned memory, mainly affects fused kernels
   -  __\-print_packing_sizes__ Print message and packing sizes to proc files
   -  __\-print_message_sizes__ Print message sizes to proc files
+  - __\-caliper_config__ Caliper performance profiling config (e.g., "runtime-report")
 
 ### Example Script
 

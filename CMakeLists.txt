@@ -37,6 +37,8 @@ set(ENABLE_GPUMP OFF CACHE BOOL "Build GPUMP support")
 set(ENABLE_MP OFF CACHE BOOL "Build MP support")
 set(ENABLE_UMR OFF CACHE BOOL "Build UMR support")
 set(ENABLE_RAJA ON CACHE BOOL "Build RAJA support")
+set(ENABLE_CALIPER OFF CACHE BOOL "Build Caliper support")
+set(ENABLE_ADIAK OFF CACHE BOOL "Build Adiak support")
 
 set(COMB_ENABLE_LOG OFF CACHE BOOL "Build logging support")
 

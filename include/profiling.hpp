@@ -32,6 +32,10 @@
 
 #include "ExecContext.hpp"
 
+#ifdef COMB_ENABLE_CALIPER
+#include <caliper/cali.h>
+#endif
+
 struct Timer {
 
   enum {
@@ -249,9 +253,15 @@ struct Range {
 #ifdef COMB_ENABLE_CUDA
   nvtxRangeId_t id;
 #endif
+#ifdef COMB_ENABLE_CALIPER
+  cali::Annotation ann;
+#endif
 
   Range(const char* name_, uint32_t color)
     : name(nullptr)
+#ifdef COMB_ENABLE_CALIPER
+      , ann("comb.range", CALI_ATTR_NESTED)
+#endif
   {
     start(name_, color);
   }
@@ -270,6 +280,9 @@ struct Range {
       eventAttrib.message.ascii = name_;
       id = nvtxRangeStartEx(&eventAttrib);
 #endif
+#ifdef COMB_ENABLE_CALIPER
+      ann.begin(name_);
+#endif
       name = name_;
     }
   }
@@ -278,6 +291,9 @@ struct Range {
   {
     if(name != nullptr) {
       LOGPRINTF("%p Range::stop name %s\n", this, name);
+#ifdef COMB_ENABLE_CALIPER
+      ann.end();
+#endif
 #ifdef COMB_ENABLE_CUDA
       nvtxRangeEnd(id);
 #endif
