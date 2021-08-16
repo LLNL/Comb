@@ -472,6 +472,15 @@ struct Comm
     recv_request_type* requests_many = &m_recvs.requests[0];
     recv_request_type* requests_few  = &m_recvs.requests[num_many];
 
+    if (!persistent) {
+      for (IdxT i_many = 0; i_many < num_many; i_many++) {
+        messages_many[i_many] = &m_recvs.message_group_many.messages[i_many];
+      }
+      for (IdxT i_few = 0; i_few < num_few; i_few++) {
+        messages_few[i_few] = &m_recvs.message_group_few.messages[i_few];
+      }
+    }
+
     const detail::Async async = (post_recv_method == CommInfo::method::waitany ||
                                  post_recv_method == CommInfo::method::waitsome ||
                                  post_recv_method == CommInfo::method::waitall)
@@ -484,13 +493,11 @@ struct Comm
         LOGPRINTF("%p Comm::postRecv %s\n", this, (async == detail::Async::no) ? "waitany" : "testany");
 
         for (IdxT i_many = 0; i_many < num_many; i_many++) {
-          messages_many[i_many] = &m_recvs.message_group_many.messages[i_many];
           m_recvs.message_group_many.allocate(con_many, con_comm, &messages_many[i_many], 1, async);
           m_recvs.message_group_many.Irecv(con_many, con_comm, &messages_many[i_many], 1, async, &requests_many[i_many]);
         }
 
         for (IdxT i_few = 0; i_few < num_few; i_few++) {
-          messages_few[i_few] = &m_recvs.message_group_few.messages[i_few];
           m_recvs.message_group_few.allocate(con_few, con_comm, &messages_few[i_few], 1, async);
           m_recvs.message_group_few.Irecv(con_few, con_comm, &messages_few[i_few], 1, async, &requests_few[i_few]);
         }
@@ -500,15 +507,9 @@ struct Comm
       {
         LOGPRINTF("%p Comm::postRecv %s\n", this, (async == detail::Async::no) ? "waitsome" : "testsome");
 
-        for (IdxT i_many = 0; i_many < num_many; i_many++) {
-          messages_many[i_many] = &m_recvs.message_group_many.messages[i_many];
-        }
         m_recvs.message_group_many.allocate(con_many, con_comm, &messages_many[0], num_many, async);
         m_recvs.message_group_many.Irecv(con_many, con_comm, &messages_many[0], num_many, async, &requests_many[0]);
 
-        for (IdxT i_few = 0; i_few < num_few; i_few++) {
-          messages_few[i_few] = &m_recvs.message_group_few.messages[i_few];
-        }
         m_recvs.message_group_few.allocate(con_few, con_comm, &messages_few[0], num_few, async);
         m_recvs.message_group_few.Irecv(con_few, con_comm, &messages_few[0], num_few, async, &requests_few[0]);
       } break;
@@ -516,13 +517,6 @@ struct Comm
       case CommInfo::method::testall:
       {
         LOGPRINTF("%p Comm::postRecv %s\n", this, (async == detail::Async::no) ? "waitall" : "testall");
-
-        for (IdxT i_many = 0; i_many < num_many; i_many++) {
-          messages_many[i_many] = &m_recvs.message_group_many.messages[i_many];
-        }
-        for (IdxT i_few = 0; i_few < num_few; i_few++) {
-          messages_few[i_few] = &m_recvs.message_group_few.messages[i_few];
-        }
 
         m_recvs.message_group_many.allocate(con_many, con_comm, &messages_many[0], num_many, async);
         m_recvs.message_group_few.allocate(con_few, con_comm, &messages_few[0], num_few, async);
@@ -560,13 +554,21 @@ struct Comm
     send_request_type* requests_many = &m_sends.requests[0];
     send_request_type* requests_few  = &m_sends.requests[num_many];
 
+    if (!persistent) {
+      for (IdxT i_many = 0; i_many < num_many; i_many++) {
+        messages_many[i_many] = &m_sends.message_group_many.messages[i_many];
+      }
+      for (IdxT i_few = 0; i_few < num_few; i_few++) {
+        messages_few[i_few] = &m_sends.message_group_few.messages[i_few];
+      }
+    }
+
     switch (post_send_method) {
       case CommInfo::method::waitany:
       {
         LOGPRINTF("%p Comm::postSend waitany\n", this);
 
         for (IdxT i_many = 0; i_many < num_many; i_many++) {
-          messages_many[i_many] = &m_sends.message_group_many.messages[i_many];
           m_sends.message_group_many.allocate(con_many, con_comm, &messages_many[i_many], 1, detail::Async::no);
           m_sends.message_group_many.pack(con_many, con_comm, &messages_many[i_many], 1, detail::Async::no);
           m_sends.message_group_many.wait_pack_complete(con_many, con_comm, &messages_many[i_many], 1, detail::Async::no);
@@ -574,7 +576,6 @@ struct Comm
         }
 
         for (IdxT i_few = 0; i_few < num_few; i_few++) {
-          messages_few[i_few] = &m_sends.message_group_few.messages[i_few];
           m_sends.message_group_few.allocate(con_few, con_comm, &messages_few[i_few], 1, detail::Async::no);
           m_sends.message_group_few.pack(con_few, con_comm, &messages_few[i_few], 1, detail::Async::no);
           m_sends.message_group_few.wait_pack_complete(con_few, con_comm, &messages_few[i_few], 1, detail::Async::no);
@@ -584,13 +585,6 @@ struct Comm
       case CommInfo::method::testany:
       {
         LOGPRINTF("%p Comm::postSend testany\n", this);
-
-        for (IdxT i_many = 0; i_many < num_many; i_many++) {
-          messages_many[i_many] = &m_sends.message_group_many.messages[i_many];
-        }
-        for (IdxT i_few = 0; i_few < num_few; i_few++) {
-          messages_few[i_few] = &m_sends.message_group_few.messages[i_few];
-        }
 
         m_sends.message_group_many.allocate(con_many, con_comm, &messages_many[0], num_many, detail::Async::yes);
         m_sends.message_group_few.allocate(con_few, con_comm, &messages_few[0], num_few, detail::Async::yes);
@@ -654,17 +648,11 @@ struct Comm
       {
         LOGPRINTF("%p Comm::postSend waitsome\n", this);
 
-        for (IdxT i_many = 0; i_many < num_many; i_many++) {
-          messages_many[i_many] = &m_sends.message_group_many.messages[i_many];
-        }
         m_sends.message_group_many.allocate(con_many, con_comm, &messages_many[0], num_many, detail::Async::no);
         m_sends.message_group_many.pack(con_many, con_comm, &messages_many[0], num_many, detail::Async::no);
         m_sends.message_group_many.wait_pack_complete(con_many, con_comm, &messages_many[0], num_many, detail::Async::no);
         m_sends.message_group_many.Isend(con_many, con_comm, &messages_many[0], num_many, detail::Async::no, &requests_many[0]);
 
-        for (IdxT i_few = 0; i_few < num_few; i_few++) {
-          messages_few[i_few] = &m_sends.message_group_few.messages[i_few];
-        }
         m_sends.message_group_few.allocate(con_few, con_comm, &messages_few[0], num_few, detail::Async::no);
         m_sends.message_group_few.pack(con_few, con_comm, &messages_few[0], num_few, detail::Async::no);
         m_sends.message_group_few.wait_pack_complete(con_few, con_comm, &messages_few[0], num_few, detail::Async::no);
@@ -673,13 +661,6 @@ struct Comm
       case CommInfo::method::testsome:
       {
         LOGPRINTF("%p Comm::postSend testsome\n", this);
-
-        for (IdxT i_many = 0; i_many < num_many; i_many++) {
-          messages_many[i_many] = &m_sends.message_group_many.messages[i_many];
-        }
-        for (IdxT i_few = 0; i_few < num_few; i_few++) {
-          messages_few[i_few] = &m_sends.message_group_few.messages[i_few];
-        }
 
         m_sends.message_group_many.allocate(con_many, con_comm, &messages_many[0], num_many, detail::Async::yes);
         m_sends.message_group_few.allocate(con_few, con_comm, &messages_few[0], num_few, detail::Async::yes);
@@ -743,13 +724,6 @@ struct Comm
       {
         LOGPRINTF("%p Comm::postSend waitall\n", this);
 
-        for (IdxT i_many = 0; i_many < num_many; i_many++) {
-          messages_many[i_many] = &m_sends.message_group_many.messages[i_many];
-        }
-        for (IdxT i_few = 0; i_few < num_few; i_few++) {
-          messages_few[i_few] = &m_sends.message_group_few.messages[i_few];
-        }
-
         m_sends.message_group_many.allocate(con_many, con_comm, &messages_many[0], num_many, detail::Async::no);
         m_sends.message_group_few.allocate(con_few, con_comm, &messages_few[0], num_few, detail::Async::no);
 
@@ -765,13 +739,6 @@ struct Comm
       case CommInfo::method::testall:
       {
         LOGPRINTF("%p Comm::postSend testall\n", this);
-
-        for (IdxT i_many = 0; i_many < num_many; i_many++) {
-          messages_many[i_many] = &m_sends.message_group_many.messages[i_many];
-        }
-        for (IdxT i_few = 0; i_few < num_few; i_few++) {
-          messages_few[i_few] = &m_sends.message_group_few.messages[i_few];
-        }
 
         m_sends.message_group_many.allocate(con_many, con_comm, &messages_many[0], num_many, detail::Async::yes);
         m_sends.message_group_few.allocate(con_few, con_comm, &messages_few[0], num_few, detail::Async::yes);
