@@ -41,17 +41,19 @@
 
 int main(int argc, char** argv)
 {
-  void* adiak_comm_p = nullptr;
-
 #ifdef COMB_ENABLE_MPI
   int required = MPI_THREAD_FUNNELED; // MPI_THREAD_SINGLE, MPI_THREAD_FUNNELED, MPI_THREAD_SERIALIZED, MPI_THREAD_MULTIPLE
   int provided = detail::MPI::Init_thread(&argc, &argv, required);
-
-  MPI_Comm adiak_comm = detail::MPI::Comm_dup(MPI_COMM_WORLD);
-  adiak_comm_p = &adiak_comm;
 #endif
 
 #ifdef COMB_ENABLE_ADIAK
+#ifdef COMB_ENABLE_MPI
+  MPI_Comm adiak_comm = detail::MPI::Comm_dup(MPI_COMM_WORLD);
+  void* adiak_comm_p = &adiak_comm;
+#else
+  void* adiak_comm_p = nullptr;
+#endif
+
   adiak_init(adiak_comm_p);
 #endif
 
@@ -223,6 +225,9 @@ int main(int argc, char** argv)
 #ifdef COMB_ENABLE_MPI
                 comm_avail.mpi = enabledisable;
 #endif
+#ifdef COMB_ENABLE_MPI
+                comm_avail.mpi_persistent = enabledisable;
+#endif
 #ifdef COMB_ENABLE_GDSYNC
                 comm_avail.gdsync = enabledisable;
 #endif
@@ -240,6 +245,10 @@ int main(int argc, char** argv)
               } else if (strcmp(argv[i], "mpi") == 0) {
 #ifdef COMB_ENABLE_MPI
                 comm_avail.mpi = enabledisable;
+#endif
+              } else if (strcmp(argv[i], "mpi_persistent") == 0) {
+#ifdef COMB_ENABLE_MPI
+                comm_avail.mpi_persistent = enabledisable;
 #endif
               } else if (strcmp(argv[i], "gdsync") == 0) {
 #ifdef COMB_ENABLE_GDSYNC
@@ -782,6 +791,11 @@ int main(int argc, char** argv)
 #ifdef COMB_ENABLE_MPI
     if (comm_avail.mpi)
       COMB::test_cycles_mpi(comminfo, info, exec, alloc, num_vars, ncycles, tm, tm_total);
+#endif
+
+#ifdef COMB_ENABLE_MPI
+    if (comm_avail.mpi_persistent)
+      COMB::test_cycles_mpi_persistent(comminfo, info, exec, alloc, num_vars, ncycles, tm, tm_total);
 #endif
 
 #ifdef COMB_ENABLE_GDSYNC
