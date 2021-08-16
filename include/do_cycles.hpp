@@ -169,9 +169,9 @@ void do_cycles(CommContext<pol_comm>& con_comm_in,
     tm_total.start(tm_con, "test-comm");
 
     if (comm.persistent) {
-      tm.start(tm_con, "init-persistent-comm");
+      // tm.start(tm_con, "init-persistent-comm");
       comm.init_persistent_comm(con_many, con_few);
-      tm.stop(tm_con);
+      // tm.stop(tm_con);
     }
 
     IdxT ntestcycles = std::max(IdxT{1}, ncycles/IdxT{10});
@@ -427,9 +427,9 @@ void do_cycles(CommContext<pol_comm>& con_comm_in,
     }
 
     if (comm.persistent) {
-      tm.start(tm_con, "cleanup-persistent-comm");
+      // tm.start(tm_con, "cleanup-persistent-comm");
       comm.cleanup_persistent_comm();
-      tm.stop(tm_con);
+      // tm.stop(tm_con);
     }
 
     comm.barrier();
