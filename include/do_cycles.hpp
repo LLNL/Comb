@@ -168,7 +168,7 @@ void do_cycles(CommContext<pol_comm>& con_comm_in,
 
     tm_total.start(tm_con, "test-comm");
 
-    if (comm.persistent) {
+    if (comm_type::persistent) {
       // tm.start(tm_con, "init-persistent-comm");
       comm.init_persistent_comm(con_many, con_few);
       // tm.stop(tm_con);
@@ -426,7 +426,7 @@ void do_cycles(CommContext<pol_comm>& con_comm_in,
       r2.stop();
     }
 
-    if (comm.persistent) {
+    if (comm_type::persistent) {
       // tm.start(tm_con, "cleanup-persistent-comm");
       comm.cleanup_persistent_comm();
       // tm.stop(tm_con);
@@ -442,7 +442,7 @@ void do_cycles(CommContext<pol_comm>& con_comm_in,
 
     tm_total.start(tm_con, "bench-comm");
 
-    if (comm.persistent) {
+    if (comm_type::persistent) {
       tm.start(tm_con, "init-persistent-comm");
       comm.init_persistent_comm(con_many, con_few);
       tm.stop(tm_con);
@@ -557,7 +557,7 @@ void do_cycles(CommContext<pol_comm>& con_comm_in,
 
     }
 
-    if (comm.persistent) {
+    if (comm_type::persistent) {
       tm.start(tm_con, "cleanup-persistent-comm");
       comm.cleanup_persistent_comm();
       tm.stop(tm_con);
