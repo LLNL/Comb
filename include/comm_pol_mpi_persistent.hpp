@@ -297,7 +297,7 @@ struct MessageGroup<MessageBase::Kind::send, mpi_persistent_pol, exec_policy>
       message_type* msg = msgs[i];
       IdxT msg_nbytes = msg->nbytes() * this->m_variables.size();
       msg->buf = this->m_aloc.allocate(msg_nbytes);
-      LOGPRINTF("%p send allocate msg %p buf %p nbytes %d\n", this, msg, msg->buf, msg_nbytes);
+      LOGPRINTF("%p send setup msg %p buf %p nbytes %d\n", this, msg, msg->buf, msg_nbytes);
       char* buf = static_cast<char*>(msg->buf);
       int partner_rank = msg->partner_rank;
       int tag = msg->msg_tag;
@@ -509,7 +509,7 @@ struct MessageGroup<MessageBase::Kind::recv, mpi_persistent_pol, exec_policy>
       message_type* msg = msgs[i];
       IdxT msg_nbytes = msg->nbytes() * this->m_variables.size();
       msg->buf = this->m_aloc.allocate(msg_nbytes);
-      LOGPRINTF("%p send allocate msg %p buf %p nbytes %d\n", this, msg, msg->buf, msg_nbytes);
+      LOGPRINTF("%p send setup msg %p buf %p nbytes %d\n", this, msg, msg->buf, msg_nbytes);
       char* buf = static_cast<char*>(msg->buf);
       int partner_rank = msg->partner_rank;
       int tag = msg->msg_tag;
@@ -695,7 +695,7 @@ struct MessageGroup<MessageBase::Kind::send, mpi_persistent_pol, mpi_type_pol>
       message_type* msg = msgs[i];
       IdxT msg_nbytes = msg->nbytes() * this->m_variables.size();
       msg->buf = this->m_aloc.allocate(msg_nbytes);
-      LOGPRINTF("%p send allocate msg %p buf %p nbytes %d\n", this, msg, msg->buf, msg_nbytes);
+      LOGPRINTF("%p send setup msg %p buf %p nbytes %d\n", this, msg, msg->buf, msg_nbytes);
       char* buf = static_cast<char*>(msg->buf);
       int partner_rank = msg->partner_rank;
       int tag = msg->msg_tag;
@@ -868,7 +868,7 @@ struct MessageGroup<MessageBase::Kind::recv, mpi_persistent_pol, mpi_type_pol>
       message_type* msg = msgs[i];
       IdxT msg_nbytes = msg->nbytes() * this->m_variables.size();
       msg->buf = this->m_aloc.allocate(msg_nbytes);
-      LOGPRINTF("%p send allocate msg %p buf %p nbytes %d\n", this, msg, msg->buf, msg_nbytes);
+      LOGPRINTF("%p send setup msg %p buf %p nbytes %d\n", this, msg, msg->buf, msg_nbytes);
       char* buf = static_cast<char*>(msg->buf);
       int partner_rank = msg->partner_rank;
       int tag = msg->msg_tag;
