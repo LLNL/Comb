@@ -318,7 +318,7 @@ struct MessageGroup<MessageBase::Kind::send, mpi_persistent_pol, exec_policy>
 
   void allocate(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async /*async*/)
   {
-    COMB::ignore_unused(con, con_comm, msgs);
+    COMB::ignore_unused(con, con_comm);
     LOGPRINTF("%p send allocate msgs %p len %d\n", this, msgs, len);
     if (len <= 0) return;
     for (IdxT i = 0; i < len; ++i) {
@@ -449,7 +449,7 @@ struct MessageGroup<MessageBase::Kind::send, mpi_persistent_pol, exec_policy>
 
   void deallocate(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async /*async*/)
   {
-    COMB::ignore_unused(con, con_comm, msgs);
+    COMB::ignore_unused(con, con_comm);
     LOGPRINTF("%p send deallocate con %p msgs %p len %d\n", this, &con, msgs, len);
     if (len <= 0) return;
     for (IdxT i = 0; i < len; ++i) {
@@ -521,7 +521,7 @@ struct MessageGroup<MessageBase::Kind::recv, mpi_persistent_pol, exec_policy>
 
   void allocate(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async /*async*/)
   {
-    COMB::ignore_unused(con, con_comm, msgs);
+    COMB::ignore_unused(con, con_comm);
     LOGPRINTF("%p recv allocate con %p msgs %p len %d\n", this, &con, msgs, len);
     if (len <= 0) return;
     for (IdxT i = 0; i < len; ++i) {
@@ -624,7 +624,7 @@ struct MessageGroup<MessageBase::Kind::recv, mpi_persistent_pol, exec_policy>
 
   void deallocate(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async /*async*/)
   {
-    COMB::ignore_unused(con, con_comm, msgs);
+    COMB::ignore_unused(con, con_comm);
     LOGPRINTF("%p recv deallocate con %p msgs %p len %d\n", this, &con, msgs, len);
     if (len <= 0) return;
     for (IdxT i = 0; i < len; ++i) {
@@ -713,7 +713,7 @@ struct MessageGroup<MessageBase::Kind::send, mpi_persistent_pol, mpi_type_pol>
 
   void allocate(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async /*async*/)
   {
-    COMB::ignore_unused(con, con_comm, msgs);
+    COMB::ignore_unused(con, con_comm);
     if (len <= 0) return;
     for (IdxT i = 0; i < len; ++i) {
       message_type* msg = msgs[i];
@@ -805,7 +805,6 @@ struct MessageGroup<MessageBase::Kind::send, mpi_persistent_pol, mpi_type_pol>
     finish_Isends(con, con_comm);
   }
 
-
   static void finish_Isends(context_type& con, communicator_type& con_comm)
   {
     // LOGPRINTF("finish_Isends\n");
@@ -814,7 +813,7 @@ struct MessageGroup<MessageBase::Kind::send, mpi_persistent_pol, mpi_type_pol>
 
   void deallocate(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async /*async*/)
   {
-    COMB::ignore_unused(con, con_comm, msgs);
+    COMB::ignore_unused(con, con_comm);
     if (len <= 0) return;
     for (IdxT i = 0; i < len; ++i) {
       message_type* msg = msgs[i];
@@ -899,7 +898,7 @@ struct MessageGroup<MessageBase::Kind::recv, mpi_persistent_pol, mpi_type_pol>
 
   void allocate(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async /*async*/)
   {
-    COMB::ignore_unused(con, con_comm, msgs);
+    COMB::ignore_unused(con, con_comm);
     if (len <= 0) return;
     for (IdxT i = 0; i < len; ++i) {
       message_type* msg = msgs[i];
@@ -961,7 +960,7 @@ struct MessageGroup<MessageBase::Kind::recv, mpi_persistent_pol, mpi_type_pol>
 
   void deallocate(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async /*async*/)
   {
-    COMB::ignore_unused(con, con_comm, msgs);
+    COMB::ignore_unused(con, con_comm);
     if (len <= 0) return;
     for (IdxT i = 0; i < len; ++i) {
       message_type* msg = msgs[i];
