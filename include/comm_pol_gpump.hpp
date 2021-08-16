@@ -912,9 +912,9 @@ struct MessageGroup<MessageBase::Kind::send, gpump_pol, exec_policy>
     COMB::ignore_unused(con_comm, msgs, len, requests);
   }
 
-  void allocate(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async /*async*/)
+  void allocate(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async async)
   {
-    COMB::ignore_unused(con, con_comm);
+    COMB::ignore_unused(con, con_comm, async);
     if (len <= 0) return;
     for (IdxT i = 0; i < len; ++i) {
       message_type* msg = msgs[i];
@@ -1012,8 +1012,9 @@ struct MessageGroup<MessageBase::Kind::send, gpump_pol, exec_policy>
     cork_Isends(con, con_comm);
   }
 
-  void Isend(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async /*async*/, request_type* requests)
+  void Isend(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async async, request_type* requests)
   {
+    COMB::ignore_unused(async);
     if (len <= 0) return;
     start_Isends(con, con_comm);
     for (IdxT i = 0; i < len; ++i) {
@@ -1043,9 +1044,9 @@ struct MessageGroup<MessageBase::Kind::send, gpump_pol, exec_policy>
     uncork_Isends(con, con_comm);
   }
 
-  void deallocate(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async /*async*/)
+  void deallocate(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async async)
   {
-    COMB::ignore_unused(con, con_comm);
+    COMB::ignore_unused(con, con_comm, async);
     if (len <= 0) return;
     for (IdxT i = 0; i < len; ++i) {
       message_type* msg = msgs[i];
@@ -1154,9 +1155,9 @@ struct MessageGroup<MessageBase::Kind::recv, gpump_pol, exec_policy>
     COMB::ignore_unused(con_comm, msgs, len, requests);
   }
 
-  void allocate(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async /*async*/)
+  void allocate(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async async)
   {
-    COMB::ignore_unused(con, con_comm);
+    COMB::ignore_unused(con, con_comm, async);
     if (len <= 0) return;
     for (IdxT i = 0; i < len; ++i) {
       message_type* msg = msgs[i];
@@ -1175,9 +1176,9 @@ struct MessageGroup<MessageBase::Kind::recv, gpump_pol, exec_policy>
     }
   }
 
-  void Irecv(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async /*async*/, request_type* requests)
+  void Irecv(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async async, request_type* requests)
   {
-    COMB::ignore_unused(con, con_comm);
+    COMB::ignore_unused(con, con_comm, async);
     if (len <= 0) return;
     for (IdxT i = 0; i < len; ++i) {
       const message_type* msg = msgs[i];
@@ -1198,9 +1199,9 @@ struct MessageGroup<MessageBase::Kind::recv, gpump_pol, exec_policy>
     }
   }
 
-  void unpack(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async /*async*/)
+  void unpack(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async async)
   {
-    COMB::ignore_unused(con_comm);
+    COMB::ignore_unused(con_comm, async);
     if (len <= 0) return;
     con.start_group(this->m_groups[len-1]);
     if (!comb_allow_pack_loop_fusion()) {
@@ -1256,9 +1257,9 @@ struct MessageGroup<MessageBase::Kind::recv, gpump_pol, exec_policy>
     con.finish_group(this->m_groups[len-1]);
   }
 
-  void deallocate(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async /*async*/)
+  void deallocate(context_type& con, communicator_type& con_comm, message_type** msgs, IdxT len, detail::Async async)
   {
-    COMB::ignore_unused(con, con_comm);
+    COMB::ignore_unused(con, con_comm, async);
     if (len <= 0) return;
     for (IdxT i = 0; i < len; ++i) {
       message_type* msg = msgs[i];
