@@ -321,16 +321,12 @@ struct MessageGroup<MessageBase::Kind::send, mpi_persistent_pol, exec_policy>
     COMB::ignore_unused(con, con_comm, msgs);
     LOGPRINTF("%p send allocate msgs %p len %d\n", this, msgs, len);
     if (len <= 0) return;
-    /*
     for (IdxT i = 0; i < len; ++i) {
       message_type* msg = msgs[i];
-      assert(msg->buf == nullptr);
-
+      assert(msg->buf != nullptr);
       IdxT nbytes = msg->nbytes() * this->m_variables.size();
-
-      msg->buf = this->m_aloc.allocate(nbytes);
       LOGPRINTF("%p send allocate msg %p buf %p nbytes %d\n", this, msg, msg->buf, nbytes);
-    }*/
+    }
 
     if (comb_allow_pack_loop_fusion()) {
       this->m_fuser.allocate(con, this->m_variables, this->m_items.size());
@@ -456,16 +452,11 @@ struct MessageGroup<MessageBase::Kind::send, mpi_persistent_pol, exec_policy>
     COMB::ignore_unused(con, con_comm, msgs);
     LOGPRINTF("%p send deallocate con %p msgs %p len %d\n", this, &con, msgs, len);
     if (len <= 0) return;
-    /*
     for (IdxT i = 0; i < len; ++i) {
       message_type* msg = msgs[i];
       LOGPRINTF("%p send deallocate msg %p buf %p\n", this, msg, msg->buf);
       assert(msg->buf != nullptr);
-
-      this->m_aloc.deallocate(msg->buf);
-
-      msg->buf = nullptr;
-    }*/
+    }
 
     if (comb_allow_pack_loop_fusion()) {
       this->m_fuser.deallocate(con);
@@ -533,17 +524,12 @@ struct MessageGroup<MessageBase::Kind::recv, mpi_persistent_pol, exec_policy>
     COMB::ignore_unused(con, con_comm, msgs);
     LOGPRINTF("%p recv allocate con %p msgs %p len %d\n", this, &con, msgs, len);
     if (len <= 0) return;
-    /*
     for (IdxT i = 0; i < len; ++i) {
       message_type* msg = msgs[i];
-      assert(msg->buf == nullptr);
-
+      assert(msg->buf != nullptr);
       IdxT nbytes = msg->nbytes() * this->m_variables.size();
-
-      msg->buf = this->m_aloc.allocate(nbytes);
-      LOGPRINTF("%p recv allocate msg %p buf %p nbytes %d\n",
-                                this, msg, msg->buf, msg->nbytes() * this->m_variables.size());
-    }*/
+      LOGPRINTF("%p recv allocate msg %p buf %p nbytes %d\n", this, msg, msg->buf, nbytes);
+    }
 
     if (comb_allow_pack_loop_fusion()) {
       this->m_fuser.allocate(con, this->m_variables, this->m_items.size());
@@ -641,16 +627,11 @@ struct MessageGroup<MessageBase::Kind::recv, mpi_persistent_pol, exec_policy>
     COMB::ignore_unused(con, con_comm, msgs);
     LOGPRINTF("%p recv deallocate con %p msgs %p len %d\n", this, &con, msgs, len);
     if (len <= 0) return;
-    /*
     for (IdxT i = 0; i < len; ++i) {
       message_type* msg = msgs[i];
       LOGPRINTF("%p recv deallocate msg %p buf %p\n", this, msg, msg->buf);
       assert(msg->buf != nullptr);
-
-      this->m_aloc.deallocate(msg->buf);
-
-      msg->buf = nullptr;
-    }*/
+    }
 
     if (comb_allow_pack_loop_fusion()) {
       this->m_fuser.deallocate(con);
