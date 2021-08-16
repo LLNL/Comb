@@ -969,11 +969,6 @@ struct Comm
 
     IdxT num_sends = num_many + num_few;
 
-    if (!persistent) {
-      m_sends.messages.resize(num_sends, nullptr);
-      m_sends.requests.resize(num_sends, con_comm.send_request_null());
-    }
-
     send_message_type** messages = &m_sends.messages[0];
 
     send_message_type** messages_many = &m_sends.messages[0];
