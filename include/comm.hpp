@@ -249,7 +249,7 @@ struct Comm
   static_assert(pol_many_is_mpi_type == pol_few_is_mpi_type,
       "pol_many and pol_few must both be mpi_type_pol if either is mpi_type_pol");
 #endif
-  
+
   static const bool persistent = policy_comm::persistent;
 
   COMB::Allocator& mesh_aloc;
@@ -375,22 +375,13 @@ struct Comm
     recv_request_type* recv_requests_many = &m_recvs.requests[0];
     recv_request_type* recv_requests_few  = &m_recvs.requests[num_many];
 
-    const detail::Async async = (post_recv_method == CommInfo::method::waitany ||
-                               post_recv_method == CommInfo::method::waitsome ||
-                               post_recv_method == CommInfo::method::waitall)
-                               ? detail::Async::no : detail::Async::yes;
-
     for (IdxT i_many = 0; i_many < num_many; i_many++) {
       send_messages_many[i_many] = &m_sends.message_group_many.messages[i_many];
       recv_messages_many[i_many] = &m_recvs.message_group_many.messages[i_many];
-      m_sends.message_group_many.allocate(con_many, con_comm, &send_messages_many[i_many], 1, async);
-      m_recvs.message_group_many.allocate(con_many, con_comm, &recv_messages_many[i_many], 1, async);
     }
     for (IdxT i_few = 0; i_few < num_few; i_few++) {
       send_messages_few[i_few] = &m_sends.message_group_few.messages[i_few];
       recv_messages_few[i_few] = &m_recvs.message_group_few.messages[i_few];
-      m_sends.message_group_few.allocate(con_few, con_comm, &send_messages_few[i_few], 1, async);
-      m_recvs.message_group_few.allocate(con_few, con_comm, &recv_messages_few[i_few], 1, async);
     }
 
     m_sends.message_group_many.setup(con_many, con_comm, send_messages_many, num_many, send_requests_many);
@@ -413,16 +404,6 @@ struct Comm
     send_request_type* send_requests_few  = &m_sends.requests[num_many];
     recv_request_type* recv_requests_many = &m_recvs.requests[0];
     recv_request_type* recv_requests_few  = &m_recvs.requests[num_many];
-
-    for (IdxT i_many = 0; i_many < num_many; i_many++) {
-      send_messages_many[i_many] = &m_sends.message_group_many.messages[i_many];
-      recv_messages_many[i_many] = &m_recvs.message_group_many.messages[i_many];
-    }
-
-    for (IdxT i_few = 0; i_few < num_few; i_few++) {
-      send_messages_few[i_few] = &m_sends.message_group_few.messages[i_few];
-      recv_messages_few[i_few] = &m_recvs.message_group_few.messages[i_few];
-    }
 
     m_sends.message_group_many.cleanup(con_comm, send_messages_many, num_many, send_requests_many);
     m_sends.message_group_few.cleanup(con_comm, send_messages_few, num_few, send_requests_few);
