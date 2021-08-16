@@ -221,7 +221,7 @@ inline void Recv_init(void *buf, int count, MPI_Datatype mpi_type, int src, int 
   assert(ret == MPI_SUCCESS);
 }
 
-inline void Send_init(void *buf, int count, MPI_Datatype mpi_type, int dest, int tag, MPI_Comm comm, MPI_Request *request)
+inline void Send_init(const void *buf, int count, MPI_Datatype mpi_type, int dest, int tag, MPI_Comm comm, MPI_Request *request)
 {
   int ret = MPI_Send_init(buf, count, mpi_type, dest, tag, comm, request);
   assert(ret == MPI_SUCCESS);
