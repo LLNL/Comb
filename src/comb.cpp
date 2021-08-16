@@ -41,17 +41,19 @@
 
 int main(int argc, char** argv)
 {
-  void* adiak_comm_p = nullptr;
-
 #ifdef COMB_ENABLE_MPI
   int required = MPI_THREAD_FUNNELED; // MPI_THREAD_SINGLE, MPI_THREAD_FUNNELED, MPI_THREAD_SERIALIZED, MPI_THREAD_MULTIPLE
   int provided = detail::MPI::Init_thread(&argc, &argv, required);
-
-  MPI_Comm adiak_comm = detail::MPI::Comm_dup(MPI_COMM_WORLD);
-  adiak_comm_p = &adiak_comm;
 #endif
 
 #ifdef COMB_ENABLE_ADIAK
+#ifdef COMB_ENABLE_MPI
+  MPI_Comm adiak_comm = detail::MPI::Comm_dup(MPI_COMM_WORLD);
+  void* adiak_comm_p = &adiak_comm;
+#else
+  void* adiak_comm_p = nullptr;
+#endif
+
   adiak_init(adiak_comm_p);
 #endif
 
