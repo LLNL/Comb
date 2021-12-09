@@ -41,7 +41,7 @@ endif()
 
 
 if (ENABLE_GDSYNC)
-  message(STATUS "FindGDSYNC.cmake ${PROJECT_SOURCE_DIR}/cmake")
+  message(STATUS "Findgdsync.cmake ${PROJECT_SOURCE_DIR}/cmake")
   set (CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake;${CMAKE_MODULE_PATH}")
   find_package(gdsync REQUIRED)
 
@@ -67,7 +67,7 @@ endif()
 
 
 if (ENABLE_GPUMP)
-  message(STATUS "FindGPUMP.cmake ${PROJECT_SOURCE_DIR}/cmake")
+  message(STATUS "Findgpump.cmake ${PROJECT_SOURCE_DIR}/cmake")
   set (CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake;${CMAKE_MODULE_PATH}")
   find_package(gpump REQUIRED)
 
@@ -93,9 +93,9 @@ endif()
 
 
 if (ENABLE_MP)
-  message(STATUS "FindMP.cmake ${PROJECT_SOURCE_DIR}/cmake")
+  message(STATUS "Findmp.cmake ${PROJECT_SOURCE_DIR}/cmake")
   set (CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake;${CMAKE_MODULE_PATH}")
-  find_package(MP REQUIRED)
+  find_package(mp REQUIRED)
 
   if (MP_FOUND)
     message(STATUS "MP Enabled")
@@ -119,9 +119,9 @@ endif()
 
 
 if (ENABLE_UMR)
-  message(STATUS "FindUMR.cmake ${PROJECT_SOURCE_DIR}/cmake")
+  message(STATUS "Findumr.cmake ${PROJECT_SOURCE_DIR}/cmake")
   set (CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake;${CMAKE_MODULE_PATH}")
-  find_package(UMR REQUIRED)
+  find_package(umr REQUIRED)
 
   if (UMR_FOUND)
     message(STATUS "UMR Enabled")
