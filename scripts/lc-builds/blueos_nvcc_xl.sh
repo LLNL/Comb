@@ -15,7 +15,7 @@
 ## Please also see the LICENSE file for MIT license.
 ##############################################################################
 
-if [[ $# -ne 3 ]]; then
+if [[ $# -lt 3 ]]; then
   echo
   echo "You must pass 3 arguments to the script (in this order): "
   echo "   1) compiler version number for nvcc"
@@ -30,11 +30,14 @@ fi
 COMP_NVCC_VER=$1
 COMP_ARCH=$2
 COMP_XL_VER=$3
+shift 3
 
 BUILD_SUFFIX=lc_blueos-nvcc${COMP_NVCC_VER}-${COMP_ARCH}-xl${COMP_XL_VER}
 
 echo
 echo "Creating build directory ${BUILD_SUFFIX} and generating configuration in it"
+echo "Configuration extra arguments:"
+echo "   $@"
 echo
 
 rm -rf build_${BUILD_SUFFIX} >/dev/null

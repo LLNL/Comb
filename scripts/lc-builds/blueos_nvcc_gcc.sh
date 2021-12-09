@@ -15,7 +15,7 @@
 ## Please also see the LICENSE file for MIT license.
 ##############################################################################
 
-if [[ $# -ne 3 ]]; then
+if [[ $# -lt 3 ]]; then
   echo
   echo "You must pass 3 arguments to the script (in this order): "
   echo "   1) compiler version number for nvcc"
@@ -30,11 +30,14 @@ fi
 COMP_NVCC_VER=$1
 COMP_ARCH=$2
 COMP_GCC_VER=$3
+shift 3
 
 BUILD_SUFFIX=lc_blueos-nvcc${COMP_NVCC_VER}-${COMP_ARCH}-gcc${COMP_GCC_VER}
 
 echo
 echo "Creating build directory ${BUILD_SUFFIX} and generating configuration in it"
+echo "Configuration extra arguments:"
+echo "   $@"
 echo
 
 rm -rf build_${BUILD_SUFFIX} >/dev/null
@@ -44,8 +47,10 @@ module load cmake/3.14.5
 
 cmake \
   -DCMAKE_BUILD_TYPE=Release \
-  -DMPI_CXX_COMPILER=/usr/tce/packages/spectrum-mpi/spectrum-mpi-rolling-release-gcc-${COMP_GCC_VER}/bin/mpig++ \
+  -DMPI_CXX_COMPILER=/opt/openmpi/4.0/gnu/bin/mpiCC \
+  -DMPI_C_COMPILER=/opt/openmpi/4.0/gnu/bin/mpicc \
   -DCMAKE_CXX_COMPILER=/usr/tce/packages/gcc/gcc-${COMP_GCC_VER}/bin/g++ \
+  -DCMAKE_C_COMPILER=/usr/tce/packages/gcc/gcc-${COMP_GCC_VER}/bin/gcc \
   -DBLT_CXX_STD=c++11 \
   -C ../host-configs/lc-builds/blueos/nvcc_gcc_X.cmake \
   -DENABLE_MPI=On \

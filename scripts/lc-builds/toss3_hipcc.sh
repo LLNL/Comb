@@ -15,7 +15,7 @@
 ## Please also see the LICENSE file for MIT license.
 ##############################################################################
 
-if [[ $# -ne 2 ]]; then
+if [[ $# -lt 2 ]]; then
   echo
   echo "You must pass 2 arguments to the script (in this order): "
   echo "   1) compiler version number"
@@ -28,11 +28,14 @@ fi
 
 COMP_VER=$1
 COMP_ARCH=$2
+shift 2
 
 BUILD_SUFFIX=lc_toss3-hipcc-${COMP_VER}-${COMP_ARCH}
 
 echo
 echo "Creating build directory ${BUILD_SUFFIX} and generating configuration in it"
+echo "Configuration extra arguments:"
+echo "   $@"
 echo
 
 rm -rf build_${BUILD_SUFFIX} >/dev/null
