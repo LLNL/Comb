@@ -20,145 +20,118 @@
 
 #ifdef COMB_ENABLE_MP
 
-#include <libmp.h>
+#include <mp.h>
 
 #include <cassert>
 #include <cstdio>
+#include <vector>
+#include <numeric>
 
 #include "exec_utils.hpp"
+#include "exec_utils_cuda.hpp"
 #include "comm_utils_mpi.hpp"
 
 namespace detail {
 
 namespace mp {
 
-inline struct ::mp* init(MPI_Comm mpi_comm)
+inline void init(MPI_Comm mpi_comm)
 {
   // LOGPRINTF("mp_init rank(w%i)\n", MPI::Comm_rank(MPI_COMM_WORLD));
-  struct ::mp* g = mp_init(mpi_comm);
-  // LOGPRINTF("mp_init rank(w%i) done -> %p\n", MPI::Comm_rank(MPI_COMM_WORLD), g);
-  assert(g != nullptr);
-  return g;
+  int nranks = MPI::Comm_size(mpi_comm);
+  std::vector<int> ranks(nranks);
+  std::iota(ranks.begin(), ranks.end(), 0);
+  int gpuid = COMB::detail::cuda::get_device();
+  auto ret = mp_init(mpi_comm, ranks.data(), nranks, MP_INIT_DEFAULT, gpuid);
+  // LOGPRINTF("mp_init rank(w%i) done\n", MPI::Comm_rank(MPI_COMM_WORLD));
+  assert(ret == MP_SUCCESS);
 }
 
-inline void term(struct ::mp* g)
+inline void finalize()
 {
-  // LOGPRINTF("mp_term(%p) rank(w%i)\n", g, MPI::Comm_rank(MPI_COMM_WORLD));
-  mp_term(g);
+  // LOGPRINTF("mp_finalize() rank(w%i)\n", MPI::Comm_rank(MPI_COMM_WORLD));
+  mp_finalize();
 }
 
-inline void connect_propose(struct ::mp* g, int target)
+inline mp_reg_t register_(void* ptr, size_t size)
 {
-  // LOGPRINTF("mp_connect_propose(%p) rank(w%i) %i\n", g, MPI::Comm_rank(MPI_COMM_WORLD), target);
-  mp_connect_propose(g, target);
+  mp_reg_t reg;
+  // LOGPRINTF("mp_register() rank(w%i) %p[%zu]\n", MPI::Comm_rank(MPI_COMM_WORLD), ptr, size);
+  auto ret = mp_register(ptr, size, &reg);
+  // LOGPRINTF("mp_register() rank(w%i) %p[%zu] done -> %p\n", MPI::Comm_rank(MPI_COMM_WORLD), ptr, size, (void*)reg);
+  assert(ret == MP_SUCCESS);
+  return reg;
 }
 
-inline void connect_accept(struct ::mp* g, int target)
+inline void deregister(mp_reg_t& reg)
 {
-  // LOGPRINTF("mp_connect_accept(%p) rank(w%i) %i\n", g, MPI::Comm_rank(MPI_COMM_WORLD), target);
-  mp_connect_accept(g, target);
+  // LOGPRINTF("mp_deregister() rank(w%i) %p\n", MPI::Comm_rank(MPI_COMM_WORLD), (void*)reg);
+  auto ret = mp_deregister(&reg);
+  assert(ret == MP_SUCCESS);
+  reg = nullptr;
 }
 
-inline void disconnect(struct ::mp* g, int target)
+inline void irecv(void *buf, size_t size, int src, mp_reg_t* reg, mp_request_t *req)
 {
-  // LOGPRINTF("mp_disconnect(%p) rank(w%i) %i\n", g, MPI::Comm_rank(MPI_COMM_WORLD), target);
-  mp_disconnect(g, target);
+  // LOGPRINTF("mp_irecv() rank(w%i) %p[%zu] src(%i) reg(%p) req(%p)\n", MPI::Comm_rank(MPI_COMM_WORLD), buf, size, src, reg, req);
+  auto ret = mp_irecv(buf, size, src, reg, req);
+  assert(ret == MP_SUCCESS);
 }
 
-inline struct ::ibv_mr* register_region(struct ::mp* g, void* ptr, size_t size)
+inline void isend(void *buf, size_t size, int src, mp_reg_t* reg, mp_request_t *req)
 {
-  // LOGPRINTF("mp_register_region(%p) rank(w%i) %p[%zu]\n", g, MPI::Comm_rank(MPI_COMM_WORLD), ptr, size);
-  struct ::ibv_mr* mr = mp_register_region(g, ptr, size);
-  // LOGPRINTF("mp_register_region(%p) rank(w%i) %p[%zu] done -> %p\n", g, MPI::Comm_rank(MPI_COMM_WORLD), ptr, size, mr);
-  return mr;
+  // LOGPRINTF("mp_isend() rank(w%i) %p[%zu] src(%i) reg(%p) req(%p)\n", MPI::Comm_rank(MPI_COMM_WORLD), buf, size, src, reg, req);
+  auto ret = mp_isend(buf, size, src, reg, req);
+  assert(ret == MP_SUCCESS);
 }
 
-inline void deregister_region(struct ::mp* g, struct ::ibv_mr* mr)
+inline void send_on_stream(void *buf, size_t size, int dst, mp_reg_t* reg, mp_request_t *req, cudaStream_t stream)
 {
-  // LOGPRINTF("mp_deregister_region(%p) rank(w%i) %p\n", g, MPI::Comm_rank(MPI_COMM_WORLD), mr);
-  mp_deregister_region(g, mr);
+  // LOGPRINTF("mp_send_on_stream() rank(w%i) %p[%zu] dst(%i) reg(%p) req(%p) stream(%p)\n", MPI::Comm_rank(MPI_COMM_WORLD), buf, size, dst, reg, req, (void*)stream);
+  auto ret = mp_send_on_stream(buf, size, dst, reg, req, stream);
+  assert(ret == MP_SUCCESS);
 }
 
-inline void cork(struct ::mp* g)
+inline void isend_on_stream(void *buf, size_t size, int dst, mp_reg_t* reg, mp_request_t *req, cudaStream_t stream)
 {
-  // LOGPRINTF("mp_cork(%p) rank(w%i)\n", g, MPI::Comm_rank(MPI_COMM_WORLD));
-  mp_cork(g);
+  // LOGPRINTF("mp_isend_on_stream() rank(w%i) %p[%zu] dst(%i) reg(%p) req(%p) stream(%p)\n", MPI::Comm_rank(MPI_COMM_WORLD), buf, size, dst, reg, req, (void*)stream);
+  auto ret = mp_isend_on_stream(buf, size, dst, reg, req, stream);
+  assert(ret == MP_SUCCESS);
 }
 
-inline void uncork(struct ::mp* g, cudaStream_t stream)
+inline void wait_on_stream(mp_request_t *req, cudaStream_t stream)
 {
-  // LOGPRINTF("mp_uncork(%p) rank(w%i) stream(%p)\n", g, MPI::Comm_rank(MPI_COMM_WORLD), (void*)stream);
-  mp_uncork(g, stream);
+  // LOGPRINTF("mp_wait_on_stream() rank(w%i) req(%p) stream(%p)\n", MPI::Comm_rank(MPI_COMM_WORLD), req, (void*)stream);
+  auto ret = mp_wait_on_stream(req, stream);
+  assert(ret == MP_SUCCESS);
 }
 
-inline void receive(struct ::mp* g, int src, struct ::ibv_mr* buf_mr, size_t offset, size_t size)
+inline void wait_all_on_stream(size_t count, mp_request_t *req, cudaStream_t stream)
 {
-  // LOGPRINTF("mp_receive(%p) rank(w%i) %p+%zu[%zu] src(%i)\n", g, MPI::Comm_rank(MPI_COMM_WORLD), buf_mr, offset, size, src);
-  mp_receive(g, src, buf_mr, offset, size);
+  // LOGPRINTF("mp_wait_all_on_stream() rank(w%i) count (%zu) req(%p) stream(%p)\n", MPI::Comm_rank(MPI_COMM_WORLD), count, req, (void*)stream);
+  auto ret = mp_wait_all_on_stream(count, req, stream);
+  assert(ret == MP_SUCCESS);
 }
 
-inline void stream_wait_recv_complete(struct ::mp* g, int src, cudaStream_t stream)
+inline void wait(mp_request_t *req)
 {
-  // LOGPRINTF("mp_stream_wait_recv_complete(%p) rank(w%i) src(%i) stream(%p)\n", g, MPI::Comm_rank(MPI_COMM_WORLD), src, (void*)stream);
-  mp_stream_wait_recv_complete(g, src, stream);
+  // LOGPRINTF("mp_wait() rank(w%i) req(%p)\n", MPI::Comm_rank(MPI_COMM_WORLD), req);
+  auto ret = mp_wait(req);
+  assert(ret == MP_SUCCESS);
 }
 
-inline void cpu_ack_recv(struct ::mp* g, int src)
+inline void wait_all(size_t count, mp_request_t *req)
 {
-  // LOGPRINTF("mp_cpu_ack_recv(%p) rank(w%i) src(%i)\n", g, MPI::Comm_rank(MPI_COMM_WORLD), src);
-  mp_cpu_ack_recv(g, src);
+  // LOGPRINTF("mp_wait_all() rank(w%i) count (%zu) req(%p)\n", MPI::Comm_rank(MPI_COMM_WORLD), count, req);
+  auto ret = mp_wait_all(count, req);
+  assert(ret == MP_SUCCESS);
 }
 
-inline int is_receive_complete(struct ::mp* g, int src)
+inline void progress_all(size_t count, mp_request_t *req)
 {
-  // LOGPRINTF("mp_is_receive_complete(%p) rank(w%i) src(%i)\n", g, MPI::Comm_rank(MPI_COMM_WORLD), src);
-  int complete = mp_is_receive_complete(g, src);
-  // LOGPRINTF("mp_is_receive_complete(%p) rank(w%i) src(%i) done -> %i\n", g, MPI::Comm_rank(MPI_COMM_WORLD), src, complete);
-  return complete;
-}
-
-inline void wait_receive_complete(struct ::mp* g, int src)
-{
-  // LOGPRINTF("mp_wait_receive_complete(%p) rank(w%i) src(%i)\n", g, MPI::Comm_rank(MPI_COMM_WORLD), src);
-  mp_wait_receive_complete(g, src);
-}
-
-inline void stream_send(struct ::mp* g, int dest, cudaStream_t stream, struct ::ibv_mr* buf_mr, size_t offset, size_t size)
-{
-  // LOGPRINTF("mp_stream_send(%p) rank(w%i) %p+%zu[%zu] dst(%i) stream(%p)\n", g, MPI::Comm_rank(MPI_COMM_WORLD), buf_mr, offset, size, dest, (void*)stream);
-  mp_stream_send(g, dest, stream, buf_mr, offset, size);
-}
-
-inline void isend(struct ::mp* g, int dest, struct ::ibv_mr* buf_mr, size_t offset, size_t size)
-{
-  // LOGPRINTF("mp_isend(%p) rank(w%i) %p+%zu[%zu] dst(%i)\n", g, MPI::Comm_rank(MPI_COMM_WORLD), buf_mr, offset, size, dest);
-  mp_isend(g, dest, buf_mr, offset, size);
-}
-
-inline void stream_wait_send_complete(struct ::mp* g, int dest, cudaStream_t stream)
-{
-  // LOGPRINTF("mp_stream_wait_send_complete(%p) rank(w%i) dst(%i) stream(%p)\n", g, MPI::Comm_rank(MPI_COMM_WORLD), dest, stream);
-  mp_stream_wait_send_complete(g, dest, stream);
-}
-
-inline void cpu_ack_isend(struct ::mp* g, int dest)
-{
-  // LOGPRINTF("mp_cpu_ack_isend(%p) rank(w%i) dst(%i)\n", g, MPI::Comm_rank(MPI_COMM_WORLD), dest);
-  mp_cpu_ack_isend(g, dest);
-}
-
-inline int is_send_complete(struct ::mp* g, int dest)
-{
-  // LOGPRINTF("mp_is_send_complete(%p) rank(w%i) dst(%i)\n", g, MPI::Comm_rank(MPI_COMM_WORLD), dest);
-  int complete = mp_is_send_complete(g, dest);
-  // LOGPRINTF("mp_is_send_complete(%p) rank(w%i) dst(%i) done -> %i\n", g, MPI::Comm_rank(MPI_COMM_WORLD), dest, complete);
-  return complete;
-}
-
-inline void wait_send_complete(struct ::mp* g, int dest)
-{
-  // LOGPRINTF("mp_wait_send_complete(%p) rank(w%i) dst(%i)\n", g, MPI::Comm_rank(MPI_COMM_WORLD), dest);
-  mp_wait_send_complete(g, dest);
+  // LOGPRINTF("mp_progress_all() rank(w%i) count (%zu) req(%p)\n", MPI::Comm_rank(MPI_COMM_WORLD), count, req);
+  auto ret = mp_progress_all(count, req);
+  assert(ret == MP_SUCCESS);
 }
 
 } // namespace mp

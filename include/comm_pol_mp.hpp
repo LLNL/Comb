@@ -38,8 +38,7 @@ namespace mp {
 struct Request
 {
   int status;
-  struct mp* g;
-  int partner_rank;
+  mp_request_t request;
   ContextEnum context_type;
   bool completed;
   union context_union {
@@ -53,8 +52,7 @@ struct Request
 
   Request()
     : status(0)
-    , g(nullptr)
-    , partner_rank(-1)
+    , request(nullptr)
     , context_type(ContextEnum::invalid)
     , context()
     , completed(true)
@@ -64,8 +62,7 @@ struct Request
 
   Request(Request const& other)
     : status(other.status)
-    , g(other.g)
-    , partner_rank(other.partner_rank)
+    , request(other.request)
     , context_type(ContextEnum::invalid)
     , context()
     , completed(other.completed)
@@ -76,8 +73,7 @@ struct Request
   Request& operator=(Request const& other)
   {
     status = other.status;
-    g = other.g;
-    partner_rank = other.partner_rank;
+    request = other.request;
     copy_context(other.context_type, other.context);
     completed = other.completed;
     return *this;
@@ -178,17 +174,15 @@ private:
 
 struct mempool
 {
-  struct ibv_ptr
+  struct reg_ptr
   {
-    struct ibv_mr* mr = nullptr;
-    size_t offset = 0;
+    mp_reg_t mr = nullptr;
     void* ptr = nullptr;
   };
 
-  ibv_ptr allocate(struct mp* g, COMB::Allocator& aloc_in, size_t size)
+  reg_ptr allocate(COMB::Allocator& aloc_in, size_t size)
   {
-    assert(g == this->g);
-    ibv_ptr ptr{};
+    reg_ptr ptr{};
     if (size > 0) {
       size = std::max(size, sizeof(std::max_align_t));
 
@@ -210,8 +204,7 @@ struct mempool
           // allocate a new pointer for this size
           info.size = size;
           info.ptr.ptr = aloc.allocate(info.size);
-          info.ptr.mr = detail::mp::register_region(g, info.ptr.ptr, info.size);
-          info.ptr.offset = 0;
+          info.ptr.mr = detail::mp::register_(info.ptr.ptr, info.size);
           used_ptrs.emplace(info.ptr.ptr, info);
         }
 
@@ -223,9 +216,8 @@ struct mempool
     return ptr;
   }
 
-  void deallocate(struct mp* g, COMB::Allocator& aloc_in, ibv_ptr ptr)
+  void deallocate( COMB::Allocator& aloc_in, reg_ptr ptr)
   {
-    assert(g == this->g);
     if (ptr.ptr != nullptr) {
 
       auto iter = m_allocators.find(&aloc_in);
@@ -250,21 +242,16 @@ struct mempool
     }
   }
 
-  void add_allocator(struct mp* g, COMB::Allocator& aloc)
+  void add_allocator(COMB::Allocator& aloc)
   {
-    if (this->g == nullptr) {
-      this->g = g;
-    }
-    assert(g == this->g);
     if (m_allocators.find(&aloc) == m_allocators.end()) {
       // new allocator
       m_allocators.emplace(&aloc, ptr_map{});
     }
   }
 
-  void remove_allocators(struct mp* g)
+  void remove_allocators()
   {
-    assert(g == this->g);
     bool error = false;
     auto iter = m_allocators.begin();
     while (iter != m_allocators.end()) {
@@ -276,7 +263,7 @@ struct mempool
       while (inner_iter != unused_ptrs.end()) {
         ptr_info& info = inner_iter->second;
 
-        detail::mp::deregister_region(this->g, info.ptr.mr);
+        detail::mp::deregister(info.ptr.mr);
         aloc.deallocate(info.ptr.ptr);
         inner_iter = unused_ptrs.erase(inner_iter);
       }
@@ -290,13 +277,12 @@ struct mempool
     }
 
     if (error) throw std::logic_error("can not remove Allocator with used ptr");
-    this->g = nullptr;
   }
 
 private:
   struct ptr_info
   {
-    ibv_ptr ptr{};
+    reg_ptr ptr{};
     size_t size = 0;
   };
   using used_ptr_map = std::unordered_map<void*, ptr_info>;
@@ -307,7 +293,6 @@ private:
     unused_ptr_map unused{};
   };
 
-  struct mp* g = nullptr;
   std::unordered_map<COMB::Allocator*, ptr_map> m_allocators;
 };
 
@@ -322,8 +307,8 @@ struct mp_pol {
   static const bool use_mpi_type = false;
   static const bool persistent = false;
   static const char* get_name() { return "mp"; }
-  using send_request_type = detail::mp::Request*;
-  using recv_request_type = detail::mp::Request*;
+  using send_request_type = mp_request_t;
+  using recv_request_type = mp_request_t;
   using send_status_type = int;
   using recv_status_type = int;
 };
@@ -340,27 +325,29 @@ struct CommContext<mp_pol> : CudaContext
   using send_status_type = typename pol::send_status_type;
   using recv_status_type = typename pol::recv_status_type;
 
-  struct mp* g;
+  bool ownmp;
 
   CommContext()
     : base()
-    , g(nullptr)
+    , ownmp(false)
   { }
 
   CommContext(base const& b)
     : base(b)
-    , g(nullptr)
+    , ownmp(false)
   { }
 
   CommContext(CommContext const& a_, MPI_Comm comm_)
     : base(a_)
-    , g(detail::mp::init(comm_))
-  { }
+    , ownmp(true)
+  {
+    detail::mp::init(comm_);
+  }
 
   ~CommContext()
   {
-    if (g != nullptr) {
-      detail::mp::term(g); g = nullptr;
+    if (ownmp) {
+      detail::mp::finalize(); ownmp = false;
     }
   }
 
@@ -385,42 +372,13 @@ struct CommContext<mp_pol> : CudaContext
   void connect_ranks(std::vector<int> const& send_ranks,
                      std::vector<int> const& recv_ranks)
   {
-    std::set<int> ranks;
-    for (int rank : send_ranks) {
-      if (ranks.find(rank) == ranks.end()) {
-        ranks.insert(rank);
-      }
-    }
-    for (int rank : recv_ranks) {
-      if (ranks.find(rank) == ranks.end()) {
-        ranks.insert(rank);
-      }
-    }
-    for (int rank : ranks) {
-      detail::mp::connect_propose(g, rank);
-    }
-    for (int rank : ranks) {
-      detail::mp::connect_accept(g, rank);
-    }
+    COMB::ignore_unused(send_ranks, recv_ranks);
   }
 
   void disconnect_ranks(std::vector<int> const& send_ranks,
                         std::vector<int> const& recv_ranks)
   {
-    std::set<int> ranks;
-    for (int rank : send_ranks) {
-      if (ranks.find(rank) != ranks.end()) {
-        ranks.insert(rank);
-      }
-    }
-    for (int rank : recv_ranks) {
-      if (ranks.find(rank) != ranks.end()) {
-        ranks.insert(rank);
-      }
-    }
-    for (int rank : ranks) {
-      detail::mp::disconnect(g, rank);
-    }
+    COMB::ignore_unused(send_ranks, recv_ranks);
   }
 
 
@@ -433,19 +391,19 @@ struct CommContext<mp_pol> : CudaContext
   void setup_mempool(COMB::Allocator& many_aloc,
                      COMB::Allocator& few_aloc)
   {
-    get_mempool().add_allocator(this->g, many_aloc);
-    get_mempool().add_allocator(this->g, few_aloc);
+    get_mempool().add_allocator(many_aloc);
+    get_mempool().add_allocator(few_aloc);
   }
 
   void teardown_mempool()
   {
-    get_mempool().remove_allocators(this->g);
+    get_mempool().remove_allocators();
   }
 
 
   struct message_request_type
   {
-    using region_type = detail::mp::mempool::ibv_ptr;
+    using region_type = detail::mp::mempool::reg_ptr;
 
     detail::MessageBase::Kind kind;
     region_type region;
@@ -475,9 +433,9 @@ struct CommContext<mp_pol> : CudaContext
 
         if (!other_request.completed && other_kind == msg_request->kind) {
           if (other_kind == detail::MessageBase::Kind::send) {
-            other_request.completed = detail::mp::is_send_complete(other_request.g, other_request.partner_rank);
+            other_request.completed = detail::mp::is_send_complete(&other_request.request);
           } else if (other_kind == detail::MessageBase::Kind::recv) {
-            other_request.completed = detail::mp::is_receive_complete(other_request.g, other_request.partner_rank);
+            other_request.completed = detail::mp::is_receive_complete(&other_request.request);
           } else {
             assert(0 && (other_kind == detail::MessageBase::Kind::send || other_kind == detail::MessageBase::Kind::recv));
           }
@@ -540,7 +498,7 @@ struct Message<MessageBase::Kind::send, mp_pol>
     if (count > 0) {
       bool new_requests = (requests[0]->status == 1);
       if (new_requests) {
-        // detail::mp::cork(con_comm.g);
+        // detail::mp::cork();
       }
       for (int i = 0; i < count; ++i) {
         int status = handle_send_request(con_comm, requests[i]);
@@ -550,7 +508,7 @@ struct Message<MessageBase::Kind::send, mp_pol>
         }
       }
       if (new_requests) {
-        // detail::mp::uncork(con_comm.g, con_comm.stream_launch());
+        // detail::mp::uncork(con_comm.stream_launch());
       }
     }
     return done;
@@ -575,7 +533,7 @@ struct Message<MessageBase::Kind::send, mp_pol>
     if (count > 0) {
       bool new_requests = (requests[0]->status == 1);
       if (new_requests) {
-        // detail::mp::cork(con_comm.g);
+        // detail::mp::cork();
       }
       for (int i = 0; i < count; ++i) {
         int status = handle_send_request(con_comm, requests[i]);
@@ -587,7 +545,7 @@ struct Message<MessageBase::Kind::send, mp_pol>
         }
       }
       if (new_requests) {
-        // detail::mp::uncork(con_comm.g, con_comm.stream_launch());
+        // detail::mp::uncork(con_comm.stream_launch());
       }
     }
     return done == count;
@@ -610,10 +568,10 @@ private:
     assert(!request->completed);
     bool done = false;
     if (request->context_type == ContextEnum::cuda) {
-      detail::mp::stream_wait_send_complete(request->g, request->partner_rank, request->context.cuda.stream_launch());
+      detail::mp::stream_wait_send_complete(&request->request, request->context.cuda.stream_launch());
       done = true;
     } else if (request->context_type == ContextEnum::cpu) {
-      detail::mp::cpu_ack_isend(request->g, request->partner_rank);
+      detail::mp::cpu_ack_isend(&request->request);
     } else {
       assert(0 && (request->context_type == ContextEnum::cuda || request->context_type == ContextEnum::cpu));
     }
@@ -626,12 +584,12 @@ private:
     assert(!request->completed);
     bool done = false;
     if (request->context_type == ContextEnum::cuda) {
-      done = detail::mp::is_send_complete(request->g, request->partner_rank);
+      done = detail::mp::is_send_complete(&request->request);
       request->completed = done;
       // do one test to get things moving, then allow something else to be enqueued
       done = true;
     } else if (request->context_type == ContextEnum::cpu) {
-      done = detail::mp::is_send_complete(request->g, request->partner_rank);
+      done = detail::mp::is_send_complete(&request->request);
       request->completed = done;
     } else {
       assert(0 && (request->context_type == ContextEnum::cuda || request->context_type == ContextEnum::cpu));
@@ -727,7 +685,7 @@ struct Message<MessageBase::Kind::recv, mp_pol>
     if (count > 0) {
       bool new_requests = (requests[0]->status == -1);
       if (new_requests) {
-        // detail::mp::cork(con_comm.g);
+        // detail::mp::cork();
       }
       for (int i = 0; i < count; ++i) {
         int status = handle_recv_request(con_comm, requests[i]);
@@ -737,7 +695,7 @@ struct Message<MessageBase::Kind::recv, mp_pol>
         }
       }
       if (new_requests) {
-        // detail::mp::uncork(con_comm.g, con_comm.stream_launch());
+        // detail::mp::uncork(con_comm.stream_launch());
       }
     }
     return done;
@@ -762,7 +720,7 @@ struct Message<MessageBase::Kind::recv, mp_pol>
     if (count > 0) {
       bool new_requests = (requests[0]->status == -1);
       if (new_requests) {
-        // detail::mp::cork(con_comm.g);
+        // detail::mp::cork();
       }
       for (int i = 0; i < count; ++i) {
         int status = handle_recv_request(con_comm, requests[i]);
@@ -774,7 +732,7 @@ struct Message<MessageBase::Kind::recv, mp_pol>
         }
       }
       if (new_requests) {
-        // detail::mp::uncork(con_comm.g, con_comm.stream_launch());
+        // detail::mp::uncork(con_comm.stream_launch());
       }
     }
     return done == count;
@@ -797,10 +755,10 @@ private:
     assert(!request->completed);
     bool done = false;
     if (request->context_type == ContextEnum::cuda) {
-      detail::mp::stream_wait_recv_complete(request->g, request->partner_rank, request->context.cuda.stream_launch());
+      detail::mp::wait_on_stream(&request->request, request->context.cuda.stream_launch());
       done = true;
     } else if (request->context_type == ContextEnum::cpu) {
-      detail::mp::cpu_ack_recv(request->g, request->partner_rank);
+      detail::mp::cpu_ack_recv(&request->request);
     } else {
       assert(0 && (request->context_type == ContextEnum::cuda || request->context_type == ContextEnum::cpu));
     }
@@ -813,12 +771,12 @@ private:
     assert(!request->completed);
     bool done = false;
     if (request->context_type == ContextEnum::cuda) {
-      done = detail::mp::is_receive_complete(request->g, request->partner_rank);
+      done = detail::mp::is_receive_complete(&request->request);
       request->completed = done;
       // do one test to get things moving, then allow the packs to be enqueued
       done = true;
     } else if (request->context_type == ContextEnum::cpu) {
-      done = detail::mp::is_receive_complete(request->g, request->partner_rank);
+      done = detail::mp::is_receive_complete(&request->request);
       request->completed = done;
     } else {
       assert(0 && (request->context_type == ContextEnum::cuda || request->context_type == ContextEnum::cpu));
@@ -923,7 +881,7 @@ struct MessageGroup<MessageBase::Kind::send, mp_pol, exec_policy>
       IdxT nbytes = msg->nbytes() * this->m_variables.size();
 
       message_request_type& msg_request = m_msg_requests[msg->idx];
-      msg_request.region = con_comm.get_mempool().allocate(con_comm.g, this->m_aloc, nbytes);
+      msg_request.region = con_comm.get_mempool().allocate(this->m_aloc, nbytes);
       msg->buf = msg_request.region.ptr;
       con_comm.get_message_request_map().emplace(&msg_request);
     }
@@ -992,7 +950,6 @@ struct MessageGroup<MessageBase::Kind::send, mp_pol, exec_policy>
       message_request_type& msg_request = m_msg_requests[msg->idx];
       start_Isend(con, con_comm, partner_rank, nbytes, msg_request);
       msg_request.request.status = 1;
-      msg_request.request.g = con_comm.g;
       msg_request.request.partner_rank = partner_rank;
       msg_request.request.setContext(con);
       msg_request.request.completed = false;
@@ -1017,7 +974,7 @@ struct MessageGroup<MessageBase::Kind::send, mp_pol, exec_policy>
 
       message_request_type& msg_request = m_msg_requests[msg->idx];
       finish_send(con_comm, msg_request);
-      con_comm.get_mempool().deallocate(con_comm.g, this->m_aloc, msg_request.region);
+      con_comm.get_mempool().deallocate(this->m_aloc, msg_request.region);
       msg_request.region = region_type{};
       msg->buf = nullptr;
       con_comm.get_message_request_map().erase(&msg_request);
@@ -1027,12 +984,12 @@ struct MessageGroup<MessageBase::Kind::send, mp_pol, exec_policy>
 private:
   void start_Isend(CPUContext&, communicator_type& con_comm, int partner_rank, IdxT nbytes, message_request_type& msg_request)
   {
-    detail::mp::isend(con_comm.g, partner_rank, msg_request.region.mr, msg_request.region.offset, nbytes);
+    detail::mp::isend(msg_request.region.ptr, nbytes, partner_rank, &msg_request.region.mr, &msg_request.request.request);
   }
 
   void start_Isend(CudaContext& con, communicator_type& con_comm, int partner_rank, IdxT nbytes, message_request_type& msg_request)
   {
-    detail::mp::stream_send(con_comm.g, partner_rank, con.stream_launch(), msg_request.region.mr, msg_request.region.offset, nbytes);
+    detail::mp::isend_on_stream(msg_request.region.ptr, nbytes, partner_rank, &msg_request.region.mr, &msg_request.request.request, con.stream_launch());
   }
 
   static void cork_Isends(CPUContext&, communicator_type& con_comm)
@@ -1042,7 +999,7 @@ private:
 
   static void cork_Isends(CudaContext&, communicator_type& con_comm)
   {
-    detail::mp::cork(con_comm.g);
+    detail::mp::cork();
   }
 
   static void uncork_Isends(CPUContext&, communicator_type& con_comm)
@@ -1052,13 +1009,13 @@ private:
 
   static void uncork_Isends(CudaContext&, communicator_type& con_comm)
   {
-    detail::mp::uncork(con_comm.g, con_comm.stream_launch());
+    detail::mp::uncork(con_comm.stream_launch());
   }
 
   void finish_send(communicator_type& con_comm, message_request_type& msg_request)
   {
     if (!msg_request.request.completed) {
-      msg_request.request.completed = detail::mp::is_send_complete(msg_request.request.g, msg_request.request.partner_rank);
+      msg_request.request.completed = detail::mp::is_send_complete(&msg_request.request.request);
 
       if (!msg_request.request.completed) {
         con_comm.wait_request(&msg_request);
@@ -1124,7 +1081,7 @@ struct MessageGroup<MessageBase::Kind::recv, mp_pol, exec_policy>
       IdxT nbytes = msg->nbytes() * this->m_variables.size();
 
       message_request_type& msg_request = m_msg_requests[msg->idx];
-      msg_request.region = con_comm.get_mempool().allocate(con_comm.g, this->m_aloc, nbytes);
+      msg_request.region = con_comm.get_mempool().allocate(this->m_aloc, nbytes);
       msg->buf = msg_request.region.ptr;
       con_comm.get_message_request_map().emplace(&msg_request);
     }
@@ -1143,9 +1100,8 @@ struct MessageGroup<MessageBase::Kind::recv, mp_pol, exec_policy>
       const IdxT nbytes = msg->nbytes() * this->m_variables.size();
       // LOGPRINTF("%p Irecv %p nbytes %d to %i tag %i\n", this, buf, nbytes, partner_rank, tag);
       message_request_type& msg_request = m_msg_requests[msg->idx];
-      detail::mp::receive(con_comm.g, partner_rank, msg_request.region.mr, msg_request.region.offset, nbytes);
+      detail::mp::irecv(buf, nbytes, partner_rank, &msg_request.region.mr, &msg_request.request.request);
       msg_request.request.status = -1;
-      msg_request.request.g = con_comm.g;
       msg_request.request.partner_rank = partner_rank;
       msg_request.request.setContext(con);
       msg_request.request.completed = false;
@@ -1190,7 +1146,7 @@ struct MessageGroup<MessageBase::Kind::recv, mp_pol, exec_policy>
 
       message_request_type& msg_request = m_msg_requests[msg->idx];
       finish_recv(con_comm, msg_request);
-      con_comm.get_mempool().deallocate(con_comm.g, this->m_aloc, msg_request.region);
+      con_comm.get_mempool().deallocate(this->m_aloc, msg_request.region);
       msg_request.region = region_type{};
       msg->buf = nullptr;
       con_comm.get_message_request_map().erase(&msg_request);
@@ -1201,7 +1157,7 @@ private:
   void finish_recv(communicator_type& con_comm, message_request_type& msg_request)
   {
     if (!msg_request.request.completed) {
-      msg_request.request.completed = detail::mp::is_receive_complete(msg_request.request.g, msg_request.request.partner_rank);
+      msg_request.request.completed = detail::mp::is_receive_complete(&msg_request.request.request);
 
       if (!msg_request.request.completed) {
         con_comm.wait_request(&msg_request);
