@@ -118,16 +118,20 @@ The runtime options change the properties of the grid and its decomposition, as 
           -   __raja_cuda__ RAJA cuda GPU execution pattern
           -   __mpi_type__ MPI datatypes MPI implementation execution pattern
   -   __\-memory *option*__ Memory space options
-      -   __enable|disable *option*__ Enable or disable specific memory spaces for mesh allocations
+      -   __UseType *enable|disable*__ Optional UseType modifier for enable|disable, default is all. UseType specifies what uses to enable|disable, for example "-memory buffer disable cuda_pinned" disables cuda_pinned buffer allocations.
+          -   __all__ all use types
+          -   __mesh__ mesh use type
+          -   __buffer__ cuda pinned memory space
+      -   __enable|disable *option*__ Enable or disable specific memory spaces for UseType allocations
           -   __all__ all memory spaces
           -   __host__ host CPU memory space
           -   __cuda_pinned__ cuda pinned memory space
           -   __cuda_device__ cuda device memory space
           -   __cuda_managed__ cuda managed memory space
           -   __cuda_managed_host_preferred__ cuda managed with host preferred advice memory space
-          -   __cuda_managed_host_preferred_device_accessed__ cuda managed with host preferred and device accessed advice memory space
+          -   __cuda_managed_host_preferred_device_accessed__ cuda managed with host preferred and device accessed    advice memory space
           -   __cuda_managed_device_preferred__ cuda managed with device preferred advice memory space
-          -   __cuda_managed_device_preferred_host_accessed__ cuda managed with device preferred and host accessed advice memory space
+          -   __cuda_managed_device_preferred_host_accessed__ cuda managed with device preferred and host accessed    advice memory space
   -   __\-cuda_aware_mpi__ Assert that you are using a cuda aware mpi implementation and enable tests that pass cuda device or managed memory to MPI
   -   __\-cuda_host_accessible_from_device__ Assert that your system supports pageable host memory access from the device and enable tests that access pageable host memory on the device
   -   __\-use_device_preferred_for_cuda_util_aloc__ Use device preferred host accessed memory for cuda utility allocations instead of host pinned memory, mainly affects fused kernels
