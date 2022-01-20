@@ -151,7 +151,12 @@ int main(int argc, char** argv)
 
   // stores whether each exec policy is available for use
   COMB::Executors exec;
+
+  // set default executor availability
   exec.seq.m_available = true;
+#ifdef COMB_ENABLE_CUDA
+  exec.cuda.m_available = true;
+#endif
 
   // set default allocator availability
   alloc.host.set_available({{COMB::AllocatorInfo::UseType::Mesh}}, true);
