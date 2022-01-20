@@ -24,7 +24,10 @@ bool should_do_copy(ContextHolder<exec_type>& con_in,
                     COMB::AllocatorInfo& src_aloc_in)
 {
   return con_in.available()
-      && dst_aloc_in.available() // && src_aloc_in.available()
+      && (dst_aloc_in.available(COMB::AllocatorInfo::UseType::Mesh)
+       || dst_aloc_in.available(COMB::AllocatorInfo::UseType::Buffer))
+      && (src_aloc_in.available(COMB::AllocatorInfo::UseType::Mesh)
+       || src_aloc_in.available(COMB::AllocatorInfo::UseType::Buffer))
       && dst_aloc_in.accessible(con_in.get())
       && src_aloc_in.accessible(con_in.get()) ;
 }
