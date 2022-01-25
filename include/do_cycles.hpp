@@ -30,7 +30,9 @@ bool should_do_cycles(CommContext<pol_comm>& con_comm_in,
                       ContextHolder<exec_few>& con_few_in,   AllocatorInfo& aloc_few_in)
 {
   return con_mesh_in.available() && con_many_in.available() && con_few_in.available()
-      && aloc_mesh_in.available() // && aloc_many_in.available() && aloc_few_in.available()
+      && aloc_mesh_in.available(AllocatorInfo::UseType::Mesh)
+      && aloc_many_in.available(AllocatorInfo::UseType::Buffer)
+      && aloc_few_in.available(AllocatorInfo::UseType::Buffer)
       && aloc_many_in.accessible(con_comm_in) && aloc_few_in.accessible(con_comm_in)
       && aloc_mesh_in.accessible(con_mesh_in.get())
       && aloc_mesh_in.accessible(con_many_in.get()) && aloc_many_in.accessible(con_many_in.get())
