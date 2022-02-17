@@ -179,7 +179,9 @@ void do_cycles(CommContext<pol_comm>& con_comm_in,
     IdxT ntestcycles = std::max(IdxT{1}, ncycles/IdxT{10});
     for (IdxT test_cycle = 0; test_cycle < ntestcycles; ++test_cycle) { // test comm
 
-      Range r2("cycle", Range::cyan);
+      char cycle_range_name[32] = "";
+      snprintf(cycle_range_name, 32, "cycle_%lli", (long long)test_cycle);
+      Range r2(cycle_range_name, Range::cyan);
 
       bool mock_communication = comm.mock_communication();
       IdxT imin = info.min[0];
@@ -452,7 +454,9 @@ void do_cycles(CommContext<pol_comm>& con_comm_in,
 
     for(IdxT cycle = 0; cycle < ncycles; cycle++) {
 
-      Range r2("cycle", Range::yellow);
+      char cycle_range_name[32] = "";
+      snprintf(cycle_range_name, 32, "cycle_%lli", (long long)cycle);
+      Range r2(cycle_range_name, Range::yellow);
 
       IdxT imin = info.min[0];
       IdxT jmin = info.min[1];
