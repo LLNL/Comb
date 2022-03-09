@@ -127,6 +127,40 @@ struct cuda : base
 
 #endif // COMB_ENABLE_CUDA
 
+#ifdef COMB_ENABLE_HIP
+
+struct hip : base
+{
+  static const bool async = true;
+  static const char* get_name() { return "raja_hip"; }
+  using resource_type = RAJA::resources::Hip;
+  using for_all_policy = RAJA::hip_exec_async<256>;
+  using for_all_2d_policy =
+      RAJA::KernelPolicy<
+        RAJA::statement::HipKernelFixedAsync<256,
+          RAJA::statement::Tile<0, RAJA::tile_fixed<4>, RAJA::hip_block_y_direct,
+            RAJA::statement::Tile<1, RAJA::tile_fixed<64>, RAJA::hip_block_x_direct,
+              RAJA::statement::For<0, RAJA::hip_thread_y_direct,
+                RAJA::statement::For<1, RAJA::hip_thread_x_direct,
+                  RAJA::statement::Lambda<0> > > > > > >;
+  using for_all_3d_policy =
+      RAJA::KernelPolicy<
+        RAJA::statement::HipKernelFixedAsync<256,
+          RAJA::statement::For<0, RAJA::hip_block_z_direct,
+            RAJA::statement::Tile<1, RAJA::tile_fixed<4>, RAJA::hip_block_y_direct,
+              RAJA::statement::Tile<2, RAJA::tile_fixed<64>, RAJA::hip_block_x_direct,
+                RAJA::statement::For<1, RAJA::hip_thread_y_direct,
+                  RAJA::statement::For<2, RAJA::hip_thread_x_direct,
+                    RAJA::statement::Lambda<0> > > > > > > >;
+  using fused_policy =
+      RAJA::WorkGroupPolicy<
+          RAJA::hip_work_async<1024>,
+          RAJA::unordered_hip_loop_y_block_iter_x_threadblock_average,
+          RAJA::constant_stride_array_of_objects>;
+};
+
+#endif // COMB_ENABLE_HIP
+
 }
 
 struct raja_component
@@ -153,6 +187,9 @@ using raja_omp_pol  = raja_pol<raja::omp>;
 #endif
 #ifdef COMB_ENABLE_CUDA
 using raja_cuda_pol = raja_pol<raja::cuda>;
+#endif
+#ifdef COMB_ENABLE_HIP
+using raja_hip_pol = raja_pol<raja::hip>;
 #endif
 
 

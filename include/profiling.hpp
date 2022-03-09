@@ -29,6 +29,7 @@
 #include "print.hpp"
 #include "comm_utils_mpi.hpp"
 #include "exec_utils_cuda.hpp"
+#include "exec_utils_hip.hpp"
 
 #include "ExecContext.hpp"
 
@@ -43,6 +44,9 @@ struct Timer {
    ,cpu
 #ifdef COMB_ENABLE_CUDA
    ,cuda
+#endif
+#ifdef COMB_ENABLE_HIP
+   ,hip
 #endif
   };
 
@@ -59,6 +63,12 @@ struct Timer {
         cudaCheck(cudaEventElapsedTime(&ms, t0.tp_cuda, t1.tp_cuda));
         time = static_cast<double>(ms) / 1000.0;
 #endif
+#ifdef COMB_ENABLE_HIP
+      } else if (t0.type == hip && t1.type == hip) {
+        float ms;
+        hipCheck(hipEventElapsedTime(&ms, t0.tp_hip, t1.tp_hip));
+        time = static_cast<double>(ms) / 1000.0;
+#endif
       } else {
         assert(0 && "TimePoint::duration type mismatch");
       }
@@ -69,6 +79,9 @@ struct Timer {
 #ifdef COMB_ENABLE_CUDA
     cudaEvent_t tp_cuda;
 #endif
+#ifdef COMB_ENABLE_HIP
+    hipEvent_t tp_hip;
+#endif
     int type;
 
     TimePoint()
@@ -76,6 +89,9 @@ struct Timer {
     {
 #ifdef COMB_ENABLE_CUDA
       cudaCheck(cudaEventCreateWithFlags(&tp_cuda, cudaEventDefault));
+#endif
+#ifdef COMB_ENABLE_HIP
+      hipCheck(hipEventCreateWithFlags(&tp_hip, hipEventDefault));
 #endif
     }
 
@@ -101,10 +117,21 @@ struct Timer {
     }
 #endif
 
+#ifdef COMB_ENABLE_HIP
+    void record(HipContext& con)
+    {
+      hipCheck(hipEventRecord(tp_hip, con.stream()));
+      type = hip;
+    }
+#endif
+
     ~TimePoint()
     {
 #ifdef COMB_ENABLE_CUDA
       cudaCheck(cudaEventDestroy(tp_cuda));
+#endif
+#ifdef COMB_ENABLE_HIP
+      hipCheck(hipEventDestroy(tp_hip));
 #endif
     }
   };
@@ -277,6 +304,9 @@ struct Range {
       eventAttrib.message.ascii = name_;
       nvtxRangePushEx(&eventAttrib);
 #endif
+#ifdef COMB_ENABLE_HIP
+      roctxRangePush(name_);
+#endif
 #ifdef COMB_ENABLE_CALIPER
       ann.begin(name_);
 #endif
@@ -293,6 +323,9 @@ struct Range {
 #endif
 #ifdef COMB_ENABLE_CUDA
       nvtxRangePop();
+#endif
+#ifdef COMB_ENABLE_HIP
+      roctxRangePop();
 #endif
       name = nullptr;
     }

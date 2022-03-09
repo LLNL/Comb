@@ -46,13 +46,13 @@ extern void comb_teardown_files();
 extern void fgprintf(FileGroup fg, const char* fmt, ...);
 extern void print_proc_memory_stats();
 
-#ifdef __CUDA_ARCH__
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
 #define FFLUSH(f) static_cast<void>(0)
 #else
 #define FFLUSH(f) fflush(f)
 #endif
 
-#ifdef __CUDA_ARCH__
+ #if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
 #define FGPRINTF(fg, ...) printf(__VA_ARGS__)
 #else
 #define FGPRINTF(fg, ...) fgprintf(fg, __VA_ARGS__)

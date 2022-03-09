@@ -30,6 +30,7 @@
 
 #include "ExecContext.hpp"
 #include "exec_utils_cuda.hpp"
+#include "exec_utils_hip.hpp"
 
 namespace COMB {
 
@@ -135,6 +136,41 @@ using mempool = COMBRAJA::basic_mempool::MemPool<alloc>;
   };
 #endif
 
+#ifdef COMB_ENABLE_HIP
+  struct hip_host_pinned_allocator {
+    void* malloc(size_t nbytes) {
+      void* ptr = nullptr;
+      hipCheck(hipHostAlloc(&ptr, nbytes, hipHostAllocDefault));
+      return ptr;
+    }
+    void free(void* ptr) {
+      hipCheck(hipFreeHost(ptr));
+    }
+  };
+
+  struct hip_device_allocator {
+    void* malloc(size_t nbytes) {
+      void* ptr = nullptr;
+      hipCheck(hipMalloc(&ptr, nbytes));
+      return ptr;
+    }
+    void free(void* ptr) {
+      hipCheck(hipFree(ptr));
+    }
+  };
+
+  struct hip_managed_allocator {
+    void* malloc(size_t nbytes) {
+      void* ptr = nullptr;
+      hipCheck(hipMallocManaged(&ptr, nbytes));
+      return ptr;
+    }
+    void free(void* ptr) {
+      hipCheck(hipFree(ptr));
+    }
+  };
+#endif
+
 } // end detail
 
 struct Allocator
@@ -170,10 +206,10 @@ struct HostAllocator : Allocator
   }
 };
 
-struct HostPinnedAllocator : Allocator
+struct CudaHostPinnedAllocator : Allocator
 {
 #ifdef COMB_ENABLE_CUDA
-  const char* name() override { return "HostPinned"; }
+  const char* name() override { return "CudaHostPinned"; }
   void* allocate(size_t nbytes) override
   {
     void* ptr = detail::mempool<detail::cuda_host_pinned_allocator>::getInstance().malloc<char>(nbytes);
@@ -186,10 +222,10 @@ struct HostPinnedAllocator : Allocator
 #endif
 };
 
-struct DeviceAllocator : Allocator
+struct CudaDeviceAllocator : Allocator
 {
 #ifdef COMB_ENABLE_CUDA
-  const char* name() override { return "Device"; }
+  const char* name() override { return "CudaDevice"; }
   void* allocate(size_t nbytes) override
   {
     void* ptr = detail::mempool<detail::cuda_device_allocator>::getInstance().malloc<char>(nbytes);
@@ -202,10 +238,10 @@ struct DeviceAllocator : Allocator
 #endif
 };
 
-struct ManagedAllocator : Allocator
+struct CudaManagedAllocator : Allocator
 {
 #ifdef COMB_ENABLE_CUDA
-  const char* name() override { return "Managed"; }
+  const char* name() override { return "CudaManaged"; }
   void* allocate(size_t nbytes) override
   {
     void* ptr = detail::mempool<detail::cuda_managed_allocator>::getInstance().malloc<char>(nbytes);
@@ -218,10 +254,10 @@ struct ManagedAllocator : Allocator
 #endif
 };
 
-struct ManagedHostPreferredAllocator : Allocator
+struct CudaManagedHostPreferredAllocator : Allocator
 {
 #ifdef COMB_ENABLE_CUDA
-  const char* name() override { return "ManagedHostPreferred"; }
+  const char* name() override { return "CudaManagedHostPreferred"; }
   void* allocate(size_t nbytes) override
   {
     void* ptr = detail::mempool<detail::cuda_managed_host_preferred_allocator>::getInstance().malloc<char>(nbytes);
@@ -234,10 +270,10 @@ struct ManagedHostPreferredAllocator : Allocator
 #endif
 };
 
-struct ManagedHostPreferredDeviceAccessedAllocator : Allocator
+struct CudaManagedHostPreferredDeviceAccessedAllocator : Allocator
 {
 #ifdef COMB_ENABLE_CUDA
-  const char* name() override { return "ManagedHostPreferredDeviceAccessed"; }
+  const char* name() override { return "CudaManagedHostPreferredDeviceAccessed"; }
   void* allocate(size_t nbytes) override
   {
     void* ptr = detail::mempool<detail::cuda_managed_host_preferred_device_accessed_allocator>::getInstance().malloc<char>(nbytes);
@@ -250,10 +286,10 @@ struct ManagedHostPreferredDeviceAccessedAllocator : Allocator
 #endif
 };
 
-struct ManagedDevicePreferredAllocator : Allocator
+struct CudaManagedDevicePreferredAllocator : Allocator
 {
 #ifdef COMB_ENABLE_CUDA
-  const char* name() override { return "ManagedDevicePreferred"; }
+  const char* name() override { return "CudaManagedDevicePreferred"; }
   void* allocate(size_t nbytes) override
   {
     void* ptr = detail::mempool<detail::cuda_managed_device_preferred_allocator>::getInstance().malloc<char>(nbytes);
@@ -266,10 +302,10 @@ struct ManagedDevicePreferredAllocator : Allocator
 #endif
 };
 
-struct ManagedDevicePreferredHostAccessedAllocator : Allocator
+struct CudaManagedDevicePreferredHostAccessedAllocator : Allocator
 {
 #ifdef COMB_ENABLE_CUDA
-  const char* name() override { return "ManagedDevicePreferredHostAccessed"; }
+  const char* name() override { return "CudaManagedDevicePreferredHostAccessed"; }
   void* allocate(size_t nbytes) override
   {
     void* ptr = detail::mempool<detail::cuda_managed_device_preferred_host_accessed_allocator>::getInstance().malloc<char>(nbytes);
@@ -278,6 +314,54 @@ struct ManagedDevicePreferredHostAccessedAllocator : Allocator
   void deallocate(void* ptr) override
   {
     detail::mempool<detail::cuda_managed_device_preferred_host_accessed_allocator>::getInstance().free(ptr);
+  }
+#endif
+};
+
+struct HipHostPinnedAllocator : Allocator
+{
+#ifdef COMB_ENABLE_HIP
+  const char* name() override { return "HipHostPinned"; }
+  void* allocate(size_t nbytes) override
+  {
+    void* ptr = detail::mempool<detail::hip_host_pinned_allocator>::getInstance().malloc<char>(nbytes);
+    return ptr;
+  }
+  void deallocate(void* ptr) override
+  {
+    detail::mempool<detail::hip_host_pinned_allocator>::getInstance().free(ptr);
+  }
+#endif
+};
+
+struct HipDeviceAllocator : Allocator
+{
+#ifdef COMB_ENABLE_HIP
+  const char* name() override { return "HipDevice"; }
+  void* allocate(size_t nbytes) override
+  {
+    void* ptr = detail::mempool<detail::hip_device_allocator>::getInstance().malloc<char>(nbytes);
+    return ptr;
+  }
+  void deallocate(void* ptr) override
+  {
+    detail::mempool<detail::hip_device_allocator>::getInstance().free(ptr);
+  }
+#endif
+};
+
+struct HipManagedAllocator : Allocator
+{
+#ifdef COMB_ENABLE_HIP
+  const char* name() override { return "HipManaged"; }
+  void* allocate(size_t nbytes) override
+  {
+    void* ptr = detail::mempool<detail::hip_managed_allocator>::getInstance().malloc<char>(nbytes);
+    return ptr;
+  }
+  void deallocate(void* ptr) override
+  {
+    detail::mempool<detail::hip_managed_allocator>::getInstance().free(ptr);
   }
 #endif
 };
@@ -347,6 +431,15 @@ struct AllocatorAccessibilityFlags
   bool cuda_aware_mpi = false;
   // special flag to allow use of device preferred host accessed managed memory for cuda util allocations
   bool use_device_preferred_for_cuda_util_aloc = false;
+
+  // special flag to enable tests that access host pageable memory from the device
+  bool hip_host_accessible_from_device = false;
+  // special flag to enable tests that access device memory from the host
+  bool hip_device_accessible_from_host = false;
+  // special flag to enable tests that pass device buffers to MPI
+  bool hip_aware_mpi = false;
+  // special flag to allow use of device memory for hip util allocations
+  bool use_device_for_hip_util_aloc = false;
 };
 
 struct AllocatorInfo
@@ -375,10 +468,16 @@ struct AllocatorInfo
 #ifdef COMB_ENABLE_CUDA
   virtual bool accessible(CudaContext const&) = 0;
 #endif
+#ifdef COMB_ENABLE_HIP
+  virtual bool accessible(HipContext const&) = 0;
+#endif
 #ifdef COMB_ENABLE_RAJA
   virtual bool accessible(RAJAContext<RAJA::resources::Host> const&) = 0;
 #ifdef COMB_ENABLE_CUDA
   virtual bool accessible(RAJAContext<RAJA::resources::Cuda> const&) = 0;
+#endif
+#ifdef COMB_ENABLE_HIP
+  virtual bool accessible(RAJAContext<RAJA::resources::Hip> const&) = 0;
 #endif
 #endif
 
@@ -407,10 +506,16 @@ struct InvalidAllocatorInfo : AllocatorInfo
 #ifdef COMB_ENABLE_CUDA
   bool accessible(CudaContext const&) override { return false; }
 #endif
+#ifdef COMB_ENABLE_HIP
+  bool accessible(HipContext const&) override { return false; }
+#endif
 #ifdef COMB_ENABLE_RAJA
   bool accessible(RAJAContext<RAJA::resources::Host> const&) override { return false; }
 #ifdef COMB_ENABLE_CUDA
   bool accessible(RAJAContext<RAJA::resources::Cuda> const&) override { return false; }
+#endif
+#ifdef COMB_ENABLE_HIP
+  bool accessible(RAJAContext<RAJA::resources::Hip> const&) override { return false; }
 #endif
 #endif
 };
@@ -427,10 +532,16 @@ struct HostAllocatorInfo : AllocatorInfo
 #ifdef COMB_ENABLE_CUDA
   bool accessible(CudaContext const&) override { return m_accessFlags.cuda_host_accessible_from_device; }
 #endif
+#ifdef COMB_ENABLE_HIP
+  bool accessible(HipContext const&) override { return m_accessFlags.hip_host_accessible_from_device; }
+#endif
 #ifdef COMB_ENABLE_RAJA
   bool accessible(RAJAContext<RAJA::resources::Host> const&) override { return true; }
 #ifdef COMB_ENABLE_CUDA
   bool accessible(RAJAContext<RAJA::resources::Cuda> const&) override { return m_accessFlags.cuda_host_accessible_from_device; }
+#endif
+#ifdef COMB_ENABLE_HIP
+  bool accessible(RAJAContext<RAJA::resources::Hip> const&) override { return m_accessFlags.hip_host_accessible_from_device; }
 #endif
 #endif
 private:
@@ -439,9 +550,9 @@ private:
 
 #ifdef COMB_ENABLE_CUDA
 
-struct HostPinnedAllocatorInfo : AllocatorInfo
+struct CudaHostPinnedAllocatorInfo : AllocatorInfo
 {
-  HostPinnedAllocatorInfo(AllocatorAccessibilityFlags& a) : AllocatorInfo(a) { }
+  CudaHostPinnedAllocatorInfo(AllocatorAccessibilityFlags& a) : AllocatorInfo(a) { }
   Allocator& allocator() override { return m_allocator; }
   bool available(UseType ut) override { return m_available[validate_and_convert(ut)]; }
   bool accessible(CPUContext const&) override { return true; }
@@ -449,17 +560,23 @@ struct HostPinnedAllocatorInfo : AllocatorInfo
   bool accessible(MPIContext const&) override { return true; }
 #endif
   bool accessible(CudaContext const&) override { return true; }
+#ifdef COMB_ENABLE_HIP
+  bool accessible(HipContext const&) override { return false; }
+#endif
 #ifdef COMB_ENABLE_RAJA
   bool accessible(RAJAContext<RAJA::resources::Host> const&) override { return true; }
   bool accessible(RAJAContext<RAJA::resources::Cuda> const&) override { return true; }
+#ifdef COMB_ENABLE_HIP
+  bool accessible(RAJAContext<RAJA::resources::Hip> const&) override { return false; }
+#endif
 #endif
 private:
   HostPinnedAllocator m_allocator;
 };
 
-struct DeviceAllocatorInfo : AllocatorInfo
+struct CudaDeviceAllocatorInfo : AllocatorInfo
 {
-  DeviceAllocatorInfo(AllocatorAccessibilityFlags& a) : AllocatorInfo(a) { }
+  CudaDeviceAllocatorInfo(AllocatorAccessibilityFlags& a) : AllocatorInfo(a) { }
   Allocator& allocator() override { return m_allocator; }
   bool available(UseType ut) override { return m_available[validate_and_convert(ut)]; }
   bool accessible(CPUContext const&) override { return m_accessFlags.cuda_device_accessible_from_host; }
@@ -467,17 +584,23 @@ struct DeviceAllocatorInfo : AllocatorInfo
   bool accessible(MPIContext const&) override { return m_accessFlags.cuda_aware_mpi; }
 #endif
   bool accessible(CudaContext const&) override { return true; }
+#ifdef COMB_ENABLE_HIP
+  bool accessible(HipContext const&) override { return false; }
+#endif
 #ifdef COMB_ENABLE_RAJA
   bool accessible(RAJAContext<RAJA::resources::Host> const&) override { return m_accessFlags.cuda_device_accessible_from_host; }
   bool accessible(RAJAContext<RAJA::resources::Cuda> const&) override { return true; }
+#ifdef COMB_ENABLE_HIP
+  bool accessible(RAJAContext<RAJA::resources::Hip> const&) override { return false; }
+#endif
 #endif
 private:
   DeviceAllocator m_allocator;
 };
 
-struct ManagedAllocatorInfo : AllocatorInfo
+struct CudaManagedAllocatorInfo : AllocatorInfo
 {
-  ManagedAllocatorInfo(AllocatorAccessibilityFlags& a) : AllocatorInfo(a) { }
+  CudaManagedAllocatorInfo(AllocatorAccessibilityFlags& a) : AllocatorInfo(a) { }
   Allocator& allocator() override { return m_allocator; }
   bool available(UseType ut) override { return m_available[validate_and_convert(ut)]; }
   bool accessible(CPUContext const&) override { return true; }
@@ -485,17 +608,23 @@ struct ManagedAllocatorInfo : AllocatorInfo
   bool accessible(MPIContext const&) override { return m_accessFlags.cuda_aware_mpi; }
 #endif
   bool accessible(CudaContext const&) override { return true; }
+#ifdef COMB_ENABLE_HIP
+  bool accessible(HipContext const&) override { return false; }
+#endif
 #ifdef COMB_ENABLE_RAJA
   bool accessible(RAJAContext<RAJA::resources::Host> const&) override { return true; }
   bool accessible(RAJAContext<RAJA::resources::Cuda> const&) override { return true; }
+#ifdef COMB_ENABLE_HIP
+  bool accessible(RAJAContext<RAJA::resources::Hip> const&) override { return false; }
+#endif
 #endif
 private:
   ManagedAllocator m_allocator;
 };
 
-struct ManagedHostPreferredAllocatorInfo : AllocatorInfo
+struct CudaManagedHostPreferredAllocatorInfo : AllocatorInfo
 {
-  ManagedHostPreferredAllocatorInfo(AllocatorAccessibilityFlags& a) : AllocatorInfo(a) { }
+  CudaManagedHostPreferredAllocatorInfo(AllocatorAccessibilityFlags& a) : AllocatorInfo(a) { }
   Allocator& allocator() override { return m_allocator; }
   bool available(UseType ut) override { return m_available[validate_and_convert(ut)] && detail::cuda::get_concurrent_managed_access(); }
   bool accessible(CPUContext const&) override { return true; }
@@ -503,17 +632,23 @@ struct ManagedHostPreferredAllocatorInfo : AllocatorInfo
   bool accessible(MPIContext const&) override { return m_accessFlags.cuda_aware_mpi; }
 #endif
   bool accessible(CudaContext const&) override { return true; }
+#ifdef COMB_ENABLE_HIP
+  bool accessible(HipContext const&) override { return false; }
+#endif
 #ifdef COMB_ENABLE_RAJA
   bool accessible(RAJAContext<RAJA::resources::Host> const&) override { return true; }
   bool accessible(RAJAContext<RAJA::resources::Cuda> const&) override { return true; }
+#ifdef COMB_ENABLE_HIP
+  bool accessible(RAJAContext<RAJA::resources::Hip> const&) override { return false; }
+#endif
 #endif
 private:
   ManagedHostPreferredAllocator m_allocator;
 };
 
-struct ManagedHostPreferredDeviceAccessedAllocatorInfo : AllocatorInfo
+struct CudaManagedHostPreferredDeviceAccessedAllocatorInfo : AllocatorInfo
 {
-  ManagedHostPreferredDeviceAccessedAllocatorInfo(AllocatorAccessibilityFlags& a) : AllocatorInfo(a) { }
+  CudaManagedHostPreferredDeviceAccessedAllocatorInfo(AllocatorAccessibilityFlags& a) : AllocatorInfo(a) { }
   Allocator& allocator() override { return m_allocator; }
   bool available(UseType ut) override { return m_available[validate_and_convert(ut)] && detail::cuda::get_concurrent_managed_access(); }
   bool accessible(CPUContext const&) override { return true; }
@@ -521,17 +656,23 @@ struct ManagedHostPreferredDeviceAccessedAllocatorInfo : AllocatorInfo
   bool accessible(MPIContext const&) override { return m_accessFlags.cuda_aware_mpi; }
 #endif
   bool accessible(CudaContext const&) override { return true; }
+#ifdef COMB_ENABLE_HIP
+  bool accessible(HipContext const&) override { return false; }
+#endif
 #ifdef COMB_ENABLE_RAJA
   bool accessible(RAJAContext<RAJA::resources::Host> const&) override { return true; }
   bool accessible(RAJAContext<RAJA::resources::Cuda> const&) override { return true; }
+#ifdef COMB_ENABLE_HIP
+  bool accessible(RAJAContext<RAJA::resources::Hip> const&) override { return false; }
+#endif
 #endif
 private:
   ManagedHostPreferredDeviceAccessedAllocator m_allocator;
 };
 
-struct ManagedDevicePreferredAllocatorInfo : AllocatorInfo
+struct CudaManagedDevicePreferredAllocatorInfo : AllocatorInfo
 {
-  ManagedDevicePreferredAllocatorInfo(AllocatorAccessibilityFlags& a) : AllocatorInfo(a) { }
+  CudaManagedDevicePreferredAllocatorInfo(AllocatorAccessibilityFlags& a) : AllocatorInfo(a) { }
   Allocator& allocator() override { return m_allocator; }
   bool available(UseType ut) override { return m_available[validate_and_convert(ut)] && detail::cuda::get_concurrent_managed_access(); }
   bool accessible(CPUContext const&) override { return true; }
@@ -539,17 +680,23 @@ struct ManagedDevicePreferredAllocatorInfo : AllocatorInfo
   bool accessible(MPIContext const&) override { return m_accessFlags.cuda_aware_mpi; }
 #endif
   bool accessible(CudaContext const&) override { return true; }
+#ifdef COMB_ENABLE_HIP
+  bool accessible(HipContext const&) override { return false; }
+#endif
 #ifdef COMB_ENABLE_RAJA
   bool accessible(RAJAContext<RAJA::resources::Host> const&) override { return true; }
   bool accessible(RAJAContext<RAJA::resources::Cuda> const&) override { return true; }
+#ifdef COMB_ENABLE_HIP
+  bool accessible(RAJAContext<RAJA::resources::Hip> const&) override { return false; }
+#endif
 #endif
 private:
   ManagedDevicePreferredAllocator m_allocator;
 };
 
-struct ManagedDevicePreferredHostAccessedAllocatorInfo : AllocatorInfo
+struct CudaManagedDevicePreferredHostAccessedAllocatorInfo : AllocatorInfo
 {
-  ManagedDevicePreferredHostAccessedAllocatorInfo(AllocatorAccessibilityFlags& a) : AllocatorInfo(a) { }
+  CudaManagedDevicePreferredHostAccessedAllocatorInfo(AllocatorAccessibilityFlags& a) : AllocatorInfo(a) { }
   Allocator& allocator() override { return m_allocator; }
   bool available(UseType ut) override { return m_available[validate_and_convert(ut)] && detail::cuda::get_concurrent_managed_access(); }
   bool accessible(CPUContext const&) override { return true; }
@@ -557,12 +704,94 @@ struct ManagedDevicePreferredHostAccessedAllocatorInfo : AllocatorInfo
   bool accessible(MPIContext const&) override { return m_accessFlags.cuda_aware_mpi; }
 #endif
   bool accessible(CudaContext const&) override { return true; }
+#ifdef COMB_ENABLE_HIP
+  bool accessible(HipContext const&) override { return false; }
+#endif
 #ifdef COMB_ENABLE_RAJA
   bool accessible(RAJAContext<RAJA::resources::Host> const&) override { return true; }
   bool accessible(RAJAContext<RAJA::resources::Cuda> const&) override { return true; }
+#ifdef COMB_ENABLE_HIP
+  bool accessible(RAJAContext<RAJA::resources::Hip> const&) override { return false; }
+#endif
 #endif
 private:
   ManagedDevicePreferredHostAccessedAllocator m_allocator;
+};
+
+#endif
+
+#ifdef COMB_ENABLE_HIP
+
+struct HipHostPinnedAllocatorInfo : AllocatorInfo
+{
+  HipHostPinnedAllocatorInfo(AllocatorAccessibilityFlags& a) : AllocatorInfo(a) { }
+  Allocator& allocator() override { return m_allocator; }
+  bool available(UseType ut) override { return m_available[validate_and_convert(ut)]; }
+  bool accessible(CPUContext const&) override { return true; }
+#ifdef COMB_ENABLE_MPI
+  bool accessible(MPIContext const&) override { return true; }
+#endif
+#ifdef COMB_ENABLE_CUDA
+  bool accessible(CudaContext const&) override { return false; }
+#endif
+  bool accessible(HipContext const&) override { return true; }
+#ifdef COMB_ENABLE_RAJA
+  bool accessible(RAJAContext<RAJA::resources::Host> const&) override { return true; }
+#ifdef COMB_ENABLE_CUDA
+  bool accessible(RAJAContext<RAJA::resources::Cuda> const&) override { return false; }
+#endif
+  bool accessible(RAJAContext<RAJA::resources::Hip> const&) override { return true; }
+#endif
+private:
+  HostPinnedAllocator m_allocator;
+};
+
+struct HipDeviceAllocatorInfo : AllocatorInfo
+{
+  HipDeviceAllocatorInfo(AllocatorAccessibilityFlags& a) : AllocatorInfo(a) { }
+  Allocator& allocator() override { return m_allocator; }
+  bool available(UseType ut) override { return m_available[validate_and_convert(ut)]; }
+  bool accessible(CPUContext const&) override { return m_accessFlags.hip_device_accessible_from_host; }
+#ifdef COMB_ENABLE_MPI
+  bool accessible(MPIContext const&) override { return m_accessFlags.hip_aware_mpi; }
+#endif
+#ifdef COMB_ENABLE_CUDA
+  bool accessible(CudaContext const&) override { return false; }
+#endif
+  bool accessible(HipContext const&) override { return true; }
+#ifdef COMB_ENABLE_RAJA
+  bool accessible(RAJAContext<RAJA::resources::Host> const&) override { return m_accessFlags.hip_device_accessible_from_host; }
+#ifdef COMB_ENABLE_CUDA
+  bool accessible(RAJAContext<RAJA::resources::Cuda> const&) override { return false; }
+#endif
+  bool accessible(RAJAContext<RAJA::resources::Hip> const&) override { return true; }
+#endif
+private:
+  DeviceAllocator m_allocator;
+};
+
+struct HipManagedAllocatorInfo : AllocatorInfo
+{
+  HipManagedAllocatorInfo(AllocatorAccessibilityFlags& a) : AllocatorInfo(a) { }
+  Allocator& allocator() override { return m_allocator; }
+  bool available(UseType ut) override { return m_available[validate_and_convert(ut)]; }
+  bool accessible(CPUContext const&) override { return true; }
+#ifdef COMB_ENABLE_MPI
+  bool accessible(MPIContext const&) override { return m_accessFlags.hip_aware_mpi; }
+#endif
+#ifdef COMB_ENABLE_CUDA
+  bool accessible(CudaContext const&) override { return false; }
+#endif
+  bool accessible(HipContext const&) override { return true; }
+#ifdef COMB_ENABLE_RAJA
+  bool accessible(RAJAContext<RAJA::resources::Host> const&) override { return true; }
+#ifdef COMB_ENABLE_CUDA
+  bool accessible(RAJAContext<RAJA::resources::Cuda> const&) override { return false; }
+#endif
+  bool accessible(RAJAContext<RAJA::resources::Hip> const&) override { return true; }
+#endif
+private:
+  ManagedAllocator m_allocator;
 };
 
 #endif
@@ -571,16 +800,21 @@ struct Allocators
 {
   AllocatorAccessibilityFlags access;
 
-  InvalidAllocatorInfo                            invalid{access};
-  HostAllocatorInfo                               host{access};
+  InvalidAllocatorInfo                                invalid{access};
+  HostAllocatorInfo                                   host{access};
 #ifdef COMB_ENABLE_CUDA
-  HostPinnedAllocatorInfo                         cuda_hostpinned{access};
-  DeviceAllocatorInfo                             cuda_device{access};
-  ManagedAllocatorInfo                            cuda_managed{access};
-  ManagedHostPreferredAllocatorInfo               cuda_managed_host_preferred{access};
-  ManagedHostPreferredDeviceAccessedAllocatorInfo cuda_managed_host_preferred_device_accessed{access};
-  ManagedDevicePreferredAllocatorInfo             cuda_managed_device_preferred{access};
-  ManagedDevicePreferredHostAccessedAllocatorInfo cuda_managed_device_preferred_host_accessed{access};
+  CudaHostPinnedAllocatorInfo                         cuda_hostpinned{access};
+  CudaDeviceAllocatorInfo                             cuda_device{access};
+  CudaManagedAllocatorInfo                            cuda_managed{access};
+  CudaManagedHostPreferredAllocatorInfo               cuda_managed_host_preferred{access};
+  CudaManagedHostPreferredDeviceAccessedAllocatorInfo cuda_managed_host_preferred_device_accessed{access};
+  CudaManagedDevicePreferredAllocatorInfo             cuda_managed_device_preferred{access};
+  CudaManagedDevicePreferredHostAccessedAllocatorInfo cuda_managed_device_preferred_host_accessed{access};
+#endif
+#ifdef COMB_ENABLE_HIP
+  HipHostPinnedAllocatorInfo                          hip_hostpinned{access};
+  HipDeviceAllocatorInfo                              hip_device{access};
+  HipManagedAllocatorInfo                             hip_managed{access};
 #endif
 };
 

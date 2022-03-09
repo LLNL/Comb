@@ -40,6 +40,7 @@
 // get compilers used
 #cmakedefine COMB_COMPILER "${COMB_CXX_COMPILER}"
 #cmakedefine COMB_CUDA_COMPILER "${COMB_CUDA_COMPILER}"
+#cmakedefine COMB_HIP_COMPILER "${COMB_HIP_COMPILER}"
 
 // disallow NDEBUG so asserts work
 #ifdef NDEBUG
@@ -59,6 +60,7 @@
 #cmakedefine COMB_ENABLE_CUDA
 #cmakedefine COMB_ENABLE_CUDA_GRAPH
 #cmakedefine COMB_ENABLE_CLANG_CUDA
+#cmakedefine COMB_ENABLE_HIP
 #cmakedefine COMB_ENABLE_GDSYNC
 #cmakedefine COMB_ENABLE_GPUMP
 #cmakedefine COMB_ENABLE_MP
@@ -163,7 +165,7 @@ namespace COMB {
 #define COMB_RESTRICT __restrict__
 #endif
 
-#if defined(COMB_ENABLE_CUDA)
+#if defined(COMB_ENABLE_CUDA) || defined(COMB_ENABLE_HIP)
 #define COMB_HOST __host__
 #define COMB_DEVICE __device__
 #else

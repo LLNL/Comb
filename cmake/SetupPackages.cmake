@@ -40,6 +40,15 @@ if (ENABLE_CUDA)
 endif()
 
 
+if (ENABLE_HIP)
+  if(HIP_FOUND)
+    message(STATUS "Hip Enabled")
+  else()
+    message(FATAL_ERROR "Hip NOT FOUND")
+  endif()
+endif()
+
+
 if (ENABLE_GDSYNC)
   message(STATUS "Findgdsync.cmake ${PROJECT_SOURCE_DIR}/cmake")
   set (CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake;${CMAKE_MODULE_PATH}")

@@ -116,6 +116,33 @@ int main(int argc, char** argv)
   }
 #endif
 
+#ifdef COMB_ENABLE_HIP
+  {
+    fgprintf(FileGroup::all, "Hip compiler %s\n", COMB_SERIALIZE(COMB_HIP_COMPILER));
+
+    int driver_v = -1;
+    hipCheck(hipDriverGetVersion(&driver_v));
+    fgprintf(FileGroup::all, "Hip driver version %i\n", driver_v);
+
+    int runtime_v = -1;
+    hipCheck(hipRuntimeGetVersion(&runtime_v));
+    fgprintf(FileGroup::all, "Hip runtime version %i\n", runtime_v);
+
+    const char* visible_devices = nullptr;
+    visible_devices = getenv("HIP_VISIBLE_DEVICES");
+    if (visible_devices == nullptr) {
+      visible_devices = "undefined";
+    }
+
+    int device = -1;
+    hipCheck(hipGetDevice(&device));
+
+    fgprintf(FileGroup::all, "GPU %i visible %s\n", device, visible_devices);
+
+    hipCheck(hipDeviceSynchronize());
+  }
+#endif
+
 
   // stores the Allocator for each memory type,
   // whether each memory type is available for use,
@@ -157,6 +184,9 @@ int main(int argc, char** argv)
 #ifdef COMB_ENABLE_CUDA
   exec.cuda.m_available = true;
 #endif
+#ifdef COMB_ENABLE_HIP
+  exec.hip.m_available = true;
+#endif
 
   // set default allocator availability
   alloc.host.set_available({{COMB::AllocatorInfo::UseType::Mesh}}, true);
@@ -164,6 +194,10 @@ int main(int argc, char** argv)
 #ifdef COMB_ENABLE_CUDA
   alloc.cuda_device.set_available({{COMB::AllocatorInfo::UseType::Mesh}}, true);
   alloc.cuda_hostpinned.set_available({{COMB::AllocatorInfo::UseType::Buffer}}, true);
+#endif
+#ifdef COMB_ENABLE_HIP
+  alloc.hip_device.set_available({{COMB::AllocatorInfo::UseType::Mesh}}, true);
+  alloc.hip_hostpinned.set_available({{COMB::AllocatorInfo::UseType::Buffer}}, true);
 #endif
 
   IdxT i = 1;
@@ -350,6 +384,9 @@ int main(int argc, char** argv)
 #ifdef COMB_ENABLE_CUDA_GRAPH
                 exec.cuda_graph.m_available = enabledisable;
 #endif
+#ifdef COMB_ENABLE_HIP
+                exec.hip.m_available = enabledisable;
+#endif
 #ifdef COMB_ENABLE_MPI
                 exec.mpi_type.m_available = enabledisable;
 #endif
@@ -360,6 +397,9 @@ int main(int argc, char** argv)
 #endif
 #ifdef COMB_ENABLE_CUDA
                 exec.raja_cuda.m_available = enabledisable;
+#endif
+#ifdef COMB_ENABLE_HIP
+                exec.raja_hip.m_available = enabledisable;
 #endif
 #endif
               } else if (strcmp(argv[i], "seq") == 0) {
@@ -377,6 +417,10 @@ int main(int argc, char** argv)
 #ifdef COMB_ENABLE_CUDA_GRAPH
                 exec.cuda_graph.m_available = enabledisable;
 #endif
+              } else if (strcmp(argv[i], "hip") == 0) {
+#ifdef COMB_ENABLE_HIP
+                exec.hip.m_available = enabledisable;
+#endif
               } else if (strcmp(argv[i], "mpi_type") == 0) {
 #ifdef COMB_ENABLE_MPI
                 exec.mpi_type.m_available = enabledisable;
@@ -392,6 +436,10 @@ int main(int argc, char** argv)
 #ifdef COMB_ENABLE_CUDA
               } else if (strcmp(argv[i], "raja_cuda") == 0) {
                 exec.raja_cuda.m_available = enabledisable;
+#endif
+#ifdef COMB_ENABLE_HIP
+              } else if (strcmp(argv[i], "raja_hip") == 0) {
+                exec.raja_hip.m_available = enabledisable;
 #endif
 #endif
               } else {
@@ -448,6 +496,11 @@ int main(int argc, char** argv)
                 alloc.cuda_managed_device_preferred.set_available(uts, enabledisable);
                 alloc.cuda_managed_device_preferred_host_accessed.set_available(uts, enabledisable);
 #endif
+#ifdef COMB_ENABLE_HIP
+                alloc.hip_hostpinned.set_available(uts, enabledisable);
+                alloc.hip_device.set_available(uts, enabledisable);
+                alloc.hip_managed.set_available(uts, enabledisable);
+#endif
               } else if (strcmp(argv[i], "host") == 0) {
                 alloc.host.set_available(uts, enabledisable);
               } else if (strcmp(argv[i], "cuda_hostpinned") == 0) {
@@ -477,6 +530,18 @@ int main(int argc, char** argv)
               } else if (strcmp(argv[i], "cuda_managed_device_preferred_host_accessed") == 0) {
 #ifdef COMB_ENABLE_CUDA
                 alloc.cuda_managed_device_preferred_host_accessed.set_available(uts, enabledisable);
+#endif
+              } else if (strcmp(argv[i], "hip_hostpinned") == 0) {
+#ifdef COMB_ENABLE_HIP
+                alloc.hip_hostpinned.set_available(uts, enabledisable);
+#endif
+              } else if (strcmp(argv[i], "hip_device") == 0) {
+#ifdef COMB_ENABLE_HIP
+                alloc.hip_device.set_available(uts, enabledisable);
+#endif
+              } else if (strcmp(argv[i], "hip_managed") == 0) {
+#ifdef COMB_ENABLE_HIP
+                alloc.hip_managed.set_available(uts, enabledisable);
 #endif
               } else {
                 fgprintf(FileGroup::err_master, "Invalid argument to sub-option, ignoring %s %s %s.\n", argv[i-2], argv[i-1], argv[i]);
@@ -599,6 +664,34 @@ int main(int argc, char** argv)
         alloc.access.use_device_preferred_for_cuda_util_aloc = true;
 #else
         fgprintf(FileGroup::err_master, "Not built with cuda, ignoring %s.\n", argv[i]);
+#endif
+      } else if (strcmp(&argv[i][1], "hip_aware_mpi") == 0) {
+#ifdef COMB_ENABLE_MPI
+#ifdef COMB_ENABLE_HIP
+        alloc.access.hip_aware_mpi = true;
+#else
+        fgprintf(FileGroup::err_master, "Not built with hip, ignoring %s.\n", argv[i]);
+#endif
+#else
+        fgprintf(FileGroup::err_master, "Not built with mpi, ignoring %s.\n", argv[i]);
+#endif
+      } else if (strcmp(&argv[i][1], "hip_host_accessible_from_device") == 0) {
+#ifdef COMB_ENABLE_HIP
+        alloc.access.hip_host_accessible_from_device = COMB::detail::hip::get_host_accessible_from_device();
+#else
+        fgprintf(FileGroup::err_master, "Not built with hip, ignoring %s.\n", argv[i]);
+#endif
+      } else if (strcmp(&argv[i][1], "hip_device_accessible_from_host") == 0) {
+#ifdef COMB_ENABLE_HIP
+        alloc.access.hip_device_accessible_from_host = COMB::detail::hip::get_device_accessible_from_host();
+#else
+        fgprintf(FileGroup::err_master, "Not built with hip, ignoring %s.\n", argv[i]);
+#endif
+      } else if (strcmp(&argv[i][1], "use_device_for_hip_util_aloc") == 0) {
+#ifdef COMB_ENABLE_HIP
+        alloc.access.use_device_for_hip_util_aloc = true;
+#else
+        fgprintf(FileGroup::err_master, "Not built with hip, ignoring %s.\n", argv[i]);
 #endif
       } else if (strcmp(&argv[i][1], "print_packing_sizes") == 0) {
         do_print_packing_sizes = true;

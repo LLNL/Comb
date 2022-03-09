@@ -57,6 +57,10 @@ void do_cycles_mpi_type(std::true_type const&,
   do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.mpi_type, mesh_aloc, exec.mpi_type, mesh_aloc, tm, tm_total);
 #endif
 
+#ifdef COMB_ENABLE_HIP
+  do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.hip, mesh_aloc, exec.mpi_type, mesh_aloc, exec.mpi_type, mesh_aloc, tm, tm_total);
+#endif
+
 #ifdef COMB_ENABLE_RAJA
   do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.raja_seq, mesh_aloc, exec.mpi_type, mesh_aloc, exec.mpi_type, mesh_aloc, tm, tm_total);
 
@@ -66,6 +70,10 @@ void do_cycles_mpi_type(std::true_type const&,
 
 #ifdef COMB_ENABLE_CUDA
   do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.raja_cuda, mesh_aloc, exec.mpi_type, mesh_aloc, exec.mpi_type, mesh_aloc, tm, tm_total);
+#endif
+
+#ifdef COMB_ENABLE_HIP
+  do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.raja_hip, mesh_aloc, exec.mpi_type, mesh_aloc, exec.mpi_type, mesh_aloc, tm, tm_total);
 #endif
 #endif
 }
@@ -88,7 +96,7 @@ void do_cycles_allocator(CommContext<comm_pol>& con_comm,
                          COMB::Executors& exec,
                          AllocatorInfo& mesh_aloc,
                          AllocatorInfo& cpu_many_aloc, AllocatorInfo& cpu_few_aloc,
-                         AllocatorInfo& cuda_many_aloc, AllocatorInfo& cuda_few_aloc,
+                         AllocatorInfo& gpu_many_aloc, AllocatorInfo& gpu_few_aloc,
                          IdxT num_vars, IdxT ncycles, Timer& tm, Timer& tm_total)
 {
   char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.allocator().name());
@@ -113,17 +121,33 @@ void do_cycles_allocator(CommContext<comm_pol>& con_comm,
   do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.omp, cpu_many_aloc, exec.omp, cpu_few_aloc, tm, tm_total);
 #endif
 
-  do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda, cuda_many_aloc, exec.seq, cpu_few_aloc, tm, tm_total);
+  do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda, gpu_many_aloc, exec.seq, cpu_few_aloc, tm, tm_total);
 
-  do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda, cuda_many_aloc, exec.cuda, cuda_few_aloc, tm, tm_total);
+  do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda, gpu_many_aloc, exec.cuda, gpu_few_aloc, tm, tm_total);
 
 #ifdef COMB_ENABLE_CUDA_GRAPH
-  do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_graph, cuda_many_aloc, exec.seq, cpu_few_aloc, tm, tm_total);
+  do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_graph, gpu_many_aloc, exec.seq, cpu_few_aloc, tm, tm_total);
 
-  do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_graph, cuda_many_aloc, exec.cuda_graph, cuda_few_aloc, tm, tm_total);
+  do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.cuda, mesh_aloc, exec.cuda_graph, gpu_many_aloc, exec.cuda_graph, gpu_few_aloc, tm, tm_total);
 #endif
 #else
-  COMB::ignore_unused(cuda_many_aloc, cuda_few_aloc);
+  COMB::ignore_unused(gpu_many_aloc, gpu_few_aloc);
+#endif
+
+#ifdef COMB_ENABLE_HIP
+  do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.hip, mesh_aloc, exec.seq, cpu_many_aloc, exec.seq, cpu_few_aloc, tm, tm_total);
+
+#ifdef COMB_ENABLE_OPENMP
+  do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.hip, mesh_aloc, exec.omp, cpu_many_aloc, exec.seq, cpu_few_aloc, tm, tm_total);
+
+  do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.hip, mesh_aloc, exec.omp, cpu_many_aloc, exec.omp, cpu_few_aloc, tm, tm_total);
+#endif
+
+  do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.hip, mesh_aloc, exec.hip, gpu_many_aloc, exec.seq, cpu_few_aloc, tm, tm_total);
+
+  do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.hip, mesh_aloc, exec.hip, gpu_many_aloc, exec.hip, gpu_few_aloc, tm, tm_total);
+#else
+  COMB::ignore_unused(gpu_many_aloc, gpu_few_aloc);
 #endif
 
 #ifdef COMB_ENABLE_RAJA
@@ -146,11 +170,27 @@ void do_cycles_allocator(CommContext<comm_pol>& con_comm,
   do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.raja_cuda, mesh_aloc, exec.raja_omp, cpu_many_aloc, exec.raja_omp, cpu_few_aloc, tm, tm_total);
 #endif
 
-  do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.raja_cuda, mesh_aloc, exec.raja_cuda, cuda_many_aloc, exec.raja_seq, cpu_few_aloc, tm, tm_total);
+  do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.raja_cuda, mesh_aloc, exec.raja_cuda, gpu_many_aloc, exec.raja_seq, cpu_few_aloc, tm, tm_total);
 
-  do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.raja_cuda, mesh_aloc, exec.raja_cuda, cuda_many_aloc, exec.raja_cuda, cuda_few_aloc, tm, tm_total);
+  do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.raja_cuda, mesh_aloc, exec.raja_cuda, gpu_many_aloc, exec.raja_cuda, gpu_few_aloc, tm, tm_total);
 #else
-  COMB::ignore_unused(cuda_many_aloc, cuda_few_aloc);
+  COMB::ignore_unused(gpu_many_aloc, gpu_few_aloc);
+#endif
+
+#ifdef COMB_ENABLE_HIP
+  do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.raja_hip, mesh_aloc, exec.raja_seq, cpu_many_aloc, exec.raja_seq, cpu_few_aloc, tm, tm_total);
+
+#ifdef COMB_ENABLE_OPENMP
+  do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.raja_hip, mesh_aloc, exec.raja_omp, cpu_many_aloc, exec.raja_seq, cpu_few_aloc, tm, tm_total);
+
+  do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.raja_hip, mesh_aloc, exec.raja_omp, cpu_many_aloc, exec.raja_omp, cpu_few_aloc, tm, tm_total);
+#endif
+
+  do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.raja_hip, mesh_aloc, exec.raja_hip, gpu_many_aloc, exec.raja_seq, cpu_few_aloc, tm, tm_total);
+
+  do_cycles(con_comm, comminfo, info, num_vars, ncycles, exec.raja_hip, mesh_aloc, exec.raja_hip, gpu_many_aloc, exec.raja_hip, gpu_few_aloc, tm, tm_total);
+#else
+  COMB::ignore_unused(gpu_many_aloc, gpu_few_aloc);
 #endif
 #endif
 
@@ -167,7 +207,7 @@ void do_cycles_allocators(CommContext<comm_pol>& con_comm,
                           COMB::Executors& exec,
                           Allocators& alloc,
                           AllocatorInfo& cpu_many_aloc, AllocatorInfo& cpu_few_aloc,
-                          AllocatorInfo& cuda_many_aloc, AllocatorInfo& cuda_few_aloc,
+                          AllocatorInfo& gpu_many_aloc, AllocatorInfo& gpu_few_aloc,
                           IdxT num_vars, IdxT ncycles, Timer& tm, Timer& tm_total)
 {
   do_cycles_allocator(con_comm,
@@ -175,7 +215,7 @@ void do_cycles_allocators(CommContext<comm_pol>& con_comm,
                       exec,
                       alloc.host,
                       cpu_many_aloc, cpu_few_aloc,
-                      cuda_many_aloc, cuda_few_aloc,
+                      gpu_many_aloc, gpu_few_aloc,
                       num_vars, ncycles, tm, tm_total);
 
 #ifdef COMB_ENABLE_CUDA
@@ -185,7 +225,7 @@ void do_cycles_allocators(CommContext<comm_pol>& con_comm,
                       exec,
                       alloc.cuda_hostpinned,
                       cpu_many_aloc, cpu_few_aloc,
-                      cuda_many_aloc, cuda_few_aloc,
+                      gpu_many_aloc, gpu_few_aloc,
                       num_vars, ncycles, tm, tm_total);
 
   do_cycles_allocator(con_comm,
@@ -193,7 +233,7 @@ void do_cycles_allocators(CommContext<comm_pol>& con_comm,
                       exec,
                       alloc.cuda_device,
                       cpu_many_aloc, cpu_few_aloc,
-                      cuda_many_aloc, cuda_few_aloc,
+                      gpu_many_aloc, gpu_few_aloc,
                       num_vars, ncycles, tm, tm_total);
 
   do_cycles_allocator(con_comm,
@@ -201,7 +241,7 @@ void do_cycles_allocators(CommContext<comm_pol>& con_comm,
                       exec,
                       alloc.cuda_managed,
                       cpu_many_aloc, cpu_few_aloc,
-                      cuda_many_aloc, cuda_few_aloc,
+                      gpu_many_aloc, gpu_few_aloc,
                       num_vars, ncycles, tm, tm_total);
 
   do_cycles_allocator(con_comm,
@@ -209,7 +249,7 @@ void do_cycles_allocators(CommContext<comm_pol>& con_comm,
                       exec,
                       alloc.cuda_managed_host_preferred,
                       cpu_many_aloc, cpu_few_aloc,
-                      cuda_many_aloc, cuda_few_aloc,
+                      gpu_many_aloc, gpu_few_aloc,
                       num_vars, ncycles, tm, tm_total);
 
   do_cycles_allocator(con_comm,
@@ -217,7 +257,7 @@ void do_cycles_allocators(CommContext<comm_pol>& con_comm,
                       exec,
                       alloc.cuda_managed_host_preferred_device_accessed,
                       cpu_many_aloc, cpu_few_aloc,
-                      cuda_many_aloc, cuda_few_aloc,
+                      gpu_many_aloc, gpu_few_aloc,
                       num_vars, ncycles, tm, tm_total);
 
   do_cycles_allocator(con_comm,
@@ -225,7 +265,7 @@ void do_cycles_allocators(CommContext<comm_pol>& con_comm,
                       exec,
                       alloc.cuda_managed_device_preferred,
                       cpu_many_aloc, cpu_few_aloc,
-                      cuda_many_aloc, cuda_few_aloc,
+                      gpu_many_aloc, gpu_few_aloc,
                       num_vars, ncycles, tm, tm_total);
 
   do_cycles_allocator(con_comm,
@@ -233,10 +273,38 @@ void do_cycles_allocators(CommContext<comm_pol>& con_comm,
                       exec,
                       alloc.cuda_managed_device_preferred_host_accessed,
                       cpu_many_aloc, cpu_few_aloc,
-                      cuda_many_aloc, cuda_few_aloc,
+                      gpu_many_aloc, gpu_few_aloc,
                       num_vars, ncycles, tm, tm_total);
 
 #endif // COMB_ENABLE_CUDA
+
+#ifdef COMB_ENABLE_HIP
+
+  do_cycles_allocator(con_comm,
+                      comminfo, info,
+                      exec,
+                      alloc.hip_hostpinned,
+                      cpu_many_aloc, cpu_few_aloc,
+                      gpu_many_aloc, gpu_few_aloc,
+                      num_vars, ncycles, tm, tm_total);
+
+  do_cycles_allocator(con_comm,
+                      comminfo, info,
+                      exec,
+                      alloc.hip_device,
+                      cpu_many_aloc, cpu_few_aloc,
+                      gpu_many_aloc, gpu_few_aloc,
+                      num_vars, ncycles, tm, tm_total);
+
+  do_cycles_allocator(con_comm,
+                      comminfo, info,
+                      exec,
+                      alloc.hip_managed,
+                      cpu_many_aloc, cpu_few_aloc,
+                      gpu_many_aloc, gpu_few_aloc,
+                      num_vars, ncycles, tm, tm_total);
+
+#endif // COMB_ENABLE_HIP
 
 }
 

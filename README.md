@@ -113,9 +113,11 @@ The runtime options change the properties of the grid and its decomposition, as 
           -   __omp__ openmp threaded CPU execution pattern
           -   __cuda__ cuda GPU execution pattern
           -   __cuda_graph__ cuda GPU batched via cuda graph API execution pattern
+          -   __hip__ hip GPU execution pattern
           -   __raja_seq__ RAJA sequential CPU execution pattern
           -   __raja_omp__ RAJA openmp threaded CPU execution pattern
           -   __raja_cuda__ RAJA cuda GPU execution pattern
+          -   __raja_hip__ RAJA hip GPU execution pattern
           -   __mpi_type__ MPI datatypes MPI implementation execution pattern
   -   __\-memory *option*__ Memory space options
       -   __UseType *enable|disable*__ Optional UseType modifier for enable|disable, default is all. UseType specifies what uses to enable|disable, for example "-memory buffer disable cuda_pinned" disables cuda_pinned buffer allocations.
@@ -132,9 +134,14 @@ The runtime options change the properties of the grid and its decomposition, as 
           -   __cuda_managed_host_preferred_device_accessed__ cuda managed with host preferred and device accessed    advice memory space
           -   __cuda_managed_device_preferred__ cuda managed with device preferred advice memory space
           -   __cuda_managed_device_preferred_host_accessed__ cuda managed with device preferred and host accessed    advice memory space
+          -   __hip_pinned__ hip pinned memory space
+          -   __hip_device__ hip device memory space
+          -   __hip_managed__ hip managed memory space
   -   __\-cuda_aware_mpi__ Assert that you are using a cuda aware mpi implementation and enable tests that pass cuda device or managed memory to MPI
+  -   __\-hip_aware_mpi__ Assert that you are using a hip aware mpi implementation and enable tests that pass hip device or managed memory to MPI
   -   __\-cuda_host_accessible_from_device__ Assert that your system supports pageable host memory access from the device and enable tests that access pageable host memory on the device
   -   __\-use_device_preferred_for_cuda_util_aloc__ Use device preferred host accessed memory for cuda utility allocations instead of host pinned memory, mainly affects fused kernels
+  -   __\-use_device_for_hip_util_aloc__ Use device memory for hip utility allocations instead of host pinned memory, mainly affects fused kernels
   -  __\-print_packing_sizes__ Print message and packing sizes to proc files
   -  __\-print_message_sizes__ Print message sizes to proc files
   - __\-caliper_config__ Caliper performance profiling config (e.g., "runtime-report")
@@ -206,17 +213,19 @@ The final three measure problem setup, correctness testing, and total benchmark 
   - __omp__ Parallel CPU execution via OpenMP
   - __cuda__ Parallel GPU execution via cuda
   - __cudaGraph__ Parallel GPU execution via cuda graphs
+  - __hip__ Parallel GPU execution via hip
   - __raja_seq__ RAJA Sequential CPU execution
   - __raja_omp__ RAJA Parallel CPU execution via OpenMP
   - __raja_cuda__ RAJA Parallel GPU execution via cuda
+  - __raja_hip__ RAJA Parallel GPU execution via hip
   - __mpi_type__ Packing or unpacking execution done via mpi datatypes used with MPI_Pack/MPI_Unpack
 
 ##### Memory Spaces
 
   - __Host__ CPU memory (malloc)
-  - __HostPinned__ Cuda Pinned CPU memory (cudaHostAlloc)
-  - __Device__ Cuda GPU memory (cudaMalloc)
-  - __Managed__ Cuda Managed GPU memory (cudaMallocManaged)
+  - __HostPinned__ Cuda/Hip Pinned CPU memory (cudaHostAlloc/hipMallocHost)
+  - __Device__ Cuda/Hip GPU memory (cudaMalloc/hipMalloc)
+  - __Managed__ Cuda/Hip Managed GPU memory (cudaMallocManaged/hipMallocManaged)
   - __ManagedHostPreferred__ Cuda Managed CPU Pinned memory (cudaMallocManaged + cudaMemAdviseSetPreferredLocation cudaCpuDeviceId)
   - __ManagedHostPreferredDeviceAccessed__ Cuda Managed CPU Pinned memory (cudaMallocManaged + cudaMemAdviseSetPreferredLocation cudaCpuDeviceId + cudaMemAdviseSetAccessedBy 0)
   - __ManagedDevicePreferred__ Cuda Managed CPU Pinned memory (cudaMallocManaged + cudaMemAdviseSetPreferredLocation 0)

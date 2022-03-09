@@ -33,11 +33,18 @@ void test_cycles_umr(CommInfo& comminfo, MeshInfo& info,
   AllocatorInfo& cpu_few_aloc  = alloc.host;
 
 #ifdef COMB_ENABLE_CUDA
-  AllocatorInfo& cuda_many_aloc = alloc.cuda_hostpinned;
-  AllocatorInfo& cuda_few_aloc  = alloc.cuda_hostpinned;
+  AllocatorInfo& gpu_many_aloc = alloc.cuda_hostpinned;
+  AllocatorInfo& gpu_few_aloc  = alloc.cuda_hostpinned;
 #else
-  AllocatorInfo& cuda_many_aloc = alloc.invalid;
-  AllocatorInfo& cuda_few_aloc  = alloc.invalid;
+  AllocatorInfo& gpu_many_aloc = alloc.invalid;
+  AllocatorInfo& gpu_few_aloc  = alloc.invalid;
+#endif
+#ifdef COMB_ENABLE_HIP
+  AllocatorInfo& gpu_many_aloc = alloc.hip_hostpinned;
+  AllocatorInfo& gpu_few_aloc  = alloc.hip_hostpinned;
+#else
+  AllocatorInfo& gpu_many_aloc = alloc.invalid;
+  AllocatorInfo& gpu_few_aloc  = alloc.invalid;
 #endif
 
   do_cycles_allocators(con_comm,
@@ -45,7 +52,7 @@ void test_cycles_umr(CommInfo& comminfo, MeshInfo& info,
                        exec,
                        alloc,
                        cpu_many_aloc, cpu_few_aloc,
-                       cuda_many_aloc, cuda_few_aloc,
+                       gpu_many_aloc, gpu_few_aloc,
                        num_vars, ncycles, tm, tm_total);
 
 }
