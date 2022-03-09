@@ -121,7 +121,7 @@ The runtime options change the properties of the grid and its decomposition, as 
       -   __UseType *enable|disable*__ Optional UseType modifier for enable|disable, default is all. UseType specifies what uses to enable|disable, for example "-memory buffer disable cuda_pinned" disables cuda_pinned buffer allocations.
           -   __all__ all use types
           -   __mesh__ mesh use type
-          -   __buffer__ cuda pinned memory space
+          -   __buffer__ buffer use type
       -   __enable|disable *option*__ Enable or disable specific memory spaces for UseType allocations
           -   __all__ all memory spaces
           -   __host__ host CPU memory space
