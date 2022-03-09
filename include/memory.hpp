@@ -140,11 +140,11 @@ using mempool = COMBRAJA::basic_mempool::MemPool<alloc>;
   struct hip_host_pinned_allocator {
     void* malloc(size_t nbytes) {
       void* ptr = nullptr;
-      hipCheck(hipHostAlloc(&ptr, nbytes, hipHostAllocDefault));
+      hipCheck(hipHostMalloc(&ptr, nbytes, hipHostMallocDefault));
       return ptr;
     }
     void free(void* ptr) {
-      hipCheck(hipFreeHost(ptr));
+      hipCheck(hipHostFree(ptr));
     }
   };
 
