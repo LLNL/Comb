@@ -29,10 +29,6 @@
 
 namespace COMB {
 
-#define IS_DEVICE_LAMBDA(kernel_typetype) \
-        __nv_is_extended_device_lambda_closure_type(kernel_type) || \
-        __nv_is_extended_host_device_lambda_closure_type(kernel_type)
-
 #define hipCheck(...) ::COMB::hipCheckError(#__VA_ARGS__, __VA_ARGS__, __FILE__, __LINE__)
 
 inline void hipCheckError(const char* str, hipError_t code, const char* file, int line)
