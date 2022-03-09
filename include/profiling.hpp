@@ -250,9 +250,6 @@ struct Range {
   static const uint32_t pink     = 0x00FF69B4;
 
   const char* name;
-#ifdef COMB_ENABLE_CUDA
-  nvtxRangeId_t id;
-#endif
 #ifdef COMB_ENABLE_CALIPER
   cali::Annotation ann;
 #endif
@@ -278,7 +275,7 @@ struct Range {
       eventAttrib.color = color;
       eventAttrib.messageType = NVTX_MESSAGE_TYPE_ASCII;
       eventAttrib.message.ascii = name_;
-      id = nvtxRangeStartEx(&eventAttrib);
+      nvtxRangePushEx(&eventAttrib);
 #endif
 #ifdef COMB_ENABLE_CALIPER
       ann.begin(name_);
@@ -295,7 +292,7 @@ struct Range {
       ann.end();
 #endif
 #ifdef COMB_ENABLE_CUDA
-      nvtxRangeEnd(id);
+      nvtxRangePop();
 #endif
       name = nullptr;
     }
