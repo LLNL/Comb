@@ -648,7 +648,7 @@ private:
 
 struct CudaManagedHostPreferredDeviceAccessedAllocatorInfo : AllocatorInfo
 {
-  CudaCudaManagedHostPreferredDeviceAccessedAllocatorInfo(AllocatorAccessibilityFlags& a) : AllocatorInfo(a) { }
+  CudaManagedHostPreferredDeviceAccessedAllocatorInfo(AllocatorAccessibilityFlags& a) : AllocatorInfo(a) { }
   Allocator& allocator() override { return m_allocator; }
   bool available(UseType ut) override { return m_available[validate_and_convert(ut)] && detail::cuda::get_concurrent_managed_access(); }
   bool accessible(CPUContext const&) override { return true; }
