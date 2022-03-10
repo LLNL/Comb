@@ -70,14 +70,14 @@ inline int get_device() {
   return d;
 }
 
-inline hipDeviceProp get_properties_impl() {
-  hipDeviceProp p;
+inline hipDeviceProp_t get_properties_impl() {
+  hipDeviceProp_t p;
   hipCheck(hipGetDeviceProperties(&p, get_device()));
   return p;
 }
 
-inline hipDeviceProp get_properties() {
-  static hipDeviceProp p = get_properties_impl();
+inline hipDeviceProp_t get_properties() {
+  static hipDeviceProp_t p = get_properties_impl();
   return p;
 }
 
