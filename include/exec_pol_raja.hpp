@@ -155,7 +155,11 @@ struct hip : base
   using fused_policy =
       RAJA::WorkGroupPolicy<
           RAJA::hip_work_async<1024>,
+#ifdef RAJA_ENABLE_HIP_INDIRECT_FUNCTION_CALL
           RAJA::unordered_hip_loop_y_block_iter_x_threadblock_average,
+#else
+          RAJA::ordered,
+#endif
           RAJA::constant_stride_array_of_objects>;
 };
 
