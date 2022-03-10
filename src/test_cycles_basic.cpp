@@ -35,7 +35,7 @@ void do_cycles_basic(CommContext<pol_comm>& con_comm_in,
 #ifdef COMB_ENABLE_CUDA
              || std::is_same<pol_many, cuda_pol>::value
 #endif
-#ifdef COMB_ENABLE_CUDA
+#ifdef COMB_ENABLE_HIP
              || std::is_same<pol_many, hip_pol>::value
 #endif
                ,"do_cycles_basic expects pol_many to be seq_pol, cuda_pol, or hip_pol");
