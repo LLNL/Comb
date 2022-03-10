@@ -113,6 +113,16 @@ if [[ ! "x" == "x$SYS_TYPE" ]]; then
 
       get_nodes="bsub -n ${procs} -R \"span[ptile=${procs_per_node}]\" -W 60 -G guests -Is -XF"
 
+   elif [[ "x$SYS_TYPE" =~ xtoss_4_x86_64_ib_cray ]]; then
+      # Command used to get nodes on ElCap EA systems
+
+      if [[ "x-1" == "x$procs_per_node" ]]; then
+         procs_per_node=1
+      fi
+      let nodes=(procs+procs_per_node-1)/procs_per_node
+
+      get_nodes="salloc -N${nodes} --exclusive"
+
    else
       # Command used to get nodes on slurm scheduled systems
 
