@@ -70,6 +70,8 @@ module unload rocm
 
 cmake \
   -DCMAKE_BUILD_TYPE=Release \
+  -DMPI_CXX_COMPILER=/usr/tce/packages/cray-mpich-tce/cray-mpich-8.1.14-rocmcc-${COMP_VER}/bin/mpicxx \
+  -DMPI_C_COMPILER=/usr/tce/packages/cray-mpich-tce/cray-mpich-8.1.14-rocmcc-${COMP_VER}/bin/mpicc \
   -DROCM_ROOT_DIR="/opt/rocm-${COMP_VER}" \
   -DHIP_ROOT_DIR="/opt/rocm-${COMP_VER}/hip" \
   -DHIP_CLANG_PATH=/opt/rocm-${COMP_VER}/llvm/bin \
