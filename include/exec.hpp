@@ -101,7 +101,7 @@ struct Executors
 #ifdef COMB_ENABLE_CUDA
     base_cuda.create();
 #endif
-#ifdef COMB_ENABLE_CUDA
+#ifdef COMB_ENABLE_HIP
     base_hip.create();
 #endif
 #ifdef COMB_ENABLE_RAJA
