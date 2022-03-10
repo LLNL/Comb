@@ -189,15 +189,15 @@ int main(int argc, char** argv)
 #endif
 
   // set default allocator availability
-  alloc.host.set_available({{COMB::AllocatorInfo::UseType::Mesh}}, true);
-  alloc.host.set_available({{COMB::AllocatorInfo::UseType::Buffer}}, true);
+  alloc.host.set_available({COMB::AllocatorInfo::UseType::Mesh}, true);
+  alloc.host.set_available({COMB::AllocatorInfo::UseType::Buffer}, true);
 #ifdef COMB_ENABLE_CUDA
-  alloc.cuda_device.set_available({{COMB::AllocatorInfo::UseType::Mesh}}, true);
-  alloc.cuda_hostpinned.set_available({{COMB::AllocatorInfo::UseType::Buffer}}, true);
+  alloc.cuda_device.set_available({COMB::AllocatorInfo::UseType::Mesh}, true);
+  alloc.cuda_hostpinned.set_available({COMB::AllocatorInfo::UseType::Buffer}, true);
 #endif
 #ifdef COMB_ENABLE_HIP
-  alloc.hip_device.set_available({{COMB::AllocatorInfo::UseType::Mesh}}, true);
-  alloc.hip_hostpinned.set_available({{COMB::AllocatorInfo::UseType::Buffer}}, true);
+  alloc.hip_device.set_available({COMB::AllocatorInfo::UseType::Mesh}, true);
+  alloc.hip_hostpinned.set_available({COMB::AllocatorInfo::UseType::Buffer}, true);
 #endif
 
   IdxT i = 1;
