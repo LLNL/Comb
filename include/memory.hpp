@@ -571,7 +571,7 @@ struct CudaHostPinnedAllocatorInfo : AllocatorInfo
 #endif
 #endif
 private:
-  HostPinnedAllocator m_allocator;
+  CudaHostPinnedAllocator m_allocator;
 };
 
 struct CudaDeviceAllocatorInfo : AllocatorInfo
@@ -595,7 +595,7 @@ struct CudaDeviceAllocatorInfo : AllocatorInfo
 #endif
 #endif
 private:
-  DeviceAllocator m_allocator;
+  CudaDeviceAllocator m_allocator;
 };
 
 struct CudaManagedAllocatorInfo : AllocatorInfo
@@ -619,7 +619,7 @@ struct CudaManagedAllocatorInfo : AllocatorInfo
 #endif
 #endif
 private:
-  ManagedAllocator m_allocator;
+  CudaManagedAllocator m_allocator;
 };
 
 struct CudaManagedHostPreferredAllocatorInfo : AllocatorInfo
@@ -643,12 +643,12 @@ struct CudaManagedHostPreferredAllocatorInfo : AllocatorInfo
 #endif
 #endif
 private:
-  ManagedHostPreferredAllocator m_allocator;
+  CudaManagedHostPreferredAllocator m_allocator;
 };
 
 struct CudaManagedHostPreferredDeviceAccessedAllocatorInfo : AllocatorInfo
 {
-  CudaManagedHostPreferredDeviceAccessedAllocatorInfo(AllocatorAccessibilityFlags& a) : AllocatorInfo(a) { }
+  CudaCudaManagedHostPreferredDeviceAccessedAllocatorInfo(AllocatorAccessibilityFlags& a) : AllocatorInfo(a) { }
   Allocator& allocator() override { return m_allocator; }
   bool available(UseType ut) override { return m_available[validate_and_convert(ut)] && detail::cuda::get_concurrent_managed_access(); }
   bool accessible(CPUContext const&) override { return true; }
@@ -667,7 +667,7 @@ struct CudaManagedHostPreferredDeviceAccessedAllocatorInfo : AllocatorInfo
 #endif
 #endif
 private:
-  ManagedHostPreferredDeviceAccessedAllocator m_allocator;
+  CudaManagedHostPreferredDeviceAccessedAllocator m_allocator;
 };
 
 struct CudaManagedDevicePreferredAllocatorInfo : AllocatorInfo
@@ -691,7 +691,7 @@ struct CudaManagedDevicePreferredAllocatorInfo : AllocatorInfo
 #endif
 #endif
 private:
-  ManagedDevicePreferredAllocator m_allocator;
+  CudaManagedDevicePreferredAllocator m_allocator;
 };
 
 struct CudaManagedDevicePreferredHostAccessedAllocatorInfo : AllocatorInfo
@@ -715,7 +715,7 @@ struct CudaManagedDevicePreferredHostAccessedAllocatorInfo : AllocatorInfo
 #endif
 #endif
 private:
-  ManagedDevicePreferredHostAccessedAllocator m_allocator;
+  CudaManagedDevicePreferredHostAccessedAllocator m_allocator;
 };
 
 #endif
@@ -743,7 +743,7 @@ struct HipHostPinnedAllocatorInfo : AllocatorInfo
   bool accessible(RAJAContext<RAJA::resources::Hip> const&) override { return true; }
 #endif
 private:
-  HostPinnedAllocator m_allocator;
+  HipHostPinnedAllocator m_allocator;
 };
 
 struct HipDeviceAllocatorInfo : AllocatorInfo
@@ -767,7 +767,7 @@ struct HipDeviceAllocatorInfo : AllocatorInfo
   bool accessible(RAJAContext<RAJA::resources::Hip> const&) override { return true; }
 #endif
 private:
-  DeviceAllocator m_allocator;
+  HipDeviceAllocator m_allocator;
 };
 
 struct HipManagedAllocatorInfo : AllocatorInfo
@@ -791,7 +791,7 @@ struct HipManagedAllocatorInfo : AllocatorInfo
   bool accessible(RAJAContext<RAJA::resources::Hip> const&) override { return true; }
 #endif
 private:
-  ManagedAllocator m_allocator;
+  HipManagedAllocator m_allocator;
 };
 
 #endif
