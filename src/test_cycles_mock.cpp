@@ -36,14 +36,10 @@ void test_cycles_mock(CommInfo& comminfo, MeshInfo& info,
     AllocatorInfo& cpu_many_aloc = alloc.host;
     AllocatorInfo& cpu_few_aloc  = alloc.host;
 
-  #ifdef COMB_ENABLE_CUDA
+  #if defined(COMB_ENABLE_CUDA)
     AllocatorInfo& gpu_many_aloc = alloc.cuda_hostpinned;
     AllocatorInfo& gpu_few_aloc  = alloc.cuda_hostpinned;
-  #else
-    AllocatorInfo& gpu_many_aloc = alloc.invalid;
-    AllocatorInfo& gpu_few_aloc  = alloc.invalid;
-  #endif
-  #ifdef COMB_ENABLE_HIP
+  #elif defined(COMB_ENABLE_HIP)
     AllocatorInfo& gpu_many_aloc = alloc.hip_hostpinned;
     AllocatorInfo& gpu_few_aloc  = alloc.hip_hostpinned;
   #else

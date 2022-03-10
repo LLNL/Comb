@@ -173,13 +173,13 @@ void test_copy_allocator(CommInfo& comminfo,
 #endif
 
 #ifdef COMB_ENABLE_CUDA
-  do_copy(exec.cuda, comminfo, dst_aloc, cuda_src_aloc, tm, num_vars, len, nrepeats);
+  do_copy(exec.cuda, comminfo, dst_aloc, gpu_src_aloc, tm, num_vars, len, nrepeats);
 
 #ifdef COMB_ENABLE_CUDA_GRAPH
-  do_copy(exec.cuda_graph, comminfo, dst_aloc, cuda_src_aloc, tm, num_vars, len, nrepeats);
+  do_copy(exec.cuda_graph, comminfo, dst_aloc, gpu_src_aloc, tm, num_vars, len, nrepeats);
 #endif
 #else
-  COMB::ignore_unused(cuda_src_aloc);
+  COMB::ignore_unused(gpu_src_aloc);
 #endif
 
 #ifdef COMB_ENABLE_HIP
@@ -196,9 +196,9 @@ void test_copy_allocator(CommInfo& comminfo,
 #endif
 
 #ifdef COMB_ENABLE_CUDA
-  do_copy(exec.raja_cuda, comminfo, dst_aloc, cuda_src_aloc, tm, num_vars, len, nrepeats);
+  do_copy(exec.raja_cuda, comminfo, dst_aloc, gpu_src_aloc, tm, num_vars, len, nrepeats);
 #else
-  COMB::ignore_unused(cuda_src_aloc);
+  COMB::ignore_unused(gpu_src_aloc);
 #endif
 
 #ifdef COMB_ENABLE_HIP
@@ -229,49 +229,49 @@ void test_copy_allocators(CommInfo& comminfo,
                       exec,
                       alloc.cuda_hostpinned,
                       cpu_src_aloc,
-                      cuda_src_aloc,
+                      gpu_src_aloc,
                       tm, num_vars, len, nrepeats);
 
   test_copy_allocator(comminfo,
                       exec,
                       alloc.cuda_device,
                       cpu_src_aloc,
-                      cuda_src_aloc,
+                      gpu_src_aloc,
                       tm, num_vars, len, nrepeats);
 
   test_copy_allocator(comminfo,
                       exec,
                       alloc.cuda_managed,
                       cpu_src_aloc,
-                      cuda_src_aloc,
+                      gpu_src_aloc,
                       tm, num_vars, len, nrepeats);
 
   test_copy_allocator(comminfo,
                       exec,
                       alloc.cuda_managed_host_preferred,
                       cpu_src_aloc,
-                      cuda_src_aloc,
+                      gpu_src_aloc,
                       tm, num_vars, len, nrepeats);
 
   test_copy_allocator(comminfo,
                       exec,
                       alloc.cuda_managed_host_preferred_device_accessed,
                       cpu_src_aloc,
-                      cuda_src_aloc,
+                      gpu_src_aloc,
                       tm, num_vars, len, nrepeats);
 
   test_copy_allocator(comminfo,
                       exec,
                       alloc.cuda_managed_device_preferred,
                       cpu_src_aloc,
-                      cuda_src_aloc,
+                      gpu_src_aloc,
                       tm, num_vars, len, nrepeats);
 
   test_copy_allocator(comminfo,
                       exec,
                       alloc.cuda_managed_device_preferred_host_accessed,
                       cpu_src_aloc,
-                      cuda_src_aloc,
+                      gpu_src_aloc,
                       tm, num_vars, len, nrepeats);
 
 #endif // COMB_ENABLE_CUDA
@@ -313,12 +313,9 @@ void test_copy(CommInfo& comminfo,
     // src host memory tests
     AllocatorInfo& cpu_src_aloc = alloc.host;
 
-#ifdef COMB_ENABLE_CUDA
+#if defined(COMB_ENABLE_CUDA)
     AllocatorInfo& gpu_src_aloc = alloc.cuda_hostpinned;
-#else
-    AllocatorInfo& gpu_src_aloc = alloc.invalid;
-#endif
-#ifdef COMB_ENABLE_HIP
+#elif defined(COMB_ENABLE_HIP)
     AllocatorInfo& gpu_src_aloc = alloc.hip_hostpinned;
 #else
     AllocatorInfo& gpu_src_aloc = alloc.invalid;
