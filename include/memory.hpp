@@ -140,6 +140,15 @@ using mempool = COMBRAJA::basic_mempool::MemPool<alloc>;
   struct hip_host_pinned_allocator {
     void* malloc(size_t nbytes) {
       void* ptr = nullptr;
+      // Device to host transfers via kernels are slow with hipHostMallocDefault
+      //   on MI100.
+      // Using hipHostMallocNonCoherent improves this but is non coherent
+      //   and is cached on the device. This means atomic operations will not
+      //   affect the visibility of the memory. Stream and device synchronize
+      //   do make noncoherent visible as they perform a system scope fence.
+      //   However events only do a device fence by default, so to make
+      //   noncoherent memory visible on host events must be created with
+      //   hipEventReleaseToSystem.
       hipCheck(hipHostMalloc(&ptr, nbytes, hipHostMallocDefault));
       return ptr;
     }
