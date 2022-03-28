@@ -88,7 +88,7 @@ if(COMB_CXX_STANDARD_FLAG MATCHES default)
   elseif("${CMAKE_CXX_COMPILER_ID}" IN_LIST COMPILERS_KNOWN_TO_CMAKE33)
     set(CMAKE_CXX_STANDARD 14)
   else() #cmake has no idea what to do, do it ourselves...
-    foreach(flag_var "-std=c++17" "-std=c++1z" "-std=c++14" "-std=c++1y" "-std=c++11")
+    foreach(flag_var "-std=c++17" "-std=c++1z" "-std=c++14" "-std=c++1y")
       CHECK_CXX_COMPILER_FLAG(${flag_var} COMPILER_SUPPORTS_${flag_var})
       if(COMPILER_SUPPORTS_${flag_var})
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${flag_var}")
