@@ -54,3 +54,11 @@ if (ENABLE_CUDA)
   endif()
 endif()
 # end COMB_ENABLE_CUDA section
+
+if (ENABLE_HIP)
+
+  set(CMAKE_HIP_STANDARD "11" CACHE STRING "Version of C++ standard for HIP Builds")
+  set(CMAKE_HIP_CLANG_FLAGS "${CMAKE_HIP_CLANG_FLAGS} --offload-arch ${HIP_ARCH}")
+
+endif()
+# end COMB_ENABLE_HIP section

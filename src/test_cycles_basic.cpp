@@ -35,7 +35,10 @@ void do_cycles_basic(CommContext<pol_comm>& con_comm_in,
 #ifdef COMB_ENABLE_CUDA
              || std::is_same<pol_many, cuda_pol>::value
 #endif
-               ,"do_cycles_basic expects pol_many to be seq_pol or cuda_pol");
+#ifdef COMB_ENABLE_HIP
+             || std::is_same<pol_many, hip_pol>::value
+#endif
+               ,"do_cycles_basic expects pol_many to be seq_pol, cuda_pol, or hip_pol");
 
   CPUContext tm_con;
   tm_total.clear();
@@ -696,6 +699,20 @@ void test_cycles_basic(CommInfo& comminfo, MeshInfo& info,
                     exec.cuda.get(), alloc.cuda_managed.allocator(),
                     exec.cuda.get(), alloc.cuda_hostpinned.allocator(),
                     exec.cuda.get(), alloc.cuda_hostpinned.allocator(),
+                    tm, tm_total);
+  }
+#endif
+
+#ifdef COMB_ENABLE_HIP
+  {
+    // mpi hip exec hip memory test
+
+    do_cycles_basic(con_comm,
+                    comminfo, info,
+                    num_vars, ncycles,
+                    exec.hip.get(), alloc.hip_managed.allocator(),
+                    exec.hip.get(), alloc.hip_hostpinned.allocator(),
+                    exec.hip.get(), alloc.hip_hostpinned.allocator(),
                     tm, tm_total);
   }
 #endif

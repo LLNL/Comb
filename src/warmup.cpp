@@ -118,6 +118,34 @@ void warmup(COMB::Executors& exec,
   }
 #endif
 
+#ifdef COMB_ENABLE_HIP
+  // find an available hip allocator for use later
+  COMB::AllocatorInfo* hip_alloc = nullptr;
+
+  if (alloc.hip_device.available(COMB::AllocatorInfo::UseType::Mesh)
+   || alloc.hip_device.available(COMB::AllocatorInfo::UseType::Buffer)) {
+    do_warmup(exec.hip.get(), alloc.hip_device.allocator(), tm, num_vars, len);
+    if (!hip_alloc) { hip_alloc = &alloc.hip_device; }
+  }
+
+  if (alloc.hip_hostpinned.available(COMB::AllocatorInfo::UseType::Mesh)
+   || alloc.hip_hostpinned.available(COMB::AllocatorInfo::UseType::Buffer)) {
+    do_warmup(exec.seq.get(), alloc.hip_hostpinned.allocator(), tm, num_vars, len);
+    if (!hip_alloc) { hip_alloc = &alloc.hip_hostpinned; }
+  }
+
+  if (alloc.hip_managed.available(COMB::AllocatorInfo::UseType::Mesh)
+   || alloc.hip_managed.available(COMB::AllocatorInfo::UseType::Buffer)) {
+    do_warmup(exec.seq.get(),  alloc.hip_managed.allocator(), tm, num_vars, len);
+    do_warmup(exec.hip.get(), alloc.hip_managed.allocator(), tm, num_vars, len);
+    if (!hip_alloc) { hip_alloc = &alloc.hip_managed; }
+  }
+
+  if (alloc.host.accessible(exec.seq.get())) {
+    if (!hip_alloc) { hip_alloc = &alloc.host; }
+  }
+#endif
+
 #ifdef COMB_ENABLE_RAJA
   do_warmup(exec.raja_seq.get(), alloc.host.allocator(), tm, num_vars, len);
 
@@ -128,6 +156,12 @@ void warmup(COMB::Executors& exec,
 #ifdef COMB_ENABLE_CUDA
   if (cuda_alloc) {
     do_warmup(exec.raja_cuda.get(), cuda_alloc->allocator(), tm, num_vars, len);
+  }
+#endif
+
+#ifdef COMB_ENABLE_HIP
+  if (hip_alloc) {
+    do_warmup(exec.raja_hip.get(), hip_alloc->allocator(), tm, num_vars, len);
   }
 #endif
 #endif

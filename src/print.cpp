@@ -16,6 +16,7 @@
 #include "print.hpp"
 #include "comm_utils_mpi.hpp"
 #include "exec_utils_cuda.hpp"
+#include "exec_utils_hip.hpp"
 
 #include <cassert>
 #include <cstdlib>
@@ -193,5 +194,12 @@ void print_proc_memory_stats()
   size_t free_mem, total_mem;
   cudaCheck(cudaMemGetInfo(&free_mem, &total_mem));
   fgprintf(FileGroup::proc, "cuda device memory usage: %12zu\n", total_mem - free_mem);
+#endif
+
+#if defined(COMB_ENABLE_HIP)
+  // print hip device memory usage to per proc file
+  size_t free_mem, total_mem;
+  hipCheck(hipMemGetInfo(&free_mem, &total_mem));
+  fgprintf(FileGroup::proc, "hip device memory usage: %12zu\n", total_mem - free_mem);
 #endif
 }

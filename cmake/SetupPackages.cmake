@@ -37,6 +37,45 @@ if (ENABLE_CUDA)
   else()
     message(FATAL_ERROR "Cuda NOT FOUND")
   endif()
+
+  message(STATUS "FindNvToolsExt.cmake ${PROJECT_SOURCE_DIR}/cmake")
+  set (CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake;${CMAKE_MODULE_PATH}")
+  find_package(NvToolsExt)
+
+  if (NVTOOLSEXT_FOUND)
+    blt_import_library( NAME       nvtoolsext
+                        TREAT_INCLUDES_AS_SYSTEM ON
+                        INCLUDES   ${NVTOOLSEXT_INCLUDE_DIRS}
+                        LIBRARIES  ${NVTOOLSEXT_LIBRARY}
+                        EXPORTABLE ON
+                      )
+  else()
+    message(FATAL_ERROR "NvToolsExt not found, NVTOOLSEXT_DIR=${NVTOOLSEXT_DIR}.")
+  endif()
+endif()
+
+
+if (ENABLE_HIP)
+  if(HIP_FOUND)
+    message(STATUS "Hip Enabled")
+  else()
+    message(FATAL_ERROR "Hip NOT FOUND")
+  endif()
+
+  message(STATUS "FindrocTX.cmake ${PROJECT_SOURCE_DIR}/cmake")
+  set (CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake;${CMAKE_MODULE_PATH}")
+  find_package(rocTX)
+
+  if (ROCTX_FOUND)
+    blt_import_library( NAME       roctx
+                        TREAT_INCLUDES_AS_SYSTEM ON
+                        INCLUDES   ${ROCTX_INCLUDE_DIRS}
+                        LIBRARIES  ${ROCTX_LIBRARY}
+                        EXPORTABLE ON
+                      )
+  else()
+    message(FATAL_ERROR "rocTX not found, NVTOOLSEXT_DIR=${NVTOOLSEXT_DIR}.")
+  endif()
 endif()
 
 

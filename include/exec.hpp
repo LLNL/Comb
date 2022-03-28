@@ -34,6 +34,7 @@
 #include "exec_pol_omp.hpp"
 #include "exec_pol_cuda.hpp"
 #include "exec_pol_cuda_graph.hpp"
+#include "exec_pol_hip.hpp"
 #include "exec_pol_mpi_type.hpp"
 #include "exec_pol_raja.hpp"
 
@@ -100,10 +101,16 @@ struct Executors
 #ifdef COMB_ENABLE_CUDA
     base_cuda.create();
 #endif
+#ifdef COMB_ENABLE_HIP
+    base_hip.create();
+#endif
 #ifdef COMB_ENABLE_RAJA
     base_raja_cpu.create();
 #ifdef COMB_ENABLE_CUDA
     base_raja_cuda.create();
+#endif
+#ifdef COMB_ENABLE_HIP
+    base_raja_hip.create();
 #endif
 #endif
 
@@ -117,6 +124,9 @@ struct Executors
 #ifdef COMB_ENABLE_CUDA_GRAPH
     cuda_graph.create(base_cuda.get(), (alocs.access.use_device_preferred_for_cuda_util_aloc) ? alocs.cuda_managed_device_preferred_host_accessed.allocator() : alocs.cuda_hostpinned.allocator());
 #endif
+#ifdef COMB_ENABLE_HIP
+    hip.create(base_hip.get(), (alocs.access.use_device_for_hip_util_aloc) ? alocs.hip_device.allocator() : alocs.hip_hostpinned.allocator());
+#endif
 #ifdef COMB_ENABLE_MPI
     mpi_type.create(base_mpi.get(), alocs.host.allocator());
 #endif
@@ -128,6 +138,9 @@ struct Executors
 #ifdef COMB_ENABLE_CUDA
     raja_cuda.create(base_raja_cuda.get(), (alocs.access.use_device_preferred_for_cuda_util_aloc) ? alocs.cuda_managed_device_preferred_host_accessed.allocator() : alocs.cuda_hostpinned.allocator());
 #endif
+#ifdef COMB_ENABLE_HIP
+    raja_hip.create(base_raja_hip.get(), (alocs.access.use_device_for_hip_util_aloc) ? alocs.hip_device.allocator() : alocs.hip_hostpinned.allocator());
+#endif
 #endif
   }
 
@@ -138,10 +151,16 @@ struct Executors
 #ifdef COMB_ENABLE_CUDA
   ContextHolder<CudaContext> base_cuda;
 #endif
+#ifdef COMB_ENABLE_HIP
+  ContextHolder<HipContext> base_hip;
+#endif
 #ifdef COMB_ENABLE_RAJA
   ContextHolder<RAJAContext<RAJA::resources::Host>> base_raja_cpu;
 #ifdef COMB_ENABLE_CUDA
   ContextHolder<RAJAContext<RAJA::resources::Cuda>> base_raja_cuda;
+#endif
+#ifdef COMB_ENABLE_HIP
+  ContextHolder<RAJAContext<RAJA::resources::Hip>> base_raja_hip;
 #endif
 #endif
 
@@ -155,6 +174,9 @@ struct Executors
   ContextHolder<ExecContext<cuda_graph_pol>> cuda_graph;
 #endif
 #endif
+#ifdef COMB_ENABLE_HIP
+  ContextHolder<ExecContext<hip_pol>> hip;
+#endif
 #ifdef COMB_ENABLE_MPI
   ContextHolder<ExecContext<mpi_type_pol>> mpi_type;
 #endif
@@ -165,6 +187,9 @@ struct Executors
 #endif
 #ifdef COMB_ENABLE_CUDA
   ContextHolder<ExecContext<raja_cuda_pol>> raja_cuda;
+#endif
+#ifdef COMB_ENABLE_HIP
+  ContextHolder<ExecContext<raja_hip_pol>> raja_hip;
 #endif
 #endif
 };

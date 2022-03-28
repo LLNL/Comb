@@ -33,14 +33,14 @@ void test_cycles_mp(CommInfo& comminfo, MeshInfo& info,
   AllocatorInfo& cpu_many_aloc = alloc.cuda_device;
   AllocatorInfo& cpu_few_aloc  = alloc.cuda_device;
 
-  AllocatorInfo& cuda_many_aloc = alloc.cuda_device;
-  AllocatorInfo& cuda_few_aloc  = alloc.cuda_device;
+  AllocatorInfo& gpu_many_aloc = alloc.cuda_device;
+  AllocatorInfo& gpu_few_aloc  = alloc.cuda_device;
 #else
   AllocatorInfo& cpu_many_aloc = alloc.invalid;
   AllocatorInfo& cpu_few_aloc  = alloc.invalid;
 
-  AllocatorInfo& cuda_many_aloc = alloc.invalid;
-  AllocatorInfo& cuda_few_aloc  = alloc.invalid;
+  AllocatorInfo& gpu_many_aloc = alloc.invalid;
+  AllocatorInfo& gpu_few_aloc  = alloc.invalid;
 #endif
 
   do_cycles_allocators(con_comm,
@@ -48,7 +48,7 @@ void test_cycles_mp(CommInfo& comminfo, MeshInfo& info,
                        exec,
                        alloc,
                        cpu_many_aloc, cpu_few_aloc,
-                       cuda_many_aloc, cuda_few_aloc,
+                       gpu_many_aloc, gpu_few_aloc,
                        num_vars, ncycles, tm, tm_total);
 
 }
