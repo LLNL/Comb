@@ -17,10 +17,6 @@ set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3" CACHE STRING "")
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -O3" CACHE STRING "")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0" CACHE STRING "")
 
-if (COMB_ENABLE_MODULES AND CMAKE_CXX_COMPILER_ID MATCHES Clang)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fmodules")
-endif()
-
 if (CMAKE_CXX_COMPILER_ID MATCHES GNU)
   if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.9)
     message(FATAL_ERROR "COMB requires GCC 4.9 or greater!")
@@ -41,9 +37,8 @@ if ( MSVC )
   endif()
 endif()
 
-if (ENABLE_CUDA)
-
-  set(CMAKE_CUDA_STANDARD "14" CACHE STRING "Version of C++ standard for CUDA Builds")
+if (COMB_ENABLE_CUDA)
+  set(CMAKE_CUDA_STANDARD 14)
   set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -restrict -arch ${CUDA_ARCH} --expt-extended-lambda --expt-relaxed-constexpr -Xcudafe \"--display_error_number\"")
 
   if (NOT COMB_HOST_CONFIG_LOADED)
@@ -55,10 +50,9 @@ if (ENABLE_CUDA)
 endif()
 # end COMB_ENABLE_CUDA section
 
-if (ENABLE_HIP)
+if (COMB_ENABLE_HIP)
 
   set(CMAKE_HIP_STANDARD "14" CACHE STRING "Version of C++ standard for HIP Builds")
-  set(CMAKE_HIP_CLANG_FLAGS "${CMAKE_HIP_CLANG_FLAGS} --offload-arch ${HIP_ARCH}")
 
 endif()
 # end COMB_ENABLE_HIP section
