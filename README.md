@@ -1,4 +1,4 @@
-# Comb v0.3.0
+# Comb v0.3.1
 
 Comb is a communication performance benchmarking tool. It is used to determine performance tradeoffs in implementing communication patterns on high performance computing (HPC) platforms. At its core comb runs combinations of communication patterns with execution patterns, and memory spaces in order to find efficient combinations. The current set of capabilities Comb provides includes:
   - Configurable structured mesh halo exchange communication.

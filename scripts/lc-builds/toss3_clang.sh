@@ -36,6 +36,8 @@ echo
 rm -rf build_${BUILD_SUFFIX} 2>/dev/null
 mkdir build_${BUILD_SUFFIX} && cd build_${BUILD_SUFFIX}
 
+mkdir scripts && cd scripts && ln -s ../../scripts/*.bash . && ln -s ../bin/comb . && cd ..
+
 module load cmake/3.14.5
 
 cmake \

@@ -13,7 +13,7 @@
 ## Please also see the LICENSE file for MIT license.
 ##############################################################################
 
-if (ENABLE_MPI)
+if (COMB_ENABLE_MPI)
   if(MPI_FOUND)
     message(STATUS "MPI Enabled")
   else()
@@ -22,7 +22,7 @@ if (ENABLE_MPI)
 endif()
 
 
-if (ENABLE_OPENMP)
+if (COMB_ENABLE_OPENMP)
   if(OPENMP_FOUND)
     message(STATUS "OpenMP Enabled")
   else()
@@ -30,14 +30,15 @@ if (ENABLE_OPENMP)
   endif()
 endif()
 
+if (COMB_ENABLE_CUDA)
+#  if(CUDA_FOUND)
+#    message(STATUS "Cuda Enabled")
+#  else()
+#    message(FATAL_ERROR "Cuda NOT FOUND")
+#  endif()
+endif()
 
-if (ENABLE_CUDA)
-  if(CUDA_FOUND)
-    message(STATUS "Cuda Enabled")
-  else()
-    message(FATAL_ERROR "Cuda NOT FOUND")
-  endif()
-
+if (COMB_ENABLE_CUDA AND COMB_ENABLE_NV_TOOLS_EXT)
   message(STATUS "FindNvToolsExt.cmake ${PROJECT_SOURCE_DIR}/cmake")
   set (CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake;${CMAKE_MODULE_PATH}")
   find_package(NvToolsExt)
@@ -55,13 +56,15 @@ if (ENABLE_CUDA)
 endif()
 
 
-if (ENABLE_HIP)
-  if(HIP_FOUND)
-    message(STATUS "Hip Enabled")
-  else()
-    message(FATAL_ERROR "Hip NOT FOUND")
-  endif()
+if (COMB_ENABLE_HIP)
+#  if(HIP_FOUND)
+#    message(STATUS "Hip Enabled")
+#  else()
+#    message(FATAL_ERROR "Hip NOT FOUND")
+#  endif()
+endif()
 
+if (COMB_ENABLE_HIP AND COMB_ENABLE_ROCTX)
   message(STATUS "FindrocTX.cmake ${PROJECT_SOURCE_DIR}/cmake")
   set (CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake;${CMAKE_MODULE_PATH}")
   find_package(rocTX)
@@ -74,12 +77,11 @@ if (ENABLE_HIP)
                         EXPORTABLE ON
                       )
   else()
-    message(FATAL_ERROR "rocTX not found, NVTOOLSEXT_DIR=${NVTOOLSEXT_DIR}.")
+    message(FATAL_ERROR "rocTX not found, ROCTX_DIR=${ROCTX_DIR}.")
   endif()
-endif()
+endif ()
 
-
-if (ENABLE_GDSYNC)
+if (COMB_ENABLE_GDSYNC)
   message(STATUS "Findgdsync.cmake ${PROJECT_SOURCE_DIR}/cmake")
   set (CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake;${CMAKE_MODULE_PATH}")
   find_package(gdsync REQUIRED)
@@ -105,7 +107,7 @@ if (ENABLE_GDSYNC)
 endif()
 
 
-if (ENABLE_GPUMP)
+if (COMB_ENABLE_GPUMP)
   message(STATUS "Findgpump.cmake ${PROJECT_SOURCE_DIR}/cmake")
   set (CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake;${CMAKE_MODULE_PATH}")
   find_package(gpump REQUIRED)
@@ -131,7 +133,7 @@ if (ENABLE_GPUMP)
 endif()
 
 
-if (ENABLE_MP)
+if (COMB_ENABLE_MP)
   message(STATUS "Findmp.cmake ${PROJECT_SOURCE_DIR}/cmake")
   set (CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake;${CMAKE_MODULE_PATH}")
   find_package(mp REQUIRED)
@@ -157,7 +159,7 @@ if (ENABLE_MP)
 endif()
 
 
-if (ENABLE_UMR)
+if (COMB_ENABLE_UMR)
   message(STATUS "Findumr.cmake ${PROJECT_SOURCE_DIR}/cmake")
   set (CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake;${CMAKE_MODULE_PATH}")
   find_package(umr REQUIRED)
@@ -182,7 +184,7 @@ if (ENABLE_UMR)
                        DEFINES USE_UMR)
 endif()
 
-if (ENABLE_RAJA)
+if (COMB_ENABLE_RAJA)
   set(RAJA_ENABLE_EXERCISES ${ENABLE_EXERCISES} CACHE BOOL "")
   if (DEFINED RAJA_DIR)
     find_package(RAJA REQUIRED)
@@ -198,7 +200,7 @@ if (ENABLE_RAJA)
   endif ()
 endif ()
 
-if (ENABLE_CALIPER)
+if (COMB_ENABLE_CALIPER)
   find_package(caliper REQUIRED)
 
   if (caliper_FOUND)
@@ -215,7 +217,7 @@ if (ENABLE_CALIPER)
                        DEFINES USE_CALIPER)
 endif()
 
-if (ENABLE_ADIAK)
+if (COMB_ENABLE_ADIAK)
   find_package(adiak REQUIRED)
 
   if (adiak_FOUND)

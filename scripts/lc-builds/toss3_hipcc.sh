@@ -60,8 +60,9 @@ echo
 rm -rf build_${BUILD_SUFFIX} >/dev/null
 mkdir build_${BUILD_SUFFIX} && cd build_${BUILD_SUFFIX}
 
+mkdir scripts && cd scripts && ln -s ../../scripts/*.bash . && ln -s ../bin/comb . && cd ..
 
-# module load cmake/3.14.5
+module load cmake/3.14.5
 
 # unload rocm to avoid configuration problems where the loaded rocm and COMP_VER
 # are inconsistent causing the rocprim from the module to be used unexpectedly
@@ -79,9 +80,10 @@ cmake \
   -DCMAKE_CXX_COMPILER=/opt/rocm-${COMP_VER}/llvm/bin/clang++ \
   -DHIP_HIPCC_FLAGS=--offload-arch=${COMP_ARCH} \
   -C "../host-configs/lc-builds/toss3/${HOSTCONFIG}.cmake" \
-  -DENABLE_HIP=ON \
-  -DENABLE_OPENMP=OFF \
-  -DENABLE_CUDA=OFF \
+  -DENABLE_MPI=On \
+  -DENABLE_HIP=On \
+  -DENABLE_OPENMP=Off \
+  -DENABLE_CUDA=Off \
   -DCMAKE_INSTALL_PREFIX=../install_${BUILD_SUFFIX} \
   "$@" \
   ..
@@ -97,5 +99,11 @@ echo "  or load the appropriate rocm module (${COMP_VER}) when building."
 echo
 echo "    module unload rocm"
 echo "    srun -n1 make"
+echo
+echo "  Also note that libmodules.so is in the cce install. You may have to"
+echo "  add that to your LD_LIBRARY_PATH to run."
+echo
+echo "    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/cray/pe/cce/13.0.2/cce-clang/x86_64/lib:/opt/cray/pe/cce/13.0.2/cce/x86_64/lib"
+echo "    srun -n1 ./bin/comb"
 echo
 echo "***********************************************************************"

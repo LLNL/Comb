@@ -58,9 +58,11 @@
 #cmakedefine COMB_ENABLE_MPI
 #cmakedefine COMB_ENABLE_OPENMP
 #cmakedefine COMB_ENABLE_CUDA
+#cmakedefine COMB_ENABLE_NV_TOOLS_EXT
 #cmakedefine COMB_ENABLE_CUDA_GRAPH
 #cmakedefine COMB_ENABLE_CLANG_CUDA
 #cmakedefine COMB_ENABLE_HIP
+#cmakedefine COMB_ENABLE_ROCTX
 #cmakedefine COMB_ENABLE_GDSYNC
 #cmakedefine COMB_ENABLE_GPUMP
 #cmakedefine COMB_ENABLE_MP

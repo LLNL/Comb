@@ -43,13 +43,15 @@ echo
 rm -rf build_${BUILD_SUFFIX} >/dev/null
 mkdir build_${BUILD_SUFFIX} && cd build_${BUILD_SUFFIX}
 
+mkdir scripts && cd scripts && ln -s ../../scripts/*.bash . && ln -s ../bin/comb . && cd ..
+
 module load cmake/3.14.5
 
 cmake \
   -DCMAKE_BUILD_TYPE=Release \
   -DMPI_CXX_COMPILER=/usr/tce/packages/spectrum-mpi/spectrum-mpi-rolling-release-clang-${COMP_CLANG_VER}/bin/mpiclang++ \
   -DCMAKE_CXX_COMPILER=/usr/tce/packages/clang/clang-${COMP_CLANG_VER}/bin/clang++ \
-  -DBLT_CXX_STD=c++11 \
+  -DBLT_CXX_STD=c++14 \
   -C ../host-configs/lc-builds/blueos/nvcc_clang_X.cmake \
   -DENABLE_MPI=On \
   -DENABLE_OPENMP=On \

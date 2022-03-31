@@ -43,6 +43,8 @@ echo
 rm -rf build_${BUILD_SUFFIX} >/dev/null
 mkdir build_${BUILD_SUFFIX} && cd build_${BUILD_SUFFIX}
 
+mkdir scripts && cd scripts && ln -s ../../scripts/*.bash . && ln -s ../bin/comb . && cd ..
+
 module load cmake/3.14.5
 
 cmake \
@@ -51,7 +53,7 @@ cmake \
   -DMPI_C_COMPILER=/opt/openmpi/4.0/gnu/bin/mpicc \
   -DCMAKE_CXX_COMPILER=/usr/tce/packages/gcc/gcc-${COMP_GCC_VER}/bin/g++ \
   -DCMAKE_C_COMPILER=/usr/tce/packages/gcc/gcc-${COMP_GCC_VER}/bin/gcc \
-  -DBLT_CXX_STD=c++11 \
+  -DBLT_CXX_STD=c++14 \
   -C ../host-configs/lc-builds/blueos/nvcc_gcc_X.cmake \
   -DENABLE_MPI=On \
   -DENABLE_OPENMP=On \
