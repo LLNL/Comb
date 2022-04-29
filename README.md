@@ -75,11 +75,11 @@ The runtime options change the properties of the grid and its decomposition, as 
           -   __umr__ umr message passing execution pattern (experimental)
       -   __post_recv *option*__ Communication post receive (MPI_Irecv) options
           -   __wait_any__ Post recvs one-by-one
-          -   __wait_some__ Post recvs one-by-one
-          -   __wait_all__ Post recvs one-by-one
+          -   __wait_some__ Post recvs in groups
+          -   __wait_all__ Post all recvs
           -   __test_any__ Post recvs one-by-one
-          -   __test_some__ Post recvs one-by-one
-          -   __test_all__ Post recvs one-by-one
+          -   __test_some__ Post recvs in groups
+          -   __test_all__ Post all recvs
       -   __post_send *option*__ Communication post send (MPI_Isend) options
           -   __wait_any__ pack and send messages one-by-one
           -   __wait_some__ pack messages then send them in groups
@@ -102,8 +102,8 @@ The runtime options change the properties of the grid and its decomposition, as 
           -   __test_some__ Wait for all sends to complete in groups by polling (MPI_Testsome)
           -   __test_all__ Wait for all sends to complete by polling (MPI_Testall)
       -   __allow|disallow *option*__ Allow or disallow specific communications options
-          -   __per_message_pack_fusing__ Allow packing kernels to be fused for a single variable when packing into the same message
-          -   __message_group_pack_fusing__ Allow packing kernels to be fused across variables and messages when packing in the same message group
+          -   __per_message_pack_fusing__ Combine packing/unpacking kernels for boundaries communicated in the same message
+          -   __message_group_pack_fusing__ Fuse packing/unpacking kernels across messages (and variables) in the same message group
   -   __\-cycles *\#*__ Number of times the communication pattern is tested
   -   __\-omp_threads *\#*__ Number of openmp threads requested
   -   __\-exec *option*__ Execution options
@@ -127,16 +127,16 @@ The runtime options change the properties of the grid and its decomposition, as 
       -   __enable|disable *option*__ Enable or disable specific memory spaces for UseType allocations
           -   __all__ all memory spaces
           -   __host__ host CPU memory space
-          -   __cuda_pinned__ cuda pinned memory space
-          -   __cuda_device__ cuda device memory space
-          -   __cuda_managed__ cuda managed memory space
-          -   __cuda_managed_host_preferred__ cuda managed with host preferred advice memory space
-          -   __cuda_managed_host_preferred_device_accessed__ cuda managed with host preferred and device accessed    advice memory space
-          -   __cuda_managed_device_preferred__ cuda managed with device preferred advice memory space
-          -   __cuda_managed_device_preferred_host_accessed__ cuda managed with device preferred and host accessed    advice memory space
-          -   __hip_pinned__ hip pinned memory space
-          -   __hip_device__ hip device memory space
-          -   __hip_managed__ hip managed memory space
+          -   __cuda_pinned__ cuda pinned memory space (pooled)
+          -   __cuda_device__ cuda device memory space (pooled)
+          -   __cuda_managed__ cuda managed memory space (pooled)
+          -   __cuda_managed_host_preferred__ cuda managed with host preferred advice memory space (pooled)
+          -   __cuda_managed_host_preferred_device_accessed__ cuda managed with host preferred and device accessed advice memory space (pooled)
+          -   __cuda_managed_device_preferred__ cuda managed with device preferred advice memory space (pooled)
+          -   __cuda_managed_device_preferred_host_accessed__ cuda managed with device preferred and host accessed advice memory space (pooled)
+          -   __hip_pinned__ hip pinned memory space (pooled)
+          -   __hip_device__ hip device memory space (pooled)
+          -   __hip_managed__ hip managed memory space (pooled)
   -   __\-cuda_aware_mpi__ Assert that you are using a cuda aware mpi implementation and enable tests that pass cuda device or managed memory to MPI
   -   __\-hip_aware_mpi__ Assert that you are using a hip aware mpi implementation and enable tests that pass hip device or managed memory to MPI
   -   __\-cuda_host_accessible_from_device__ Assert that your system supports pageable host memory access from the device and enable tests that access pageable host memory on the device
@@ -220,16 +220,20 @@ The final three measure problem setup, correctness testing, and total benchmark 
   - __raja_hip__ RAJA Parallel GPU execution via hip
   - __mpi_type__ Packing or unpacking execution done via mpi datatypes used with MPI_Pack/MPI_Unpack
 
+Note: The cudaGraph exec policy updates the graph each cycle. There is currently no option to use the same graph for every cycle.
+
 ##### Memory Spaces
 
   - __Host__ CPU memory (malloc)
-  - __HostPinned__ Cuda/Hip Pinned CPU memory (cudaHostAlloc/hipMallocHost)
-  - __Device__ Cuda/Hip GPU memory (cudaMalloc/hipMalloc)
-  - __Managed__ Cuda/Hip Managed GPU memory (cudaMallocManaged/hipMallocManaged)
-  - __ManagedHostPreferred__ Cuda Managed CPU Pinned memory (cudaMallocManaged + cudaMemAdviseSetPreferredLocation cudaCpuDeviceId)
-  - __ManagedHostPreferredDeviceAccessed__ Cuda Managed CPU Pinned memory (cudaMallocManaged + cudaMemAdviseSetPreferredLocation cudaCpuDeviceId + cudaMemAdviseSetAccessedBy 0)
-  - __ManagedDevicePreferred__ Cuda Managed CPU Pinned memory (cudaMallocManaged + cudaMemAdviseSetPreferredLocation 0)
-  - __ManagedDevicePreferredHostAccessed__ Cuda Managed CPU Pinned memory (cudaMallocManaged + cudaMemAdviseSetPreferredLocation 0 + cudaMemAdviseSetAccessedBy cudaCpuDeviceId)
+  - __HostPinned__ Cuda/Hip Pinned CPU memory pool (cudaHostAlloc/hipMallocHost)
+  - __Device__ Cuda/Hip GPU memory pool (cudaMalloc/hipMalloc)
+  - __Managed__ Cuda/Hip Managed GPU memory pool (cudaMallocManaged/hipMallocManaged)
+  - __ManagedHostPreferred__ Cuda Managed CPU Pinned memory pool (cudaMallocManaged + cudaMemAdviseSetPreferredLocation cudaCpuDeviceId)
+  - __ManagedHostPreferredDeviceAccessed__ Cuda Managed CPU Pinned memory pool (cudaMallocManaged + cudaMemAdviseSetPreferredLocation cudaCpuDeviceId + cudaMemAdviseSetAccessedBy 0)
+  - __ManagedDevicePreferred__ Cuda Managed CPU Pinned memory pool (cudaMallocManaged + cudaMemAdviseSetPreferredLocation 0)
+  - __ManagedDevicePreferredHostAccessed__ Cuda Managed CPU Pinned memory pool (cudaMallocManaged + cudaMemAdviseSetPreferredLocation 0 + cudaMemAdviseSetAccessedBy cudaCpuDeviceId)
+
+Note: Some memory spaces are pooled. This is done to amortize the cost of allocation. After the first allocation the cost of allocating memory should be trivial for pooled memory spaces. The first allocation is done in a warmup step and is not be included in any timers.
 
 ## Related Software
 
