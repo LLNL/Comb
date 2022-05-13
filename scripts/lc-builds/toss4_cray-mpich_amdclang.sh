@@ -18,19 +18,21 @@
 if [[ $# -lt 2 ]]; then
   echo
   echo "You must pass 2 or more arguments to the script (in this order): "
-  echo "   1) compiler version number"
-  echo "   2) HIP compute architecture"
-  echo "   3...) optional arguments to cmake"
+  echo "   1) cray-mpich compiler version number"
+  echo "   2) compiler version number"
+  echo "   3) HIP compute architecture"
+  echo "   4...) optional arguments to cmake"
   echo
   echo "For example: "
-  echo "    toss4_amdclang.sh 4.1.0 gfx906"
-  echo "    toss4_amdclang.sh 4.1.0 gfx906 -DBLT_CXX_STD=c++11"
+  echo "    toss4_amdclang.sh 8.1.15 5.1.0 gfx906"
+  echo "    toss4_amdclang.sh 8.1.15 5.1.0 gfx906 -DBLT_CXX_STD=c++17"
   exit
 fi
 
-COMP_VER=$1
-COMP_ARCH=$2
-shift 2
+MPI_VER=$1
+COMP_VER=$2
+COMP_ARCH=$3
+shift 3
 
 MY_HIP_ARCH_FLAGS="--offload-arch=${COMP_ARCH}"
 HOSTCONFIG="hip_X"
@@ -49,7 +51,7 @@ else
   echo "Unknown hip version, using ${HOSTCONFIG} host-config"
 fi
 
-BUILD_SUFFIX=lc_toss4-amdclang-${COMP_VER}-${COMP_ARCH}
+BUILD_SUFFIX=lc_toss4-cray-mpich-${MPI_VER}-amdclang-${COMP_VER}-${COMP_ARCH}
 
 echo
 echo "Creating build directory ${BUILD_SUFFIX} and generating configuration in it"
@@ -71,8 +73,8 @@ module unload rocm
 
 cmake \
   -DCMAKE_BUILD_TYPE=Release \
-  -DMPI_CXX_COMPILER=/usr/tce/packages/cray-mpich-tce/cray-mpich-8.1.14-rocmcc-${COMP_VER}/bin/mpicxx \
-  -DMPI_C_COMPILER=/usr/tce/packages/cray-mpich-tce/cray-mpich-8.1.14-rocmcc-${COMP_VER}/bin/mpicc \
+  -DMPI_CXX_COMPILER=/usr/tce/packages/cray-mpich-tce/cray-mpich-${MPI_VER}-rocmcc-${COMP_VER}/bin/mpicxx \
+  -DMPI_C_COMPILER=/usr/tce/packages/cray-mpich-tce/cray-mpich-${MPI_VER}-rocmcc-${COMP_VER}/bin/mpicc \
   -DROCM_ROOT_DIR="/opt/rocm-${COMP_VER}" \
   -DHIP_ROOT_DIR="/opt/rocm-${COMP_VER}/hip" \
   -DHIP_CLANG_PATH=/opt/rocm-${COMP_VER}/llvm/bin \
@@ -103,7 +105,7 @@ echo
 echo "  Also note that libmodules.so is in the cce install. You may have to"
 echo "  add that to your LD_LIBRARY_PATH to run."
 echo
-echo "    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/cray/pe/cce/13.0.2/cce-clang/x86_64/lib:/opt/cray/pe/cce/13.0.2/cce/x86_64/lib"
+echo "    export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:/opt/cray/pe/cce/13.0.2/cce-clang/x86_64/lib:/opt/cray/pe/cce/13.0.2/cce/x86_64/lib:/opt/rocm-5.1.0/llvm/lib"
 echo "    srun -n1 ./bin/comb"
 echo
 echo "***********************************************************************"
