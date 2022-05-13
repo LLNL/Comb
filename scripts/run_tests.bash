@@ -100,8 +100,8 @@ if [[ ! "x" == "x$SYS_TYPE" ]]; then
       fi
       let nodes=(procs+procs_per_node-1)/procs_per_node
 
-      # get_nodes="bsub -nnodes ${nodes} -core_isolation 2 -W 60 -G guests -Is -XF"
-      get_nodes="lalloc ${nodes} -W 60 --shared-launch"
+      # get_nodes="bsub -nnodes ${nodes} -core_isolation 2 -W 240 -G guests -Is -XF"
+      get_nodes="lalloc ${nodes} -W 240 --shared-launch"
 
    elif [[ "x$SYS_TYPE" =~ xblueos.* ]]; then
       # Command used to get nodes on EA systems
@@ -111,7 +111,7 @@ if [[ ! "x" == "x$SYS_TYPE" ]]; then
       fi
       let nodes=(procs+procs_per_node-1)/procs_per_node
 
-      get_nodes="bsub -n ${procs} -R \"span[ptile=${procs_per_node}]\" -W 60 -G guests -Is -XF"
+      get_nodes="bsub -n ${procs} -R \"span[ptile=${procs_per_node}]\" -W 240 -G guests -Is -XF"
 
    elif [[ "x$SYS_TYPE" =~ xtoss_4_x86_64_ib_cray ]]; then
       # Command used to get nodes on ElCap EA systems
@@ -121,7 +121,7 @@ if [[ ! "x" == "x$SYS_TYPE" ]]; then
       fi
       let nodes=(procs+procs_per_node-1)/procs_per_node
 
-      get_nodes="salloc -N${nodes} --exclusive"
+      get_nodes="salloc -N${nodes} -t 240 --exclusive"
 
    else
       # Command used to get nodes on slurm scheduled systems
@@ -131,7 +131,7 @@ if [[ ! "x" == "x$SYS_TYPE" ]]; then
       fi
       let nodes=(procs+procs_per_node-1)/procs_per_node
 
-      get_nodes="salloc -N${nodes} --exclusive"
+      get_nodes="salloc -N${nodes} -t 240 --exclusive"
 
    fi
 else
