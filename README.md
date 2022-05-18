@@ -127,15 +127,17 @@ The runtime options change the properties of the grid and its decomposition, as 
       -   __enable|disable *option*__ Enable or disable specific memory spaces for UseType allocations
           -   __all__ all memory spaces
           -   __host__ host CPU memory space
-          -   __cuda_pinned__ cuda pinned memory space (pooled)
+          -   __cuda_hostpinned__ cuda pinned memory space (pooled)
           -   __cuda_device__ cuda device memory space (pooled)
           -   __cuda_managed__ cuda managed memory space (pooled)
           -   __cuda_managed_host_preferred__ cuda managed with host preferred advice memory space (pooled)
           -   __cuda_managed_host_preferred_device_accessed__ cuda managed with host preferred and device accessed advice memory space (pooled)
           -   __cuda_managed_device_preferred__ cuda managed with device preferred advice memory space (pooled)
           -   __cuda_managed_device_preferred_host_accessed__ cuda managed with device preferred and host accessed advice memory space (pooled)
-          -   __hip_pinned__ hip pinned memory space (pooled)
+          -   __hip_hostpinned__ hip pinned memory space (pooled)
+          -   __hip_hostpinned_coarse__ hip coarse grained (non-coherent) pinned memory space (pooled)
           -   __hip_device__ hip device memory space (pooled)
+          -   __hip_device_fine__ hip fine grained device memory space (pooled)
           -   __hip_managed__ hip managed memory space (pooled)
   -   __\-cuda_aware_mpi__ Assert that you are using a cuda aware mpi implementation and enable tests that pass cuda device or managed memory to MPI
   -   __\-hip_aware_mpi__ Assert that you are using a hip aware mpi implementation and enable tests that pass hip device or managed memory to MPI

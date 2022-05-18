@@ -291,7 +291,23 @@ void do_cycles_allocators(CommContext<comm_pol>& con_comm,
   do_cycles_allocator(con_comm,
                       comminfo, info,
                       exec,
+                      alloc.hip_hostpinned_coarse,
+                      cpu_many_aloc, cpu_few_aloc,
+                      gpu_many_aloc, gpu_few_aloc,
+                      num_vars, ncycles, tm, tm_total);
+
+  do_cycles_allocator(con_comm,
+                      comminfo, info,
+                      exec,
                       alloc.hip_device,
+                      cpu_many_aloc, cpu_few_aloc,
+                      gpu_many_aloc, gpu_few_aloc,
+                      num_vars, ncycles, tm, tm_total);
+
+  do_cycles_allocator(con_comm,
+                      comminfo, info,
+                      exec,
+                      alloc.hip_device_fine,
                       cpu_many_aloc, cpu_few_aloc,
                       gpu_many_aloc, gpu_few_aloc,
                       num_vars, ncycles, tm, tm_total);

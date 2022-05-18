@@ -128,10 +128,22 @@ void warmup(COMB::Executors& exec,
     if (!hip_alloc) { hip_alloc = &alloc.hip_device; }
   }
 
+  if (alloc.hip_device_fine.available(COMB::AllocatorInfo::UseType::Mesh)
+   || alloc.hip_device_fine.available(COMB::AllocatorInfo::UseType::Buffer)) {
+    do_warmup(exec.hip.get(), alloc.hip_device_fine.allocator(), tm, num_vars, len);
+    if (!hip_alloc) { hip_alloc = &alloc.hip_device_fine; }
+  }
+
   if (alloc.hip_hostpinned.available(COMB::AllocatorInfo::UseType::Mesh)
    || alloc.hip_hostpinned.available(COMB::AllocatorInfo::UseType::Buffer)) {
     do_warmup(exec.seq.get(), alloc.hip_hostpinned.allocator(), tm, num_vars, len);
     if (!hip_alloc) { hip_alloc = &alloc.hip_hostpinned; }
+  }
+
+  if (alloc.hip_hostpinned_coarse.available(COMB::AllocatorInfo::UseType::Mesh)
+   || alloc.hip_hostpinned_coarse.available(COMB::AllocatorInfo::UseType::Buffer)) {
+    do_warmup(exec.seq.get(), alloc.hip_hostpinned_coarse.allocator(), tm, num_vars, len);
+    if (!hip_alloc) { hip_alloc = &alloc.hip_hostpinned_coarse; }
   }
 
   if (alloc.hip_managed.available(COMB::AllocatorInfo::UseType::Mesh)

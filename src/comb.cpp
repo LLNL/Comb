@@ -498,7 +498,9 @@ int main(int argc, char** argv)
 #endif
 #ifdef COMB_ENABLE_HIP
                 alloc.hip_hostpinned.set_available(uts, enabledisable);
+                alloc.hip_hostpinned_coarse.set_available(uts, enabledisable);
                 alloc.hip_device.set_available(uts, enabledisable);
+                alloc.hip_device_fine.set_available(uts, enabledisable);
                 alloc.hip_managed.set_available(uts, enabledisable);
 #endif
               } else if (strcmp(argv[i], "host") == 0) {
@@ -535,9 +537,17 @@ int main(int argc, char** argv)
 #ifdef COMB_ENABLE_HIP
                 alloc.hip_hostpinned.set_available(uts, enabledisable);
 #endif
+              } else if (strcmp(argv[i], "hip_hostpinned_coarse") == 0) {
+#ifdef COMB_ENABLE_HIP
+                alloc.hip_hostpinned_coarse.set_available(uts, enabledisable);
+#endif
               } else if (strcmp(argv[i], "hip_device") == 0) {
 #ifdef COMB_ENABLE_HIP
                 alloc.hip_device.set_available(uts, enabledisable);
+#endif
+              } else if (strcmp(argv[i], "hip_device_fine") == 0) {
+#ifdef COMB_ENABLE_HIP
+                alloc.hip_device_fine.set_available(uts, enabledisable);
 #endif
               } else if (strcmp(argv[i], "hip_managed") == 0) {
 #ifdef COMB_ENABLE_HIP

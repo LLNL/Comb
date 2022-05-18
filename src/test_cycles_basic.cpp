@@ -710,9 +710,9 @@ void test_cycles_basic(CommInfo& comminfo, MeshInfo& info,
     do_cycles_basic(con_comm,
                     comminfo, info,
                     num_vars, ncycles,
-                    exec.hip.get(), alloc.hip_managed.allocator(),
-                    exec.hip.get(), alloc.hip_hostpinned.allocator(),
-                    exec.hip.get(), alloc.hip_hostpinned.allocator(),
+                    exec.hip.get(), alloc.hip_device.allocator(),
+                    exec.hip.get(), alloc.hip_hostpinned_coarse.allocator(),
+                    exec.hip.get(), alloc.hip_hostpinned_coarse.allocator(),
                     tm, tm_total);
   }
 #endif

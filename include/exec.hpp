@@ -125,7 +125,7 @@ struct Executors
     cuda_graph.create(base_cuda.get(), (alocs.access.use_device_preferred_for_cuda_util_aloc) ? alocs.cuda_managed_device_preferred_host_accessed.allocator() : alocs.cuda_hostpinned.allocator());
 #endif
 #ifdef COMB_ENABLE_HIP
-    hip.create(base_hip.get(), (alocs.access.use_device_for_hip_util_aloc) ? alocs.hip_device.allocator() : alocs.hip_hostpinned.allocator());
+    hip.create(base_hip.get(), (alocs.access.use_device_for_hip_util_aloc) ? alocs.hip_device.allocator() : alocs.hip_hostpinned_coarse.allocator());
 #endif
 #ifdef COMB_ENABLE_MPI
     mpi_type.create(base_mpi.get(), alocs.host.allocator());
@@ -139,7 +139,7 @@ struct Executors
     raja_cuda.create(base_raja_cuda.get(), (alocs.access.use_device_preferred_for_cuda_util_aloc) ? alocs.cuda_managed_device_preferred_host_accessed.allocator() : alocs.cuda_hostpinned.allocator());
 #endif
 #ifdef COMB_ENABLE_HIP
-    raja_hip.create(base_raja_hip.get(), (alocs.access.use_device_for_hip_util_aloc) ? alocs.hip_device.allocator() : alocs.hip_hostpinned.allocator());
+    raja_hip.create(base_raja_hip.get(), (alocs.access.use_device_for_hip_util_aloc) ? alocs.hip_device.allocator() : alocs.hip_hostpinned_coarse.allocator());
 #endif
 #endif
   }

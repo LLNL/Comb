@@ -142,14 +142,25 @@ using mempool = COMBRAJA::basic_mempool::MemPool<alloc>;
       void* ptr = nullptr;
       // Device to host transfers via kernels are slow with hipHostMallocDefault
       //   on MI100.
-      // Using hipHostMallocNonCoherent improves this but is non coherent
+      hipCheck(hipHostMalloc(&ptr, nbytes, hipHostMallocDefault));
+      return ptr;
+    }
+    void free(void* ptr) {
+      hipCheck(hipHostFree(ptr));
+    }
+  };
+
+  struct hip_host_pinned_coarse_allocator {
+    void* malloc(size_t nbytes) {
+      void* ptr = nullptr;
+      // Using hipHostMallocNonCoherent means the memory is non coherent
       //   and is cached on the device. This means atomic operations will not
       //   affect the visibility of the memory. Stream and device synchronize
       //   do make noncoherent visible as they perform a system scope fence.
       //   However events only do a device fence by default, so to make
       //   noncoherent memory visible on host events must be created with
       //   hipEventReleaseToSystem.
-      hipCheck(hipHostMalloc(&ptr, nbytes, hipHostMallocDefault));
+      hipCheck(hipHostMalloc(&ptr, nbytes, hipHostMallocNonCoherent));
       return ptr;
     }
     void free(void* ptr) {
@@ -168,9 +179,21 @@ using mempool = COMBRAJA::basic_mempool::MemPool<alloc>;
     }
   };
 
+  struct hip_device_fine_allocator {
+    void* malloc(size_t nbytes) {
+      void* ptr = nullptr;
+      hipCheck(hipExtMallocWithFlags(&ptr, nbytes, hipDeviceMallocFinegrained));
+      return ptr;
+    }
+    void free(void* ptr) {
+      hipCheck(hipFree(ptr));
+    }
+  };
+
   struct hip_managed_allocator {
     void* malloc(size_t nbytes) {
       void* ptr = nullptr;
+      // Synchronizes after uses of Managed memory are slow.
       hipCheck(hipMallocManaged(&ptr, nbytes));
       return ptr;
     }
@@ -343,6 +366,22 @@ struct HipHostPinnedAllocator : Allocator
 #endif
 };
 
+struct HipHostPinnedCoarseAllocator : Allocator
+{
+#ifdef COMB_ENABLE_HIP
+  const char* name() override { return "HipHostPinnedCoarse"; }
+  void* allocate(size_t nbytes) override
+  {
+    void* ptr = detail::mempool<detail::hip_host_pinned_coarse_allocator>::getInstance().malloc<char>(nbytes);
+    return ptr;
+  }
+  void deallocate(void* ptr) override
+  {
+    detail::mempool<detail::hip_host_pinned_coarse_allocator>::getInstance().free(ptr);
+  }
+#endif
+};
+
 struct HipDeviceAllocator : Allocator
 {
 #ifdef COMB_ENABLE_HIP
@@ -355,6 +394,22 @@ struct HipDeviceAllocator : Allocator
   void deallocate(void* ptr) override
   {
     detail::mempool<detail::hip_device_allocator>::getInstance().free(ptr);
+  }
+#endif
+};
+
+struct HipDeviceFineAllocator : Allocator
+{
+#ifdef COMB_ENABLE_HIP
+  const char* name() override { return "HipDeviceFine"; }
+  void* allocate(size_t nbytes) override
+  {
+    void* ptr = detail::mempool<detail::hip_device_fine_allocator>::getInstance().malloc<char>(nbytes);
+    return ptr;
+  }
+  void deallocate(void* ptr) override
+  {
+    detail::mempool<detail::hip_device_fine_allocator>::getInstance().free(ptr);
   }
 #endif
 };
@@ -755,6 +810,30 @@ private:
   HipHostPinnedAllocator m_allocator;
 };
 
+struct HipHostPinnedCoarseAllocatorInfo : AllocatorInfo
+{
+  HipHostPinnedCoarseAllocatorInfo(AllocatorAccessibilityFlags& a) : AllocatorInfo(a) { }
+  Allocator& allocator() override { return m_allocator; }
+  bool available(UseType ut) override { return m_available[validate_and_convert(ut)]; }
+  bool accessible(CPUContext const&) override { return true; }
+#ifdef COMB_ENABLE_MPI
+  bool accessible(MPIContext const&) override { return true; }
+#endif
+#ifdef COMB_ENABLE_CUDA
+  bool accessible(CudaContext const&) override { return false; }
+#endif
+  bool accessible(HipContext const&) override { return true; }
+#ifdef COMB_ENABLE_RAJA
+  bool accessible(RAJAContext<RAJA::resources::Host> const&) override { return true; }
+#ifdef COMB_ENABLE_CUDA
+  bool accessible(RAJAContext<RAJA::resources::Cuda> const&) override { return false; }
+#endif
+  bool accessible(RAJAContext<RAJA::resources::Hip> const&) override { return true; }
+#endif
+private:
+  HipHostPinnedCoarseAllocator m_allocator;
+};
+
 struct HipDeviceAllocatorInfo : AllocatorInfo
 {
   HipDeviceAllocatorInfo(AllocatorAccessibilityFlags& a) : AllocatorInfo(a) { }
@@ -777,6 +856,30 @@ struct HipDeviceAllocatorInfo : AllocatorInfo
 #endif
 private:
   HipDeviceAllocator m_allocator;
+};
+
+struct HipDeviceFineAllocatorInfo : AllocatorInfo
+{
+  HipDeviceFineAllocatorInfo(AllocatorAccessibilityFlags& a) : AllocatorInfo(a) { }
+  Allocator& allocator() override { return m_allocator; }
+  bool available(UseType ut) override { return m_available[validate_and_convert(ut)]; }
+  bool accessible(CPUContext const&) override { return m_accessFlags.hip_device_accessible_from_host; }
+#ifdef COMB_ENABLE_MPI
+  bool accessible(MPIContext const&) override { return m_accessFlags.hip_aware_mpi; }
+#endif
+#ifdef COMB_ENABLE_CUDA
+  bool accessible(CudaContext const&) override { return false; }
+#endif
+  bool accessible(HipContext const&) override { return true; }
+#ifdef COMB_ENABLE_RAJA
+  bool accessible(RAJAContext<RAJA::resources::Host> const&) override { return m_accessFlags.hip_device_accessible_from_host; }
+#ifdef COMB_ENABLE_CUDA
+  bool accessible(RAJAContext<RAJA::resources::Cuda> const&) override { return false; }
+#endif
+  bool accessible(RAJAContext<RAJA::resources::Hip> const&) override { return true; }
+#endif
+private:
+  HipDeviceFineAllocator m_allocator;
 };
 
 struct HipManagedAllocatorInfo : AllocatorInfo
@@ -822,7 +925,9 @@ struct Allocators
 #endif
 #ifdef COMB_ENABLE_HIP
   HipHostPinnedAllocatorInfo                          hip_hostpinned{access};
+  HipHostPinnedCoarseAllocatorInfo                    hip_hostpinned_coarse{access};
   HipDeviceAllocatorInfo                              hip_device{access};
+  HipDeviceFineAllocatorInfo                          hip_device_fine{access};
   HipManagedAllocatorInfo                             hip_managed{access};
 #endif
 };
