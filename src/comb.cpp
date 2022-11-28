@@ -72,7 +72,7 @@ int main(int argc, char** argv)
   CommInfo comminfo;
 
 #ifdef COMB_ENABLE_MPI
-  if (required != provided) {
+  if (required > provided) {
     fgprintf(FileGroup::err_master, "Didn't receive MPI thread support required %i provided %i.\n", required, provided);
     comminfo.abort();
   }
