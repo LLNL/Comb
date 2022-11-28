@@ -20,7 +20,7 @@
  */
 
 //////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2018, Lawrence Livermore National Security, LLC.
+// Copyright (c) 2018-2022, Lawrence Livermore National Security, LLC.
 //
 // Produced at the Lawrence Livermore National Laboratory
 //
@@ -37,6 +37,17 @@
 #ifndef COMB_config_HPP
 #define COMB_config_HPP
 
+// get compilers used
+#cmakedefine COMB_COMPILER "${COMB_CXX_COMPILER}"
+#cmakedefine COMB_CUDA_COMPILER "${COMB_CUDA_COMPILER}"
+#cmakedefine COMB_HIP_COMPILER "${COMB_HIP_COMPILER}"
+
+// disallow NDEBUG so asserts work
+#ifdef NDEBUG
+#undef NDEBUG
+#endif
+
+
 /*!
  ******************************************************************************
  *
@@ -44,9 +55,32 @@
  *
  ******************************************************************************
  */
+#cmakedefine COMB_ENABLE_MPI
 #cmakedefine COMB_ENABLE_OPENMP
 #cmakedefine COMB_ENABLE_CUDA
+#cmakedefine COMB_ENABLE_NV_TOOLS_EXT
+#cmakedefine COMB_ENABLE_CUDA_GRAPH
 #cmakedefine COMB_ENABLE_CLANG_CUDA
+#cmakedefine COMB_ENABLE_HIP
+#cmakedefine COMB_ENABLE_ROCTX
+#cmakedefine COMB_ENABLE_GDSYNC
+#cmakedefine COMB_ENABLE_GPUMP
+#cmakedefine COMB_ENABLE_MP
+#cmakedefine COMB_ENABLE_UMR
+#cmakedefine COMB_ENABLE_RAJA
+#cmakedefine COMB_ENABLE_CALIPER
+#cmakedefine COMB_ENABLE_ADIAK
+#cmakedefine COMB_ENABLE_LOG
+
+#ifdef COMB_ENABLE_CUDA
+#if defined(CUDART_VERSION) && CUDART_VERSION < 10000
+#error COMB_ENABLE_CUDA_GRAPH setting invalid with cuda version
+#endif
+#if defined(CUDART_VERSION) && CUDART_VERSION >= 9000 && \
+     (!defined(__CUDA_ARCH__) || __CUDA_ARCH__ >= 600)
+#define COMB_ENABLE_CUDA_BASIL_BATCH
+#endif
+#endif
 
 /*!
  ******************************************************************************
@@ -84,6 +118,30 @@ namespace COMB {
 #endif // COMB_ENABLE_CUDA
 #endif // COMB_ENABLE_CLANG_CUDA
 
+#if defined(COMB_ENABLE_GDSYNC)
+#if not defined(COMB_ENABLE_MPI)
+#error COMB configured with ENABLE_GDSYNC, but without ENABLE_MPI
+#endif // COMB_ENABLE_MPI
+#endif // COMB_ENABLE_GDSYNC
+
+#if defined(COMB_ENABLE_GPUMP)
+#if not defined(COMB_ENABLE_MPI)
+#error COMB configured with ENABLE_GPUMP, but without ENABLE_MPI
+#endif // COMB_ENABLE_MPI
+#endif // COMB_ENABLE_GPUMP
+
+#if defined(COMB_ENABLE_MP)
+#if not defined(COMB_ENABLE_MPI)
+#error COMB configured with ENABLE_MP, but without ENABLE_MPI
+#endif // COMB_ENABLE_MPI
+#endif // COMB_ENABLE_MP
+
+#if defined(COMB_ENABLE_UMR)
+#if not defined(COMB_ENABLE_MPI)
+#error COMB configured with ENABLE_UMR, but without ENABLE_MPI
+#endif // COMB_ENABLE_MPI
+#endif // COMB_ENABLE_UMR
+
 /*!
  ******************************************************************************
  *
@@ -91,9 +149,9 @@ namespace COMB {
  *
  ******************************************************************************
  */
-#cmakedefine COMB_VERSION_MAJOR
-#cmakedefine COMB_VERSION_MINOR
-#cmakedefine COMB_VERSION_PATCHLEVEL
+#define COMB_VERSION_MAJOR @COMB_VERSION_MAJOR@
+#define COMB_VERSION_MINOR @COMB_VERSION_MINOR@
+#define COMB_VERSION_PATCHLEVEL @COMB_VERSION_PATCHLEVEL@
 
 /*!
  ******************************************************************************
@@ -109,7 +167,7 @@ namespace COMB {
 #define COMB_RESTRICT __restrict__
 #endif
 
-#if defined(COMB_ENABLE_CUDA)
+#if defined(COMB_ENABLE_CUDA) || defined(COMB_ENABLE_HIP)
 #define COMB_HOST __host__
 #define COMB_DEVICE __device__
 #else

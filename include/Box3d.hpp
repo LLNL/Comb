@@ -1,5 +1,5 @@
 //////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2018, Lawrence Livermore National Security, LLC.
+// Copyright (c) 2018-2022, Lawrence Livermore National Security, LLC.
 //
 // Produced at the Lawrence Livermore National Laboratory
 //
@@ -19,7 +19,7 @@
 #include "config.hpp"
 
 #include "memory.hpp"
-#include "utils.hpp"
+#include "exec_utils.hpp"
 #include "MeshInfo.hpp"
 
 struct IdxTemplate
@@ -70,13 +70,13 @@ struct Box3d
            , local_max[1] - local_min[1]
            , local_max[2] - local_min[2] }
   {
-    //FPRINTF(stdout, "Box3d i %d %d j %d %d k %d %d\n", min[0], max[0], min[1], max[1], min[2], max[2]);
+    //LOGPRINTF("Box3d i %d %d j %d %d k %d %d\n", min[0], max[0], min[1], max[1], min[2], max[2]);
     //assert((imax-imin)*(jmax-jmin)*(kmax-kmin) <= 13*3*3);
   }
 
   void print(const char* name) const
   {
-    FPRINTF(stdout, "Box3d %32s local (%i %i %i)-(%i %i %i) info (%i %i %i)-(%i %i %i) global (%i %i %i)-(%i %i %i)\n",
+    fgprintf(FileGroup::proc, "Box3d %32s local (%i %i %i)-(%i %i %i) info (%i %i %i)-(%i %i %i) global (%i %i %i)-(%i %i %i)\n",
                      name,
                      min[0], min[1], min[2], min[0]+sizes[0], min[1]+sizes[1], min[2]+sizes[2],
                      info.min[0], info.min[1], info.min[2], info.max[0], info.max[1], info.max[2],
@@ -250,15 +250,17 @@ struct Box3d
     return equiv;
   }
 
+#ifdef COMB_ENABLE_MPI
   MPI_Datatype get_type_subarray() const
   {
     MPI_Datatype mpi_type = detail::MPI::Type_create_subarray(3, info.len, sizes, min, MPI_ORDER_FORTRAN, MPI_DOUBLE);
     detail::MPI::Type_commit(&mpi_type);
     return mpi_type;
   }
+#endif
 
-  template < typename policy >
-  void set_indices(policy const& pol, LidxT* index_list) const
+  template < typename context >
+  void set_indices(context& con, LidxT* index_list) const
   {
     IdxT imin = min[0];
     IdxT jmin = min[1];
@@ -266,12 +268,15 @@ struct Box3d
     IdxT imax = min[0] + sizes[0];
     IdxT jmax = min[1] + sizes[1];
     IdxT kmax = min[2] + sizes[2];
-    for_all_3d(pol, kmin, kmax, jmin, jmax, imin, imax, make_set_idxr_idxr(detail::indexer_kji{info.len[0]*info.len[1], info.len[0]}, index_list, detail::indexer_idx{}));
-    //for(IdxT idx = 0; idx < (imax-imin)*(jmax-jmin)*(kmax-kmin); ++idx) {
-    //  FPRINTF(stdout, "indices[%i] = %i\n", idx, index_list[idx]);
-    //  assert(0 <= index_list[idx] && index_list[idx] < (imax-imin)*(jmax-jmin)*(kmax-kmin));
+    IdxT ilen = imax - imin;
+    IdxT jlen = jmax - jmin;
+    IdxT klen = kmax - kmin;
+    con.for_all_3d(klen, jlen, ilen, make_set_idxr_idxr(detail::indexer_offset_kji{kmin, jmin, imin, info.len[0]*info.len[1], info.len[0]}, index_list, detail::indexer_kji{ilen*jlen, ilen}));
+    //for(IdxT idx = 0; idx < ilen*jlen*klen; ++idx) {
+    //  LOGPRINTF("indices[%i] = %i\n", idx, index_list[idx]);
+    //  assert(0 <= index_list[idx] && index_list[idx] < ilen*jlen*klen);
     //}
-    synchronize(pol);
+    con.synchronize();
   }
 };
 

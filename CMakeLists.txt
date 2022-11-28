@@ -1,5 +1,5 @@
 ##############################################################################
-## Copyright (c) 2018, Lawrence Livermore National Security, LLC.
+## Copyright (c) 2018-2022, Lawrence Livermore National Security, LLC.
 ##
 ## Produced at the Lawrence Livermore National Laboratory
 ##
@@ -13,30 +13,61 @@
 ## Please also see the LICENSE file for MIT license.
 ##############################################################################
 
-set(COMB_VERSION_MAJOR 0)
-set(COMB_VERSION_MINOR 1)
-set(COMB_VERSION_PATCHLEVEL 1)
+cmake_policy(SET CMP0042 NEW)
+cmake_policy(SET CMP0048 NEW)
 
-cmake_minimum_required(VERSION 3.9)
+if (APPLE)
+ cmake_policy(SET CMP0025 NEW)
+endif()
+
+include(CMakeDependentOption)
+
+set(COMB_VERSION_MAJOR 0)
+set(COMB_VERSION_MINOR 3)
+set(COMB_VERSION_PATCHLEVEL 1)
 
 set(COMB_LOADED "${COMB_VERSION_MAJOR}.${COMB_VERSION_MINOR}.${COMB_VERSION_PATCHLEVEL}")
 
-project(COMB LANGUAGES CXX VERSION ${COMB_LOADED})
+project(COMB LANGUAGES CXX C VERSION ${COMB_LOADED})
 
-# Build options
-set(ENABLE_MPI ON CACHE Bool "Build MPI support")
-set(ENABLE_OPENMP ON CACHE Bool "Build OpenMP support")
-set(ENABLE_CUDA ON CACHE Bool "Build CUDA support")
+set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 
-set(COMB_CXX_STANDARD_FLAG "default" CACHE STRING "Specific c++ standard flag to use, default attempts to autodetect the highest available")
+include(cmake/SetupCombOptions.cmake)
 
-option(ENABLE_CLANG_CUDA "Use Clang's native CUDA support" OFF)
-set(CUDA_ARCH "sm_70" CACHE STRING "Compute architecture to pass to CUDA builds")
+cmake_minimum_required(VERSION 3.14.5)
 
-# Separable compilation is required by comb, set before load BLT
-set(CUDA_SEPARABLE_COMPILATION ON CACHE BOOL "")
+# Detect C++ standard and add appropriate flag _before_ loading BLT
+set(COMPILERS_KNOWN_TO_CMAKE33 AppleClang Clang GNU MSVC)
 
-# Load BLT
+include(CheckCXXCompilerFlag)
+if(NOT DEFINED BLT_CXX_STD)
+  if("cxx_std_17" IN_LIST CMAKE_CXX_KNOWN_FEATURES)
+    set(BLT_CXX_STD c++17 CACHE STRING "Version of C++ standard")
+    message("Using C++ standard: ${BLT_CXX_STD}")
+  elseif("cxx_std_14" IN_LIST CMAKE_CXX_KNOWN_FEATURES)
+    set(BLT_CXX_STD c++14 CACHE STRING "Version of C++ standard")
+    message("Using C++ standard: ${BLT_CXX_STD}")
+  elseif("${CMAKE_CXX_COMPILER_ID}" IN_LIST COMPILERS_KNOWN_TO_CMAKE33)
+    set(BLT_CXX_STD c++14 CACHE STRING "Version of C++ standard")
+    message("Using C++ standard: ${BLT_CXX_STD}")
+  else() #cmake has no idea what to do, do it ourselves...
+    foreach(flag_var "c++17" "c++14")
+      CHECK_CXX_COMPILER_FLAG("-std=${flag_var}" COMPILER_SUPPORTS_${flag_var})
+      if(COMPILER_SUPPORTS_${flag_var})
+        set(BLT_CXX_STD ${flag_var} CACHE STRING "Version of C++ standard")
+        message("Using C++ standard: ${BLT_CXX_STD}")
+        break()
+      endif()
+    endforeach(flag_var)
+  endif()
+else() #check BLT_CXX_STD is high enough by disallowing the only invalid option
+  if("${BLT_CXX_STD}" IN_LIST "c++98;c++11")
+    message(FATAL_ERROR "RAJA requires minimum C++ standard of c++14")
+  endif()
+endif(NOT DEFINED BLT_CXX_STD)
+
+set(CMAKE_CXX_EXTENSIONS OFF)
+
 if (NOT BLT_LOADED)
   if (DEFINED BLT_SOURCE_DIR)
     if (NOT EXISTS ${BLT_SOURCE_DIR}/SetupBLT.cmake)
@@ -57,6 +88,8 @@ if (NOT BLT_LOADED)
   include(${BLT_SOURCE_DIR}/SetupBLT.cmake)
 endif()
 
+# Setup options that depend on BLT
+include(cmake/SetupDependentOptions.cmake)
 # Setup basic CMake options
 include(cmake/SetupBasics.cmake)
 # Find third-party packages
@@ -66,46 +99,4 @@ include(cmake/SetupCompilers.cmake)
 # Setup internal COMB configuration options
 include(cmake/SetupCombConfig.cmake)
 
-set(comb_sources
-  src/comb.cpp
-  src/MultiBuffer.cpp
-  src/batch_launch.cpp
-  src/persistent_launch.cpp)
-
-set(comb_depends )
-
-if(ENABLE_MPI)
-  set(comb_depends ${comb_depends} mpi)
-endif()
-
-if(ENABLE_OPENMP)
-  # set(comb_depends ${comb_depends} openmp)
-endif()
-
-if (ENABLE_CUDA)
-  set(comb_depends ${comb_depends} cuda nvToolsExt)
-endif()
-
-blt_add_executable(
-  NAME comb
-  SOURCES ${comb_sources}
-  DEPENDS_ON ${comb_depends})
-
-if(ENABLE_OPENMP)
-  if(ENABLE_CUDA AND (NOT ENABLE_CLANG_CUDA))
-    blt_add_target_compile_flags(TO comb FLAGS -Xcompiler ${OpenMP_CXX_FLAGS})
-  else()
-    blt_add_target_compile_flags(TO comb FLAGS ${OpenMP_CXX_FLAGS})
-  endif()
-  blt_add_target_link_flags(TO comb FLAGS ${OpenMP_CXX_FLAGS})
-endif()
-
-install(TARGETS comb
-  EXPORT comb
-  DESTINATION bin)
-
-target_include_directories(comb
-  PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include>
-  $<INSTALL_INTERFACE:include>)
+add_subdirectory(src)

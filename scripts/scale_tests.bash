@@ -4,17 +4,24 @@ nodes=$1
 procs=$2
 procs_per_side=$3
 
+# extra arguments to comb (always starts with a space or is empty)
+comb_xargs=""
+
 # Choose a command to run mpi based on the system being used
 if [[ ! "x" == "x$SYS_TYPE" ]]; then
    if [[ "x$SYS_TYPE" =~ xblueos.*_p9 ]]; then
       # Command used to run mpi on sierra systems
       run_mpi="lrun -N$nodes -p$procs"
+      # add arguments to turn on cuda aware mpi (optionally disable gpu direct)
+      # run_mpi="${run_mpi} --smpiargs \"-gpu\""
+      # run_mpi="${run_mpi} --smpiargs \"-gpu -disable_gdr\""
+      # comb_xargs="${comb_xargs} -cuda_aware_mpi"
    elif [[ "x$SYS_TYPE" =~ xblueos.* ]]; then
       # Command used to run mpi on EA systems
       run_mpi="mpirun -np $procs /usr/tcetmp/bin/mpibind"
    else
       # Command used to run mpi on slurm scheduled systems
-      run_mpi="srun -N$nodes -n$procs --exclusive"
+      run_mpi="srun -N$nodes -n$procs"
    fi
 else
    # Command used to run mpi with mpirun
@@ -61,19 +68,30 @@ comb_args="${comb_args} -cycles 100"
 comb_args="${comb_args} -comm cutoff 250"
 # set the number of omp threads per process
 comb_args="${comb_args} -omp_threads 10"
+# enable all execution tests
+comb_args="${comb_args} -exec enable all"
+# enable all memory tests
+comb_args="${comb_args} -memory enable all"
+# enable all communication tests
+comb_args="${comb_args} -comm enable all"
+# disable mpi_type execution tests (MPI Packing)
+# comb_args="${comb_args} -exec disable mpi_type"
+
+# add extra arguments for features enabled outside of the comb args block
+comb_args="${comb_args}${comb_xargs}"
 
 # set up arguments for a variety of communication methods
 wait_all_method="-comm post_recv wait_all -comm post_send wait_all -comm wait_recv wait_all -comm wait_send wait_all"
-wait_some_method="-comm post_recv wait_all -comm post_send wait_some -comm wait_recv wait_some -comm wait_send wait_all"
-wait_any_method="-comm post_recv wait_any -comm post_send wait_any -comm wait_recv wait_any -comm wait_send wait_all"
+wait_some_method="-comm post_recv wait_some -comm post_send wait_some -comm wait_recv wait_some -comm wait_send wait_some"
+wait_any_method="-comm post_recv wait_any -comm post_send wait_any -comm wait_recv wait_any -comm wait_send wait_any"
 
 test_all_method="-comm post_recv wait_all -comm post_send test_all -comm wait_recv wait_all -comm wait_send wait_all"
-test_some_method="-comm post_recv wait_all -comm post_send test_some -comm wait_recv wait_some -comm wait_send wait_all"
-test_any_method="-comm post_recv wait_any -comm post_send test_any -comm wait_recv wait_any -comm wait_send wait_all"
+test_some_method="-comm post_recv wait_some -comm post_send test_some -comm wait_recv wait_some -comm wait_send wait_some"
+test_any_method="-comm post_recv wait_any -comm post_send test_any -comm wait_recv wait_any -comm wait_send wait_any"
 
 # set up the base command to run a test
 # use sep_out.bash to separate each rank's output
-run_test_base="${run_mpi} $(pwd)/sep_out.bash ${run_comb}"
+run_test_base="${run_mpi} ${run_comb}"
 
 # for each communication method
 for comm_method in "${wait_all_method}" "${wait_some_method}" "${wait_any_method}" "${test_all_method}" "${test_some_method}" "${test_any_method}"; do
@@ -81,10 +99,6 @@ for comm_method in "${wait_all_method}" "${wait_some_method}" "${wait_any_method
    # Run a test with this comm method
    echo "${run_test_base} ${comm_method} ${comb_args}"
    ${run_test_base} ${comm_method} ${comb_args}
-
-   # Run a mock communication test with this comm method
-   echo "${run_test_base} ${comm_method} -comm mock ${comb_args} "
-   ${run_test_base} ${comm_method} -comm mock ${comb_args}
 
 done
 

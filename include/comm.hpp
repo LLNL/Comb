@@ -1,5 +1,5 @@
 //////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2018, Lawrence Livermore National Security, LLC.
+// Copyright (c) 2018-2022, Lawrence Livermore National Security, LLC.
 //
 // Produced at the Lawrence Livermore National Laboratory
 //
@@ -18,21 +18,25 @@
 
 #include "config.hpp"
 
-#include <cstdio>
 #include <cstdlib>
 #include <cassert>
-#include <cstdarg>
 #include <type_traits>
 #include <list>
 #include <vector>
 #include <map>
 #include <utility>
 
+#ifdef COMB_ENABLE_MPI
 #include <mpi.h>
+#endif
 
+#include "print.hpp"
 #include "memory.hpp"
-#include "for_all.hpp"
-#include "utils.hpp"
+#include "exec_utils.hpp"
+#include "exec.hpp"
+
+#include "MessageBase.hpp"
+
 
 struct CartRank
 {
@@ -42,24 +46,36 @@ struct CartRank
   CartRank() : rank(-1), coords{-1, -1, -1} {}
   CartRank(int rank_, int coords_[]) : rank(rank_), coords{coords_[0], coords_[1], coords_[2]} {}
 
-  CartRank& setup(int rank_, MPI_Comm cartcomm)
+  CartRank& setup(int rank_
+#ifdef COMB_ENABLE_MPI
+                 ,MPI_Comm cartcomm
+#endif
+                  )
   {
     rank = rank_;
+#ifdef COMB_ENABLE_MPI
     detail::MPI::Cart_coords(cartcomm, rank, 3, coords);
+#else
+    coords[0] = 0; coords[1] = 0; coords[2] = 0;
+#endif
     return *this;
   }
 };
 
 struct CartComm : CartRank
 {
+#ifdef COMB_ENABLE_MPI
   MPI_Comm comm;
+#endif
   int size;
   int divisions[3];
   int periodic[3];
 
   explicit CartComm()
     : CartRank()
+#ifdef COMB_ENABLE_MPI
     , comm(MPI_COMM_NULL)
+#endif
     , size(0)
     , divisions{0, 0, 0}
     , periodic{0, 0, 0}
@@ -68,7 +84,9 @@ struct CartComm : CartRank
 
   CartComm(CartComm const& other)
     : CartRank(other)
+#ifdef COMB_ENABLE_MPI
     , comm(other.comm != MPI_COMM_NULL ? detail::MPI::Comm_dup(other.comm) : MPI_COMM_NULL)
+#endif
     , size(other.size)
     , divisions{other.divisions[0], other.divisions[1], other.divisions[2]}
     , periodic{other.periodic[0], other.periodic[1], other.periodic[2]}
@@ -88,9 +106,14 @@ struct CartComm : CartRank
     periodic[1] = periodic_[1];
     periodic[2] = periodic_[2];
 
+#ifdef COMB_ENABLE_MPI
     comm = detail::MPI::Cart_create(MPI_COMM_WORLD, 3, divisions, periodic, 1);
     size = detail::MPI::Comm_size(comm);
     setup(detail::MPI::Comm_rank(comm), comm);
+#else
+    size = 1;
+    setup(0);
+#endif
   }
 
   int get_rank(const int arg_coords[]) const
@@ -105,15 +128,21 @@ struct CartComm : CartRank
       }
       assert(0 <= input_coords[dim] && input_coords[dim] < divisions[dim]);
     }
+#ifdef COMB_ENABLE_MPI
     output_rank = detail::MPI::Cart_rank(comm, input_coords);
+#else
+    output_rank = 0;
+#endif
     return output_rank;
   }
 
   ~CartComm()
   {
+#ifdef COMB_ENABLE_MPI
     if (comm != MPI_COMM_NULL) {
       detail::MPI::Comm_free(&comm);
     }
+#endif
   }
 };
 
@@ -123,8 +152,6 @@ struct CommInfo
   int size;
 
   CartComm cart;
-
-  bool mock_communication;
 
   IdxT cutoff;
 
@@ -159,346 +186,61 @@ struct CommInfo
     : rank(-1)
     , size(0)
     , cart()
-    , mock_communication(false)
     , cutoff(200)
     , post_send_method(method::waitall)
     , post_recv_method(method::waitall)
     , wait_send_method(method::waitall)
     , wait_recv_method(method::waitall)
   {
+#ifdef COMB_ENABLE_MPI
     rank = detail::MPI::Comm_rank(MPI_COMM_WORLD);
     size = detail::MPI::Comm_size(MPI_COMM_WORLD);
+#else
+    rank = 0;
+    size = 1;
+#endif
   }
 
   void barrier()
   {
+#ifdef COMB_ENABLE_MPI
     if (cart.comm != MPI_COMM_NULL) {
       detail::MPI::Barrier(cart.comm);
     } else {
       detail::MPI::Barrier(MPI_COMM_WORLD);
     }
+#endif
   }
 
   void set_name(const char* name)
   {
+#ifdef COMB_ENABLE_MPI
     if (cart.comm != MPI_COMM_NULL) {
       detail::MPI::Comm_set_name(cart.comm, name);
     }
-  }
-
-  void print_any(const char* fmt, ...)
-  {
-    va_list args;
-    va_start(args, fmt);
-    vfprintf(stdout, fmt, args);
-    va_end(args);
-  }
-
-  void print_master(const char* fmt, ...)
-  {
-    if (rank == 0) {
-      va_list args;
-      va_start(args, fmt);
-      vfprintf(stdout, fmt, args);
-      va_end(args);
-    }
-  }
-
-  void warn_any(const char* fmt, ...)
-  {
-    va_list args;
-    va_start(args, fmt);
-    vfprintf(stderr, fmt, args);
-    va_end(args);
-  }
-
-  void warn_master(const char* fmt, ...)
-  {
-    if (rank == 0) {
-      va_list args;
-      va_start(args, fmt);
-      vfprintf(stderr, fmt, args);
-      va_end(args);
-    }
-  }
-
-  void abort_any(const char* fmt, ...)
-  {
-    va_list args;
-    va_start(args, fmt);
-    vfprintf(stderr, fmt, args);
-    va_end(args);
-    abort();
-  }
-
-  void abort_master(const char* fmt, ...)
-  {
-    if (rank == 0) {
-      va_list args;
-      va_start(args, fmt);
-      vfprintf(stderr, fmt, args);
-      va_end(args);
-    }
-    abort();
+#else
+    COMB::ignore_unused(name);
+#endif
   }
 
   void abort()
   {
+#ifdef COMB_ENABLE_MPI
     detail::MPI::Abort(MPI_COMM_WORLD, 1);
+#else
+    std::abort();
+#endif
   }
 };
 
-struct Message
-{
-  int m_partner_rank;
-  int m_msg_tag;
-  DataT* m_buf;
-  IdxT m_size;
-  IdxT m_max_nbytes;
-  IdxT m_nbytes;
-  bool m_have_many;
-
-  struct list_item_type
-  {
-    DataT* data;
-    LidxT* indices;
-    Allocator& aloc;
-    IdxT size;
-    MPI_Datatype mpi_type;
-    IdxT mpi_pack_max_nbytes;
-    list_item_type(DataT* data_, LidxT* indices_, Allocator& aloc_, IdxT size_,
-                   MPI_Datatype mpi_type_, IdxT mpi_pack_max_nbytes_)
-     : data(data_), indices(indices_), aloc(aloc_), size(size_),
-       mpi_type(mpi_type_), mpi_pack_max_nbytes(mpi_pack_max_nbytes_)
-    { }
-  };
-
-  std::list<list_item_type> items;
-
-  Message(int partner_rank, int tag, bool have_many)
-    : m_partner_rank(partner_rank)
-    , m_msg_tag(tag)
-    , m_buf(nullptr)
-    , m_max_nbytes(0)
-    , m_nbytes(0)
-    , m_have_many(have_many)
-  {
-
-  }
-
-  int partner_rank()
-  {
-    return m_partner_rank;
-  }
-
-  int tag()
-  {
-    return m_msg_tag;
-  }
-
-  DataT* buffer()
-  {
-    return m_buf;
-  }
-
-  IdxT size() const
-  {
-    return m_size;
-  }
-
-  IdxT max_nbytes() const
-  {
-    return m_max_nbytes;
-  }
-
-  IdxT nbytes() const
-  {
-    return m_nbytes;
-  }
-
-  bool have_many() const
-  {
-    return m_have_many;
-  }
-
-  void add(DataT* data, LidxT* indices, Allocator& aloc, IdxT size, MPI_Datatype mpi_type, IdxT mpi_pack_max_nbytes)
-  {
-    items.emplace_back(data, indices, aloc, size, mpi_type, mpi_pack_max_nbytes);
-    if (items.back().mpi_type != MPI_DATATYPE_NULL) {
-      m_max_nbytes += mpi_pack_max_nbytes;
-      m_nbytes += mpi_pack_max_nbytes;
-    } else {
-      m_max_nbytes += sizeof(DataT)*size;
-      m_nbytes += sizeof(DataT)*size;
-    }
-    m_size += size;
-  }
-
-  template < typename policy >
-  void pack(policy const& pol, MPI_Comm)
-  {
-    DataT* buf = m_buf;
-    assert(buf != nullptr);
-    auto end = std::end(items);
-    for (auto i = std::begin(items); i != end; ++i) {
-      DataT const* src = i->data;
-      LidxT const* indices = i->indices;
-      IdxT len = i->size;
-      // FPRINTF(stdout, "%p pack %p = %p[%p] len %d\n", this, buf, src, indices, len);
-      for_all(pol, 0, len, make_copy_idxr_idxr(src, detail::indexer_list_idx{indices}, buf, detail::indexer_idx{}));
-      buf += len;
-    }
-  }
-
-  void pack(mpi_type_pol const&, MPI_Comm comm)
-  {
-    if (items.size() == 1) {
-      m_nbytes = sizeof(DataT)*items.front().size;
-    } else {
-      DataT* buf = m_buf;
-      assert(buf != nullptr);
-      IdxT buf_max_nbytes = max_nbytes();
-      int pos = 0;
-      auto end = std::end(items);
-      for (auto i = std::begin(items); i != end; ++i) {
-        DataT const* src = i->data;
-        MPI_Datatype mpi_type = i->mpi_type;
-        // FPRINTF(stdout, "%p pack %p[%i] = %p\n", this, buf, pos, src);
-        detail::MPI::Pack(src, 1, mpi_type, buf, buf_max_nbytes, &pos, comm);
-      }
-      // set nbytes to actual value
-      m_nbytes = pos;
-    }
-  }
-
-  template < typename policy >
-  void unpack(policy const& pol, MPI_Comm)
-  {
-    DataT const* buf = m_buf;
-    assert(buf != nullptr);
-    auto end = std::end(items);
-    for (auto i = std::begin(items); i != end; ++i) {
-      DataT* dst = i->data;
-      LidxT const* indices = i->indices;
-      IdxT len = i->size;
-      // FPRINTF(stdout, "%p unpack %p[%p] = %p len %d\n", this, dst, indices, buf, len);
-      for_all(pol, 0, len, make_copy_idxr_idxr(buf, detail::indexer_idx{}, dst, detail::indexer_list_idx{indices}));
-      buf += len;
-    }
-  }
-
-  void unpack(mpi_type_pol const&, MPI_Comm comm)
-  {
-    if (items.size() == 1) {
-      // nothing to do
-    } else {
-      DataT const* buf = m_buf;
-      assert(buf != nullptr);
-      IdxT buf_max_nbytes = max_nbytes();
-      int pos = 0;
-      auto end = std::end(items);
-      for (auto i = std::begin(items); i != end; ++i) {
-        DataT* dst = i->data;
-        MPI_Datatype mpi_type = i->mpi_type;
-        // FPRINTF(stdout, "%p unpack %p = %p[%i]\n", this, dst, buf, pos);
-        detail::MPI::Unpack(buf, buf_max_nbytes, &pos, dst, 1, mpi_type, comm);
-      }
-    }
-  }
-
-  template < typename policy >
-  void Isend(policy const&, MPI_Comm comm, MPI_Request* request)
-  {
-    // FPRINTF(stdout, "%p Isend %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
-    detail::MPI::Isend(buffer(), nbytes(), MPI_BYTE, partner_rank(), tag(), comm, request);
-  }
-
-  void Isend(mpi_type_pol const&, MPI_Comm comm, MPI_Request* request)
-  {
-    if (items.size() == 1) {
-      DataT const* src = items.front().data;
-      MPI_Datatype mpi_type = items.front().mpi_type;
-      // FPRINTF(stdout, "%p Isend %p to %i tag %i\n", this, src, partner_rank(), tag());
-      detail::MPI::Isend(src, 1, mpi_type, partner_rank(), tag(), comm, request);
-    } else {
-      // FPRINTF(stdout, "%p Isend %p nbytes %i to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
-      detail::MPI::Isend(buffer(), nbytes(), MPI_PACKED, partner_rank(), tag(), comm, request);
-    }
-  }
-
-  template < typename policy >
-  void Irecv(policy const&, MPI_Comm comm, MPI_Request* request)
-  {
-    // FPRINTF(stdout, "%p Irecv %p nbytes %d to %i tag %i\n", this, buffer(), nbytes(), partner_rank(), tag());
-    detail::MPI::Irecv(buffer(), nbytes(), MPI_BYTE, partner_rank(), tag(), comm, request);
-  }
-
-  void Irecv(mpi_type_pol const&, MPI_Comm comm, MPI_Request* request)
-  {
-    if (items.size() == 1) {
-      DataT* dst = items.front().data;
-      MPI_Datatype mpi_type = items.front().mpi_type;
-      // FPRINTF(stdout, "%p Irecv %p to %i tag %i\n", this, dst, partner_rank(), tag());
-      detail::MPI::Irecv(dst, 1, mpi_type, partner_rank(), tag(), comm, request);
-    } else {
-      // FPRINTF(stdout, "%p Irecv %p maxnbytes %i to %i tag %i\n", this, dst, max_nbytes(), partner_rank(), tag());
-      detail::MPI::Irecv(buffer(), max_nbytes(), MPI_PACKED, partner_rank(), tag(), comm, request);
-    }
-  }
-
-  template < typename policy >
-  void allocate(policy const&, Allocator& buf_aloc)
-  {
-    if (m_buf == nullptr) {
-      m_buf = (DataT*)buf_aloc.allocate(nbytes());
-    }
-  }
-
-  void allocate(mpi_type_pol const&, Allocator& buf_aloc)
-  {
-    if (m_buf == nullptr) {
-      if (items.size() == 1) {
-        // no buffer needed
-      } else {
-        m_buf = (DataT*)buf_aloc.allocate(max_nbytes());
-      }
-    }
-  }
-
-  template < typename policy >
-  void deallocate(policy const&, Allocator& buf_aloc)
-  {
-    if (m_buf != nullptr) {
-      buf_aloc.deallocate(m_buf);
-      m_buf = nullptr;
-    }
-  }
-
-  void destroy()
-  {
-    auto end = std::end(items);
-    for (auto i = std::begin(items); i != end; ++i) {
-      if (i->indices) {
-        i->aloc.deallocate(i->indices); i->indices = nullptr;
-      }
-      if (i->mpi_type != MPI_DATATYPE_NULL) {
-        detail::MPI::Type_free(&i->mpi_type); i->mpi_type = MPI_DATATYPE_NULL;
-      }
-    }
-    items.clear();
-  }
-
-  ~Message()
-  {
-  }
-};
-
-template < typename policy_many_, typename policy_few_ >
+template < typename policy_many_, typename policy_few_, typename policy_comm_ >
 struct Comm
 {
   using policy_many = policy_many_;
   using policy_few  = policy_few_;
+  using policy_comm  = policy_comm_;
 
+#ifdef COMB_ENABLE_MPI
   static constexpr bool pol_many_is_mpi_type = std::is_same<policy_many, mpi_type_pol>::value;
   static constexpr bool pol_few_is_mpi_type  = std::is_same<policy_few,  mpi_type_pol>::value;
   static constexpr bool use_mpi_type = pol_many_is_mpi_type && pol_few_is_mpi_type;
@@ -506,657 +248,554 @@ struct Comm
   // check policies are consistent
   static_assert(pol_many_is_mpi_type == pol_few_is_mpi_type,
       "pol_many and pol_few must both be mpi_type_pol if either is mpi_type_pol");
+#endif
 
-  Allocator& mesh_aloc;
-  Allocator& many_aloc;
-  Allocator& few_aloc;
+  static const bool persistent = policy_comm::persistent;
 
-  CommInfo comminfo;
+  COMB::Allocator& mesh_aloc;
+  COMB::Allocator& many_aloc;
+  COMB::Allocator& few_aloc;
 
-  using message_type = Message;
-  std::vector<message_type> m_sends;
-  std::vector<message_type> m_recvs;
+  CommInfo& comminfo;
 
-  std::vector<MPI_Request> m_send_requests;
-  std::vector<MPI_Request> m_recv_requests;
+  CommContext<policy_comm>& con_comm;
 
-  std::vector<typename policy_many::event_type> m_many_events;
-  std::vector<typename policy_few::event_type> m_few_events;
+  CommInfo::method post_recv_method;
+  CommInfo::method post_send_method;
+  CommInfo::method wait_recv_method;
+  CommInfo::method wait_send_method;
 
-  Comm(CommInfo const& comminfo_, Allocator& mesh_aloc_, Allocator& many_aloc_, Allocator& few_aloc_)
+  using send_message_type = detail::Message<detail::MessageBase::Kind::send, policy_comm>;
+  using recv_message_type = detail::Message<detail::MessageBase::Kind::recv, policy_comm>;
+
+  using send_message_group_many_type = detail::MessageGroup<detail::MessageBase::Kind::send, policy_comm, policy_many>;
+  using send_message_group_few_type  = detail::MessageGroup<detail::MessageBase::Kind::send, policy_comm, policy_few>;
+
+  using recv_message_group_many_type = detail::MessageGroup<detail::MessageBase::Kind::recv, policy_comm, policy_many>;
+  using recv_message_group_few_type  = detail::MessageGroup<detail::MessageBase::Kind::recv, policy_comm, policy_few>;
+
+  using send_request_type = typename policy_comm::send_request_type;
+  using recv_request_type = typename policy_comm::recv_request_type;
+
+
+  struct send_message_vars_s
+  {
+    send_message_vars_s(COMB::Allocator& many_aloc_, COMB::Allocator& few_aloc_)
+      : message_group_many(many_aloc_)
+      , message_group_few(few_aloc_)
+    { }
+
+    send_message_group_many_type message_group_many;
+    send_message_group_few_type message_group_few;
+    std::vector<send_message_type*> messages;
+    std::vector<send_request_type> requests;
+  };
+
+  send_message_vars_s m_sends;
+
+
+  struct recv_message_vars_s
+  {
+    recv_message_vars_s(COMB::Allocator& many_aloc_, COMB::Allocator& few_aloc_)
+      : message_group_many(many_aloc_)
+      , message_group_few(few_aloc_)
+    { }
+
+    recv_message_group_many_type message_group_many;
+    recv_message_group_few_type message_group_few;
+    std::vector<recv_message_type*> messages;
+    std::vector<recv_request_type> requests;
+  };
+
+  recv_message_vars_s m_recvs;
+
+
+  Comm(CommContext<policy_comm>& con_comm_, CommInfo& comminfo_,
+       COMB::Allocator& mesh_aloc_, COMB::Allocator& many_aloc_, COMB::Allocator& few_aloc_)
     : mesh_aloc(mesh_aloc_)
     , many_aloc(many_aloc_)
     , few_aloc(few_aloc_)
     , comminfo(comminfo_)
+    , con_comm(con_comm_)
+    , post_recv_method(comminfo_.post_recv_method)
+    , post_send_method(comminfo_.post_send_method)
+    , wait_recv_method(comminfo_.wait_recv_method)
+    , wait_send_method(comminfo_.wait_send_method)
+    , m_sends(many_aloc_, few_aloc_)
+    , m_recvs(many_aloc_, few_aloc_)
   {
-    // check allocators are consistent with policies
-    // assert((pol_many_is_mpi_type == (strcmp(many_aloc.name(), "Null") == 0)) && "Must use NullAllocator with mpi_type_pol");
-    // assert((pol_few_is_mpi_type  == (strcmp(few_aloc.name(),  "Null") == 0)) && "Must use NullAllocator with mpi_type_pol");
-
-    // set name of communicator
-    // include name of memory space if using mpi datatypes for pack/unpack
-    char comm_name[MPI_MAX_OBJECT_NAME] = "";
-    snprintf(comm_name, MPI_MAX_OBJECT_NAME, "COMB_MPI_CART_COMM%s%s",
-        (use_mpi_type) ? "_"              : "",
-        (use_mpi_type) ? mesh_aloc.name() : "");
-
-    comminfo.set_name(comm_name);
-
-    // if policies are the same set cutoff to 0 (always use policy_many) to simplify algorithms
-    if (std::is_same<policy_many, policy_few>::value) {
-      comminfo.cutoff = 0;
-    }
+    LOGPRINTF("%p Comm::Comm\n", this);
   }
 
-
-  void postRecv()
+  void finish_populating(ExecContext<policy_many>& con_many, ExecContext<policy_few>& con_few)
   {
-    //FPRINTF(stdout, "posting receives\n");
+    COMB::ignore_unused(con_many, con_few);
+    LOGPRINTF("%p Comm::finish_populating begin\n", this);
 
-    m_recv_requests.resize(m_recvs.size(), MPI_REQUEST_NULL);
+    std::vector<int> send_ranks;
+    std::vector<int> recv_ranks;
+    for (send_message_type& msg : m_sends.message_group_many.messages) {
+      send_ranks.emplace_back(msg.partner_rank);
+    }
+    for (send_message_type& msg : m_sends.message_group_few.messages) {
+      send_ranks.emplace_back(msg.partner_rank);
+    }
+    for (recv_message_type& msg : m_recvs.message_group_many.messages) {
+      recv_ranks.emplace_back(msg.partner_rank);
+    }
+    for (recv_message_type& msg : m_recvs.message_group_few.messages) {
+      recv_ranks.emplace_back(msg.partner_rank);
+    }
+    con_comm.connect_ranks(send_ranks, recv_ranks);
 
-    switch (comminfo.post_recv_method) {
+    con_comm.setup_mempool(many_aloc, few_aloc);
+    LOGPRINTF("%p Comm::finish_populating end\n", this);
+  }
+
+  void init_persistent_comm(ExecContext<policy_many>& con_many, ExecContext<policy_few>& con_few)
+  {
+    IdxT num_many = m_sends.message_group_many.messages.size();
+    IdxT num_few = m_sends.message_group_few.messages.size();
+
+    IdxT num_sends = num_many + num_few;
+    IdxT num_recvs = num_many + num_few;
+
+    m_sends.messages.resize(num_sends, nullptr);
+    m_sends.requests.resize(num_sends, con_comm.send_request_null());
+    m_recvs.messages.resize(num_recvs, nullptr);
+    m_recvs.requests.resize(num_recvs, con_comm.recv_request_null());
+
+    send_message_type** send_messages_many = &m_sends.messages[0];
+    send_message_type** send_messages_few  = &m_sends.messages[num_many];
+    recv_message_type** recv_messages_many = &m_recvs.messages[0];
+    recv_message_type** recv_messages_few  = &m_recvs.messages[num_many];
+
+    send_request_type* send_requests_many = &m_sends.requests[0];
+    send_request_type* send_requests_few  = &m_sends.requests[num_many];
+    recv_request_type* recv_requests_many = &m_recvs.requests[0];
+    recv_request_type* recv_requests_few  = &m_recvs.requests[num_many];
+
+    for (IdxT i_many = 0; i_many < num_many; i_many++) {
+      send_messages_many[i_many] = &m_sends.message_group_many.messages[i_many];
+      recv_messages_many[i_many] = &m_recvs.message_group_many.messages[i_many];
+    }
+    for (IdxT i_few = 0; i_few < num_few; i_few++) {
+      send_messages_few[i_few] = &m_sends.message_group_few.messages[i_few];
+      recv_messages_few[i_few] = &m_recvs.message_group_few.messages[i_few];
+    }
+
+    m_sends.message_group_many.setup(con_many, con_comm, send_messages_many, num_many, send_requests_many);
+    m_sends.message_group_few.setup(con_few, con_comm, send_messages_few, num_few, send_requests_few);
+    m_recvs.message_group_many.setup(con_many, con_comm, recv_messages_many, num_many, recv_requests_many);
+    m_recvs.message_group_few.setup(con_few, con_comm, recv_messages_few, num_few, recv_requests_few);
+  }
+
+  void cleanup_persistent_comm()
+  {
+    IdxT num_many = m_sends.message_group_many.messages.size();
+    IdxT num_few = m_sends.message_group_few.messages.size();
+
+    send_message_type** send_messages_many = &m_sends.messages[0];
+    send_message_type** send_messages_few  = &m_sends.messages[num_many];
+    recv_message_type** recv_messages_many = &m_recvs.messages[0];
+    recv_message_type** recv_messages_few  = &m_recvs.messages[num_many];
+
+    send_request_type* send_requests_many = &m_sends.requests[0];
+    send_request_type* send_requests_few  = &m_sends.requests[num_many];
+    recv_request_type* recv_requests_many = &m_recvs.requests[0];
+    recv_request_type* recv_requests_few  = &m_recvs.requests[num_many];
+
+    m_sends.message_group_many.cleanup(con_comm, send_messages_many, num_many, send_requests_many);
+    m_sends.message_group_few.cleanup(con_comm, send_messages_few, num_few, send_requests_few);
+    m_recvs.message_group_many.cleanup(con_comm, recv_messages_many, num_many, recv_requests_many);
+    m_recvs.message_group_few.cleanup(con_comm, recv_messages_few, num_few, recv_requests_few);
+
+    m_sends.messages.clear();
+    m_sends.requests.clear();
+    m_recvs.messages.clear();
+    m_recvs.requests.clear();
+  }
+
+  ~Comm()
+  {
+    LOGPRINTF("%p Comm::~Comm begin\n", this);
+
+    con_comm.teardown_mempool();
+
+    std::vector<int> send_ranks;
+    std::vector<int> recv_ranks;
+    for (send_message_type& msg : m_sends.message_group_many.messages) {
+      send_ranks.emplace_back(msg.partner_rank);
+    }
+    for (send_message_type& msg : m_sends.message_group_few.messages) {
+      send_ranks.emplace_back(msg.partner_rank);
+    }
+    for (recv_message_type& msg : m_recvs.message_group_many.messages) {
+      recv_ranks.emplace_back(msg.partner_rank);
+    }
+    for (recv_message_type& msg : m_recvs.message_group_few.messages) {
+      recv_ranks.emplace_back(msg.partner_rank);
+    }
+    con_comm.disconnect_ranks(send_ranks, recv_ranks);
+    LOGPRINTF("%p Comm::~Comm end\n", this);
+  }
+
+  bool mock_communication() const
+  {
+    return policy_comm::mock;
+  }
+
+  void barrier()
+  {
+    LOGPRINTF("%p Comm::barrier begin\n", this);
+    comminfo.barrier();
+    LOGPRINTF("%p Comm::barrier end\n", this);
+  }
+
+  void postRecv(ExecContext<policy_many>& con_many, ExecContext<policy_few>& con_few)
+  {
+    LOGPRINTF("%p Comm::postRecv begin\n", this);
+
+    IdxT num_many = m_recvs.message_group_many.messages.size();
+    IdxT num_few = m_recvs.message_group_few.messages.size();
+
+    IdxT num_recvs = num_many + num_few;
+
+    if (!persistent) {
+      m_recvs.messages.resize(num_recvs, nullptr);
+      m_recvs.requests.resize(num_recvs, con_comm.recv_request_null());
+    }
+
+    recv_message_type** messages_many = &m_recvs.messages[0];
+    recv_message_type** messages_few  = &m_recvs.messages[num_many];
+
+    recv_request_type* requests_many = &m_recvs.requests[0];
+    recv_request_type* requests_few  = &m_recvs.requests[num_many];
+
+    if (!persistent) {
+      for (IdxT i_many = 0; i_many < num_many; i_many++) {
+        messages_many[i_many] = &m_recvs.message_group_many.messages[i_many];
+      }
+      for (IdxT i_few = 0; i_few < num_few; i_few++) {
+        messages_few[i_few] = &m_recvs.message_group_few.messages[i_few];
+      }
+    }
+
+    const detail::Async async = (post_recv_method == CommInfo::method::waitany ||
+                                 post_recv_method == CommInfo::method::waitsome ||
+                                 post_recv_method == CommInfo::method::waitall)
+                                ? detail::Async::no : detail::Async::yes;
+
+    switch (post_recv_method) {
       case CommInfo::method::waitany:
       case CommInfo::method::testany:
       {
-        IdxT num_recvs = m_recvs.size();
-        for (IdxT i = 0; i < num_recvs; ++i) {
+        LOGPRINTF("%p Comm::postRecv %s\n", this, (async == detail::Async::no) ? "waitany" : "testany");
 
-          if (m_recvs[i].have_many()) {
-            m_recvs[i].allocate(policy_many{}, many_aloc);
-            if (!comminfo.mock_communication) {
-              m_recvs[i].Irecv(policy_many{}, comminfo.cart.comm, &m_recv_requests[i]);
-            }
-          } else {
-            m_recvs[i].allocate(policy_few{}, few_aloc);
-            if (!comminfo.mock_communication) {
-              m_recvs[i].Irecv(policy_few{}, comminfo.cart.comm, &m_recv_requests[i]);
-            }
-          }
+        for (IdxT i_many = 0; i_many < num_many; i_many++) {
+          m_recvs.message_group_many.allocate(con_many, con_comm, &messages_many[i_many], 1, async);
+          m_recvs.message_group_many.Irecv(con_many, con_comm, &messages_many[i_many], 1, async, &requests_many[i_many]);
+        }
+
+        for (IdxT i_few = 0; i_few < num_few; i_few++) {
+          m_recvs.message_group_few.allocate(con_few, con_comm, &messages_few[i_few], 1, async);
+          m_recvs.message_group_few.Irecv(con_few, con_comm, &messages_few[i_few], 1, async, &requests_few[i_few]);
         }
       } break;
       case CommInfo::method::waitsome:
       case CommInfo::method::testsome:
       {
-        IdxT num_recvs = m_recvs.size();
-        for (IdxT i = 0; i < num_recvs; ++i) {
+        LOGPRINTF("%p Comm::postRecv %s\n", this, (async == detail::Async::no) ? "waitsome" : "testsome");
 
-          if (m_recvs[i].have_many()) {
-            m_recvs[i].allocate(policy_many{}, many_aloc);
-            if (!comminfo.mock_communication) {
-              m_recvs[i].Irecv(policy_many{}, comminfo.cart.comm, &m_recv_requests[i]);
-            }
-          } else {
-            m_recvs[i].allocate(policy_few{}, few_aloc);
-            if (!comminfo.mock_communication) {
-              m_recvs[i].Irecv(policy_few{}, comminfo.cart.comm, &m_recv_requests[i]);
-            }
-          }
-        }
+        m_recvs.message_group_many.allocate(con_many, con_comm, &messages_many[0], num_many, async);
+        m_recvs.message_group_many.Irecv(con_many, con_comm, &messages_many[0], num_many, async, &requests_many[0]);
+
+        m_recvs.message_group_few.allocate(con_few, con_comm, &messages_few[0], num_few, async);
+        m_recvs.message_group_few.Irecv(con_few, con_comm, &messages_few[0], num_few, async, &requests_few[0]);
       } break;
       case CommInfo::method::waitall:
       case CommInfo::method::testall:
       {
-        IdxT num_recvs = m_recvs.size();
-        for (IdxT i = 0; i < num_recvs; ++i) {
+        LOGPRINTF("%p Comm::postRecv %s\n", this, (async == detail::Async::no) ? "waitall" : "testall");
 
-          if (m_recvs[i].have_many()) {
-            m_recvs[i].allocate(policy_many{}, many_aloc);
-          } else {
-            m_recvs[i].allocate(policy_few{}, few_aloc);
-          }
-        }
-        for (IdxT i = 0; i < num_recvs; ++i) {
+        m_recvs.message_group_many.allocate(con_many, con_comm, &messages_many[0], num_many, async);
+        m_recvs.message_group_few.allocate(con_few, con_comm, &messages_few[0], num_few, async);
 
-          if (m_recvs[i].have_many()) {
-            if (!comminfo.mock_communication) {
-              m_recvs[i].Irecv(policy_many{}, comminfo.cart.comm, &m_recv_requests[i]);
-            }
-          } else {
-            if (!comminfo.mock_communication) {
-              m_recvs[i].Irecv(policy_few{}, comminfo.cart.comm, &m_recv_requests[i]);
-            }
-          }
-        }
+        m_recvs.message_group_many.Irecv(con_many, con_comm, &messages_many[0], num_many, async, &requests_many[0]);
+        m_recvs.message_group_few.Irecv(con_few, con_comm, &messages_few[0], num_few, async, &requests_few[0]);
       } break;
       default:
       {
         assert(0);
       } break;
     }
+    LOGPRINTF("%p Comm::postRecv end\n", this);
   }
 
 
 
-  void postSend()
+  void postSend(ExecContext<policy_many>& con_many, ExecContext<policy_few>& con_few)
   {
-    //FPRINTF(stdout, "posting sends\n");
+    LOGPRINTF("%p Comm::postSend begin\n", this);
 
-    m_send_requests.resize(m_recvs.size(), MPI_REQUEST_NULL);
+    IdxT num_many = m_sends.message_group_many.messages.size();
+    IdxT num_few = m_sends.message_group_few.messages.size();
 
-    switch (comminfo.post_send_method) {
+    IdxT num_sends = num_many + num_few;
+
+    if (!persistent) {
+      m_sends.messages.resize(num_sends, nullptr);
+      m_sends.requests.resize(num_sends, con_comm.send_request_null());
+    }
+
+    send_message_type** messages_many = &m_sends.messages[0];
+    send_message_type** messages_few  = &m_sends.messages[num_many];
+
+    send_request_type* requests_many = &m_sends.requests[0];
+    send_request_type* requests_few  = &m_sends.requests[num_many];
+
+    if (!persistent) {
+      for (IdxT i_many = 0; i_many < num_many; i_many++) {
+        messages_many[i_many] = &m_sends.message_group_many.messages[i_many];
+      }
+      for (IdxT i_few = 0; i_few < num_few; i_few++) {
+        messages_few[i_few] = &m_sends.message_group_few.messages[i_few];
+      }
+    }
+
+    switch (post_send_method) {
       case CommInfo::method::waitany:
       {
-        IdxT num_sends = m_sends.size();
-        for (IdxT i = 0; i < num_sends; ++i) {
+        LOGPRINTF("%p Comm::postSend waitany\n", this);
 
-          if (m_sends[i].have_many()) {
-            m_sends[i].allocate(policy_many{}, many_aloc);
-            m_sends[i].pack(policy_many{}, comminfo.cart.comm);
-            synchronize(policy_many{});
-            if (!comminfo.mock_communication) {
-              m_sends[i].Isend(policy_many{}, comminfo.cart.comm, &m_send_requests[i]);
-            }
-          } else {
-            m_sends[i].allocate(policy_few{}, few_aloc);
-            m_sends[i].pack(policy_few{}, comminfo.cart.comm);
-            synchronize(policy_few{});
-            if (!comminfo.mock_communication) {
-              m_sends[i].Isend(policy_few{}, comminfo.cart.comm, &m_send_requests[i]);
-            }
-          }
+        for (IdxT i_many = 0; i_many < num_many; i_many++) {
+          m_sends.message_group_many.allocate(con_many, con_comm, &messages_many[i_many], 1, detail::Async::no);
+          m_sends.message_group_many.pack(con_many, con_comm, &messages_many[i_many], 1, detail::Async::no);
+          m_sends.message_group_many.wait_pack_complete(con_many, con_comm, &messages_many[i_many], 1, detail::Async::no);
+          m_sends.message_group_many.Isend(con_many, con_comm, &messages_many[i_many], 1, detail::Async::no, &requests_many[i_many]);
+        }
+
+        for (IdxT i_few = 0; i_few < num_few; i_few++) {
+          m_sends.message_group_few.allocate(con_few, con_comm, &messages_few[i_few], 1, detail::Async::no);
+          m_sends.message_group_few.pack(con_few, con_comm, &messages_few[i_few], 1, detail::Async::no);
+          m_sends.message_group_few.wait_pack_complete(con_few, con_comm, &messages_few[i_few], 1, detail::Async::no);
+          m_sends.message_group_few.Isend(con_few, con_comm, &messages_few[i_few], 1, detail::Async::no, &requests_few[i_few]);
         }
       } break;
       case CommInfo::method::testany:
       {
-        IdxT num_sends = m_sends.size();
-        bool have_many = false;
-        bool have_few = false;
+        LOGPRINTF("%p Comm::postSend testany\n", this);
 
-        // allocate
-        for (IdxT i = 0; i < num_sends; ++i) {
+        m_sends.message_group_many.allocate(con_many, con_comm, &messages_many[0], num_many, detail::Async::yes);
+        m_sends.message_group_few.allocate(con_few, con_comm, &messages_few[0], num_few, detail::Async::yes);
 
-          if (m_sends[i].have_many()) {
-            m_sends[i].allocate(policy_many{}, many_aloc);
-            have_many = true;
-          } else {
-            m_sends[i].allocate(policy_few{}, few_aloc);
-            have_few = true;
-          }
-        }
+        IdxT num_many = m_sends.message_group_many.messages.size();
+        IdxT num_few = m_sends.message_group_few.messages.size();
 
-        // pack and send
-        if (have_many && have_few) {
-          persistent_launch(policy_few{}, policy_many{});
-        } else if (have_many) {
-          persistent_launch(policy_many{});
-        } else if (have_few) {
-          persistent_launch(policy_few{});
-        }
+        IdxT pack_many_send = 0;
+        IdxT pack_few_send = 0;
 
-        bool post_pack_complete = false;
-        IdxT pack_send = 0;
         IdxT post_many_send = 0;
         IdxT post_few_send = 0;
 
-        while (post_many_send < num_sends || post_few_send < num_sends) {
+        while (post_many_send < num_many || post_few_send < num_few) {
 
           // pack and record events
-          if (pack_send < num_sends) {
+          if (pack_many_send < num_many) {
 
-            if (m_sends[pack_send].have_many()) {
-              m_sends[pack_send].pack(policy_many{}, comminfo.cart.comm);
-              recordEvent(policy_many{}, m_many_events[pack_send]);
-            } else {
-              m_sends[pack_send].pack(policy_few{}, comminfo.cart.comm);
-              recordEvent(policy_few{}, m_few_events[pack_send]);
-            }
+            m_sends.message_group_many.pack(con_many, con_comm, &messages_many[pack_many_send], 1, detail::Async::yes);
+            ++pack_many_send;
 
-            ++pack_send;
+          } else
+          if (pack_few_send < num_few) {
 
-          } else if (!post_pack_complete) {
-
-            if (have_many && have_few) {
-              batch_launch(policy_few{}, policy_many{});
-            } else if (have_many) {
-              batch_launch(policy_many{});
-            } else if (have_few) {
-              batch_launch(policy_few{});
-            }
-
-            // stop persistent kernel
-            if (have_many && have_few) {
-              persistent_stop(policy_few{}, policy_many{});
-            } else if (have_many) {
-              persistent_stop(policy_many{});
-            } else if (have_few) {
-              persistent_stop(policy_few{});
-            }
-
-            post_pack_complete = true;
+            m_sends.message_group_few.pack(con_few, con_comm, &messages_few[pack_few_send], 1, detail::Async::yes);
+            ++pack_few_send;
           }
 
-          while (post_many_send < pack_send) {
+          int next_post_many_send = post_many_send;
 
-            if (m_sends[post_many_send].have_many()) {
+          // have_many query events
+          if (next_post_many_send < pack_many_send) {
 
-              if (queryEvent(policy_many{}, m_many_events[post_many_send])) {
-
-                if (!comminfo.mock_communication) {
-                  m_sends[post_many_send].Isend(policy_many{}, comminfo.cart.comm, &m_send_requests[post_many_send]);
-                }
-
-                ++post_many_send;
-
-              } else {
-                break;
-              }
-            } else {
-
-              ++post_many_send;
-            }
+            next_post_many_send += m_sends.message_group_many.wait_pack_complete(con_many, con_comm, &messages_many[next_post_many_send], pack_many_send-next_post_many_send, detail::Async::yes);
           }
 
-          while (post_few_send < pack_send) {
+          // have_many isends
+          if (post_many_send < next_post_many_send) {
 
-            if (!m_sends[post_few_send].have_many()) {
-
-              if (queryEvent(policy_few{}, m_few_events[post_few_send])) {
-
-                if (!comminfo.mock_communication) {
-                  m_sends[post_few_send].Isend(policy_few{}, comminfo.cart.comm, &m_send_requests[post_few_send]);
-                }
-
-                ++post_few_send;
-
-              } else {
-                break;
-              }
-
-            } else {
-
-              ++post_few_send;
-            }
+            m_sends.message_group_many.Isend(con_many, con_comm, &messages_many[post_many_send], next_post_many_send-post_many_send, detail::Async::yes, &requests_many[post_many_send]);
+            post_many_send = next_post_many_send;
           }
 
+          int next_post_few_send = post_few_send;
+
+          // have_few query events
+          if (next_post_few_send < pack_few_send) {
+
+            next_post_few_send += m_sends.message_group_few.wait_pack_complete(con_few, con_comm, &messages_few[next_post_few_send], pack_few_send-next_post_few_send, detail::Async::yes);
+          }
+
+          // have_few isends
+          if (post_few_send < next_post_few_send) {
+
+            m_sends.message_group_few.Isend(con_few, con_comm, &messages_few[post_few_send], next_post_few_send-post_few_send, detail::Async::yes, &requests_few[post_few_send]);
+            post_few_send = next_post_few_send;
+          }
         }
       } break;
       case CommInfo::method::waitsome:
       {
-        IdxT num_sends = m_sends.size();
+        LOGPRINTF("%p Comm::postSend waitsome\n", this);
 
-        {
-          // have many case, send after all packed
-          bool found_many = false;
+        m_sends.message_group_many.allocate(con_many, con_comm, &messages_many[0], num_many, detail::Async::no);
+        m_sends.message_group_many.pack(con_many, con_comm, &messages_many[0], num_many, detail::Async::no);
+        m_sends.message_group_many.wait_pack_complete(con_many, con_comm, &messages_many[0], num_many, detail::Async::no);
+        m_sends.message_group_many.Isend(con_many, con_comm, &messages_many[0], num_many, detail::Async::no, &requests_many[0]);
 
-          for (IdxT i = 0; i < num_sends; ++i) {
-
-            if (m_sends[i].have_many()) {
-              m_sends[i].allocate(policy_many{}, many_aloc);
-              m_sends[i].pack(policy_many{}, comminfo.cart.comm);
-              found_many = true;
-            }
-          }
-
-          if (found_many) {
-
-            synchronize(policy_many{});
-
-            for (IdxT i = 0; i < num_sends; ++i) {
-
-              if (m_sends[i].have_many()) {
-
-                if (!comminfo.mock_communication) {
-                  m_sends[i].Isend(policy_many{}, comminfo.cart.comm, &m_send_requests[i]);
-                }
-              }
-            }
-          }
-        }
-
-        {
-          // have_few case, send immediately
-          for (IdxT i = 0; i < num_sends; ++i) {
-
-            if (!m_sends[i].have_many()) {
-              m_sends[i].allocate(policy_few{}, few_aloc);
-              m_sends[i].pack(policy_few{}, comminfo.cart.comm);
-
-              synchronize(policy_few{});
-
-              if (!comminfo.mock_communication) {
-                m_sends[i].Isend(policy_few{}, comminfo.cart.comm, &m_send_requests[i]);
-              }
-            }
-          }
-        }
+        m_sends.message_group_few.allocate(con_few, con_comm, &messages_few[0], num_few, detail::Async::no);
+        m_sends.message_group_few.pack(con_few, con_comm, &messages_few[0], num_few, detail::Async::no);
+        m_sends.message_group_few.wait_pack_complete(con_few, con_comm, &messages_few[0], num_few, detail::Async::no);
+        m_sends.message_group_few.Isend(con_few, con_comm, &messages_few[0], num_few, detail::Async::no, &requests_few[0]);
       } break;
       case CommInfo::method::testsome:
       {
-        IdxT num_sends = m_sends.size();
+        LOGPRINTF("%p Comm::postSend testsome\n", this);
 
-        bool have_many = false;
-        bool have_few = false;
+        m_sends.message_group_many.allocate(con_many, con_comm, &messages_many[0], num_many, detail::Async::yes);
+        m_sends.message_group_few.allocate(con_few, con_comm, &messages_few[0], num_few, detail::Async::yes);
 
-        // allocate
-        for (IdxT i = 0; i < num_sends; ++i) {
-
-          if (m_sends[i].have_many()) {
-            m_sends[i].allocate(policy_many{}, many_aloc);
-            have_many = true;
-          } else {
-            m_sends[i].allocate(policy_few{}, few_aloc);
-            have_few = true;
-          }
-        }
+        IdxT num_many = m_sends.message_group_many.messages.size();
+        IdxT num_few = m_sends.message_group_few.messages.size();
 
         IdxT pack_many_send = 0;
         IdxT pack_few_send = 0;
+
         IdxT post_many_send = 0;
         IdxT post_few_send = 0;
 
-        if (have_many) {
+        while (post_many_send < num_many || post_few_send < num_few) {
 
-          persistent_launch(policy_many{});
+          // pack and record events
+          if (pack_many_send < num_many) {
 
-          while (pack_many_send < num_sends) {
+            m_sends.message_group_many.pack(con_many, con_comm, &messages_many[pack_many_send], num_many-pack_many_send, detail::Async::yes);
+            pack_many_send = num_many;
 
-            if (m_sends[pack_many_send].have_many()) {
+          } else
+          if (pack_few_send < num_few) {
 
-              m_sends[pack_many_send].pack(policy_many{}, comminfo.cart.comm);
-
-              recordEvent(policy_many{}, m_many_events[pack_many_send]);
-
-            }
-
-            ++pack_many_send;
-
-            // post sends if possible
-            while (post_many_send < pack_many_send) {
-
-              if (m_sends[post_many_send].have_many()) {
-
-                if (queryEvent(policy_many{}, m_many_events[post_many_send])) {
-
-                  if (!comminfo.mock_communication) {
-                    m_sends[post_many_send].Isend(policy_many{}, comminfo.cart.comm, &m_send_requests[post_many_send]);
-                  }
-
-                  ++post_many_send;
-
-                } else {
-
-                  break;
-                }
-              } else {
-
-                ++post_many_send;
-              }
-            }
+            m_sends.message_group_few.pack(con_few, con_comm, &messages_few[pack_few_send], num_few-pack_few_send, detail::Async::yes);
+            pack_few_send = num_few;
           }
 
-          batch_launch(policy_many{});
-          persistent_stop(policy_many{});
-        } else {
-          pack_many_send = num_sends;
-          post_many_send = num_sends;
-        }
+          int next_post_many_send = post_many_send;
 
-        if (have_few) {
+          // have_many query events
+          if (next_post_many_send < pack_many_send) {
 
-          persistent_launch(policy_few{});
-
-          while (pack_few_send < num_sends) {
-
-            if (!m_sends[pack_few_send].have_many()) {
-
-              m_sends[pack_few_send].pack(policy_few{}, comminfo.cart.comm);
-
-              recordEvent(policy_few{}, m_few_events[pack_few_send]);
-
-            }
-
-            ++pack_few_send;
-
-            // post more sends if possible
-            while (post_many_send < pack_many_send) {
-
-              if (m_sends[post_many_send].have_many()) {
-
-                if (queryEvent(policy_many{}, m_many_events[post_many_send])) {
-
-                  if (!comminfo.mock_communication) {
-                    m_sends[post_many_send].Isend(policy_many{}, comminfo.cart.comm, &m_send_requests[post_many_send]);
-                  }
-
-                  ++post_many_send;
-
-                } else {
-
-                  break;
-                }
-              } else {
-
-                ++post_many_send;
-              }
-            }
-
-            // post sends if possible
-            while (post_few_send < pack_few_send) {
-
-              if (!m_sends[post_few_send].have_many()) {
-
-                if (queryEvent(policy_few{}, m_few_events[post_few_send])) {
-
-                  if (!comminfo.mock_communication) {
-                    m_sends[post_few_send].Isend(policy_few{}, comminfo.cart.comm, &m_send_requests[post_few_send]);
-                  }
-
-                  ++post_few_send;
-
-                } else {
-
-                  break;
-                }
-              } else {
-
-                ++post_few_send;
-              }
-            }
+            next_post_many_send += m_sends.message_group_many.wait_pack_complete(con_many, con_comm, &messages_many[next_post_many_send], pack_many_send-next_post_many_send, detail::Async::yes);
           }
 
-          batch_launch(policy_few{});
-          persistent_stop(policy_few{});
-        } else {
-          pack_few_send = num_sends;
-          post_few_send = num_sends;
-        }
+          // have_many isends
+          if (post_many_send < next_post_many_send) {
 
-        // finish posting sends
-        while (post_many_send < num_sends || post_few_send < num_sends) {
-
-          while (post_many_send < pack_many_send) {
-
-            if (m_sends[post_many_send].have_many()) {
-
-              if (queryEvent(policy_many{}, m_many_events[post_many_send])) {
-
-                if (!comminfo.mock_communication) {
-                  m_sends[post_many_send].Isend(policy_many{}, comminfo.cart.comm, &m_send_requests[post_many_send]);
-                }
-
-                ++post_many_send;
-
-              } else {
-
-                break;
-              }
-            } else {
-
-              ++post_many_send;
-            }
+            m_sends.message_group_many.Isend(con_many, con_comm, &messages_many[post_many_send], next_post_many_send-post_many_send, detail::Async::yes, &requests_many[post_many_send]);
+            post_many_send = next_post_many_send;
           }
 
-          while (post_few_send < pack_few_send) {
+          int next_post_few_send = post_few_send;
 
-            if (!m_sends[post_few_send].have_many()) {
+          // have_few query events
+          if (next_post_few_send < pack_few_send) {
 
-              if (queryEvent(policy_few{}, m_few_events[post_few_send])) {
-
-                if (!comminfo.mock_communication) {
-                  m_sends[post_few_send].Isend(policy_few{}, comminfo.cart.comm, &m_send_requests[post_few_send]);
-                }
-
-                ++post_few_send;
-
-              } else {
-
-                break;
-              }
-            } else {
-
-              ++post_few_send;
-            }
+            next_post_few_send += m_sends.message_group_few.wait_pack_complete(con_few, con_comm, &messages_few[next_post_few_send], pack_few_send-next_post_few_send, detail::Async::yes);
           }
 
+          // have_few isends
+          if (post_few_send < next_post_few_send) {
+
+            m_sends.message_group_few.Isend(con_few, con_comm, &messages_few[post_few_send], next_post_few_send-post_few_send, detail::Async::yes, &requests_few[post_few_send]);
+            post_few_send = next_post_few_send;
+          }
         }
       } break;
       case CommInfo::method::waitall:
       {
-        IdxT num_sends = m_sends.size();
-        bool have_many = false;
-        bool have_few = false;
+        LOGPRINTF("%p Comm::postSend waitall\n", this);
 
-        for (IdxT i = 0; i < num_sends; ++i) {
+        m_sends.message_group_many.allocate(con_many, con_comm, &messages_many[0], num_many, detail::Async::no);
+        m_sends.message_group_few.allocate(con_few, con_comm, &messages_few[0], num_few, detail::Async::no);
 
-          if (m_sends[i].have_many()) {
-            m_sends[i].allocate(policy_many{}, many_aloc);
-            m_sends[i].pack(policy_many{}, comminfo.cart.comm);
-            have_many = true;
-          } else {
-            m_sends[i].allocate(policy_few{}, few_aloc);
-            m_sends[i].pack(policy_few{}, comminfo.cart.comm);
-            have_few = true;
-          }
-        }
+        m_sends.message_group_many.pack(con_many, con_comm, &messages_many[0], num_many, detail::Async::no);
+        m_sends.message_group_few.pack(con_few, con_comm, &messages_few[0], num_few, detail::Async::no);
 
-        if (have_many && have_few) {
-          synchronize(policy_few{}, policy_many{});
-        } else if (have_many) {
-          synchronize(policy_many{});
-        } else if (have_few) {
-          synchronize(policy_few{});
-        }
+        m_sends.message_group_many.wait_pack_complete(con_many, con_comm, &messages_many[0], num_many, detail::Async::no);
+        m_sends.message_group_few.wait_pack_complete(con_few, con_comm, &messages_few[0], num_few, detail::Async::no);
 
-        for (IdxT i = 0; i < num_sends; ++i) {
-
-          if (!comminfo.mock_communication) {
-            if (m_sends[i].have_many()) {
-              m_sends[i].Isend(policy_many{}, comminfo.cart.comm, &m_send_requests[i]);
-            } else {
-              m_sends[i].Isend(policy_few{}, comminfo.cart.comm, &m_send_requests[i]);
-            }
-          }
-        }
+        m_sends.message_group_many.Isend(con_many, con_comm, &messages_many[0], num_many, detail::Async::no, &requests_many[0]);
+        m_sends.message_group_few.Isend(con_few, con_comm, &messages_few[0], num_few, detail::Async::no, &requests_few[0]);
       } break;
       case CommInfo::method::testall:
       {
-        IdxT num_sends = m_sends.size();
-        bool have_many = false;
-        bool have_few = false;
+        LOGPRINTF("%p Comm::postSend testall\n", this);
 
-        // allocate
-        for (IdxT i = 0; i < num_sends; ++i) {
+        m_sends.message_group_many.allocate(con_many, con_comm, &messages_many[0], num_many, detail::Async::yes);
+        m_sends.message_group_few.allocate(con_few, con_comm, &messages_few[0], num_few, detail::Async::yes);
 
-          if (m_sends[i].have_many()) {
-            m_sends[i].allocate(policy_many{}, many_aloc);
-            have_many = true;
-          } else {
-            m_sends[i].allocate(policy_few{}, few_aloc);
-            have_few = true;
-          }
-        }
+        IdxT num_many = m_sends.message_group_many.messages.size();
+        IdxT num_few = m_sends.message_group_few.messages.size();
 
-        // pack and send
-        if (have_many && have_few) {
-          persistent_launch(policy_few{}, policy_many{});
-        } else if (have_many) {
-          persistent_launch(policy_many{});
-        } else if (have_few) {
-          persistent_launch(policy_few{});
-        }
+        IdxT pack_many_send = 0;
+        IdxT pack_few_send = 0;
 
-        IdxT pack_send = 0;
         IdxT post_many_send = 0;
         IdxT post_few_send = 0;
 
-        while (pack_send < num_sends) {
+        while (post_many_send < num_many || post_few_send < num_few) {
 
           // pack and record events
-          if (m_sends[pack_send].have_many()) {
-            m_sends[pack_send].pack(policy_many{}, comminfo.cart.comm);
-            recordEvent(policy_many{}, m_many_events[pack_send]);
-          } else {
-            m_sends[pack_send].pack(policy_few{}, comminfo.cart.comm);
-            recordEvent(policy_few{}, m_few_events[pack_send]);
+          if (pack_many_send < num_many) {
+
+            m_sends.message_group_many.pack(con_many, con_comm, &messages_many[pack_many_send], num_many-pack_many_send, detail::Async::yes);
+            pack_many_send = num_many;
+
+          }
+          if (pack_few_send < num_few) {
+
+            m_sends.message_group_few.pack(con_few, con_comm, &messages_few[pack_few_send], num_few-pack_few_send, detail::Async::yes);
+            pack_few_send = num_few;
           }
 
-          ++pack_send;
-        }
+          int next_post_many_send = post_many_send;
 
-        if (have_many && have_few) {
-          batch_launch(policy_few{}, policy_many{});
-        } else if (have_many) {
-          batch_launch(policy_many{});
-        } else if (have_few) {
-          batch_launch(policy_few{});
-        }
+          // have_many query events
+          if (next_post_many_send < pack_many_send) {
 
-        // stop persistent kernel
-        if (have_many && have_few) {
-          persistent_stop(policy_few{}, policy_many{});
-        } else if (have_many) {
-          persistent_stop(policy_many{});
-        } else if (have_few) {
-          persistent_stop(policy_few{});
-        }
-
-        // post all sends
-        while (post_many_send < num_sends || post_few_send < num_sends) {
-
-          while (post_many_send < num_sends) {
-
-            if (m_sends[post_many_send].have_many()) {
-
-              if (queryEvent(policy_many{}, m_many_events[post_many_send])) {
-
-                if (!comminfo.mock_communication) {
-                  m_sends[post_many_send].Isend(policy_many{}, comminfo.cart.comm, &m_send_requests[post_many_send]);
-                }
-
-                ++post_many_send;
-
-              } else {
-                break;
-              }
-            } else {
-
-              ++post_many_send;
-            }
+            next_post_many_send += m_sends.message_group_many.wait_pack_complete(con_many, con_comm, &messages_many[next_post_many_send], pack_many_send-next_post_many_send, detail::Async::yes);
           }
 
-          while (post_few_send < num_sends) {
+          // have_many isends
+          if (post_many_send < next_post_many_send) {
 
-            if (!m_sends[post_few_send].have_many()) {
-
-              if (queryEvent(policy_few{}, m_few_events[post_few_send])) {
-
-                if (!comminfo.mock_communication) {
-                  m_sends[post_few_send].Isend(policy_few{}, comminfo.cart.comm, &m_send_requests[post_few_send]);
-                }
-
-                ++post_few_send;
-
-              } else {
-                break;
-              }
-
-            } else {
-
-              ++post_few_send;
-            }
+            m_sends.message_group_many.Isend(con_many, con_comm, &messages_many[post_many_send], next_post_many_send-post_many_send, detail::Async::yes, &requests_many[post_many_send]);
+            post_many_send = next_post_many_send;
           }
 
+          int next_post_few_send = post_few_send;
+
+          // have_few query events
+          if (next_post_few_send < pack_few_send) {
+
+            next_post_few_send += m_sends.message_group_few.wait_pack_complete(con_few, con_comm, &messages_few[next_post_few_send], pack_few_send-next_post_few_send, detail::Async::yes);
+          }
+
+          // have_few isends
+          if (post_few_send < next_post_few_send) {
+
+            m_sends.message_group_few.Isend(con_few, con_comm, &messages_few[post_few_send], next_post_few_send-post_few_send, detail::Async::yes, &requests_few[post_few_send]);
+            post_few_send = next_post_few_send;
+          }
         }
       } break;
       default:
@@ -1164,234 +803,137 @@ struct Comm
        assert(0);
       } break;
     }
+    LOGPRINTF("%p Comm::postSend end\n", this);
   }
 
 
 
-  void waitRecv()
+  void waitRecv(ExecContext<policy_many>& con_many, ExecContext<policy_few>& con_few)
   {
-    //FPRINTF(stdout, "waiting receives\n");
+    LOGPRINTF("%p Comm::waitRecv begin\n", this);
 
-    bool have_many = false;
-    bool have_few = false;
+    IdxT num_many = m_recvs.message_group_many.messages.size();
+    IdxT num_few = m_recvs.message_group_few.messages.size();
 
-    switch (comminfo.wait_recv_method) {
+    IdxT num_recvs = num_many + num_few;
+
+    recv_message_type** messages = &m_recvs.messages[0];
+
+    recv_message_type** messages_many = &m_recvs.messages[0];
+    recv_message_type** messages_few  = &m_recvs.messages[num_many];
+
+    recv_request_type* requests = &m_recvs.requests[0];
+
+    using recv_status_type = typename policy_comm::recv_status_type;
+    std::vector<recv_status_type> recv_statuses(num_recvs, con_comm.recv_status_null());
+
+    const detail::Async async = (wait_recv_method == CommInfo::method::waitany ||
+                                 wait_recv_method == CommInfo::method::waitsome ||
+                                 wait_recv_method == CommInfo::method::waitall)
+                                ? detail::Async::no : detail::Async::yes;
+
+    switch (wait_recv_method) {
       case CommInfo::method::waitany:
       case CommInfo::method::testany:
       {
-        IdxT num_recvs = m_recvs.size();
-
-        for (IdxT i = 0; i < num_recvs; ++i) {
-          if (m_recvs[i].have_many()) {
-            have_many = true;
-          } else {
-            have_few = true;
-          }
-        }
-
-        if (have_many && have_few) {
-          persistent_launch(policy_few{}, policy_many{});
-        } else if (have_many) {
-          persistent_launch(policy_many{});
-        } else if (have_few) {
-          persistent_launch(policy_few{});
-        }
-
-        MPI_Status status;
+        LOGPRINTF("%p Comm::waitRecv %s\n", this, (async == detail::Async::no) ? "waitany" : "testany");
 
         IdxT num_done = 0;
         while (num_done < num_recvs) {
 
-          IdxT idx = num_done;
-          if (!comminfo.mock_communication) {
-            if (comminfo.wait_recv_method == CommInfo::method::waitany) {
-              idx = detail::MPI::Waitany( num_recvs, &m_recv_requests[0], &status);
-            } else {
-              idx = -1;
-              while(idx < 0 || idx >= num_recvs) {
-                idx = detail::MPI::Testany( num_recvs, &m_recv_requests[0], &status);
-              }
+          IdxT idx = num_recvs;
+          if (async == detail::Async::no) {
+            idx = recv_message_type::wait_recv_any(con_comm, num_recvs, &requests[0], &recv_statuses[0]);
+          } else {
+            while(idx < 0 || idx >= num_recvs) {
+              idx = recv_message_type::test_recv_any(con_comm, num_recvs, &requests[0], &recv_statuses[0]);
             }
           }
+          assert(0 <= idx && idx < num_recvs);
+          assert(requests > (recv_request_type*)0x1);
 
-          if (m_recvs[idx].have_many()) {
-            m_recvs[idx].unpack(policy_many{}, comminfo.cart.comm);
-            m_recvs[idx].deallocate(policy_many{}, many_aloc);
-            batch_launch(policy_many{});
-          } else {
-            m_recvs[idx].unpack(policy_few{}, comminfo.cart.comm);
-            m_recvs[idx].deallocate(policy_few{}, few_aloc);
-            batch_launch(policy_few{});
+          if (idx < num_many) {
+            m_recvs.message_group_many.unpack(con_many, con_comm, &messages[idx], 1, async);
+          } else if (idx < num_recvs) {
+            m_recvs.message_group_few.unpack(con_few, con_comm, &messages[idx], 1, async);
           }
 
           num_done += 1;
-
         }
 
-        // if (have_many && have_few) {
-        //   batch_launch(policy_few{}, policy_many{});
-        // } else if (have_many) {
-        //   batch_launch(policy_many{});
-        // } else if (have_few) {
-        //   batch_launch(policy_few{});
-        // }
-
-        if (have_many && have_few) {
-          persistent_stop(policy_few{}, policy_many{});
-        } else if (have_many) {
-          persistent_stop(policy_many{});
-        } else if (have_few) {
-          persistent_stop(policy_few{});
-        }
+        // deallocate at the end to avoid async memory reuse issues
+        m_recvs.message_group_many.deallocate(con_many, con_comm, &messages_many[0], num_many, async);
+        m_recvs.message_group_few.deallocate(con_few, con_comm, &messages_few[0], num_few, async);
       } break;
       case CommInfo::method::waitsome:
       case CommInfo::method::testsome:
       {
-        IdxT num_recvs = m_recvs.size();
+        LOGPRINTF("%p Comm::waitRecv %s\n", this, (async == detail::Async::no) ? "waitsome" : "testsome");
 
-        for (IdxT i = 0; i < num_recvs; ++i) {
-          if (m_recvs[i].have_many()) {
-            have_many = true;
+        std::vector<int> indices(num_recvs, -1);
+        std::vector<recv_message_type*> recvd_messages(num_recvs, nullptr);
+
+        recv_message_type** recvd_messages_many = &recvd_messages[0];
+        recv_message_type** recvd_messages_few = &recvd_messages[num_many];
+
+        int recvd_num_many = 0;
+        int recvd_num_few = 0;
+
+        while (recvd_num_many < num_many || recvd_num_few < num_few) {
+
+          IdxT num_recvd = 0;
+          if (async == detail::Async::no) {
+            num_recvd = recv_message_type::wait_recv_some(con_comm, num_recvs, &requests[0], &indices[0], &recv_statuses[0]);
           } else {
-            have_few = true;
+            num_recvd = recv_message_type::test_recv_some(con_comm, num_recvs, &requests[0], &indices[0], &recv_statuses[0]);
           }
-        }
 
-        if (have_many && have_few) {
-          persistent_launch(policy_few{}, policy_many{});
-        } else if (have_many) {
-          persistent_launch(policy_many{});
-        } else if (have_few) {
-          persistent_launch(policy_few{});
-        }
+          int next_recvd_num_many = recvd_num_many;
+          int next_recvd_num_few = recvd_num_few;
 
-        std::vector<MPI_Status> recv_statuses(m_recv_requests.size());
-        std::vector<int> indices(m_recv_requests.size(), -1);
-
-        IdxT num_done = 0;
-        while (num_done < num_recvs) {
-
-          IdxT num = num_recvs;
-          if (!comminfo.mock_communication) {
-            if (comminfo.wait_recv_method == CommInfo::method::waitsome) {
-              num = detail::MPI::Waitsome( num_recvs, &m_recv_requests[0], &indices[0], &recv_statuses[0]);
+          // put received messages is lists
+          for (IdxT i = 0; i < num_recvd; ++i) {
+            if (indices[i] < num_many) {
+              recvd_messages_many[next_recvd_num_many++] = messages[indices[i]];
+            } else if (indices[i] < num_recvs) {
+              recvd_messages_few[next_recvd_num_few++] = messages[indices[i]];
             } else {
-              while( 0 == (num = detail::MPI::Testsome( num_recvs, &m_recv_requests[0], &indices[0], &recv_statuses[0])) );
-            }
-          } else {
-            for (IdxT i = 0; i < num; ++i) {
-              indices[i] = num_done + i;
+              assert(0 <= indices[i] && indices[i] < num_recvs);
             }
           }
 
-          bool inner_have_many = false;
-          bool inner_have_few = false;
-
-          for (IdxT i = 0; i < num; ++i) {
-
-            if (m_recvs[indices[i]].have_many()) {
-
-              m_recvs[indices[i]].unpack(policy_many{}, comminfo.cart.comm);
-              m_recvs[indices[i]].deallocate(policy_many{}, many_aloc);
-
-              inner_have_many = true;
-
-              num_done += 1;
-            }
+          if (recvd_num_many < next_recvd_num_many) {
+            m_recvs.message_group_many.unpack(con_many, con_comm, &recvd_messages_many[recvd_num_many], next_recvd_num_many-recvd_num_many, async);
+            recvd_num_many = next_recvd_num_many;
           }
 
-          if (inner_have_many) {
-            batch_launch(policy_many{});
-          }
-
-          for (IdxT i = 0; i < num; ++i) {
-
-            if (!m_recvs[indices[i]].have_many()) {
-
-              m_recvs[indices[i]].unpack(policy_few{}, comminfo.cart.comm);
-              m_recvs[indices[i]].deallocate(policy_few{}, few_aloc);
-
-              inner_have_few = true;
-
-              num_done += 1;
-            }
-          }
-
-          if (inner_have_few) {
-            batch_launch(policy_few{});
+          if (recvd_num_few < next_recvd_num_few) {
+            m_recvs.message_group_few.unpack(con_few, con_comm, &recvd_messages_few[recvd_num_few], next_recvd_num_few-recvd_num_few, async);
+            recvd_num_few = next_recvd_num_few;
           }
         }
 
-        if (have_many && have_few) {
-          persistent_stop(policy_few{}, policy_many{});
-        } else if (have_many) {
-          persistent_stop(policy_many{});
-        } else if (have_few) {
-          persistent_stop(policy_few{});
-        }
+        // deallocate at the end to avoid async memory reuse issues
+        m_recvs.message_group_many.deallocate(con_many, con_comm, &messages_many[0], num_many, async);
+        m_recvs.message_group_few.deallocate(con_few, con_comm, &messages_few[0], num_few, async);
       } break;
       case CommInfo::method::waitall:
       case CommInfo::method::testall:
       {
-        IdxT num_recvs = m_recvs.size();
+        LOGPRINTF("%p Comm::waitRecv %s\n", this, (async == detail::Async::no) ? "waitall" : "testall");
 
-        for (IdxT i = 0; i < num_recvs; ++i) {
-          if (m_recvs[i].have_many()) {
-            have_many = true;
-          } else {
-            have_few = true;
-          }
+        if (async == detail::Async::no) {
+          recv_message_type::wait_recv_all(con_comm, num_recvs, &requests[0], &recv_statuses[0]);
+        } else {
+          while (!recv_message_type::test_recv_all(con_comm, num_recvs, &requests[0], &recv_statuses[0]));
         }
 
-        if (have_many && have_few) {
-          persistent_launch(policy_few{}, policy_many{});
-        } else if (have_many) {
-          persistent_launch(policy_many{});
-        } else if (have_few) {
-          persistent_launch(policy_few{});
-        }
+        m_recvs.message_group_many.unpack(con_many, con_comm, &messages_many[0], num_many, async);
+        m_recvs.message_group_few.unpack(con_few, con_comm, &messages_few[0], num_few, async);
 
-        std::vector<MPI_Status> recv_statuses(m_recv_requests.size());
-
-        if (!comminfo.mock_communication) {
-          if (comminfo.wait_recv_method == CommInfo::method::waitall) {
-            detail::MPI::Waitall( num_recvs, &m_recv_requests[0], &recv_statuses[0]);
-          } else {
-            while (!detail::MPI::Testall( num_recvs, &m_recv_requests[0], &recv_statuses[0]));
-          }
-        }
-
-        IdxT num_done = 0;
-        while (num_done < num_recvs) {
-
-          if (m_recvs[num_done].have_many()) {
-            m_recvs[num_done].unpack(policy_many{}, comminfo.cart.comm);
-            m_recvs[num_done].deallocate(policy_many{}, many_aloc);
-            have_many = true;
-          } else {
-            m_recvs[num_done].unpack(policy_few{}, comminfo.cart.comm);
-            m_recvs[num_done].deallocate(policy_few{}, few_aloc);
-            have_few = true;
-          }
-
-          num_done += 1;
-        }
-
-        if (have_many && have_few) {
-          batch_launch(policy_few{}, policy_many{});
-        } else if (have_many) {
-          batch_launch(policy_many{});
-        } else if (have_few) {
-          batch_launch(policy_few{});
-        }
-
-        if (have_many && have_few) {
-          persistent_stop(policy_few{}, policy_many{});
-        } else if (have_many) {
-          persistent_stop(policy_many{});
-        } else if (have_few) {
-          persistent_stop(policy_few{});
-        }
+        // deallocate at the end to avoid async memory reuse issues
+        m_recvs.message_group_many.deallocate(con_many, con_comm, &messages_many[0], num_many, async);
+        m_recvs.message_group_few.deallocate(con_few, con_comm, &messages_few[0], num_few, async);
       } break;
       default:
       {
@@ -1399,121 +941,138 @@ struct Comm
       } break;
     }
 
-    m_recv_requests.clear();
-
-    if (have_many && have_few) {
-      synchronize(policy_few{}, policy_many{});
-    } else if (have_many) {
-      synchronize(policy_many{});
-    } else if (have_few) {
-      synchronize(policy_few{});
+    if (!persistent) {
+      m_recvs.messages.clear();
+      m_recvs.requests.clear();
     }
+
+    LOGPRINTF("%p Comm::waitRecv synchronize\n", this);
+
+    if (num_few > 0) {
+      con_few.synchronize();
+    }
+    if (num_many > 0) {
+      con_many.synchronize();
+    }
+
+    LOGPRINTF("%p Comm::waitRecv end\n", this);
   }
 
 
 
-  void waitSend()
+  void waitSend(ExecContext<policy_many>& con_many, ExecContext<policy_few>& con_few)
   {
-    //FPRINTF(stdout, "posting sends\n");
+    LOGPRINTF("%p Comm::waitSend begin\n", this);
 
-    switch (comminfo.wait_send_method) {
+    IdxT num_many = m_sends.message_group_many.messages.size();
+    IdxT num_few = m_sends.message_group_few.messages.size();
+
+    IdxT num_sends = num_many + num_few;
+
+    send_message_type** messages = &m_sends.messages[0];
+
+    send_message_type** messages_many = &m_sends.messages[0];
+    send_message_type** messages_few  = &m_sends.messages[num_many];
+
+    send_request_type* requests = &m_sends.requests[0];
+
+    using send_status_type = typename policy_comm::send_status_type;
+    std::vector<send_status_type> send_statuses(num_sends, con_comm.send_status_null());
+
+    const detail::Async async = (wait_send_method == CommInfo::method::waitany ||
+                                 wait_send_method == CommInfo::method::waitsome ||
+                                 wait_send_method == CommInfo::method::waitall)
+                                ? detail::Async::no : detail::Async::yes;
+
+    switch (wait_send_method) {
       case CommInfo::method::waitany:
       case CommInfo::method::testany:
       {
-        IdxT num_sends = m_sends.size();
+        LOGPRINTF("%p Comm::waitSend %s\n", this, (async == detail::Async::no) ? "waitany" : "testany");
+
         IdxT num_done = 0;
-
-        MPI_Status status;
-
         while (num_done < num_sends) {
 
-          IdxT idx = num_done;
-          if (!comminfo.mock_communication) {
-            if (comminfo.wait_send_method == CommInfo::method::waitany) {
-              idx = detail::MPI::Waitany( num_sends, &m_send_requests[0], &status);
-            } else {
-              idx = -1;
-              while(idx < 0 || idx >= num_sends) {
-                idx = detail::MPI::Testany( num_sends, &m_send_requests[0], &status);
-              }
+          IdxT idx = num_sends;
+          if (wait_send_method == CommInfo::method::waitany) {
+            idx = send_message_type::wait_send_any(con_comm, num_sends, &requests[0], &send_statuses[0]);
+          } else {
+            while(idx < 0 || idx >= num_sends) {
+              idx = send_message_type::test_send_any(con_comm, num_sends, &requests[0], &send_statuses[0]);
             }
           }
 
-          if (m_sends[idx].have_many()) {
-            m_sends[idx].deallocate(policy_many{}, many_aloc);
+          if (idx < num_many) {
+            m_sends.message_group_many.deallocate(con_many, con_comm, &messages[idx], 1, async);
+          } else if (idx < num_sends) {
+            m_sends.message_group_few.deallocate(con_few, con_comm, &messages[idx], 1, async);
           } else {
-            m_sends[idx].deallocate(policy_few{}, few_aloc);
+            assert(0 <= idx || idx < num_sends);
           }
 
           num_done += 1;
-
         }
       } break;
       case CommInfo::method::waitsome:
       case CommInfo::method::testsome:
       {
-        IdxT num_sends = m_sends.size();
-        IdxT num_done = 0;
+        LOGPRINTF("%p Comm::waitSend %s\n", this, (async == detail::Async::no) ? "waitsome" : "testsome");
 
-        std::vector<MPI_Status> send_statuses(m_send_requests.size());
-        std::vector<int> indices(m_send_requests.size(), -1);
+        std::vector<int> indices(num_sends, -1);
+        std::vector<send_message_type*> sent_messages(num_sends, nullptr);
 
-        while (num_done < num_sends) {
+        send_message_type** sent_messages_many = &sent_messages[0];
+        send_message_type** sent_messages_few = &sent_messages[num_many];
 
-          IdxT num = num_sends;
-          if (!comminfo.mock_communication) {
-            if (comminfo.wait_send_method == CommInfo::method::waitsome) {
-              num = detail::MPI::Waitsome( num_sends, &m_send_requests[0], &indices[0], &send_statuses[0]);
-            } else {
-              num = detail::MPI::Testsome( num_sends, &m_send_requests[0], &indices[0], &send_statuses[0]);
-            }
+        int sent_num_many = 0;
+        int sent_num_few = 0;
+
+        while (sent_num_many < num_many || sent_num_few < num_few) {
+
+          IdxT num_sent = 0;
+          if (wait_send_method == CommInfo::method::waitsome) {
+            num_sent = send_message_type::wait_send_some(con_comm, num_sends, &requests[0], &indices[0], &send_statuses[0]);
           } else {
-            for (IdxT i = 0; i < num; ++i) {
-              indices[i] = num_done + i;
+            num_sent = send_message_type::test_send_some(con_comm, num_sends, &requests[0], &indices[0], &send_statuses[0]);
+          }
+
+          int next_sent_num_many = sent_num_many;
+          int next_sent_num_few = sent_num_few;
+
+          // put received messages is lists
+          for (IdxT i = 0; i < num_sent; ++i) {
+            if (indices[i] < num_many) {
+              sent_messages_many[next_sent_num_many++] = messages[indices[i]];
+            } else if (indices[i] < num_sends) {
+              sent_messages_few[next_sent_num_few++] = messages[indices[i]];
+            } else {
+              assert(0 <= indices[i] && indices[i] < num_sends);
             }
           }
 
-          for (IdxT i = 0; i < num; ++i) {
-
-            IdxT idx = indices[i];
-            if (m_sends[idx].have_many()) {
-              m_sends[idx].deallocate(policy_many{}, many_aloc);
-            } else {
-              m_sends[idx].deallocate(policy_few{}, few_aloc);
-            }
-
-            num_done += 1;
-
+          if (sent_num_many < next_sent_num_many) {
+            m_sends.message_group_many.deallocate(con_many, con_comm, &sent_messages_many[sent_num_many], next_sent_num_many-sent_num_many, async);
+            sent_num_many = next_sent_num_many;
+          }
+          if (sent_num_few < next_sent_num_few) {
+            m_sends.message_group_few.deallocate(con_few, con_comm, &sent_messages_few[sent_num_few], next_sent_num_few-sent_num_few, async);
+            sent_num_few = next_sent_num_few;
           }
         }
       } break;
       case CommInfo::method::waitall:
       case CommInfo::method::testall:
       {
-        IdxT num_sends = m_sends.size();
-        IdxT num_done = 0;
+        LOGPRINTF("%p Comm::waitSend %s\n", this, (async == detail::Async::no) ? "waitall" : "testall");
 
-        std::vector<MPI_Status> send_statuses(m_send_requests.size());
-
-        if (!comminfo.mock_communication) {
-          if (comminfo.wait_send_method == CommInfo::method::waitall) {
-            detail::MPI::Waitall( num_sends, &m_send_requests[0], &send_statuses[0]);
-          } else {
-            while(!detail::MPI::Testall( num_sends, &m_send_requests[0], &send_statuses[0]));
-          }
+        if (wait_send_method == CommInfo::method::waitall) {
+          send_message_type::wait_send_all(con_comm, num_sends, &requests[0], &send_statuses[0]);
+        } else {
+          while(!send_message_type::test_send_all(con_comm, num_sends, &requests[0], &send_statuses[0]));
         }
 
-        while (num_done < num_sends) {
-
-          IdxT idx = num_done;
-          if (m_sends[idx].have_many()) {
-            m_sends[idx].deallocate(policy_many{}, many_aloc);
-          } else {
-            m_sends[idx].deallocate(policy_few{}, few_aloc);
-          }
-
-          num_done += 1;
-        }
+        m_sends.message_group_many.deallocate(con_many, con_comm, &messages_many[0], num_many, async);
+        m_sends.message_group_few.deallocate(con_few, con_comm, &messages_few[0], num_few, async);
       } break;
       default:
       {
@@ -1521,27 +1080,29 @@ struct Comm
       } break;
     }
 
-    m_send_requests.clear();
-  }
+    if (!persistent) {
+      m_sends.messages.clear();
+      m_sends.requests.clear();
+    }
 
-  ~Comm()
-  {
-    size_t num_events = m_many_events.size();
-    for(size_t i = 0; i != num_events; ++i) {
-      destroyEvent(policy_many{}, m_many_events[i]);
-    }
-    num_events = m_few_events.size();
-    for(size_t i = 0; i != num_events; ++i) {
-      destroyEvent(policy_few{}, m_few_events[i]);
-    }
-    for(message_type& msg : m_sends) {
-      msg.destroy();
-    }
-    for(message_type& msg : m_recvs) {
-      msg.destroy();
-    }
+    LOGPRINTF("%p Comm::waitSend end\n", this);
   }
 };
+
+namespace COMB {
+
+struct CommunicatorsAvailable
+{
+  bool mock = false;
+  bool mpi = false;
+  bool mpi_persistent = false;
+  bool gdsync = false;
+  bool gpump = false;
+  bool mp = false;
+  bool umr = false;
+};
+
+} // namespace COMB
 
 #endif // _COMM_HPP
 

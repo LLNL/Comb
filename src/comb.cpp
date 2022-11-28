@@ -1,5 +1,5 @@
 //////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2018, Lawrence Livermore National Security, LLC.
+// Copyright (c) 2018-2022, Lawrence Livermore National Security, LLC.
 //
 // Produced at the Lawrence Livermore National Laboratory
 //
@@ -13,7 +13,8 @@
 // Please also see the LICENSE file for MIT license.
 //////////////////////////////////////////////////////////////////////////////
 
-#include "config.hpp"
+#include "comb.hpp"
+#include "CommFactory.hpp"
 
 #include <cstdio>
 #include <cstdlib>
@@ -24,659 +25,82 @@
 #include <unistd.h>
 #include <sched.h>
 
-#include <mpi.h>
-
-#ifdef COMB_ENABLE_OPENMP
-#include <omp.h>
-#endif
-
-#include "memory.hpp"
-#include "for_all.hpp"
-#include "profiling.hpp"
-#include "MeshInfo.hpp"
-#include "MeshData.hpp"
-#include "comm.hpp"
-#include "CommFactory.hpp"
-#include "SetReset.hpp"
-
-#ifdef COMB_ENABLE_CUDA
-#include "batch_utils.hpp"
-#endif
-
 #define PRINT_THREAD_MAP
 
 #ifdef PRINT_THREAD_MAP
 #include <linux/sched.h>
 #endif
 
-namespace detail {
-
-  struct set_copy {
-     DataT* data;
-     const DataT* other;
-     set_copy(DataT* data_, const DataT* other_) : data(data_), other(other_) {}
-     COMB_HOST COMB_DEVICE
-     void operator()(IdxT i, IdxT) const {
-       IdxT zone = i;
-       DataT next = other[zone];
-       // FPRINTF(stdout, "%p[%i] = %f\n", data, zone, next);
-       data[zone] = next;
-     }
-  };
-
-  struct set_0 {
-     DataT* data;
-     set_0(DataT* data_) : data(data_) {}
-     COMB_HOST COMB_DEVICE
-     void operator()(IdxT i, IdxT) const {
-       IdxT zone = i;
-       DataT next = 0.0;
-       // FPRINTF(stdout, "%p[%i] = %f\n", data, zone, next);
-       data[zone] = next;
-     }
-  };
-
-  struct set_n1 {
-     DataT* data;
-     set_n1(DataT* data_) : data(data_) {}
-     COMB_HOST COMB_DEVICE
-     void operator()(IdxT i, IdxT) const {
-       IdxT zone = i;
-       DataT next = -1.0;
-       // FPRINTF(stdout, "%p[%i] = %f\n", data, zone, next);
-       data[zone] = next;
-     }
-  };
-
-  struct set_1 {
-     IdxT ilen, ijlen;
-     DataT* data;
-     set_1(IdxT ilen_, IdxT ijlen_, DataT* data_) : ilen(ilen_), ijlen(ijlen_), data(data_) {}
-     COMB_HOST COMB_DEVICE
-     void operator()(IdxT k, IdxT j, IdxT i, IdxT idx) const {
-       COMB::ignore_unused(idx);
-       IdxT zone = i + j * ilen + k * ijlen;
-       DataT next = 1.0;
-       // FPRINTF(stdout, "%p[%i] = %f\n", data, zone, next);
-       data[zone] = next;
-     }
-  };
-
-  struct reset_1 {
-     IdxT ilen, ijlen;
-     DataT* data;
-     IdxT imin, jmin, kmin;
-     IdxT imax, jmax, kmax;
-     reset_1(IdxT ilen_, IdxT ijlen_, DataT* data_, IdxT imin_, IdxT jmin_, IdxT kmin_, IdxT imax_, IdxT jmax_, IdxT kmax_)
-       : ilen(ilen_), ijlen(ijlen_), data(data_)
-       , imin(imin_), jmin(jmin_), kmin(kmin_)
-       , imax(imax_), jmax(jmax_), kmax(kmax_)
-     {}
-     COMB_HOST COMB_DEVICE
-     void operator()(IdxT k, IdxT j, IdxT i, IdxT idx) const {
-       COMB::ignore_unused(idx);
-       IdxT zone = i + j * ilen + k * ijlen;
-       // DataT expected, found, next;
-       // if (k >= kmin && k < kmax &&
-       //     j >= jmin && j < jmax &&
-       //     i >= imin && i < imax) {
-       //   expected = 1.0; found = data[zone]; next = 1.0;
-       // } else {
-       //   expected = 0.0; found = data[zone]; next = -1.0;
-       // }
-       // if (found != expected) {
-       //   FPRINTF(stdout, "zone %i(%i %i %i) = %f expected %f\n", zone, i, j, k, found, expected);
-       // }
-       //FPRINTF(stdout, "%p[%i] = %f\n", data, zone, 1.0);
-       DataT next = 1.0;
-       data[zone] = next;
-     }
-  };
-
-} // namespace detail
-
-template < typename pol_loop, typename pol_many, typename pol_few >
-void do_cycles(CommInfo const& comm_info, MeshInfo& info, IdxT num_vars, IdxT ncycles, Allocator& aloc_mesh, Allocator& aloc_many, Allocator& aloc_few, Timer& tm, Timer& tm_total)
-{
-    tm_total.clear();
-    tm.clear();
-
-    char rname[1024] = ""; snprintf(rname, 1024, "Buffers %s %s %s %s", pol_many::get_name(), aloc_many.name(), pol_few::get_name(), aloc_few.name());
-    char test_name[1024] = ""; snprintf(test_name, 1024, "Mesh %s %s %s", pol_loop::get_name(), aloc_mesh.name(), rname);
-    FPRINTF(stdout, "Starting test %s\n", test_name);
-
-    Range r0(test_name, Range::orange);
-
-    Comm<pol_many, pol_few> comm(comm_info, aloc_mesh, aloc_many, aloc_few);
-
-    comm.comminfo.barrier();
-
-    tm_total.start("start-up");
-
-    std::vector<MeshData> vars;
-    vars.reserve(num_vars);
-
-    {
-      CommFactory factory(comm.comminfo);
-
-      for (IdxT i = 0; i < num_vars; ++i) {
-
-        vars.push_back(MeshData(info, aloc_mesh));
-
-        vars[i].allocate();
-
-        DataT* data = vars[i].data();
-        IdxT totallen = info.totallen;
-
-        for_all(pol_loop{}, 0, totallen,
-                            detail::set_n1(data));
-
-        factory.add_var(vars[i]);
-
-        synchronize(pol_loop{});
-      }
-
-      factory.populate(comm);
-    }
-
-    tm_total.stop();
-
-    comm.comminfo.barrier();
-
-    Range r1("test comm", Range::indigo);
-
-    tm_total.start("test-comm");
-
-    { // test comm
-
-      bool mock_communication = comm.comminfo.mock_communication;
-      IdxT imin = info.min[0];
-      IdxT jmin = info.min[1];
-      IdxT kmin = info.min[2];
-      IdxT imax = info.max[0];
-      IdxT jmax = info.max[1];
-      IdxT kmax = info.max[2];
-      IdxT ilen = info.len[0];
-      IdxT jlen = info.len[1];
-      IdxT klen = info.len[2];
-      IdxT iglobal_offset = info.global_offset[0];
-      IdxT jglobal_offset = info.global_offset[1];
-      IdxT kglobal_offset = info.global_offset[2];
-      IdxT ilen_global = info.global.sizes[0];
-      IdxT jlen_global = info.global.sizes[1];
-      IdxT klen_global = info.global.sizes[2];
-      IdxT iperiodic = info.global.periodic[0];
-      IdxT jperiodic = info.global.periodic[1];
-      IdxT kperiodic = info.global.periodic[2];
-      IdxT ighost_width = info.ghost_widths[0];
-      IdxT jghost_width = info.ghost_widths[1];
-      IdxT kghost_width = info.ghost_widths[2];
-      IdxT ijlen = info.stride[2];
-      IdxT ijlen_global = ilen_global * jlen_global;
-
-
-      Range r2("pre-comm", Range::red);
-      // tm.start("pre-comm");
-
-      for (IdxT i = 0; i < num_vars; ++i) {
-
-        DataT* data = vars[i].data();
-        IdxT var_i = i + 1;
-
-        for_all_3d(pol_loop{}, 0, klen,
-                               0, jlen,
-                               0, ilen,
-                               [=] COMB_HOST COMB_DEVICE (IdxT k, IdxT j, IdxT i, IdxT idx) {
-          COMB::ignore_unused(idx);
-          IdxT zone = i + j * ilen + k * ijlen;
-          IdxT iglobal = i + iglobal_offset;
-          if (iperiodic) {
-            iglobal = iglobal % ilen_global;
-            if (iglobal < 0) iglobal += ilen_global;
-          }
-          IdxT jglobal = j + jglobal_offset;
-          if (jperiodic) {
-            jglobal = jglobal % jlen_global;
-            if (jglobal < 0) jglobal += jlen_global;
-          }
-          IdxT kglobal = k + kglobal_offset;
-          if (kperiodic) {
-            kglobal = kglobal % klen_global;
-            if (kglobal < 0) kglobal += klen_global;
-          }
-          IdxT zone_global = iglobal + jglobal * ilen_global + kglobal * ijlen_global;
-          DataT expected, found, next;
-          int branchid = -1;
-          if (k >= kmin+kghost_width && k < kmax-kghost_width &&
-              j >= jmin+jghost_width && j < jmax-jghost_width &&
-              i >= imin+ighost_width && i < imax-ighost_width) {
-            // interior non-communicated zones
-            expected = -1.0; found = data[zone]; next =-(zone_global+var_i);
-            branchid = 0;
-          } else if (k >= kmin && k < kmax &&
-                     j >= jmin && j < jmax &&
-                     i >= imin && i < imax) {
-            // interior communicated zones
-            expected = -1.0; found = data[zone]; next = zone_global + var_i;
-            branchid = 1;
-          } else if (iglobal < 0 || iglobal >= ilen_global ||
-                     jglobal < 0 || jglobal >= jlen_global ||
-                     kglobal < 0 || kglobal >= klen_global) {
-            // out of global bounds exterior zones, some may be owned others not
-            // some may be communicated if at least one dimension is periodic
-            // and another is non-periodic
-            expected = -1.0; found = data[zone]; next = zone_global + var_i;
-            branchid = 2;
-          } else {
-            // in global bounds exterior zones
-            expected = -1.0; found = data[zone]; next =-(zone_global+var_i);
-            branchid = 3;
-          }
-          if (!mock_communication) {
-            if (found != expected) {
-              FPRINTF(stdout, "%p %i zone %i(%i %i %i) g%i(%i %i %i) = %f expected %f next %f\n", data, branchid, zone, i, j, k, zone_global, iglobal, jglobal, kglobal, found, expected, next);
-            }
-            // FPRINTF(stdout, "%p[%i] = %f\n", data, zone, 1.0);
-            assert(found == expected);
-          }
-          data[zone] = next;
-        });
-      }
-
-      synchronize(pol_loop{});
-
-      // tm.stop();
-      r2.restart("post-recv", Range::pink);
-      // tm.start("post-recv");
-
-      comm.postRecv();
-
-      // tm.stop();
-      r2.restart("post-send", Range::pink);
-      // tm.start("post-send");
-
-      comm.postSend();
-
-      // tm.stop();
-      r2.stop();
-
-      // for (IdxT i = 0; i < num_vars; ++i) {
-
-      //   DataT* data = vars[i].data();
-      //   IdxT var_i = i + 1;
-
-      //   for_all_3d(pol_loop{}, 0, klen,
-      //                          0, jlen,
-      //                          0, ilen,
-      //                          [=] COMB_HOST COMB_DEVICE (IdxT k, IdxT j, IdxT i, IdxT idx) {
-      //     COMB::ignore_unused(idx);
-      //     IdxT zone = i + j * ilen + k * ijlen;
-      //     IdxT iglobal = i + iglobal_offset;
-      //     if (iperiodic) {
-      //       iglobal = iglobal % ilen_global;
-      //       if (iglobal < 0) iglobal += ilen_global;
-      //     }
-      //     IdxT jglobal = j + jglobal_offset;
-      //     if (jperiodic) {
-      //       jglobal = jglobal % jlen_global;
-      //       if (jglobal < 0) jglobal += jlen_global;
-      //     }
-      //     IdxT kglobal = k + kglobal_offset;
-      //     if (kperiodic) {
-      //       kglobal = kglobal % klen_global;
-      //       if (kglobal < 0) kglobal += klen_global;
-      //     }
-      //     IdxT zone_global = iglobal + jglobal * ilen_global + kglobal * ijlen_global;
-      //     DataT expected, found, next;
-      //     int branchid = -1;
-      //     if (k >= kmin+kghost_width && k < kmax-kghost_width &&
-      //         j >= jmin+jghost_width && j < jmax-jghost_width &&
-      //         i >= imin+ighost_width && i < imax-ighost_width) {
-      //       // interior non-communicated zones should not have changed value
-      //       expected =-(zone_global+var_i); found = data[zone]; next = -1.0;
-      //       branchid = 0;
-      //       if (!mock_communication) {
-      //         if (found != expected) {
-      //           FPRINTF(stdout, "%p %i zone %i(%i %i %i) g%i(%i %i %i) = %f expected %f next %f\n", data, branchid, zone, i, j, k, zone_global, iglobal, jglobal, kglobal, found, expected, next);
-      //         }
-      //         // FPRINTF(stdout, "%p[%i] = %f\n", data, zone, 1.0);
-      //         assert(found == expected);
-      //       }
-      //       data[zone] = next;
-      //     }
-      //     // other zones may be participating in communication, do not access
-      //   });
-      // }
-
-      // synchronize(pol_loop{});
-
-
-      r2.start("wait-recv", Range::pink);
-      // tm.start("wait-recv");
-
-      comm.waitRecv();
-
-      // tm.stop();
-      r2.restart("wait-send", Range::pink);
-      // tm.start("wait-send");
-
-      comm.waitSend();
-
-      // tm.stop();
-      r2.restart("post-comm", Range::red);
-      // tm.start("post-comm");
-
-      for (IdxT i = 0; i < num_vars; ++i) {
-
-        DataT* data = vars[i].data();
-        IdxT var_i = i + 1;
-
-        for_all_3d(pol_loop{}, 0, klen,
-                               0, jlen,
-                               0, ilen,
-                               [=] COMB_HOST COMB_DEVICE (IdxT k, IdxT j, IdxT i, IdxT idx) {
-          COMB::ignore_unused(idx);
-          IdxT zone = i + j * ilen + k * ijlen;
-          IdxT iglobal = i + iglobal_offset;
-          if (iperiodic) {
-            iglobal = iglobal % ilen_global;
-            if (iglobal < 0) iglobal += ilen_global;
-          }
-          IdxT jglobal = j + jglobal_offset;
-          if (jperiodic) {
-            jglobal = jglobal % jlen_global;
-            if (jglobal < 0) jglobal += jlen_global;
-          }
-          IdxT kglobal = k + kglobal_offset;
-          if (kperiodic) {
-            kglobal = kglobal % klen_global;
-            if (kglobal < 0) kglobal += klen_global;
-          }
-          IdxT zone_global = iglobal + jglobal * ilen_global + kglobal * ijlen_global;
-          DataT expected, found, next;
-          int branchid = -1;
-          if (k >= kmin+kghost_width && k < kmax-kghost_width &&
-              j >= jmin+jghost_width && j < jmax-jghost_width &&
-              i >= imin+ighost_width && i < imax-ighost_width) {
-            // interior non-communicated zones should not have changed value
-            expected =-(zone_global+var_i); found = data[zone]; next = 1.0;
-            branchid = 0;
-          } else if (k >= kmin && k < kmax &&
-                     j >= jmin && j < jmax &&
-                     i >= imin && i < imax) {
-            // interior communicated zones should not have changed value
-            expected = zone_global + var_i; found = data[zone]; next = 1.0;
-            branchid = 1;
-          } else if (iglobal < 0 || iglobal >= ilen_global ||
-                     jglobal < 0 || jglobal >= jlen_global ||
-                     kglobal < 0 || kglobal >= klen_global) {
-            // out of global bounds exterior zones should not have changed value
-            // some may have been communicated, but values should be the same
-            expected = zone_global + var_i; found = data[zone]; next = -1.0;
-            branchid = 2;
-          } else {
-            // in global bounds exterior zones should have changed value
-            // should now be populated with data from another rank
-            expected = zone_global + var_i; found = data[zone]; next = -1.0;
-            branchid = 3;
-          }
-          if (!mock_communication) {
-            if (found != expected) {
-              FPRINTF(stdout, "%p %i zone %i(%i %i %i) g%i(%i %i %i) = %f expected %f next %f\n", data, branchid, zone, i, j, k, zone_global, iglobal, jglobal, kglobal, found, expected, next);
-            }
-            // FPRINTF(stdout, "%p[%i] = %f\n", data, zone, 1.0);
-            assert(found == expected);
-          }
-          data[zone] = next;
-        });
-      }
-
-      synchronize(pol_loop{});
-
-      // tm.stop();
-      r2.stop();
-    }
-
-    comm.comminfo.barrier();
-
-    tm_total.stop();
-
-    r1.restart("bench comm", Range::magenta);
-
-    tm_total.start("bench-comm");
-
-    for(IdxT cycle = 0; cycle < ncycles; cycle++) {
-
-      Range r2("cycle", Range::yellow);
-
-      IdxT imin = info.min[0];
-      IdxT jmin = info.min[1];
-      IdxT kmin = info.min[2];
-      IdxT imax = info.max[0];
-      IdxT jmax = info.max[1];
-      IdxT kmax = info.max[2];
-      IdxT ilen = info.len[0];
-      IdxT jlen = info.len[1];
-      IdxT klen = info.len[2];
-      IdxT ijlen = info.stride[2];
-
-
-      Range r3("pre-comm", Range::red);
-      tm.start("pre-comm");
-
-      for (IdxT i = 0; i < num_vars; ++i) {
-
-        DataT* data = vars[i].data();
-
-        for_all_3d(pol_loop{}, kmin, kmax,
-                               jmin, jmax,
-                               imin, imax,
-                               detail::set_1(ilen, ijlen, data));
-      }
-
-      synchronize(pol_loop{});
-
-      tm.stop();
-      r3.restart("post-recv", Range::pink);
-      tm.start("post-recv");
-
-      comm.postRecv();
-
-      tm.stop();
-      r3.restart("post-send", Range::pink);
-      tm.start("post-send");
-
-      comm.postSend();
-
-      tm.stop();
-      r3.stop();
-
-      /*
-      for (IdxT i = 0; i < num_vars; ++i) {
-
-        DataT* data = vars[i].data();
-
-        for_all_3d(pol_loop{}, 0, klen,
-                               0, jlen,
-                               0, ilen,
-                               [=] COMB_HOST COMB_DEVICE (IdxT k, IdxT j, IdxT i, IdxT idx) {
-          IdxT zone = i + j * ilen + k * ijlen;
-          DataT expected, found, next;
-          if (k >= kmin && k < kmax &&
-              j >= jmin && j < jmax &&
-              i >= imin && i < imax) {
-            expected = 1.0; found = data[zone]; next = 1.0;
-          } else {
-            expected = -1.0; found = data[zone]; next = -1.0;
-          }
-          // if (found != expected) {
-          //   FPRINTF(stdout, "zone %i(%i %i %i) = %f expected %f\n", zone, i, j, k, found, expected);
-          // }
-          //FPRINTF(stdout, "%p[%i] = %f\n", data, zone, 1.0);
-          data[zone] = next;
-        });
-      }
-      */
-
-      r3.start("wait-recv", Range::pink);
-      tm.start("wait-recv");
-
-      comm.waitRecv();
-
-      tm.stop();
-      r3.restart("wait-send", Range::pink);
-      tm.start("wait-send");
-
-      comm.waitSend();
-
-      tm.stop();
-      r3.restart("post-comm", Range::red);
-      tm.start("post-comm");
-
-      for (IdxT i = 0; i < num_vars; ++i) {
-
-        DataT* data = vars[i].data();
-
-        for_all_3d(pol_loop{}, 0, klen,
-                               0, jlen,
-                               0, ilen,
-                               detail::reset_1(ilen, ijlen, data, imin, jmin, kmin, imax, jmax, kmax));
-      }
-
-      synchronize(pol_loop{});
-
-      tm.stop();
-      r3.stop();
-
-      r2.stop();
-
-    }
-
-    comm.comminfo.barrier();
-
-    tm_total.stop();
-
-    r1.stop();
-
-    tm.print();
-    tm_total.print();
-
-    tm.clear();
-    tm_total.clear();
-}
-
-template < typename pol_type >
-void do_warmup(pol_type const& pol, Allocator& aloc, Timer& tm,  IdxT num_vars, IdxT len)
-{
-  tm.clear();
-
-  char test_name[1024] = ""; snprintf(test_name, 1024, "warmup %s %s", pol_type::get_name(), aloc.name());
-  Range r(test_name, Range::green);
-
-  DataT** vars = new DataT*[num_vars];
-
-  for (IdxT i = 0; i < num_vars; ++i) {
-    vars[i] = (DataT*)aloc.allocate(len*sizeof(DataT));
-  }
-
-  for (IdxT i = 0; i < num_vars; ++i) {
-
-    DataT* data = vars[i];
-
-    for_all(pol, 0, len, detail::set_n1{data});
-  }
-
-  synchronize(pol);
-
-}
-
-template < typename pol_type >
-void do_copy(pol_type const& pol, Allocator& src_aloc, Allocator& dst_aloc, Timer& tm, IdxT num_vars, IdxT len, IdxT nrepeats)
-{
-  tm.clear();
-
-  char test_name[1024] = ""; snprintf(test_name, 1024, "memcpy %s dst %s src %s", pol_type::get_name(), dst_aloc.name(), src_aloc.name());
-  FPRINTF(stdout, "Starting test %s\n", test_name);
-
-  Range r(test_name, Range::green);
-
-  DataT** src = new DataT*[num_vars];
-  DataT** dst = new DataT*[num_vars];
-
-  for (IdxT i = 0; i < num_vars; ++i) {
-    src[i] = (DataT*)src_aloc.allocate(len*sizeof(DataT));
-    dst[i] = (DataT*)dst_aloc.allocate(len*sizeof(DataT));
-  }
-
-  // setup
-  for (IdxT i = 0; i < num_vars; ++i) {
-    for_all(pol, 0, len, detail::set_n1{dst[i]});
-    for_all(pol, 0, len, detail::set_0{src[i]});
-    for_all(pol, 0, len, detail::set_copy{dst[i], src[i]});
-  }
-
-  synchronize(pol);
-
-  char sub_test_name[1024] = ""; snprintf(sub_test_name, 1024, "copy_sync-%d-%d-%zu", num_vars, len, sizeof(DataT));
-
-  for (IdxT rep = 0; rep < nrepeats; ++rep) {
-
-    for (IdxT i = 0; i < num_vars; ++i) {
-      for_all(pol, 0, len, detail::set_copy{src[i], dst[i]});
-    }
-
-    synchronize(pol);
-
-    tm.start(sub_test_name);
-
-    for (IdxT i = 0; i < num_vars; ++i) {
-      for_all(pol, 0, len, detail::set_copy{dst[i], src[i]});
-    }
-
-    synchronize(pol);
-
-    tm.stop();
-  }
-
-  tm.print();
-  tm.clear();
-
-  for (IdxT i = 0; i < num_vars; ++i) {
-    dst_aloc.deallocate(dst[i]);
-    src_aloc.deallocate(src[i]);
-  }
-
-  delete[] dst;
-  delete[] src;
-}
+#ifdef COMB_ENABLE_CALIPER
+#include <caliper/cali.h>
+#include <caliper/cali-manager.h>
+#endif
+#ifdef COMB_ENABLE_ADIAK
+#include <adiak.hpp>
+#endif
 
 int main(int argc, char** argv)
 {
+#ifdef COMB_ENABLE_MPI
   int required = MPI_THREAD_FUNNELED; // MPI_THREAD_SINGLE, MPI_THREAD_FUNNELED, MPI_THREAD_SERIALIZED, MPI_THREAD_MULTIPLE
   int provided = detail::MPI::Init_thread(&argc, &argv, required);
+#endif
+
+#ifdef COMB_ENABLE_ADIAK
+#ifdef COMB_ENABLE_MPI
+  MPI_Comm adiak_comm = detail::MPI::Comm_dup(MPI_COMM_WORLD);
+  void* adiak_comm_p = &adiak_comm;
+#else
+  void* adiak_comm_p = nullptr;
+#endif
+
+  adiak_init(adiak_comm_p);
+#endif
+
+  comb_setup_files();
+
+  fgprintf(FileGroup::all, "Comb version %i.%i.%i\n",
+      COMB_VERSION_MAJOR, COMB_VERSION_MINOR, COMB_VERSION_PATCHLEVEL);
+
+  fgprintf(FileGroup::all, "Args  %s", argv[0]);
+  for(int i = 1; i < argc; ++i) {
+    fgprintf(FileGroup::all, ";%s", argv[i]);
+  }
+  fgprintf(FileGroup::all, "\n");
 
   { // begin region MPI communication via comminfo
   CommInfo comminfo;
 
-  if (required != provided) {
-    comminfo.abort_master("Didn't receive MPI thread support required %i provided %i.\n", required, provided);
+#ifdef COMB_ENABLE_MPI
+  if (required > provided) {
+    fgprintf(FileGroup::err_master, "Didn't receive MPI thread support required %i provided %i.\n", required, provided);
+    comminfo.abort();
   }
+#endif
 
-  comminfo.print_any("Started rank %i of %i\n", comminfo.rank, comminfo.size);
+  fgprintf(FileGroup::all, "Started rank %i of %i\n", comminfo.rank, comminfo.size);
 
   {
     char host[256];
     gethostname(host, 256);
 
-    comminfo.print_any("Node %s\n", host);
+    fgprintf(FileGroup::all, "Node %s\n", host);
   }
 
-  comminfo.print_any("Compiler %s\n", COMB_SERIALIZE(COMB_COMPILER));
+  fgprintf(FileGroup::all, "Compiler %s\n", COMB_SERIALIZE(COMB_COMPILER));
 
 #ifdef COMB_ENABLE_CUDA
-  comminfo.print_any("Cuda compiler %s\n", COMB_SERIALIZE(COMB_CUDA_COMPILER));
-
   {
+    fgprintf(FileGroup::all, "Cuda compiler %s\n", COMB_SERIALIZE(COMB_CUDA_COMPILER));
+
+    int driver_v = -1;
+    cudaCheck(cudaDriverGetVersion(&driver_v));
+    fgprintf(FileGroup::all, "Cuda driver version %i\n", driver_v);
+
+    int runtime_v = -1;
+    cudaCheck(cudaRuntimeGetVersion(&runtime_v));
+    fgprintf(FileGroup::all, "Cuda runtime version %i\n", runtime_v);
+
     const char* visible_devices = nullptr;
     visible_devices = getenv("CUDA_VISIBLE_DEVICES");
     if (visible_devices == nullptr) {
@@ -686,11 +110,44 @@ int main(int argc, char** argv)
     int device = -1;
     cudaCheck(cudaGetDevice(&device));
 
-    comminfo.print_any("GPU %i visible %s\n", device, visible_devices);
-  }
+    fgprintf(FileGroup::all, "GPU %i visible %s\n", device, visible_devices);
 
-  cudaCheck(cudaDeviceSynchronize());
+    cudaCheck(cudaDeviceSynchronize());
+  }
 #endif
+
+#ifdef COMB_ENABLE_HIP
+  {
+    fgprintf(FileGroup::all, "Hip compiler %s\n", COMB_SERIALIZE(COMB_HIP_COMPILER));
+
+    int driver_v = -1;
+    hipCheck(hipDriverGetVersion(&driver_v));
+    fgprintf(FileGroup::all, "Hip driver version %i\n", driver_v);
+
+    int runtime_v = -1;
+    hipCheck(hipRuntimeGetVersion(&runtime_v));
+    fgprintf(FileGroup::all, "Hip runtime version %i\n", runtime_v);
+
+    const char* visible_devices = nullptr;
+    visible_devices = getenv("HIP_VISIBLE_DEVICES");
+    if (visible_devices == nullptr) {
+      visible_devices = "undefined";
+    }
+
+    int device = -1;
+    hipCheck(hipGetDevice(&device));
+
+    fgprintf(FileGroup::all, "GPU %i visible %s\n", device, visible_devices);
+
+    hipCheck(hipDeviceSynchronize());
+  }
+#endif
+
+
+  // stores the Allocator for each memory type,
+  // whether each memory type is available for use,
+  // and whether each memory type is accessible from each exec context
+  COMB::Allocators alloc;
 
   // read command line arguments
 #ifdef COMB_ENABLE_OPENMP
@@ -704,6 +161,45 @@ int main(int argc, char** argv)
   IdxT num_vars = 1;
   IdxT ncycles = 5;
 
+  bool do_basic_only = false;
+
+  bool do_print_packing_sizes = false;
+  bool do_print_message_sizes = false;
+
+  // Caliper profiling config, if enabled
+  std::string caliper_config;
+
+  // stores whether each comm policy is available for use
+  COMB::CommunicatorsAvailable comm_avail;
+  comm_avail.mock = true;
+#ifdef COMB_ENABLE_MPI
+  comm_avail.mpi = true;
+#endif
+
+  // stores whether each exec policy is available for use
+  COMB::Executors exec;
+
+  // set default executor availability
+  exec.seq.m_available = true;
+#ifdef COMB_ENABLE_CUDA
+  exec.cuda.m_available = true;
+#endif
+#ifdef COMB_ENABLE_HIP
+  exec.hip.m_available = true;
+#endif
+
+  // set default allocator availability
+  alloc.host.set_available({COMB::AllocatorInfo::UseType::Mesh}, true);
+  alloc.host.set_available({COMB::AllocatorInfo::UseType::Buffer}, true);
+#ifdef COMB_ENABLE_CUDA
+  alloc.cuda_device.set_available({COMB::AllocatorInfo::UseType::Mesh}, true);
+  alloc.cuda_hostpinned.set_available({COMB::AllocatorInfo::UseType::Buffer}, true);
+#endif
+#ifdef COMB_ENABLE_HIP
+  alloc.hip_device.set_available({COMB::AllocatorInfo::UseType::Mesh}, true);
+  alloc.hip_hostpinned.set_available({COMB::AllocatorInfo::UseType::Buffer}, true);
+#endif
+
   IdxT i = 1;
   IdxT s = 0;
   for(; i < argc; ++i) {
@@ -712,19 +208,17 @@ int main(int argc, char** argv)
       if (strcmp(&argv[i][1], "comm") == 0) {
         if (i+1 < argc && argv[i+1][0] != '-') {
           ++i;
-          if (strcmp(argv[i], "mock") == 0) {
-            comminfo.mock_communication = true;
-          } else if (strcmp(argv[i], "cutoff") == 0) {
+          if (strcmp(argv[i], "cutoff") == 0) {
             if (i+1 < argc && argv[i+1][0] != '-') {
               long read_cutoff = comminfo.cutoff;
               int ret = sscanf(argv[++i], "%ld", &read_cutoff);
               if (ret == 1) {
                 comminfo.cutoff = read_cutoff;
               } else {
-                comminfo.warn_master("Invalid argument to sub-option, ignoring %s %s %s.\n", argv[i-2], argv[i-1], argv[i]);
+                fgprintf(FileGroup::err_master, "Invalid argument to sub-option, ignoring %s %s %s.\n", argv[i-2], argv[i-1], argv[i]);
               }
             } else {
-              comminfo.warn_master("No argument to sub-option, ignoring %s %s.\n", argv[i-1], argv[i]);
+              fgprintf(FileGroup::err_master, "No argument to sub-option, ignoring %s %s.\n", argv[i-1], argv[i]);
             }
           } else if ( strcmp(argv[i], "post_recv") == 0
                    || strcmp(argv[i], "post_send") == 0
@@ -755,16 +249,98 @@ int main(int argc, char** argv)
               } else if (strcmp(argv[i], "test_all") == 0) {
                 *method = CommInfo::method::testall;
               } else {
-                comminfo.warn_master("Invalid argument to sub-option, ignoring %s %s %s.\n", argv[i-2], argv[i-1], argv[i]);
+                fgprintf(FileGroup::err_master, "Invalid argument to sub-option, ignoring %s %s %s.\n", argv[i-2], argv[i-1], argv[i]);
               }
             } else {
-              comminfo.warn_master("No argument to sub-option, ignoring %s %s.\n", argv[i-1], argv[i]);
+              fgprintf(FileGroup::err_master, "No argument to sub-option, ignoring %s %s.\n", argv[i-1], argv[i]);
+            }
+          } else if ( strcmp(argv[i], "enable") == 0
+                   || strcmp(argv[i], "disable") == 0 ) {
+            bool enabledisable = false;
+            if (strcmp(argv[i], "enable") == 0) {
+              enabledisable = true;
+            } else if (strcmp(argv[i], "disable") == 0) {
+              enabledisable = false;
+            }
+            if (i+1 < argc && argv[i+1][0] != '-') {
+              ++i;
+              if (strcmp(argv[i], "all") == 0) {
+                comm_avail.mock = enabledisable;
+#ifdef COMB_ENABLE_MPI
+                comm_avail.mpi = enabledisable;
+#endif
+#ifdef COMB_ENABLE_MPI
+                comm_avail.mpi_persistent = enabledisable;
+#endif
+#ifdef COMB_ENABLE_GDSYNC
+                comm_avail.gdsync = enabledisable;
+#endif
+#ifdef COMB_ENABLE_GPUMP
+                comm_avail.gpump = enabledisable;
+#endif
+#ifdef COMB_ENABLE_MP
+                comm_avail.mp = enabledisable;
+#endif
+#ifdef COMB_ENABLE_UMR
+                comm_avail.umr = enabledisable;
+#endif
+              } else if (strcmp(argv[i], "mock") == 0) {
+                comm_avail.mock = enabledisable;
+              } else if (strcmp(argv[i], "mpi") == 0) {
+#ifdef COMB_ENABLE_MPI
+                comm_avail.mpi = enabledisable;
+#endif
+              } else if (strcmp(argv[i], "mpi_persistent") == 0) {
+#ifdef COMB_ENABLE_MPI
+                comm_avail.mpi_persistent = enabledisable;
+#endif
+              } else if (strcmp(argv[i], "gdsync") == 0) {
+#ifdef COMB_ENABLE_GDSYNC
+                comm_avail.gdsync = enabledisable;
+#endif
+              } else if (strcmp(argv[i], "gpump") == 0) {
+#ifdef COMB_ENABLE_GPUMP
+                comm_avail.gpump = enabledisable;
+#endif
+              } else if (strcmp(argv[i], "mp") == 0) {
+#ifdef COMB_ENABLE_MP
+                comm_avail.mp = enabledisable;
+#endif
+              } else if (strcmp(argv[i], "umr") == 0) {
+#ifdef COMB_ENABLE_UMR
+                comm_avail.umr = enabledisable;
+#endif
+              } else {
+                fgprintf(FileGroup::err_master, "Invalid argument to sub-option, ignoring %s %s %s.\n", argv[i-2], argv[i-1], argv[i]);
+              }
+            } else {
+              fgprintf(FileGroup::err_master, "No argument to sub-option, ignoring %s %s.\n", argv[i-1], argv[i]);
+            }
+          } else if ( strcmp(argv[i], "allow") == 0
+                   || strcmp(argv[i], "disallow") == 0 ) {
+            bool allowdisallow = false;
+            if (strcmp(argv[i], "allow") == 0) {
+              allowdisallow = true;
+            } else if (strcmp(argv[i], "disallow") == 0) {
+              allowdisallow = false;
+            }
+            if (i+1 < argc && argv[i+1][0] != '-') {
+              ++i;
+              if (strcmp(argv[i], "per_message_pack_fusing") == 0) {
+                comb_allow_per_message_pack_fusing() = allowdisallow;
+              } else if (strcmp(argv[i], "message_group_pack_fusing") == 0) {
+                comb_allow_pack_loop_fusion() = allowdisallow;
+              } else {
+                fgprintf(FileGroup::err_master, "Invalid argument to sub-option, ignoring %s %s %s.\n", argv[i-2], argv[i-1], argv[i]);
+              }
+            } else {
+              fgprintf(FileGroup::err_master, "No argument to sub-option, ignoring %s %s.\n", argv[i-1], argv[i]);
             }
           } else {
-            comminfo.warn_master("Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
+            fgprintf(FileGroup::err_master, "Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
           }
         } else {
-          comminfo.warn_master("No argument to option, ignoring %s.\n", argv[i]);
+          fgprintf(FileGroup::err_master, "No argument to option, ignoring %s.\n", argv[i]);
         }
       } else if (strcmp(&argv[i][1], "ghost") == 0) {
         if (i+1 < argc && argv[i+1][0] != '-') {
@@ -779,10 +355,215 @@ int main(int argc, char** argv)
             ghost_widths[1] = read_ghost_widths[1];
             ghost_widths[2] = read_ghost_widths[2];
           } else {
-            comminfo.warn_master("Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
+            fgprintf(FileGroup::err_master, "Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
           }
         } else {
-          comminfo.warn_master("No argument to option, ignoring %s.\n", argv[i]);
+          fgprintf(FileGroup::err_master, "No argument to option, ignoring %s.\n", argv[i]);
+        }
+      } else if (strcmp(&argv[i][1], "exec") == 0) {
+        if (i+1 < argc && argv[i+1][0] != '-') {
+          ++i;
+          if ( strcmp(argv[i], "enable") == 0
+            || strcmp(argv[i], "disable") == 0 ) {
+            bool enabledisable = false;
+            if (strcmp(argv[i], "enable") == 0) {
+              enabledisable = true;
+            } else if (strcmp(argv[i], "disable") == 0) {
+              enabledisable = false;
+            }
+            if (i+1 < argc && argv[i+1][0] != '-') {
+              ++i;
+              if (strcmp(argv[i], "all") == 0) {
+                exec.seq.m_available = enabledisable;
+#ifdef COMB_ENABLE_OPENMP
+                exec.omp.m_available = enabledisable;
+#endif
+#ifdef COMB_ENABLE_CUDA
+                exec.cuda.m_available = enabledisable;
+#endif
+#ifdef COMB_ENABLE_CUDA_GRAPH
+                exec.cuda_graph.m_available = enabledisable;
+#endif
+#ifdef COMB_ENABLE_HIP
+                exec.hip.m_available = enabledisable;
+#endif
+#ifdef COMB_ENABLE_MPI
+                exec.mpi_type.m_available = enabledisable;
+#endif
+#ifdef COMB_ENABLE_RAJA
+                exec.raja_seq.m_available = enabledisable;
+#ifdef COMB_ENABLE_OPENMP
+                exec.raja_omp.m_available = enabledisable;
+#endif
+#ifdef COMB_ENABLE_CUDA
+                exec.raja_cuda.m_available = enabledisable;
+#endif
+#ifdef COMB_ENABLE_HIP
+                exec.raja_hip.m_available = enabledisable;
+#endif
+#endif
+              } else if (strcmp(argv[i], "seq") == 0) {
+                exec.seq.m_available = enabledisable;
+              } else if (strcmp(argv[i], "omp") == 0 ||
+                         strcmp(argv[i], "openmp") == 0) {
+#ifdef COMB_ENABLE_OPENMP
+                exec.omp.m_available = enabledisable;
+#endif
+              } else if (strcmp(argv[i], "cuda") == 0) {
+#ifdef COMB_ENABLE_CUDA
+                exec.cuda.m_available = enabledisable;
+#endif
+              } else if (strcmp(argv[i], "cuda_graph") == 0) {
+#ifdef COMB_ENABLE_CUDA_GRAPH
+                exec.cuda_graph.m_available = enabledisable;
+#endif
+              } else if (strcmp(argv[i], "hip") == 0) {
+#ifdef COMB_ENABLE_HIP
+                exec.hip.m_available = enabledisable;
+#endif
+              } else if (strcmp(argv[i], "mpi_type") == 0) {
+#ifdef COMB_ENABLE_MPI
+                exec.mpi_type.m_available = enabledisable;
+#endif
+#ifdef COMB_ENABLE_RAJA
+              } else if (strcmp(argv[i], "raja_seq") == 0) {
+                exec.raja_seq.m_available = enabledisable;
+#ifdef COMB_ENABLE_OPENMP
+              } else if (strcmp(argv[i], "raja_omp") == 0 ||
+                         strcmp(argv[i], "raja_openmp") == 0) {
+                exec.raja_omp.m_available = enabledisable;
+#endif
+#ifdef COMB_ENABLE_CUDA
+              } else if (strcmp(argv[i], "raja_cuda") == 0) {
+                exec.raja_cuda.m_available = enabledisable;
+#endif
+#ifdef COMB_ENABLE_HIP
+              } else if (strcmp(argv[i], "raja_hip") == 0) {
+                exec.raja_hip.m_available = enabledisable;
+#endif
+#endif
+              } else {
+                fgprintf(FileGroup::err_master, "Invalid argument to sub-option, ignoring %s %s %s.\n", argv[i-2], argv[i-1], argv[i]);
+              }
+            } else {
+              fgprintf(FileGroup::err_master, "No argument to sub-option, ignoring %s %s.\n", argv[i-1], argv[i]);
+            }
+          } else {
+            fgprintf(FileGroup::err_master, "Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
+          }
+        } else {
+          fgprintf(FileGroup::err_master, "No argument to option, ignoring %s.\n", argv[i]);
+        }
+      } else if (strcmp(&argv[i][1], "memory") == 0) {
+        // UseType for memory, defaults to Mesh
+        std::vector<COMB::AllocatorInfo::UseType> uts;
+        uts.push_back(COMB::AllocatorInfo::UseType::Mesh);
+        uts.push_back(COMB::AllocatorInfo::UseType::Buffer);
+        // check for optional UseType
+        if (i+1 < argc && strcmp(argv[i+1], "all") == 0) {
+          // uts is already set up for all
+          ++i;
+        } else if (i+1 < argc && strcmp(argv[i+1], "mesh") == 0) {
+          uts.clear();
+          uts.push_back(COMB::AllocatorInfo::UseType::Mesh);
+          ++i;
+        } else if (i+1 < argc && strcmp(argv[i+1], "buffer") == 0) {
+          uts.clear();
+          uts.push_back(COMB::AllocatorInfo::UseType::Buffer);
+          ++i;
+        }
+        // check for enable disable
+        if (i+1 < argc && argv[i+1][0] != '-') {
+          ++i;
+          if ( strcmp(argv[i], "enable") == 0
+            || strcmp(argv[i], "disable") == 0) {
+            bool enabledisable = false;
+            if (strcmp(argv[i], "enable") == 0) {
+              enabledisable = true;
+            } else if (strcmp(argv[i], "disable") == 0) {
+              enabledisable = false;
+            }
+            if (i+1 < argc && argv[i+1][0] != '-') {
+              ++i;
+              if (strcmp(argv[i], "all") == 0) {
+                alloc.host.set_available(uts, enabledisable);
+#ifdef COMB_ENABLE_CUDA
+                alloc.cuda_hostpinned.set_available(uts, enabledisable);
+                alloc.cuda_device.set_available(uts, enabledisable);
+                alloc.cuda_managed.set_available(uts, enabledisable);
+                alloc.cuda_managed_host_preferred.set_available(uts, enabledisable);
+                alloc.cuda_managed_host_preferred_device_accessed.set_available(uts, enabledisable);
+                alloc.cuda_managed_device_preferred.set_available(uts, enabledisable);
+                alloc.cuda_managed_device_preferred_host_accessed.set_available(uts, enabledisable);
+#endif
+#ifdef COMB_ENABLE_HIP
+                alloc.hip_hostpinned.set_available(uts, enabledisable);
+                alloc.hip_hostpinned_coarse.set_available(uts, enabledisable);
+                alloc.hip_device.set_available(uts, enabledisable);
+                alloc.hip_device_fine.set_available(uts, enabledisable);
+                alloc.hip_managed.set_available(uts, enabledisable);
+#endif
+              } else if (strcmp(argv[i], "host") == 0) {
+                alloc.host.set_available(uts, enabledisable);
+              } else if (strcmp(argv[i], "cuda_hostpinned") == 0) {
+#ifdef COMB_ENABLE_CUDA
+                alloc.cuda_hostpinned.set_available(uts, enabledisable);
+#endif
+              } else if (strcmp(argv[i], "cuda_device") == 0) {
+#ifdef COMB_ENABLE_CUDA
+                alloc.cuda_device.set_available(uts, enabledisable);
+#endif
+              } else if (strcmp(argv[i], "cuda_managed") == 0) {
+#ifdef COMB_ENABLE_CUDA
+                alloc.cuda_managed.set_available(uts, enabledisable);
+#endif
+              } else if (strcmp(argv[i], "cuda_managed_host_preferred") == 0) {
+#ifdef COMB_ENABLE_CUDA
+                alloc.cuda_managed_host_preferred.set_available(uts, enabledisable);
+#endif
+              } else if (strcmp(argv[i], "cuda_managed_host_preferred_device_accessed") == 0) {
+#ifdef COMB_ENABLE_CUDA
+                alloc.cuda_managed_host_preferred_device_accessed.set_available(uts, enabledisable);
+#endif
+              } else if (strcmp(argv[i], "cuda_managed_device_preferred") == 0) {
+#ifdef COMB_ENABLE_CUDA
+                alloc.cuda_managed_device_preferred.set_available(uts, enabledisable);
+#endif
+              } else if (strcmp(argv[i], "cuda_managed_device_preferred_host_accessed") == 0) {
+#ifdef COMB_ENABLE_CUDA
+                alloc.cuda_managed_device_preferred_host_accessed.set_available(uts, enabledisable);
+#endif
+              } else if (strcmp(argv[i], "hip_hostpinned") == 0) {
+#ifdef COMB_ENABLE_HIP
+                alloc.hip_hostpinned.set_available(uts, enabledisable);
+#endif
+              } else if (strcmp(argv[i], "hip_hostpinned_coarse") == 0) {
+#ifdef COMB_ENABLE_HIP
+                alloc.hip_hostpinned_coarse.set_available(uts, enabledisable);
+#endif
+              } else if (strcmp(argv[i], "hip_device") == 0) {
+#ifdef COMB_ENABLE_HIP
+                alloc.hip_device.set_available(uts, enabledisable);
+#endif
+              } else if (strcmp(argv[i], "hip_device_fine") == 0) {
+#ifdef COMB_ENABLE_HIP
+                alloc.hip_device_fine.set_available(uts, enabledisable);
+#endif
+              } else if (strcmp(argv[i], "hip_managed") == 0) {
+#ifdef COMB_ENABLE_HIP
+                alloc.hip_managed.set_available(uts, enabledisable);
+#endif
+              } else {
+                fgprintf(FileGroup::err_master, "Invalid argument to sub-option, ignoring %s %s %s.\n", argv[i-2], argv[i-1], argv[i]);
+              }
+            } else {
+              fgprintf(FileGroup::err_master, "No argument to sub-option, ignoring %s %s.\n", argv[i-1], argv[i]);
+            }
+          } else {
+            fgprintf(FileGroup::err_master, "Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
+          }
+        } else {
+          fgprintf(FileGroup::err_master, "No argument to option, ignoring %s.\n", argv[i]);
         }
       } else if (strcmp(&argv[i][1], "vars") == 0) {
         if (i+1 < argc && argv[i+1][0] != '-') {
@@ -791,10 +572,10 @@ int main(int argc, char** argv)
           if (ret == 1) {
             num_vars = read_num_vars;
           } else {
-            comminfo.warn_master("Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
+            fgprintf(FileGroup::err_master, "Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
           }
         } else {
-          comminfo.warn_master("No argument to option, ignoring %s.\n", argv[i]);
+          fgprintf(FileGroup::err_master, "No argument to option, ignoring %s.\n", argv[i]);
         }
       } else if (strcmp(&argv[i][1], "cycles") == 0) {
         if (i+1 < argc && argv[i+1][0] != '-') {
@@ -803,10 +584,10 @@ int main(int argc, char** argv)
           if (ret == 1) {
             ncycles = read_ncycles;
           } else {
-            comminfo.warn_master("Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
+            fgprintf(FileGroup::err_master, "Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
           }
         } else {
-          comminfo.warn_master("No argument to option, ignoring %s.\n", argv[i]);
+          fgprintf(FileGroup::err_master, "No argument to option, ignoring %s.\n", argv[i]);
         }
       } else if (strcmp(&argv[i][1], "periodic") == 0) {
         if (i+1 < argc && argv[i+1][0] != '-') {
@@ -821,10 +602,10 @@ int main(int argc, char** argv)
             periodic[1] = read_periodic[1] ? 1 : 0;
             periodic[2] = read_periodic[2] ? 1 : 0;
           } else {
-            comminfo.warn_master("Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
+            fgprintf(FileGroup::err_master, "Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
           }
         } else {
-          comminfo.warn_master("No argument to option, ignoring %s.\n", argv[i]);
+          fgprintf(FileGroup::err_master, "No argument to option, ignoring %s.\n", argv[i]);
         }
       } else if (strcmp(&argv[i][1], "divide") == 0) {
         if (i+1 < argc && argv[i+1][0] != '-') {
@@ -839,10 +620,10 @@ int main(int argc, char** argv)
             divisions[1] = read_divisions[1];
             divisions[2] = read_divisions[2];
           } else {
-            comminfo.warn_master("Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
+            fgprintf(FileGroup::err_master, "Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
           }
         } else {
-          comminfo.warn_master("No argument to option, ignoring %s.\n", argv[i]);
+          fgprintf(FileGroup::err_master, "No argument to option, ignoring %s.\n", argv[i]);
         }
       } else if (strcmp(&argv[i][1], "omp_threads") == 0) {
         if (i+1 < argc && argv[i+1][0] != '-') {
@@ -856,16 +637,87 @@ int main(int argc, char** argv)
 #ifdef COMB_ENABLE_OPENMP
             omp_threads = read_omp_threads;
 #else
-            comminfo.warn_master("Not built with openmp, ignoring %s %s.\n", argv[i-1], argv[i]);
+            fgprintf(FileGroup::err_master, "Not built with openmp, ignoring %s %s.\n", argv[i-1], argv[i]);
 #endif
           } else {
-            comminfo.warn_master("Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
+            fgprintf(FileGroup::err_master, "Invalid argument to option, ignoring %s %s.\n", argv[i-1], argv[i]);
           }
         } else {
-          comminfo.warn_master("No argument to option, ignoring %s.\n", argv[i]);
+          fgprintf(FileGroup::err_master, "No argument to option, ignoring %s.\n", argv[i]);
+        }
+      } else if (strcmp(&argv[i][1], "basic_only") == 0) {
+        do_basic_only = true;
+      } else if (strcmp(&argv[i][1], "cuda_aware_mpi") == 0) {
+#ifdef COMB_ENABLE_MPI
+#ifdef COMB_ENABLE_CUDA
+        alloc.access.cuda_aware_mpi = true;
+#else
+        fgprintf(FileGroup::err_master, "Not built with cuda, ignoring %s.\n", argv[i]);
+#endif
+#else
+        fgprintf(FileGroup::err_master, "Not built with mpi, ignoring %s.\n", argv[i]);
+#endif
+      } else if (strcmp(&argv[i][1], "cuda_host_accessible_from_device") == 0) {
+#ifdef COMB_ENABLE_CUDA
+        alloc.access.cuda_host_accessible_from_device = COMB::detail::cuda::get_host_accessible_from_device();
+#else
+        fgprintf(FileGroup::err_master, "Not built with cuda, ignoring %s.\n", argv[i]);
+#endif
+      } else if (strcmp(&argv[i][1], "cuda_device_accessible_from_host") == 0) {
+#ifdef COMB_ENABLE_CUDA
+        alloc.access.cuda_device_accessible_from_host = COMB::detail::cuda::get_device_accessible_from_host();
+#else
+        fgprintf(FileGroup::err_master, "Not built with cuda, ignoring %s.\n", argv[i]);
+#endif
+      } else if (strcmp(&argv[i][1], "use_device_preferred_for_cuda_util_aloc") == 0) {
+#ifdef COMB_ENABLE_CUDA
+        alloc.access.use_device_preferred_for_cuda_util_aloc = true;
+#else
+        fgprintf(FileGroup::err_master, "Not built with cuda, ignoring %s.\n", argv[i]);
+#endif
+      } else if (strcmp(&argv[i][1], "hip_aware_mpi") == 0) {
+#ifdef COMB_ENABLE_MPI
+#ifdef COMB_ENABLE_HIP
+        alloc.access.hip_aware_mpi = true;
+#else
+        fgprintf(FileGroup::err_master, "Not built with hip, ignoring %s.\n", argv[i]);
+#endif
+#else
+        fgprintf(FileGroup::err_master, "Not built with mpi, ignoring %s.\n", argv[i]);
+#endif
+      } else if (strcmp(&argv[i][1], "hip_host_accessible_from_device") == 0) {
+#ifdef COMB_ENABLE_HIP
+        alloc.access.hip_host_accessible_from_device = COMB::detail::hip::get_host_accessible_from_device();
+#else
+        fgprintf(FileGroup::err_master, "Not built with hip, ignoring %s.\n", argv[i]);
+#endif
+      } else if (strcmp(&argv[i][1], "hip_device_accessible_from_host") == 0) {
+#ifdef COMB_ENABLE_HIP
+        alloc.access.hip_device_accessible_from_host = COMB::detail::hip::get_device_accessible_from_host();
+#else
+        fgprintf(FileGroup::err_master, "Not built with hip, ignoring %s.\n", argv[i]);
+#endif
+      } else if (strcmp(&argv[i][1], "use_device_for_hip_util_aloc") == 0) {
+#ifdef COMB_ENABLE_HIP
+        alloc.access.use_device_for_hip_util_aloc = true;
+#else
+        fgprintf(FileGroup::err_master, "Not built with hip, ignoring %s.\n", argv[i]);
+#endif
+      } else if (strcmp(&argv[i][1], "print_packing_sizes") == 0) {
+        do_print_packing_sizes = true;
+      } else if (strcmp(&argv[i][1], "print_message_sizes") == 0) {
+        do_print_message_sizes = true;
+      } else if (strcmp(&argv[i][1], "caliper_config") == 0) {
+        if (i+1 < argc && argv[i+1][0] != '-') {
+          caliper_config = argv[++i];
+#ifndef COMB_ENABLE_CALIPER
+          fgprintf(FileGroup::err_master, "Caliper is not enabled, ignoring caliper_config.\n");
+#endif
+        } else {
+          fgprintf(FileGroup::err_master, "No argument to option, ignoring %s.\n", argv[i]);
         }
       } else {
-        comminfo.warn_master("Unknown option, ignoring %s.\n", argv[i]);
+        fgprintf(FileGroup::err_master, "Unknown option, ignoring %s.\n", argv[i]);
       }
     } else if (std::isdigit(argv[i][0]) && s < 1) {
       long read_sizes[3] {sizes[0], sizes[1], sizes[2]};
@@ -881,24 +733,43 @@ int main(int argc, char** argv)
         sizes[1] = read_sizes[1];
         sizes[2] = read_sizes[2];
       } else {
-        comminfo.warn_master("Invalid argument to sizes, ignoring %s.\n", argv[i]);
+        fgprintf(FileGroup::err_master, "Invalid argument to sizes, ignoring %s.\n", argv[i]);
       }
     } else {
-      comminfo.warn_master("Invalid argument, ignoring %s.\n", argv[i]);
+      fgprintf(FileGroup::err_master, "Invalid argument, ignoring %s.\n", argv[i]);
     }
   }
 
   if (ncycles <= 0) {
-    comminfo.abort_master("Invalid cycles argument.\n");
+    fgprintf(FileGroup::err_master, "Invalid cycles argument.\n");
+    comminfo.abort();
   } else if (num_vars <= 0) {
-    comminfo.abort_master("Invalid vars argument.\n");
+    fgprintf(FileGroup::err_master, "Invalid vars argument.\n");
+    comminfo.abort();
   } else if ( (ghost_widths[0] <  0 || ghost_widths[1] <  0 || ghost_widths[2] <  0)
            || (ghost_widths[0] == 0 && ghost_widths[1] == 0 && ghost_widths[2] == 0) ) {
-    comminfo.abort_master("Invalid ghost widths.\n");
+    fgprintf(FileGroup::err_master, "Invalid ghost widths.\n");
+    comminfo.abort();
   } else if ( (divisions[0] != 0 || divisions[1] != 0 || divisions[2] != 0)
            && (comminfo.size != divisions[0] * divisions[1] * divisions[2]) ) {
-    comminfo.abort_master("Invalid mesh divisions\n");
+    fgprintf(FileGroup::err_master, "Invalid mesh divisions\n");
+    comminfo.abort();
   }
+
+#ifdef COMB_ENABLE_CALIPER
+  cali::ConfigManager mgr;
+  mgr.add(caliper_config.c_str());
+
+  if (mgr.error()) {
+    std::string msg = mgr.error_msg();
+    fgprintf(FileGroup::err_master, "Caliper config error: %s", msg.c_str());
+    comminfo.abort();
+  }
+
+  mgr.start();
+
+  CALI_MARK_FUNCTION_BEGIN;
+#endif
 
 #ifdef COMB_ENABLE_OPENMP
   // OMP setup
@@ -916,7 +787,7 @@ int main(int argc, char** argv)
     }
 
     long print_omp_threads = omp_threads;
-    comminfo.print_any("OMP num threads %5li\n", print_omp_threads);
+    fgprintf(FileGroup::all, "OMP num threads %5li\n", print_omp_threads);
 
 #ifdef PRINT_THREAD_MAP
     {
@@ -931,13 +802,13 @@ int main(int argc, char** argv)
 
       int i = 0;
       if (i < omp_threads) {
-        comminfo.print_any("OMP thread map %6i", thread_cpu_id[i]);
+        fgprintf(FileGroup::all, "OMP thread map %6i", thread_cpu_id[i]);
         for (++i; i < omp_threads; ++i) {
-          comminfo.print_any(" %8i", thread_cpu_id[i]);
+          fgprintf(FileGroup::all, ";%i", thread_cpu_id[i]);
         }
       }
 
-      comminfo.print_any("\n");
+      fgprintf(FileGroup::all, "\n");
 
       delete[] thread_cpu_id;
 
@@ -965,785 +836,138 @@ int main(int argc, char** argv)
     long print_divisions[3]    = {comminfo.cart.divisions[0], comminfo.cart.divisions[1], comminfo.cart.divisions[2]};
     long print_periodic[3]     = {comminfo.cart.periodic[0],  comminfo.cart.periodic[1],  comminfo.cart.periodic[2] };
 
-    comminfo.print_any("Do %s communication\n",         comminfo.mock_communication ? "mock" : "real"                      );
-    comminfo.print_any("Cart coords  %8li %8li %8li\n", print_coords[0],       print_coords[1],       print_coords[2]      );
-    comminfo.print_any("Message policy cutoff %li\n",   print_cutoff                                                       );
-    comminfo.print_any("Post Recv using %s method\n",   CommInfo::method_str(comminfo.post_recv_method)                    );
-    comminfo.print_any("Post Send using %s method\n",   CommInfo::method_str(comminfo.post_send_method)                    );
-    comminfo.print_any("Wait Recv using %s method\n",   CommInfo::method_str(comminfo.wait_recv_method)                    );
-    comminfo.print_any("Wait Send using %s method\n",   CommInfo::method_str(comminfo.wait_send_method)                    );
-    comminfo.print_any("Num cycles   %8li\n",           print_ncycles                                                      );
-    comminfo.print_any("Num vars     %8li\n",           print_num_vars                                                     );
-    comminfo.print_any("ghost_widths %8li %8li %8li\n", print_ghost_widths[0], print_ghost_widths[1], print_ghost_widths[2]);
-    comminfo.print_any("sizes        %8li %8li %8li\n", print_sizes[0],        print_sizes[1],        print_sizes[2]       );
-    comminfo.print_any("divisions    %8li %8li %8li\n", print_divisions[0],    print_divisions[1],    print_divisions[2]   );
-    comminfo.print_any("periodic     %8li %8li %8li\n", print_periodic[0],     print_periodic[1],     print_periodic[2]    );
-    comminfo.print_any("division map\n");
+    fgprintf(FileGroup::all, "Cart coords  %8li %8li %8li\n", print_coords[0],       print_coords[1],       print_coords[2]      );
+    fgprintf(FileGroup::all, "Message policy cutoff %li\n",   print_cutoff                                                       );
+    fgprintf(FileGroup::all, "Post Recv using %s method\n",   CommInfo::method_str(comminfo.post_recv_method)                    );
+    fgprintf(FileGroup::all, "Post Send using %s method\n",   CommInfo::method_str(comminfo.post_send_method)                    );
+    fgprintf(FileGroup::all, "Wait Recv using %s method\n",   CommInfo::method_str(comminfo.wait_recv_method)                    );
+    fgprintf(FileGroup::all, "Wait Send using %s method\n",   CommInfo::method_str(comminfo.wait_send_method)                    );
+    fgprintf(FileGroup::all, "Num cycles   %8li\n",           print_ncycles                                                      );
+    fgprintf(FileGroup::all, "Num vars     %8li\n",           print_num_vars                                                     );
+    fgprintf(FileGroup::all, "ghost_widths %8li %8li %8li\n", print_ghost_widths[0], print_ghost_widths[1], print_ghost_widths[2]);
+    fgprintf(FileGroup::all, "sizes        %8li %8li %8li\n", print_sizes[0],        print_sizes[1],        print_sizes[2]       );
+    fgprintf(FileGroup::all, "divisions    %8li %8li %8li\n", print_divisions[0],    print_divisions[1],    print_divisions[2]   );
+    fgprintf(FileGroup::all, "periodic     %8li %8li %8li\n", print_periodic[0],     print_periodic[1],     print_periodic[2]    );
+    fgprintf(FileGroup::all, "division map\n");
     // print division map
     IdxT max_cuts = std::max(std::max(comminfo.cart.divisions[0], comminfo.cart.divisions[1]), comminfo.cart.divisions[2]);
     for (IdxT ci = 0; ci <= max_cuts; ++ci) {
-      comminfo.print_any("map         ");
+      fgprintf(FileGroup::all, "map         ");
       if (ci <= comminfo.cart.divisions[0]) {
         long print_division_coord = ci * (sizes[0] / comminfo.cart.divisions[0]) + std::min(ci, sizes[0] % comminfo.cart.divisions[0]);
-        comminfo.print_any(" %8li", print_division_coord);
+        fgprintf(FileGroup::all, " %8li", print_division_coord);
       } else {
-        comminfo.print_any(" %8s", "");
+        fgprintf(FileGroup::all, " %8s", "");
       }
       if (ci <= comminfo.cart.divisions[1]) {
         long print_division_coord = ci * (sizes[1] / comminfo.cart.divisions[1]) + std::min(ci, sizes[1] % comminfo.cart.divisions[1]);
-        comminfo.print_any(" %8li", print_division_coord);
+        fgprintf(FileGroup::all, " %8li", print_division_coord);
       } else {
-        comminfo.print_any(" %8s", "");
+        fgprintf(FileGroup::all, " %8s", "");
       }
       if (ci <= comminfo.cart.divisions[2]) {
         long print_division_coord = ci * (sizes[2] / comminfo.cart.divisions[2]) + std::min(ci, sizes[2] % comminfo.cart.divisions[2]);
-        comminfo.print_any(" %8li", print_division_coord);
+        fgprintf(FileGroup::all, " %8li", print_division_coord);
       } else {
-        comminfo.print_any(" %8s", "");
+        fgprintf(FileGroup::all, " %8s", "");
       }
-      comminfo.print_any("\n");
+      fgprintf(FileGroup::all, "\n");
     }
+
+    // save config info in Adiak
+#ifdef COMB_ENABLE_ADIAK
+    adiak_namevalue("cart_coords",   adiak_general, nullptr, "[%ld]", print_coords,       3);
+    adiak_namevalue("ghost_width",   adiak_general, nullptr, "[%ld]", print_ghost_widths, 3);
+    adiak_namevalue("sizes",         adiak_general, nullptr, "[%ld]", print_sizes,        3);
+    adiak_namevalue("divisions",     adiak_general, nullptr, "[%ld]", print_divisions,    3);
+    adiak_namevalue("periodic",      adiak_general, nullptr, "[%ld]", print_periodic,     3);
+
+    adiak::value("policy_cutoff",    print_cutoff);
+    adiak::value("ncycles",          print_ncycles);
+    adiak::value("num_vars",         print_num_vars);
+    adiak::value("post_recv_method", CommInfo::method_str(comminfo.post_recv_method));
+    adiak::value("post_send_method", CommInfo::method_str(comminfo.post_send_method));
+    adiak::value("wait_recv_method", CommInfo::method_str(comminfo.wait_recv_method));
+    adiak::value("wait_send_method", CommInfo::method_str(comminfo.wait_send_method));
+
+    adiak_user();
+    adiak_launchdate();
+    adiak_cmdline();
+    adiak_clustername();
+    adiak_job_size();
+#endif
   }
 
-  NullAllocator null_alloc;
-  HostAllocator host_alloc;
-#ifdef COMB_ENABLE_CUDA
-  HostPinnedAllocator hostpinned_alloc;
-  DeviceAllocator device_alloc;
-  ManagedAllocator managed_alloc;
-  ManagedHostPreferredAllocator managed_host_preferred_alloc;
-  ManagedHostPreferredDeviceAccessedAllocator managed_host_preferred_device_accessed_alloc;
-  ManagedDevicePreferredAllocator managed_device_preferred_alloc;
-  ManagedDevicePreferredHostAccessedAllocator managed_device_preferred_host_accessed_alloc;
-#endif
-
-  COMB::ignore_unused(null_alloc);
+  COMB::print_message_info(comminfo, info, alloc.host.allocator(), num_vars, do_print_packing_sizes, do_print_message_sizes);
 
   Timer tm(2*6*ncycles);
   Timer tm_total(1024);
 
+  exec.create_executors(alloc);
+
   // warm-up memory pools
-  {
-    do_warmup(seq_pol{}, host_alloc, tm, num_vars+1, info.totallen);
+  COMB::warmup(exec, alloc, tm, num_vars+1, info.totallen);
 
-#ifdef COMB_ENABLE_OPENMP
-    do_warmup(omp_pol{}, host_alloc, tm, num_vars+1, info.totallen);
+  COMB::test_copy(comminfo, exec, alloc, tm, num_vars, info.totallen, ncycles);
+
+  if (do_basic_only) {
+
+    COMB::test_cycles_basic(comminfo, info, exec, alloc, num_vars, ncycles, tm, tm_total);
+
+  } else {
+
+    if (comm_avail.mock)
+      COMB::test_cycles_mock(comminfo, info, exec, alloc, num_vars, ncycles, tm, tm_total);
+
+#ifdef COMB_ENABLE_MPI
+    if (comm_avail.mpi)
+      COMB::test_cycles_mpi(comminfo, info, exec, alloc, num_vars, ncycles, tm, tm_total);
 #endif
 
-#ifdef COMB_ENABLE_CUDA
-    do_warmup(seq_pol{}, hostpinned_alloc, tm, num_vars+1, info.totallen);
+#ifdef COMB_ENABLE_MPI
+    if (comm_avail.mpi_persistent)
+      COMB::test_cycles_mpi_persistent(comminfo, info, exec, alloc, num_vars, ncycles, tm, tm_total);
+#endif
 
-    do_warmup(cuda_pol{}, device_alloc, tm, num_vars+1, info.totallen);
+#ifdef COMB_ENABLE_GDSYNC
+    if (comm_avail.gdsync)
+      COMB::test_cycles_gdsync(comminfo, info, exec, alloc, num_vars, ncycles, tm, tm_total);
+#endif
 
-    do_warmup(seq_pol{},  managed_alloc, tm, num_vars+1, info.totallen);
-    do_warmup(cuda_pol{}, managed_alloc, tm, num_vars+1, info.totallen);
+#ifdef COMB_ENABLE_GPUMP
+    if (comm_avail.gpump)
+      COMB::test_cycles_gpump(comminfo, info, exec, alloc, num_vars, ncycles, tm, tm_total);
+#endif
 
-    do_warmup(seq_pol{},        managed_host_preferred_alloc, tm, num_vars+1, info.totallen);
-    do_warmup(cuda_batch_pol{}, managed_host_preferred_alloc, tm, num_vars+1, info.totallen);
+#ifdef COMB_ENABLE_MP
+    if (comm_avail.mp)
+      COMB::test_cycles_mp(comminfo, info, exec, alloc, num_vars, ncycles, tm, tm_total);
+#endif
 
-    do_warmup(seq_pol{},             managed_host_preferred_device_accessed_alloc, tm, num_vars+1, info.totallen);
-    do_warmup(cuda_persistent_pol{}, managed_host_preferred_device_accessed_alloc, tm, num_vars+1, info.totallen);
-
-    {
-      SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
-
-      do_warmup(seq_pol{},        managed_device_preferred_alloc, tm, num_vars+1, info.totallen);
-      do_warmup(cuda_batch_pol{}, managed_device_preferred_alloc, tm, num_vars+1, info.totallen);
-
-      do_warmup(seq_pol{},             managed_device_preferred_host_accessed_alloc, tm, num_vars+1, info.totallen);
-      do_warmup(cuda_persistent_pol{}, managed_device_preferred_host_accessed_alloc, tm, num_vars+1, info.totallen);
-    }
+#ifdef COMB_ENABLE_UMR
+    if (comm_avail.umr)
+      COMB::test_cycles_umr(comminfo, info, exec, alloc, num_vars, ncycles, tm, tm_total);
 #endif
 
   }
 
-  // host memory
-  {
-    char name[1024] = ""; snprintf(name, 1024, "set_vars %s", host_alloc.name());
-    Range r0(name, Range::green);
-
-    do_copy(seq_pol{},               host_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
-
-#ifdef COMB_ENABLE_OPENMP
-    do_copy(omp_pol{},               host_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
+#ifdef COMB_ENABLE_CALIPER
+  CALI_MARK_FUNCTION_END;
+  mgr.flush();
 #endif
-
-#ifdef COMB_ENABLE_CUDA
-    // do_copy(cuda_pol{},              host_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
-
-    // do_copy(cuda_batch_pol{},        host_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
-
-    // do_copy(cuda_persistent_pol{},   host_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
-
-    {
-      SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
-
-      // do_copy(cuda_batch_pol{},      host_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
-
-      // do_copy(cuda_persistent_pol{}, host_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
-    }
-#endif
-  }
-
-#ifdef COMB_ENABLE_CUDA
-  {
-    char name[1024] = ""; snprintf(name, 1024, "set_vars %s", hostpinned_alloc.name());
-    Range r0(name, Range::green);
-
-    do_copy(seq_pol{},               hostpinned_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
-
-#ifdef COMB_ENABLE_OPENMP
-    do_copy(omp_pol{},               hostpinned_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
-#endif
-
-    do_copy(cuda_pol{},              hostpinned_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
-
-    do_copy(cuda_batch_pol{},        hostpinned_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
-
-    do_copy(cuda_persistent_pol{},   hostpinned_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
-
-    {
-      SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
-
-      do_copy(cuda_batch_pol{},      hostpinned_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
-
-      do_copy(cuda_persistent_pol{}, hostpinned_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
-    }
-  }
-
-  {
-    char name[1024] = ""; snprintf(name, 1024, "set_vars %s", device_alloc.name());
-    Range r0(name, Range::green);
-
-    // do_copy(seq_pol{},               device_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
-
-#ifdef COMB_ENABLE_OPENMP
-    // do_copy(omp_pol{},               device_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
-#endif
-
-    do_copy(cuda_pol{},              device_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
-
-    do_copy(cuda_batch_pol{},        device_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
-
-    do_copy(cuda_persistent_pol{},   device_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
-
-    {
-      SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
-
-      do_copy(cuda_batch_pol{},      device_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
-
-      do_copy(cuda_persistent_pol{}, device_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
-    }
-  }
-
-  {
-    char name[1024] = ""; snprintf(name, 1024, "set_vars %s", managed_alloc.name());
-    Range r0(name, Range::green);
-
-    do_copy(seq_pol{},               managed_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
-
-#ifdef COMB_ENABLE_OPENMP
-    do_copy(omp_pol{},               managed_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
-#endif
-
-    do_copy(cuda_pol{},              managed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
-
-    do_copy(cuda_batch_pol{},        managed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
-
-    do_copy(cuda_persistent_pol{},   managed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
-
-    {
-      SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
-
-      do_copy(cuda_batch_pol{},      managed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
-
-      do_copy(cuda_persistent_pol{}, managed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
-    }
-  }
-
-  {
-    char name[1024] = ""; snprintf(name, 1024, "set_vars %s", managed_host_preferred_alloc.name());
-    Range r0(name, Range::green);
-
-    do_copy(seq_pol{},               managed_host_preferred_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
-
-#ifdef COMB_ENABLE_OPENMP
-    do_copy(omp_pol{},               managed_host_preferred_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
-#endif
-
-    do_copy(cuda_pol{},              managed_host_preferred_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
-
-    do_copy(cuda_batch_pol{},        managed_host_preferred_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
-
-    do_copy(cuda_persistent_pol{},   managed_host_preferred_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
-
-    {
-      SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
-
-      do_copy(cuda_batch_pol{},      managed_host_preferred_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
-
-      do_copy(cuda_persistent_pol{}, managed_host_preferred_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
-    }
-  }
-
-  {
-    char name[1024] = ""; snprintf(name, 1024, "set_vars %s", managed_host_preferred_device_accessed_alloc.name());
-    Range r0(name, Range::green);
-
-    do_copy(seq_pol{},               managed_host_preferred_device_accessed_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
-
-#ifdef COMB_ENABLE_OPENMP
-    do_copy(omp_pol{},               managed_host_preferred_device_accessed_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
-#endif
-
-    do_copy(cuda_pol{},              managed_host_preferred_device_accessed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
-
-    do_copy(cuda_batch_pol{},        managed_host_preferred_device_accessed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
-
-    do_copy(cuda_persistent_pol{},   managed_host_preferred_device_accessed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
-
-    {
-      SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
-
-      do_copy(cuda_batch_pol{},      managed_host_preferred_device_accessed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
-
-      do_copy(cuda_persistent_pol{}, managed_host_preferred_device_accessed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
-    }
-  }
-
-  {
-    char name[1024] = ""; snprintf(name, 1024, "set_vars %s", managed_device_preferred_alloc.name());
-    Range r0(name, Range::green);
-
-    do_copy(seq_pol{},               managed_device_preferred_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
-
-#ifdef COMB_ENABLE_OPENMP
-    do_copy(omp_pol{},               managed_device_preferred_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
-#endif
-
-    do_copy(cuda_pol{},              managed_device_preferred_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
-
-    do_copy(cuda_batch_pol{},        managed_device_preferred_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
-
-    do_copy(cuda_persistent_pol{},   managed_device_preferred_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
-
-    {
-      SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
-
-      do_copy(cuda_batch_pol{},      managed_device_preferred_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
-
-      do_copy(cuda_persistent_pol{}, managed_device_preferred_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
-    }
-  }
-
-  {
-    char name[1024] = ""; snprintf(name, 1024, "set_vars %s", managed_device_preferred_host_accessed_alloc.name());
-    Range r0(name, Range::green);
-
-    do_copy(seq_pol{},               managed_device_preferred_host_accessed_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
-
-#ifdef COMB_ENABLE_OPENMP
-    do_copy(omp_pol{},               managed_device_preferred_host_accessed_alloc, host_alloc, tm, num_vars, info.totallen, ncycles);
-#endif
-
-    do_copy(cuda_pol{},              managed_device_preferred_host_accessed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
-
-    do_copy(cuda_batch_pol{},        managed_device_preferred_host_accessed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
-
-    do_copy(cuda_persistent_pol{},   managed_device_preferred_host_accessed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
-
-    {
-      SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
-
-      do_copy(cuda_batch_pol{},      managed_device_preferred_host_accessed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
-
-      do_copy(cuda_persistent_pol{}, managed_device_preferred_host_accessed_alloc, hostpinned_alloc, tm, num_vars, info.totallen, ncycles);
-    }
-  }
-#endif // COMB_ENABLE_CUDA
-
-  // host allocated
-  {
-    Allocator& mesh_aloc = host_alloc;
-
-    char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.name());
-    Range r0(name, Range::blue);
-
-    do_cycles<seq_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-
-#ifdef COMB_ENABLE_OPENMP
-    do_cycles<omp_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-
-    do_cycles<omp_pol, omp_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-
-    do_cycles<omp_pol, omp_pol, omp_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-#endif
-
-#ifdef COMB_ENABLE_CUDA
-    // do_cycles<cuda_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-
-#ifdef COMB_ENABLE_OPENMP
-    // do_cycles<cuda_pol, omp_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-
-    // do_cycles<cuda_pol, omp_pol, omp_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-#endif
-
-    // do_cycles<cuda_pol, cuda_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-
-    // do_cycles<cuda_pol, cuda_pol, cuda_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-
-    {
-      // do_cycles<cuda_pol, cuda_batch_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-
-      // do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-
-      // do_cycles<cuda_pol, cuda_persistent_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-
-      // do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-
-
-      SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
-
-      // do_cycles<cuda_pol, cuda_batch_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-
-      // do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-
-      // do_cycles<cuda_pol, cuda_persistent_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-
-      // do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-    }
-#endif
-
-    do_cycles<seq_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
-
-#ifdef COMB_ENABLE_OPENMP
-    do_cycles<omp_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
-#endif
-
-#ifdef COMB_ENABLE_CUDA
-    // do_cycles<cuda_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
-#endif
-  }
-
-#ifdef COMB_ENABLE_CUDA
-  // host pinned allocated
-  {
-    Allocator& mesh_aloc = hostpinned_alloc;
-
-    char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.name());
-    Range r0(name, Range::blue);
-
-    do_cycles<seq_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-
-#ifdef COMB_ENABLE_OPENMP
-    do_cycles<omp_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-
-    do_cycles<omp_pol, omp_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-
-    do_cycles<omp_pol, omp_pol, omp_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-#endif
-
-    do_cycles<cuda_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-
-#ifdef COMB_ENABLE_OPENMP
-    do_cycles<cuda_pol, omp_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-
-    do_cycles<cuda_pol, omp_pol, omp_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-#endif
-
-    do_cycles<cuda_pol, cuda_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
-
-    do_cycles<cuda_pol, cuda_pol, cuda_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
-
-    {
-      do_cycles<cuda_pol, cuda_batch_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
-
-      do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
-
-      do_cycles<cuda_pol, cuda_persistent_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
-
-      do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
-
-
-      SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
-
-      do_cycles<cuda_pol, cuda_batch_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
-
-      do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
-
-      do_cycles<cuda_pol, cuda_persistent_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
-
-      do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
-    }
-
-    do_cycles<seq_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
-
-#ifdef COMB_ENABLE_OPENMP
-    do_cycles<omp_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
-#endif
-
-    do_cycles<cuda_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
-  }
-
-  // device allocated
-  {
-    Allocator& mesh_aloc = device_alloc;
-
-    char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.name());
-    Range r0(name, Range::blue);
-
-    // do_cycles<seq_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-
-#ifdef COMB_ENABLE_OPENMP
-    // do_cycles<omp_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-
-    // do_cycles<omp_pol, omp_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-
-    // do_cycles<omp_pol, omp_pol, omp_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-#endif
-
-    // do_cycles<cuda_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-
-#ifdef COMB_ENABLE_OPENMP
-    // do_cycles<cuda_pol, omp_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-
-    // do_cycles<cuda_pol, omp_pol, omp_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-#endif
-
-    // do_cycles<cuda_pol, cuda_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
-
-    do_cycles<cuda_pol, cuda_pol, cuda_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
-
-    {
-      // do_cycles<cuda_pol, cuda_batch_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
-
-      do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
-
-      // do_cycles<cuda_pol, cuda_persistent_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
-
-      do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
-
-
-      SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
-
-      // do_cycles<cuda_pol, cuda_batch_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
-
-      do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
-
-      // do_cycles<cuda_pol, cuda_persistent_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
-
-      do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
-    }
-
-    // do_cycles<seq_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
-
-#ifdef COMB_ENABLE_OPENMP
-    // do_cycles<omp_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
-#endif
-
-    // do_cycles<cuda_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
-  }
-
-  // managed allocated
-  {
-    Allocator& mesh_aloc = managed_alloc;
-
-    char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.name());
-    Range r0(name, Range::blue);
-
-    do_cycles<seq_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-
-#ifdef COMB_ENABLE_OPENMP
-    do_cycles<omp_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-
-    do_cycles<omp_pol, omp_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-
-    do_cycles<omp_pol, omp_pol, omp_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-#endif
-
-    do_cycles<cuda_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-
-#ifdef COMB_ENABLE_OPENMP
-    do_cycles<cuda_pol, omp_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-
-    do_cycles<cuda_pol, omp_pol, omp_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-#endif
-
-    do_cycles<cuda_pol, cuda_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
-
-    do_cycles<cuda_pol, cuda_pol, cuda_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
-
-    {
-      do_cycles<cuda_pol, cuda_batch_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
-
-      do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
-
-      do_cycles<cuda_pol, cuda_persistent_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
-
-      do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
-
-
-      SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
-
-      do_cycles<cuda_pol, cuda_batch_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
-
-      do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
-
-      do_cycles<cuda_pol, cuda_persistent_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
-
-      do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
-    }
-
-    // TODO: figure out why these crash sometimes
-    // do_cycles<seq_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
-
-#ifdef COMB_ENABLE_OPENMP
-    // do_cycles<omp_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
-#endif
-
-    // do_cycles<cuda_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
-  }
-
-  // managed host preferred allocated
-  {
-    Allocator& mesh_aloc = managed_host_preferred_alloc;
-
-    char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.name());
-    Range r0(name, Range::blue);
-
-    do_cycles<seq_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-
-#ifdef COMB_ENABLE_OPENMP
-    do_cycles<omp_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-
-    do_cycles<omp_pol, omp_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-
-    do_cycles<omp_pol, omp_pol, omp_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-#endif
-
-    do_cycles<cuda_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-
-#ifdef COMB_ENABLE_OPENMP
-    do_cycles<cuda_pol, omp_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-
-    do_cycles<cuda_pol, omp_pol, omp_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-#endif
-
-    do_cycles<cuda_pol, cuda_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
-
-    do_cycles<cuda_pol, cuda_pol, cuda_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
-
-    {
-      do_cycles<cuda_pol, cuda_batch_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
-
-      do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
-
-      do_cycles<cuda_pol, cuda_persistent_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
-
-      do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
-
-
-      SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
-
-      do_cycles<cuda_pol, cuda_batch_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
-
-      do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
-
-      do_cycles<cuda_pol, cuda_persistent_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
-
-      do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
-    }
-
-    do_cycles<seq_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
-
-#ifdef COMB_ENABLE_OPENMP
-    do_cycles<omp_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
-#endif
-
-    do_cycles<cuda_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
-  }
-
-  // managed host preferred device accessed allocated
-  {
-    Allocator& mesh_aloc = managed_host_preferred_device_accessed_alloc;
-
-    char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.name());
-    Range r0(name, Range::blue);
-
-    do_cycles<seq_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-
-#ifdef COMB_ENABLE_OPENMP
-    do_cycles<omp_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-
-    do_cycles<omp_pol, omp_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-
-    do_cycles<omp_pol, omp_pol, omp_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-#endif
-
-    do_cycles<cuda_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-
-#ifdef COMB_ENABLE_OPENMP
-    do_cycles<cuda_pol, omp_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-
-    do_cycles<cuda_pol, omp_pol, omp_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-#endif
-
-    do_cycles<cuda_pol, cuda_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
-
-    do_cycles<cuda_pol, cuda_pol, cuda_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
-
-    {
-      do_cycles<cuda_pol, cuda_batch_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
-
-      do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
-
-      do_cycles<cuda_pol, cuda_persistent_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
-
-      do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
-
-
-      SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
-
-      do_cycles<cuda_pol, cuda_batch_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
-
-      do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
-
-      do_cycles<cuda_pol, cuda_persistent_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
-
-      do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
-    }
-
-    do_cycles<seq_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
-
-#ifdef COMB_ENABLE_OPENMP
-    do_cycles<omp_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
-#endif
-
-    do_cycles<cuda_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
-  }
-
-  // managed device preferred allocated
-  {
-    Allocator& mesh_aloc = managed_device_preferred_alloc;
-
-    char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.name());
-    Range r0(name, Range::blue);
-
-    do_cycles<seq_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-
-#ifdef COMB_ENABLE_OPENMP
-    do_cycles<omp_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-
-    do_cycles<omp_pol, omp_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-
-    do_cycles<omp_pol, omp_pol, omp_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-#endif
-
-    do_cycles<cuda_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-
-#ifdef COMB_ENABLE_OPENMP
-    do_cycles<cuda_pol, omp_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-
-    do_cycles<cuda_pol, omp_pol, omp_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-#endif
-
-    do_cycles<cuda_pol, cuda_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
-
-    do_cycles<cuda_pol, cuda_pol, cuda_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
-
-    {
-      do_cycles<cuda_pol, cuda_batch_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
-
-      do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
-
-      do_cycles<cuda_pol, cuda_persistent_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
-
-      do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
-
-
-      SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
-
-      do_cycles<cuda_pol, cuda_batch_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
-
-      do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
-
-      do_cycles<cuda_pol, cuda_persistent_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
-
-      do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
-    }
-
-    do_cycles<seq_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
-
-#ifdef COMB_ENABLE_OPENMP
-    do_cycles<omp_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
-#endif
-
-    do_cycles<cuda_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
-  }
-
-  // managed device preferred host accessed allocated
-  {
-    Allocator& mesh_aloc = managed_device_preferred_host_accessed_alloc;
-
-    char name[1024] = ""; snprintf(name, 1024, "Mesh %s", mesh_aloc.name());
-    Range r0(name, Range::blue);
-
-    do_cycles<seq_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-
-#ifdef COMB_ENABLE_OPENMP
-    do_cycles<omp_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-
-    do_cycles<omp_pol, omp_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-
-    do_cycles<omp_pol, omp_pol, omp_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-#endif
-
-    do_cycles<cuda_pol, seq_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-
-#ifdef COMB_ENABLE_OPENMP
-    do_cycles<cuda_pol, omp_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-
-    do_cycles<cuda_pol, omp_pol, omp_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, host_alloc, host_alloc, tm, tm_total);
-#endif
-
-    do_cycles<cuda_pol, cuda_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
-
-    do_cycles<cuda_pol, cuda_pol, cuda_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
-
-    {
-      do_cycles<cuda_pol, cuda_batch_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
-
-      do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
-
-      do_cycles<cuda_pol, cuda_persistent_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
-
-      do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
-
-
-      SetReset<bool> sr_gs(get_batch_always_grid_sync(), false);
-
-      do_cycles<cuda_pol, cuda_batch_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
-
-      do_cycles<cuda_pol, cuda_batch_pol, cuda_batch_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
-
-      do_cycles<cuda_pol, cuda_persistent_pol, seq_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, host_alloc, tm, tm_total);
-
-      do_cycles<cuda_pol, cuda_persistent_pol, cuda_persistent_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, hostpinned_alloc, hostpinned_alloc, tm, tm_total);
-    }
-
-    do_cycles<seq_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
-
-#ifdef COMB_ENABLE_OPENMP
-    do_cycles<omp_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
-#endif
-
-    do_cycles<cuda_pol, mpi_type_pol, mpi_type_pol>(comminfo, info, num_vars, ncycles, mesh_aloc, mesh_aloc, mesh_aloc, tm, tm_total);
-  }
-#endif // COMB_ENABLE_CUDA
 
   } // end region MPI communication via comminfo
 
+  comb_teardown_files();
+
+#ifdef COMB_ENABLE_ADIAK
+  adiak_walltime();
+  adiak_fini();
+#endif
+
+#ifdef COMB_ENABLE_MPI
   detail::MPI::Finalize();
+#endif
   return 0;
 }
 

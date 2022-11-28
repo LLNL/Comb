@@ -23,8 +23,8 @@
 //
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~//
 
-#ifndef RAJA_BASIC_MEMPOOL_HPP
-#define RAJA_BASIC_MEMPOOL_HPP
+#ifndef COMBRAJA_BASIC_MEMPOOL_HPP
+#define COMBRAJA_BASIC_MEMPOOL_HPP
 
 //#include "RAJA/util/align.hpp"
 #include "align.hpp"
@@ -37,7 +37,9 @@
 #include <list>
 #include <map>
 
-namespace RAJA
+#include "print.hpp"
+
+namespace COMBRAJA
 {
 
 namespace basic_mempool
@@ -73,6 +75,7 @@ public:
         m_free_space({free_value_type{ptr, static_cast<char*>(ptr) + size}}),
         m_used_space()
   {
+    LOGPRINTF("%p MemoryArena::MemoryArena mem %p nbytes %zu\n", this, get_allocation(), capacity());
     if (m_allocation.begin == nullptr) {
       fprintf(stderr, "Attempt to create MemoryArena with no memory");
       std::abort();
@@ -97,6 +100,7 @@ public:
 
   void* get(size_t nbytes, size_t alignment)
   {
+    LOGPRINTF("%p MemoryArena::get nbytes %zu align %zu\n", this, nbytes, alignment);
     void* ptr_out = nullptr;
     if (capacity() >= nbytes) {
       free_type::iterator end = m_free_space.end();
@@ -107,7 +111,7 @@ public:
         size_t cap =
             static_cast<char*>(iter->second) - static_cast<char*>(adj_ptr);
 
-        if (::RAJA::align(alignment, nbytes, adj_ptr, cap)) {
+        if (::COMBRAJA::align(alignment, nbytes, adj_ptr, cap)) {
 
           ptr_out = adj_ptr;
 
@@ -121,11 +125,13 @@ public:
         }
       }
     }
+    LOGPRINTF("%p MemoryArena::get return ptr %p\n", this, ptr_out);
     return ptr_out;
   }
 
   bool give(void* ptr)
   {
+    LOGPRINTF("%p MemoryArena::give return ptr %p\n", this, ptr);
     if (m_allocation.begin <= ptr && ptr < m_allocation.end) {
 
       used_type::iterator found = m_used_space.find(ptr);
@@ -141,8 +147,10 @@ public:
         std::abort();
       }
 
+      LOGPRINTF("%p MemoryArena::give return true\n", this);
       return true;
     } else {
+      LOGPRINTF("%p MemoryArena::give return false\n", this);
       return false;
     }
   }
@@ -155,6 +163,7 @@ private:
 
   void add_free_chunk(void* begin, void* end)
   {
+    LOGPRINTF("%p MemoryArena::add_free_chunk begin %p end %p\n", this, begin, end);
     // integrates a chunk of memory into free_space
     free_type::iterator invl = m_free_space.end();
     free_type::iterator next = m_free_space.lower_bound(begin);
@@ -203,7 +212,7 @@ private:
 
   void remove_free_chunk(free_type::iterator iter, void* begin, void* end)
   {
-
+    LOGPRINTF("%p MemoryArena::remove_free_chunk iter(%p, %p) begin %p end %p\n", this, iter->first, iter->second, begin, end);
     void* ptr = iter->first;
     void* ptr_end = iter->second;
 
@@ -238,6 +247,7 @@ private:
 
   void add_used_chunk(void* begin, void* end)
   {
+    LOGPRINTF("%p MemoryArena::add_used_chunk begin %p end %p\n", this, begin, end);
     // simply inserts a chunk of memory into used_space
     m_used_space.insert(used_value_type{begin, end});
   }
@@ -307,10 +317,12 @@ public:
   MemPool()
       : m_arenas(), m_default_arena_size(default_default_arena_size), m_alloc()
   {
+    LOGPRINTF("%p MemPool::MemPool m_default_arena_size %zu\n", this, m_default_arena_size);
   }
 
   ~MemPool()
   {
+    // LOGPRINTF("%p MemPool::~MemPool\n", this);
     // With static objects like MemPool, cudaErrorCudartUnloading is a possible
     // error with cudaFree
     // So no more cuda calls here
@@ -319,7 +331,8 @@ public:
 
   void free_chunks()
   {
-#if defined(RAJA_ENABLE_OPENMP)
+    LOGPRINTF("%p MemPool::free_chunks\n", this);
+#if defined(COMB_ENABLE_OPENMP)
     lock_guard<omp::mutex> lock(m_mutex);
 #endif
 
@@ -332,7 +345,7 @@ public:
 
   size_t arena_size()
   {
-#if defined(RAJA_ENABLE_OPENMP)
+#if defined(COMB_ENABLE_OPENMP)
     lock_guard<omp::mutex> lock(m_mutex);
 #endif
 
@@ -341,7 +354,7 @@ public:
 
   size_t arena_size(size_t new_size)
   {
-#if defined(RAJA_ENABLE_OPENMP)
+#if defined(COMB_ENABLE_OPENMP)
     lock_guard<omp::mutex> lock(m_mutex);
 #endif
 
@@ -353,47 +366,57 @@ public:
   template <typename T>
   T* malloc(size_t nTs, size_t alignment = std::max(alignof(T), alignof(std::max_align_t)))
   {
-#if defined(RAJA_ENABLE_OPENMP)
-    lock_guard<omp::mutex> lock(m_mutex);
-#endif
+    LOGPRINTF("%p MemPool::malloc sizeof(T) %zu nTs %zu align %zu\n", this, sizeof(T), nTs, alignment);
 
     const size_t size = nTs * sizeof(T);
     void* ptr = nullptr;
-    arena_container_type::iterator end = m_arenas.end();
-    for (arena_container_type::iterator iter = m_arenas.begin(); iter != end;
-         ++iter) {
-      ptr = iter->get(size, alignment);
-      if (ptr != nullptr) {
-        break;
+
+    if (size > 0u) {
+#if defined(COMB_ENABLE_OPENMP)
+      lock_guard<omp::mutex> lock(m_mutex);
+#endif
+
+      arena_container_type::iterator end = m_arenas.end();
+      for (arena_container_type::iterator iter = m_arenas.begin(); iter != end;
+           ++iter) {
+        ptr = iter->get(size, alignment);
+        if (ptr != nullptr) {
+          break;
+        }
+      }
+
+      if (ptr == nullptr) {
+        const size_t alloc_size =
+            std::max(size + alignment, m_default_arena_size);
+        void* arena_ptr = m_alloc.malloc(alloc_size);
+        if (arena_ptr != nullptr) {
+          m_arenas.emplace_front(arena_ptr, alloc_size);
+          ptr = m_arenas.front().get(size, alignment);
+        }
       }
     }
 
-    if (ptr == nullptr) {
-      const size_t alloc_size =
-          std::max(size + alignment, m_default_arena_size);
-      void* arena_ptr = m_alloc.malloc(alloc_size);
-      if (arena_ptr != nullptr) {
-        m_arenas.emplace_front(arena_ptr, alloc_size);
-        ptr = m_arenas.front().get(size, alignment);
-      }
-    }
-
+    LOGPRINTF("%p MemPool::malloc return %p\n", this, ptr);
     return static_cast<T*>(ptr);
   }
 
   void free(const void* cptr)
   {
-#if defined(RAJA_ENABLE_OPENMP)
-    lock_guard<omp::mutex> lock(m_mutex);
+    void* ptr = const_cast<void*>(cptr);
+    LOGPRINTF("%p MemPool::free ptr %p\n", this, ptr);
+
+    if (ptr != nullptr) {
+#if defined(COMB_ENABLE_OPENMP)
+      lock_guard<omp::mutex> lock(m_mutex);
 #endif
 
-    void* ptr = const_cast<void*>(cptr);
-    arena_container_type::iterator end = m_arenas.end();
-    for (arena_container_type::iterator iter = m_arenas.begin(); iter != end;
-         ++iter) {
-      if (iter->give(ptr)) {
-        ptr = nullptr;
-        break;
+      arena_container_type::iterator end = m_arenas.end();
+      for (arena_container_type::iterator iter = m_arenas.begin(); iter != end;
+           ++iter) {
+        if (iter->give(ptr)) {
+          ptr = nullptr;
+          break;
+        }
       }
     }
     if (ptr != nullptr) {
@@ -404,7 +427,7 @@ public:
 private:
   using arena_container_type = std::list<detail::MemoryArena>;
 
-#if defined(RAJA_ENABLE_OPENMP)
+#if defined(COMB_ENABLE_OPENMP)
   omp::mutex m_mutex;
 #endif
 
@@ -429,7 +452,7 @@ struct generic_allocator {
 
 } /* end namespace basic_mempool */
 
-} /* end namespace RAJA */
+} /* end namespace COMBRAJA */
 
 
 #endif /* BASIC_MEMPOOL_HXX_ */
