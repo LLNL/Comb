@@ -19,17 +19,15 @@
 
 #include "CommFactory.hpp"
 
+#include <algorithm>
+
 namespace COMB {
 
-void print_timer(CommInfo& comminfo, Timer& tm, const char* prefix) {
+namespace detail {
+
+void print_timer(CommInfo& comminfo, Timer& tm, const char* prefix, int max_name_len, bool print_header_row) {
 
   auto res = tm.getStats();
-
-  int max_name_len = 0;
-
-  for (auto& stat : res) {
-    max_name_len = std::max(max_name_len, (int)stat.name.size());
-  }
 
   double* sums = new double[res.size()];
   double* mins = new double[res.size()];
@@ -78,6 +76,17 @@ void print_timer(CommInfo& comminfo, Timer& tm, const char* prefix) {
                              prefix, res[i].name.c_str(), padding, "", final_nums[i], final_sums[i]/final_nums[i], final_mins[i], final_maxs[i]);
     }
 
+    if (!res.empty() && print_header_row) {
+      int padding = max_name_len - 0;
+      fgprintf(FileGroup::summary_csv, "%s%s%*s, %9s, %11s, %11s, %11s\n",
+                               prefix, "", padding, "", "number", "average(s)", "min(s)", "max(s)");
+    }
+    for (int i = 0; i < (int)res.size(); ++i) {
+      int padding = max_name_len - res[i].name.size();
+      fgprintf(FileGroup::summary_csv, "%s%s%*s, %9ld, %.9f, %.9f, %.9f\n",
+                             prefix, res[i].name.c_str(), padding, "", final_nums[i], final_sums[i]/final_nums[i], final_mins[i], final_maxs[i]);
+    }
+
     delete[] final_sums;
     delete[] final_mins;
     delete[] final_maxs;
@@ -94,6 +103,38 @@ void print_timer(CommInfo& comminfo, Timer& tm, const char* prefix) {
   delete[] mins;
   delete[] maxs;
   delete[] nums;
+}
+
+int get_max_name_len(Timer& tm)
+{
+  int max_name_len = 0;
+
+  auto res = tm.getStats();
+  for (auto& stat : res) {
+    max_name_len = std::max(max_name_len, (int)stat.name.size());
+  }
+
+  return max_name_len;
+}
+
+} // namespace detail
+
+void print_timer(CommInfo& comminfo, Timer& tm, const char* prefix)
+{
+  int max_name_len = detail::get_max_name_len(tm);
+  constexpr bool print_header_row = true;
+
+  detail::print_timer(comminfo, tm, prefix, max_name_len, print_header_row);
+}
+
+void print_timers(CommInfo& comminfo, Timer& tm0, Timer& tm1, const char* prefix)
+{
+  int max_name_len = detail::get_max_name_len(tm0);
+  max_name_len = std::max(detail::get_max_name_len(tm1), max_name_len);
+  constexpr bool print_header_row = true;
+
+  detail::print_timer(comminfo, tm0, prefix, max_name_len, print_header_row);
+  detail::print_timer(comminfo, tm1, prefix, max_name_len, !print_header_row);
 }
 
 void print_message_info(CommInfo& comminfo, MeshInfo& info,

@@ -655,8 +655,7 @@ void do_cycles_basic(CommContext<pol_comm>& con_comm_in,
 
     r1.stop();
 
-    print_timer(comminfo, tm);
-    print_timer(comminfo, tm_total);
+    print_timers(comminfo, tm, tm_total);
   }
 
   tm.clear();
