@@ -25,13 +25,14 @@
 #define COMB_SERIALIZE(a) COMB_SERIALIZE_HELPER(a)
 
 enum struct FileGroup
-{ out_any    // stdout, any proc
-, out_master // stdout, master only
-, err_any    // stderr, any proc
-, err_master // stderr, master only
-, proc       // per process file, any proc
-, summary    // per run summary file, master only
-, all        // out_master, proc, summary
+{ out_any     // stdout, any proc
+, out_master  // stdout, rank 0 only
+, err_any     // stderr, any proc
+, err_master  // stderr, rank 0 only
+, proc        // per process file, any proc
+, summary     // per run summary file, rank 0 only
+, summary_csv // per run summary csv file, rank 0 only
+, all         // out_master, proc, summary, summary_csv
 };
 
 extern int   mpi_rank;
