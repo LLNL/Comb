@@ -230,6 +230,6 @@ if (COMB_ENABLE_ADIAK)
   # register Adiak with blt
   blt_register_library(NAME Adiak
                        INCLUDES ${adiak_INCLUDE_DIRS}
-                       LIBRARIES adiak
+                       LIBRARIES ${adiak_LIBRARIES}
                        DEFINES USE_ADIAK)
 endif()
