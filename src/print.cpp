@@ -29,6 +29,7 @@ FILE* comb_out_file = stdout;
 FILE* comb_err_file = stderr;
 FILE* comb_proc_file = nullptr;
 FILE* comb_summary_file = nullptr;
+FILE* comb_summary_csv_file = nullptr;
 
 void comb_setup_files()
 {
@@ -48,7 +49,7 @@ void comb_setup_files()
       FILE* check_file = fopen(summary_fname, "r");
 
       if (check_file == nullptr) {
-        // run number not used
+        // run number not found to be in use
         comb_summary_file = fopen(summary_fname, "w");
         assert(comb_summary_file != nullptr);
         break;
@@ -63,6 +64,13 @@ void comb_setup_files()
         }
       }
     }
+
+
+    char summary_csv_fname[256];
+    snprintf(summary_csv_fname, 256, "Comb_%02i_summary.csv", run_num);
+
+    comb_summary_csv_file = fopen(summary_csv_fname, "w");
+    assert(comb_summary_csv_file != nullptr);
   }
 
 #ifdef COMB_ENABLE_MPI
@@ -83,6 +91,10 @@ void comb_teardown_files()
   if (comb_proc_file != nullptr) {
     fclose(comb_proc_file);
     comb_proc_file = nullptr;
+  }
+  if (comb_summary_csv_file != nullptr) {
+    fclose(comb_summary_csv_file);
+    comb_summary_csv_file = nullptr;
   }
   if (comb_summary_file != nullptr) {
     fclose(comb_summary_file);
@@ -148,6 +160,18 @@ void fgprintf(FileGroup fg, const char* fmt, ...)
   // print to summary file
   if ( (fg == FileGroup::summary || fg == FileGroup::all) && mpi_rank == 0 ) {
     FILE* f = comb_summary_file;
+    if (f == nullptr && !printed) f = stdout;
+    if (f != nullptr) {
+      fprintf(f, "%s", msg);
+      fflush(f);
+      printed = true;
+    }
+    should_have_printed = true;
+  }
+
+  // print to summary csv file
+  if ( (fg == FileGroup::summary_csv || fg == FileGroup::all) && mpi_rank == 0 ) {
+    FILE* f = comb_summary_csv_file;
     if (f == nullptr && !printed) f = stdout;
     if (f != nullptr) {
       fprintf(f, "%s", msg);

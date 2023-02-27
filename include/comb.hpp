@@ -127,6 +127,7 @@ namespace detail {
 } // namespace detail
 
 extern void print_timer(CommInfo& comminfo, Timer& tm, const char* prefix = "");
+extern void print_timers(CommInfo& comminfo, Timer& tm0, Timer& tm1, const char* prefix = "");
 
 extern void print_message_info(CommInfo& comminfo, MeshInfo& info,
                                COMB::Allocator& aloc_unused,
